@@ -1,0 +1,190 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  STUDENT
+}
+
+model User {
+  id                 String   @id @default(uuid())
+  name               String
+  email              String   @unique
+  password           String?
+  role               Role     @default(STUDENT)
+  mustChangePassword Boolean  @default(true)
+  oauthProvider      String?
+  oauthId            String?
+  createdAt          DateTime @default(now())
+
+  studentGroups StudentGroup[]
+  submissions   Submission[]
+  quizAttempts  QuizAttempt[]
+  gradesGiven   Grade[]
+  courseAccess  CourseAccess[]
+}
+
+model Group {
+  id        String   @id @default(uuid())
+  name      String
+  seminar   String?
+  year      String
+  createdAt DateTime @default(now())
+
+  students StudentGroup[]
+  courses  Course[]
+}
+
+model StudentGroup {
+  studentId String
+  groupId   String
+  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  group     Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, groupId])
+}
+
+model Course {
+  id          String   @id @default(uuid())
+  name        String
+  year        String?
+  description String?
+  imageUrl    String?
+  hidden      Boolean  @default(false)
+  groupId     String
+  group       Group    @relation(fields: [groupId], references: [id])
+  createdAt   DateTime @default(now())
+
+  lessons Lesson[]
+  links   CourseLink[]
+  files   CourseFile[]
+  access  CourseAccess[]
+}
+
+model CourseAccess {
+  studentId String
+  courseId  String
+  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course    Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, courseId])
+}
+
+model CourseLink {
+  id       String @id @default(uuid())
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  label    String
+  url      String
+  order    Int    @default(0)
+}
+
+model CourseFile {
+  id         String   @id @default(uuid())
+  courseId   String
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  name       String
+  url        String
+  sizeBytes  BigInt?
+  uploadedAt DateTime @default(now())
+}
+
+model Lesson {
+  id         String    @id @default(uuid())
+  courseId   String
+  course     Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  topic      String
+  lessonDate DateTime?
+  contentMd  String?
+  githubUrl  String?
+  hidden     Boolean   @default(false)
+  order      Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  assignments Assignment[]
+  files       LessonFile[]
+  quiz        Quiz?
+}
+
+model LessonFile {
+  id         String   @id @default(uuid())
+  lessonId   String
+  lesson     Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  name       String
+  url        String
+  sizeBytes  BigInt?
+  uploadedAt DateTime @default(now())
+}
+
+model Assignment {
+  id           String    @id @default(uuid())
+  lessonId     String
+  lesson       Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  deadline     DateTime?
+  allowedTypes String[]  @default([])
+  allowGithub  Boolean   @default(true)
+  allowFile    Boolean   @default(true)
+  requirements Json?
+  createdAt    DateTime  @default(now())
+
+  submissions Submission[]
+}
+
+model Submission {
+  id           String     @id @default(uuid())
+  assignmentId String
+  studentId    String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student      User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  fileUrl      String?
+  fileName     String?
+  githubUrl    String?
+  submittedAt  DateTime   @default(now())
+  isLate       Boolean    @default(false)
+
+  grade Grade?
+
+  @@unique([assignmentId, studentId])
+}
+
+model Grade {
+  id           String     @id @default(uuid())
+  submissionId String     @unique
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  score        Float?
+  feedback     String?
+  checklist    Json?
+  gradedAt     DateTime   @default(now())
+  gradedById   String
+  gradedBy     User       @relation(fields: [gradedById], references: [id])
+}
+
+model Quiz {
+  id        String   @id @default(uuid())
+  lessonId  String   @unique
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  questions Json
+  createdAt DateTime @default(now())
+
+  attempts QuizAttempt[]
+}
+
+model QuizAttempt {
+  id        String   @id @default(uuid())
+  quizId    String
+  studentId String
+  quiz      Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  student   User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  answers   Json
+  score     Float
+  takenAt   DateTime @default(now())
+
+  @@unique([quizId, studentId])
+}
