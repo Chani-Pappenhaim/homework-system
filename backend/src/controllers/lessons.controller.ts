@@ -1,0 +1,77 @@
+﻿import { Request, Response } from 'express';
+import * as lessonsService from '../services/lessons.service';
+
+export async function getLessons(req: Request, res: Response) {
+  const lessons = await lessonsService.getLessons(req.params.courseId as string, req.user!.role);
+  res.json({ success: true, data: { lessons } });
+}
+
+export async function createLesson(req: Request, res: Response) {
+  try {
+    const lesson = await lessonsService.createLesson(req.params.courseId as string, req.body);
+    res.status(201).json({ success: true, data: { lesson } });
+  } catch (err: any) {
+    res.status(err.status || 500).json({ success: false, error: err.message });
+  }
+}
+
+export async function getLesson(req: Request, res: Response) {
+  try {
+    const lesson = await lessonsService.getLessonById(req.params.id as string, req.user!.role);
+    if (!lesson) { res.status(404).json({ success: false, error: 'Lesson not found' }); return; }
+    res.json({ success: true, data: { lesson } });
+  } catch (err: any) {
+    res.status(err.status || 500).json({ success: false, error: err.message });
+  }
+}
+
+export async function updateLesson(req: Request, res: Response) {
+  try {
+    const lesson = await lessonsService.updateLesson(req.params.id as string, req.body);
+    res.json({ success: true, data: { lesson } });
+  } catch (err: any) {
+    res.status(err.status || 500).json({ success: false, error: err.message });
+  }
+}
+
+export async function reorderLessons(req: Request, res: Response) {
+  try {
+    await lessonsService.reorderLessons(req.body.lessons);
+    res.json({ success: true, data: null });
+  } catch (err: any) {
+    res.status(err.status || 500).json({ success: false, error: err.message });
+  }
+}
+
+export async function uploadFile(req: Request, res: Response) {
+  try {
+    if (!req.file) { res.status(400).json({ success: false, error: 'No file uploaded' }); return; }
+    const file = await lessonsService.uploadLessonFile(
+      req.params.id as string, req.file.buffer, req.file.originalname, req.file.mimetype
+    );
+    res.status(201).json({ success: true, data: { file } });
+  } catch (err: any) {
+    res.status(err.status || 500).json({ success: false, error: err.message });
+  }
+}
+
+export async function deleteFile(req: Request, res: Response) {
+  try {
+    await lessonsService.deleteLessonFile(req.params.id as string, req.params.fileId as string);
+    res.json({ success: true, data: null });
+  } catch (err: any) {
+    res.status(err.status || 500).json({ success: false, error: err.message });
+  }
+}
+
+export async function importMarkdown(req: Request, res: Response) {
+  try {
+    if (!req.file) { res.status(400).json({ success: false, error: 'No file uploaded' }); return; }
+    const content = req.file.buffer.toString('utf-8');
+    const lesson = await lessonsService.importMarkdown(req.params.id as string, content);
+    res.json({ success: true, data: { lesson: { id: lesson.id, contentMd: lesson.contentMd } } });
+  } catch (err: any) {
+    res.status(err.status || 500).json({ success: false, error: err.message });
+  }
+}
+
