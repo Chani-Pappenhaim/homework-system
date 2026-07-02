@@ -124,8 +124,14 @@ export interface SubmissionDTO {
   fileUrl?: string;
   fileName?: string;
   githubUrl?: string;
+  notes?: string;
   submittedAt: string;
   isLate: boolean;
+  aiStatus?: string;
+  aiScore?: number | null;
+  aiApproved?: boolean;
+  aiCodeReview?: string | null;
+  aiVerbalReview?: string | null;
   grade: GradeDTO | null;
 }
 

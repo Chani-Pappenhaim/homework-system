@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Github, Paperclip, Edit, ExternalLink, Trash2, UserPlus, Plus } from 'lucide-react';
+import { Github, Paperclip, Edit, ExternalLink, Trash2, UserPlus, Plus, Bot, RotateCcw } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
 import { assignmentsApi } from '@/api/assignments.api';
+import { submissionsApi } from '@/api/submissions.api';
 import { gradesApi } from '@/api/grades.api';
 import { groupsApi } from '@/api/groups.api';
 import Card, { CardBody, CardHeader } from '@/components/ui/Card';
@@ -120,6 +121,14 @@ export default function LessonDetailPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['submissions', assignment?.id] });
       setGradeModal(null);
+    },
+  });
+
+  const restoreAiScoreMutation = useMutation({
+    mutationFn: () => submissionsApi.restoreAiScore(gradeModal!.id),
+    onSuccess: () => {
+      setScore(gradeModal?.aiScore?.toString() ?? '');
+      qc.invalidateQueries({ queryKey: ['submissions', assignment?.id] });
     },
   });
 
@@ -391,10 +400,32 @@ export default function LessonDetailPage() {
                 <Github size={13} /> פתח GitHub
               </a>
             )}
-            {(gradeModal as any).notes && (
+            {gradeModal.notes && (
               <div className="bg-[#F8F7FC] border border-[#EEEBF5] rounded-input px-3 py-2 text-sm">
                 <span className="font-medium text-xs text-[#9CA3AF]">הערת תלמידה: </span>
-                {(gradeModal as any).notes}
+                {gradeModal.notes}
+              </div>
+            )}
+
+            {/* AI review info for the teacher */}
+            {gradeModal.aiStatus === 'done' && (
+              <div className="bg-[#EDE9FE]/40 border border-[#EEEBF5] rounded-input px-3 py-2 text-sm space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <p className="flex items-center gap-1.5 font-medium text-[#5B21B6]">
+                    <Bot size={14} /> בדיקת AI — ציון: {gradeModal.aiScore ?? '—'}
+                  </p>
+                  <Button
+                    size="sm" variant="ghost"
+                    loading={restoreAiScoreMutation.isPending}
+                    onClick={() => restoreAiScoreMutation.mutate()}
+                    disabled={gradeModal.aiScore == null}
+                  >
+                    <RotateCcw size={12} /> החזירי לציון AI
+                  </Button>
+                </div>
+                {gradeModal.aiVerbalReview && (
+                  <p className="text-xs text-[#6B7280] whitespace-pre-wrap">{gradeModal.aiVerbalReview}</p>
+                )}
               </div>
             )}
 
