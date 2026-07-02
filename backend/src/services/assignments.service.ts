@@ -9,16 +9,25 @@ export async function createAssignment(lessonId: string, data: {
   title: string; description?: string; deadline?: string;
   allowedTypes?: string[]; allowGithub?: boolean; allowFile?: boolean;
   requirements?: { id: string; text: string }[];
+  aiInstructions?: string;
 }) {
-  return prisma.assignment.create({ data: { lessonId, ...data } });
+  const { deadline, ...rest } = data;
+  return prisma.assignment.create({
+    data: { lessonId, ...rest, ...(deadline ? { deadline: new Date(deadline) } : {}) },
+  });
 }
 
 export async function updateAssignment(id: string, data: Partial<{
   title: string; description: string; deadline: string;
   allowedTypes: string[]; allowGithub: boolean; allowFile: boolean;
   requirements: { id: string; text: string }[];
+  aiInstructions: string;
 }>) {
-  return prisma.assignment.update({ where: { id }, data });
+  const { deadline, ...rest } = data;
+  return prisma.assignment.update({
+    where: { id },
+    data: { ...rest, ...(deadline ? { deadline: new Date(deadline) } : {}) },
+  });
 }
 
 export async function deleteAssignment(id: string) {
@@ -73,7 +82,10 @@ export async function getAssignmentSubmissions(assignmentId: string) {
       id: s.id, studentId: s.studentId,
       studentName: s.student.name, studentEmail: s.student.email,
       fileUrl: s.fileUrl, fileName: s.fileName, githubUrl: s.githubUrl,
+      notes: s.notes,
       submittedAt: s.submittedAt, isLate: s.isLate,
+      aiStatus: s.aiStatus, aiScore: s.aiScore, aiApproved: s.aiApproved,
+      aiCodeReview: s.aiCodeReview, aiVerbalReview: s.aiVerbalReview,
       grade: s.grade ? {
         score: s.grade.score, feedback: s.grade.feedback,
         checklist: s.grade.checklist, gradedAt: s.grade.gradedAt,
