@@ -18,7 +18,7 @@ export interface GroupDTO {
 }
 
 export interface GroupDetailDTO extends GroupDTO {
-  students: { id: string; name: string; email: string; createdAt: string }[];
+  students: { id: string; name: string; email: string; githubUsername?: string; createdAt: string }[];
   courses: { id: string; name: string }[];
 }
 
@@ -93,6 +93,7 @@ export interface AssignmentDTO {
   allowGithub: boolean;
   allowFile: boolean;
   requirements?: ChecklistItem[];
+  aiInstructions?: string;
 }
 
 export interface LessonDetailDTO {

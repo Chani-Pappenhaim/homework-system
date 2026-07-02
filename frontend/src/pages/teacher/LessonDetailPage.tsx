@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Github, Paperclip, CheckSquare, Edit, ExternalLink } from 'lucide-react';
+import { Github, Paperclip, Edit, ExternalLink, Trash2, UserPlus, Plus } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
 import { assignmentsApi } from '@/api/assignments.api';
 import { gradesApi } from '@/api/grades.api';
+import { groupsApi } from '@/api/groups.api';
 import Card, { CardBody, CardHeader } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -12,7 +13,7 @@ import Modal from '@/components/ui/Modal';
 import MarkdownRenderer from '@/components/ui/MarkdownRenderer';
 import Input from '@/components/ui/Input';
 import { formatDate, formatDateTime } from '@/lib/utils';
-import type { ChecklistResult, SubmissionDTO } from '@/types';
+import type { AssignmentDTO, ChecklistResult, SubmissionDTO } from '@/types';
 
 export default function LessonDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +23,13 @@ export default function LessonDetailPage() {
   const [score, setScore] = useState('');
   const [feedback, setFeedback] = useState('');
   const [checklist, setChecklist] = useState<ChecklistResult[]>([]);
+  const [accessEmail, setAccessEmail] = useState('');
+  const [accessError, setAccessError] = useState('');
+  const [assignmentModal, setAssignmentModal] = useState<AssignmentDTO | null | 'new'>(null);
+  const [aTitle, setATitle] = useState('');
+  const [aDescription, setADescription] = useState('');
+  const [aDeadline, setADeadline] = useState('');
+  const [aAiInstructions, setAAiInstructions] = useState('');
 
   const { data: lessonData, isLoading } = useQuery({
     queryKey: ['lesson', id],
@@ -31,10 +39,76 @@ export default function LessonDetailPage() {
   const lesson = lessonData?.data.data.lesson;
   const assignment = lesson?.assignments[selectedAssignment];
 
+  const { data: accessData } = useQuery({
+    queryKey: ['lesson-access', id],
+    queryFn: () => lessonsApi.getAccess(id!),
+    enabled: Boolean(id),
+  });
+
+  const { data: groupsData } = useQuery({
+    queryKey: ['groups'],
+    queryFn: () => groupsApi.list(),
+  });
+
+  const accessStudents: any[] = (accessData?.data as any)?.data?.students ?? [];
+  const allGroups: any[] = (groupsData?.data as any)?.data?.groups ?? [];
+
+  const grantAccessMutation = useMutation({
+    mutationFn: async (email: string) => {
+      // Find student across groups
+      for (const g of allGroups) {
+        const res = await groupsApi.get(g.id);
+        const found = res.data.data.group.students.find((s: any) => s.email === email);
+        if (found) return lessonsApi.grantAccess(id!, found.id);
+      }
+      throw new Error('תלמידה לא נמצאה');
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lesson-access', id] }); setAccessEmail(''); setAccessError(''); },
+    onError: (e: any) => setAccessError(e.response?.data?.error ?? e.message ?? 'שגיאה'),
+  });
+
+  const revokeAccessMutation = useMutation({
+    mutationFn: (studentId: string) => lessonsApi.revokeAccess(id!, studentId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['lesson-access', id] }),
+  });
+
   const { data: submissionsData } = useQuery({
     queryKey: ['submissions', assignment?.id],
     queryFn: () => assignmentsApi.getSubmissions(assignment!.id),
     enabled: Boolean(assignment?.id),
+  });
+
+  function openAssignmentModal(a: AssignmentDTO | 'new') {
+    setAssignmentModal(a);
+    if (a === 'new') {
+      setATitle(''); setADescription(''); setADeadline(''); setAAiInstructions('');
+    } else {
+      setATitle(a.title); setADescription(a.description ?? '');
+      setADeadline(a.deadline ? a.deadline.slice(0, 16) : '');
+      setAAiInstructions(a.aiInstructions ?? '');
+    }
+  }
+
+  const saveAssignmentMutation = useMutation({
+    mutationFn: () => {
+      const data = {
+        title: aTitle,
+        description: aDescription || undefined,
+        deadline: aDeadline || undefined,
+        aiInstructions: aAiInstructions || undefined,
+      };
+      if (assignmentModal === 'new') return assignmentsApi.create(lesson!.id, data);
+      return assignmentsApi.update((assignmentModal as AssignmentDTO).id, data);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['lesson', id] });
+      setAssignmentModal(null);
+    },
+  });
+
+  const deleteAssignmentMutation = useMutation({
+    mutationFn: (aId: string) => assignmentsApi.delete(aId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['lesson', id] }),
   });
 
   const gradeMutation = useMutation({
@@ -102,17 +176,23 @@ export default function LessonDetailPage() {
       </Card>
 
       {/* Assignments + submissions */}
-      {lesson.assignments.length > 0 && (
-        <Card>
+      <Card>
           <CardHeader>
-            {/* Assignment tabs */}
-            <div className="flex gap-2 flex-wrap">
-              {lesson.assignments.map((a, i) => (
-                <button key={a.id} onClick={() => setSelectedAssignment(i)}
-                  className={`px-3 py-1.5 text-sm rounded-input transition ${i === selectedAssignment ? 'gradient-primary text-white' : 'border border-[#EEEBF5] text-[#6B7280] hover:bg-[#F8F7FC]'}`}>
-                  {a.title}
-                </button>
-              ))}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex gap-2 flex-wrap">
+                {lesson.assignments.map((a, i) => (
+                  <button key={a.id} onClick={() => setSelectedAssignment(i)}
+                    className={`px-3 py-1.5 text-sm rounded-input transition ${i === selectedAssignment ? 'gradient-primary text-white' : 'border border-[#EEEBF5] text-[#6B7280] hover:bg-[#F8F7FC]'}`}>
+                    {a.title}
+                  </button>
+                ))}
+                {lesson.assignments.length === 0 && (
+                  <span className="text-sm text-[#9CA3AF]">אין מטלות עדיין</span>
+                )}
+              </div>
+              <Button size="sm" variant="violet" onClick={() => openAssignmentModal('new')}>
+                <Plus size={13} /> מטלה חדשה
+              </Button>
             </div>
           </CardHeader>
 
@@ -120,8 +200,27 @@ export default function LessonDetailPage() {
             <div>
               {/* Assignment info */}
               <div className="px-5 py-3 bg-[#F8F7FC] border-b border-[#EEEBF5] text-sm text-[#6B7280]">
-                {assignment.description && <p className="mb-1">{assignment.description}</p>}
-                {assignment.deadline && <p>מועד אחרון: <span className="font-medium text-[#1A1830]">{formatDate(assignment.deadline)}</span></p>}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="space-y-0.5">
+                    {assignment.description && <p className="mb-1">{assignment.description}</p>}
+                    {assignment.deadline && <p>מועד אחרון: <span className="font-medium text-[#1A1830]">{formatDate(assignment.deadline)}</span></p>}
+                    {assignment.aiInstructions && (
+                      <p className="text-xs text-[#9CA3AF] mt-1">
+                        <span className="font-medium">הנחיות AI:</span> {assignment.aiInstructions}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <Button size="sm" variant="ghost" onClick={() => openAssignmentModal(assignment)}>
+                      <Edit size={12} />
+                    </Button>
+                    <Button size="sm" variant="danger" onClick={() => {
+                      if (confirm('למחוק מטלה זו?')) deleteAssignmentMutation.mutate(assignment.id);
+                    }}>
+                      <Trash2 size={12} />
+                    </Button>
+                  </div>
+                </div>
               </div>
 
               {/* Submissions table */}
@@ -179,7 +278,101 @@ export default function LessonDetailPage() {
             </div>
           )}
         </Card>
-      )}
+
+      {/* Lesson Access */}
+      <Card>
+        <CardHeader>
+          <h2 className="font-semibold text-sm">הרשאת גישה חריגה לשיעור זה</h2>
+        </CardHeader>
+        <CardBody className="space-y-3">
+          <p className="text-xs text-[#9CA3AF]">מתן גישה לתלמידה שאינה בקבוצה הרגילה של הקורס</p>
+          <div className="flex gap-2">
+            <Input
+              placeholder="אימייל תלמידה"
+              type="email"
+              value={accessEmail}
+              onChange={(e) => setAccessEmail(e.target.value)}
+              className="flex-1"
+            />
+            <Button
+              size="sm"
+              variant="violet"
+              loading={grantAccessMutation.isPending}
+              onClick={() => grantAccessMutation.mutate(accessEmail)}
+              disabled={!accessEmail}
+            >
+              <UserPlus size={13} /> הענק גישה
+            </Button>
+          </div>
+          {accessError && <p className="text-red-500 text-xs">{accessError}</p>}
+          {accessStudents.length > 0 && (
+            <div className="divide-y divide-[#EEEBF5] border border-[#EEEBF5] rounded-card">
+              {accessStudents.map((s) => (
+                <div key={s.id} className="flex items-center justify-between px-4 py-2">
+                  <div>
+                    <p className="text-sm font-medium">{s.name}</p>
+                    <p className="text-xs text-[#9CA3AF]">{s.email}</p>
+                  </div>
+                  <Button size="sm" variant="danger" onClick={() => revokeAccessMutation.mutate(s.id)}>
+                    <Trash2 size={12} />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardBody>
+      </Card>
+
+      {/* Assignment create/edit modal */}
+      <Modal
+        open={Boolean(assignmentModal)}
+        onClose={() => setAssignmentModal(null)}
+        title={assignmentModal === 'new' ? 'מטלה חדשה' : 'עריכת מטלה'}
+      >
+        <div className="space-y-4">
+          <Input
+            label="כותרת המטלה"
+            value={aTitle}
+            onChange={(e) => setATitle(e.target.value)}
+            placeholder="למשל: פרויקט גיטהב"
+          />
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium">תיאור (אופציונלי)</label>
+            <textarea
+              value={aDescription}
+              onChange={(e) => setADescription(e.target.value)}
+              rows={2}
+              className="w-full px-3 py-2 border border-[#EEEBF5] rounded-input text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+              placeholder="הוראות לתלמידה..."
+            />
+          </div>
+          <Input
+            label="מועד אחרון (אופציונלי)"
+            type="datetime-local"
+            value={aDeadline}
+            onChange={(e) => setADeadline(e.target.value)}
+          />
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium">הנחיות לבדיקת AI (אופציונלי)</label>
+            <textarea
+              value={aAiInstructions}
+              onChange={(e) => setAAiInstructions(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 border border-[#EEEBF5] rounded-input text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+              placeholder="למשל: בדקי שיש שימוש ב-async/await, שהקוד מחולק לפונקציות, ושיש טיפול בשגיאות..."
+            />
+            <p className="text-xs text-[#9CA3AF]">הנחיות אלו יישלחו ל-AI בעת בדיקת עבודות התלמידות</p>
+          </div>
+          <Button
+            className="w-full"
+            loading={saveAssignmentMutation.isPending}
+            onClick={() => saveAssignmentMutation.mutate()}
+            disabled={!aTitle.trim()}
+          >
+            {assignmentModal === 'new' ? 'צרי מטלה' : 'שמרי שינויים'}
+          </Button>
+        </div>
+      </Modal>
 
       {/* Grade modal */}
       <Modal open={Boolean(gradeModal)} onClose={() => setGradeModal(null)} title={`ציון — ${gradeModal?.studentName}`} size="lg">
@@ -197,6 +390,12 @@ export default function LessonDetailPage() {
                 className="flex items-center gap-2 text-sm text-primary border border-[#EEEBF5] rounded-input px-3 py-2 hover:bg-[#F8F7FC]">
                 <Github size={13} /> פתח GitHub
               </a>
+            )}
+            {(gradeModal as any).notes && (
+              <div className="bg-[#F8F7FC] border border-[#EEEBF5] rounded-input px-3 py-2 text-sm">
+                <span className="font-medium text-xs text-[#9CA3AF]">הערת תלמידה: </span>
+                {(gradeModal as any).notes}
+              </div>
             )}
 
             {/* Checklist */}
