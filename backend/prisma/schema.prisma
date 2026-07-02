@@ -18,15 +18,17 @@ model User {
   password           String?
   role               Role     @default(STUDENT)
   mustChangePassword Boolean  @default(true)
+  githubUsername     String?
   oauthProvider      String?
   oauthId            String?
   createdAt          DateTime @default(now())
 
-  studentGroups StudentGroup[]
-  submissions   Submission[]
-  quizAttempts  QuizAttempt[]
-  gradesGiven   Grade[]
-  courseAccess  CourseAccess[]
+  studentGroups    StudentGroup[]
+  submissions      Submission[]
+  quizAttempts     QuizAttempt[]
+  gradesGiven      Grade[]
+  lessonAccess     LessonAccess[]
+  teacherMessages  TeacherMessage[]
 }
 
 model Group {
@@ -63,16 +65,6 @@ model Course {
   lessons Lesson[]
   links   CourseLink[]
   files   CourseFile[]
-  access  CourseAccess[]
-}
-
-model CourseAccess {
-  studentId String
-  courseId  String
-  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  course    Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-  @@id([studentId, courseId])
 }
 
 model CourseLink {
@@ -106,9 +98,20 @@ model Lesson {
   order      Int       @default(0)
   createdAt  DateTime  @default(now())
 
-  assignments Assignment[]
-  files       LessonFile[]
-  quiz        Quiz?
+  assignments  Assignment[]
+  files        LessonFile[]
+  quiz         Quiz?
+  lessonAccess LessonAccess[]
+}
+
+// Grants a specific student access to a single lesson outside her group
+model LessonAccess {
+  studentId String
+  lessonId  String
+  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lesson    Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, lessonId])
 }
 
 model LessonFile {
@@ -122,32 +125,41 @@ model LessonFile {
 }
 
 model Assignment {
-  id           String    @id @default(uuid())
-  lessonId     String
-  lesson       Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  title        String
-  description  String?
-  deadline     DateTime?
-  allowedTypes String[]  @default([])
-  allowGithub  Boolean   @default(true)
-  allowFile    Boolean   @default(true)
-  requirements Json?
-  createdAt    DateTime  @default(now())
+  id              String    @id @default(uuid())
+  lessonId        String
+  lesson          Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  deadline        DateTime?
+  allowedTypes    String[]  @default([])
+  allowGithub     Boolean   @default(true)
+  allowFile       Boolean   @default(true)
+  requirements    Json?
+  aiInstructions  String?
+  createdAt       DateTime  @default(now())
 
   submissions Submission[]
 }
 
 model Submission {
-  id           String     @id @default(uuid())
-  assignmentId String
-  studentId    String
-  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  student      User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  fileUrl      String?
-  fileName     String?
-  githubUrl    String?
-  submittedAt  DateTime   @default(now())
-  isLate       Boolean    @default(false)
+  id              String     @id @default(uuid())
+  assignmentId    String
+  studentId       String
+  assignment      Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student         User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  fileUrl         String?
+  fileName        String?
+  githubUrl       String?
+  notes           String?
+  submittedAt     DateTime   @default(now())
+  isLate          Boolean    @default(false)
+  aiStatus        String     @default("none")
+  aiScore         Float?
+  aiCodeReview    String?
+  aiVerbalReview  String?
+  aiApproved      Boolean    @default(false)
+  aiReviewCount   Int        @default(0)
+  aiExtraAllowed  Boolean    @default(false)
 
   grade Grade?
 
@@ -164,6 +176,26 @@ model Grade {
   gradedAt     DateTime   @default(now())
   gradedById   String
   gradedBy     User       @relation(fields: [gradedById], references: [id])
+}
+
+model AiUsageLog {
+  id           String   @id @default(uuid())
+  type         String
+  tokensInput  Int
+  tokensOutput Int
+  costUsd      Float
+  createdAt    DateTime @default(now())
+}
+
+model TeacherMessage {
+  id           String    @id @default(uuid())
+  studentId    String
+  student      User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  content      String
+  isRead       Boolean   @default(false)
+  replyContent String?
+  repliedAt    DateTime?
+  createdAt    DateTime  @default(now())
 }
 
 model Quiz {
