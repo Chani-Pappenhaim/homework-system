@@ -14,10 +14,12 @@ import assignmentRoutes from './routes/assignments.routes';
 import submissionRoutes from './routes/submissions.routes';
 import gradeRoutes from './routes/grades.routes';
 import quizRoutes from './routes/quizzes.routes';
+import messageRoutes from './routes/messages.routes';
 
 export function createApp() {
   const app = express();
 
+  app.set('trust proxy', 1); // nginx reverse proxy
   app.use(helmet());
   app.use(cors({
     origin: process.env.FRONTEND_URL,
@@ -42,6 +44,7 @@ export function createApp() {
   app.use('/api/submissions', gradeRoutes);
   app.use('/api/grades', gradeRoutes);
   app.use('/api/lessons', quizRoutes);
+  app.use('/api/messages', messageRoutes);
 
   return app;
 }
