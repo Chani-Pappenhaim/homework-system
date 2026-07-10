@@ -44,23 +44,6 @@ export async function copyCourse(req: Request, res: Response) {
   }
 }
 
-export async function grantAccess(req: Request, res: Response) {
-  try {
-    await coursesService.grantCourseAccess(req.params.id as string, req.body.studentId);
-    res.json({ success: true, data: null });
-  } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
-  }
-}
-
-export async function revokeAccess(req: Request, res: Response) {
-  try {
-    await coursesService.revokeCourseAccess(req.params.id as string, req.params.studentId as string);
-    res.json({ success: true, data: null });
-  } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
-  }
-}
 
 export async function addLink(req: Request, res: Response) {
   try {

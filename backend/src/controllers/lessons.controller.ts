@@ -2,8 +2,13 @@
 import * as lessonsService from '../services/lessons.service';
 
 export async function getLessons(req: Request, res: Response) {
-  const lessons = await lessonsService.getLessons(req.params.courseId as string, req.user!.role);
-  res.json({ success: true, data: { lessons } });
+  try {
+    const lessons = await lessonsService.getLessons(req.params.courseId as string, req.user!.role);
+    res.json({ success: true, data: { lessons } });
+  } catch (err: any) {
+    console.error('getLessons error:', err);
+    res.status(err.status || 500).json({ success: false, error: err.message });
+  }
 }
 
 export async function createLesson(req: Request, res: Response) {
@@ -11,6 +16,7 @@ export async function createLesson(req: Request, res: Response) {
     const lesson = await lessonsService.createLesson(req.params.courseId as string, req.body);
     res.status(201).json({ success: true, data: { lesson } });
   } catch (err: any) {
+    console.error('createLesson error:', err);
     res.status(err.status || 500).json({ success: false, error: err.message });
   }
 }
@@ -58,6 +64,33 @@ export async function uploadFile(req: Request, res: Response) {
 export async function deleteFile(req: Request, res: Response) {
   try {
     await lessonsService.deleteLessonFile(req.params.id as string, req.params.fileId as string);
+    res.json({ success: true, data: null });
+  } catch (err: any) {
+    res.status(err.status || 500).json({ success: false, error: err.message });
+  }
+}
+
+export async function getLessonAccess(req: Request, res: Response) {
+  try {
+    const students = await lessonsService.getLessonAccess(req.params.id as string);
+    res.json({ success: true, data: { students } });
+  } catch (err: any) {
+    res.status(err.status || 500).json({ success: false, error: err.message });
+  }
+}
+
+export async function grantLessonAccess(req: Request, res: Response) {
+  try {
+    await lessonsService.grantLessonAccess(req.params.id as string, req.body.studentId);
+    res.status(201).json({ success: true, data: null });
+  } catch (err: any) {
+    res.status(err.status || 500).json({ success: false, error: err.message });
+  }
+}
+
+export async function revokeLessonAccess(req: Request, res: Response) {
+  try {
+    await lessonsService.revokeLessonAccess(req.params.id as string, req.params.studentId as string);
     res.json({ success: true, data: null });
   } catch (err: any) {
     res.status(err.status || 500).json({ success: false, error: err.message });

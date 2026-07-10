@@ -12,19 +12,12 @@ export async function getCoursesForUser(userId: string, role: string) {
 
   const student = await prisma.user.findUnique({
     where: { id: userId },
-    include: {
-      studentGroups: { select: { groupId: true } },
-      courseAccess: { select: { courseId: true } },
-    },
+    include: { studentGroups: { select: { groupId: true } } },
   });
   const groupIds = student?.studentGroups.map((sg) => sg.groupId) ?? [];
-  const accessIds = student?.courseAccess.map((ca) => ca.courseId) ?? [];
 
   const courses = await prisma.course.findMany({
-    where: {
-      hidden: false,
-      OR: [{ groupId: { in: groupIds } }, { id: { in: accessIds } }],
-    },
+    where: { hidden: false, groupId: { in: groupIds } },
     include: { group: { select: { name: true } }, _count: { select: { lessons: true } } },
     orderBy: { createdAt: 'desc' },
   });
@@ -113,17 +106,6 @@ export async function copyCourse(courseId: string, targetGroupId: string) {
   return toCourseDTO(newCourse);
 }
 
-export async function grantCourseAccess(courseId: string, studentId: string) {
-  const exists = await prisma.courseAccess.findUnique({
-    where: { studentId_courseId: { studentId, courseId } },
-  });
-  if (exists) throw Object.assign(new Error('Access already exists'), { status: 409 });
-  await prisma.courseAccess.create({ data: { studentId, courseId } });
-}
-
-export async function revokeCourseAccess(courseId: string, studentId: string) {
-  await prisma.courseAccess.delete({ where: { studentId_courseId: { studentId, courseId } } });
-}
 
 export async function addCourseLink(courseId: string, label: string, url: string, order = 0) {
   return prisma.courseLink.create({ data: { courseId, label, url, order } });
@@ -153,9 +135,14 @@ export async function deleteCourseFile(courseId: string, fileId: string) {
 
 export async function checkStudentCourseAccess(studentId: string, courseId: string, groupId: string) {
   const inGroup = await prisma.studentGroup.findFirst({ where: { studentId, groupId } });
+  return !!inGroup;
+}
+
+export async function checkStudentLessonAccess(studentId: string, lessonId: string, courseGroupId: string) {
+  const inGroup = await prisma.studentGroup.findFirst({ where: { studentId, groupId: courseGroupId } });
   if (inGroup) return true;
-  const hasAccess = await prisma.courseAccess.findUnique({
-    where: { studentId_courseId: { studentId, courseId } },
+  const hasAccess = await prisma.lessonAccess.findUnique({
+    where: { studentId_lessonId: { studentId, lessonId } },
   });
   return !!hasAccess;
 }

@@ -18,7 +18,14 @@ export async function createLesson(courseId: string, data: {
   topic: string; lessonDate?: string; contentMd?: string;
   githubUrl?: string; hidden?: boolean; order?: number;
 }) {
-  return prisma.lesson.create({ data: { courseId, ...data } });
+  const { lessonDate, ...rest } = data;
+  return prisma.lesson.create({
+    data: {
+      courseId,
+      ...rest,
+      ...(lessonDate ? { lessonDate: new Date(lessonDate) } : {}),
+    },
+  });
 }
 
 export async function getLessonById(id: string, role: string) {
@@ -70,6 +77,26 @@ export async function deleteLessonFile(lessonId: string, fileId: string) {
 
 export async function importMarkdown(lessonId: string, content: string) {
   return prisma.lesson.update({ where: { id: lessonId }, data: { contentMd: content } });
+}
+
+export async function getLessonAccess(lessonId: string) {
+  const records = await prisma.lessonAccess.findMany({
+    where: { lessonId },
+    include: { student: { select: { id: true, name: true, email: true } } },
+  });
+  return records.map((r) => r.student);
+}
+
+export async function grantLessonAccess(lessonId: string, studentId: string) {
+  const exists = await prisma.lessonAccess.findUnique({
+    where: { studentId_lessonId: { studentId, lessonId } },
+  });
+  if (exists) throw Object.assign(new Error('Access already exists'), { status: 409 });
+  await prisma.lessonAccess.create({ data: { studentId, lessonId } });
+}
+
+export async function revokeLessonAccess(lessonId: string, studentId: string) {
+  await prisma.lessonAccess.delete({ where: { studentId_lessonId: { studentId, lessonId } } });
 }
 
 function extractPublicId(url: string): string | null {
