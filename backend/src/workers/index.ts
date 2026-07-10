@@ -9,7 +9,9 @@ function redisConnection() {
 export const connection = redisConnection();
 export const quizQueue = new Queue('quiz', { connection });
 export const emailQueue = new Queue('email', { connection });
+export const aiReviewQueue = new Queue('ai-review', { connection });
 
 import './quiz.worker';
 import './email.worker';
 import './storage.worker';
+import './ai-review.worker';
