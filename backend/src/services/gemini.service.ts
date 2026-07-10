@@ -1,9 +1,16 @@
+import AdmZip from 'adm-zip';
+import mammoth from 'mammoth';
 import { prisma } from '../config/prisma';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 const PRICE_INPUT_PER_1M = 0.10;
 const PRICE_OUTPUT_PER_1M = 0.40;
+
+// Same caps as fetchGithubCode: max 20 files, max 5KB per file
+const CODE_EXTENSIONS = ['.js', '.ts', '.jsx', '.tsx', '.py', '.html', '.css', '.java', '.cs', '.cpp', '.c'];
+const MAX_FILES = 20;
+const MAX_FILE_CHARS = 5000;
 
 interface AiReviewResult {
   codeReview: string;
@@ -82,11 +89,10 @@ export async function fetchGithubCode(githubUrl: string): Promise<string> {
   if (!treeRes.ok) throw new Error(`GitHub API error: ${treeRes.status}`);
   const tree = await treeRes.json() as any;
 
-  const codeExtensions = ['.js', '.ts', '.jsx', '.tsx', '.py', '.html', '.css', '.java', '.cs', '.cpp', '.c'];
   const files = (tree.tree || []).filter((f: any) =>
-    f.type === 'blob' && codeExtensions.some((ext) => f.path.endsWith(ext)) &&
+    f.type === 'blob' && CODE_EXTENSIONS.some((ext) => f.path.endsWith(ext)) &&
     !f.path.includes('node_modules') && !f.path.includes('.min.')
-  ).slice(0, 20);
+  ).slice(0, MAX_FILES);
 
   const contents: string[] = [];
   for (const file of files) {
@@ -94,9 +100,40 @@ export async function fetchGithubCode(githubUrl: string): Promise<string> {
     const res = await fetch(rawUrl, { headers: { 'User-Agent': 'homework-app' } });
     if (!res.ok) continue;
     const text = await res.text();
-    if (text.length > 5000) continue; // skip huge files
+    if (text.length > MAX_FILE_CHARS) continue; // skip huge files
     contents.push(`--- ${file.path} ---\n${text}`);
   }
 
   return contents.join('\n\n');
+}
+
+export function extractZipCode(buffer: Buffer): string {
+  const zip = new AdmZip(buffer);
+  const entries = zip
+    .getEntries()
+    .filter((entry) => {
+      const name = entry.entryName;
+      return (
+        !entry.isDirectory &&
+        CODE_EXTENSIONS.some((ext) => name.endsWith(ext)) &&
+        !name.includes('node_modules/') &&
+        !name.includes('dist/') &&
+        !name.includes('.min.')
+      );
+    })
+    .slice(0, MAX_FILES);
+
+  const contents: string[] = [];
+  for (const entry of entries) {
+    const text = entry.getData().toString('utf8');
+    if (text.length > MAX_FILE_CHARS) continue; // skip huge files
+    contents.push(`--- ${entry.entryName} ---\n${text}`);
+  }
+
+  return contents.join('\n\n');
+}
+
+export async function extractDocxText(buffer: Buffer): Promise<string> {
+  const result = await mammoth.extractRawText({ buffer });
+  return result.value;
 }
