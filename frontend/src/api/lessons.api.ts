@@ -31,4 +31,13 @@ export const lessonsApi = {
     form.append('file', file);
     return api.post(`/lessons/${id}/import-md`, form);
   },
+
+  getAccess: (id: string) =>
+    api.get(`/lessons/${id}/access`),
+
+  grantAccess: (id: string, studentId: string) =>
+    api.post(`/lessons/${id}/access`, { studentId }),
+
+  revokeAccess: (id: string, studentId: string) =>
+    api.delete(`/lessons/${id}/access/${studentId}`),
 };
