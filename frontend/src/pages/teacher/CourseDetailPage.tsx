@@ -1,27 +1,32 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { EyeOff, Edit, Lock, ExternalLink, Trash2, Plus, UserCheck } from 'lucide-react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { Edit, Lock, ExternalLink, Plus } from 'lucide-react';
 import { coursesApi } from '@/api/courses.api';
+import { lessonsApi } from '@/api/lessons.api';
 import Card, { CardBody, CardHeader } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
+import Modal from '@/components/ui/Modal';
 import { useState } from 'react';
 
 export default function CourseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const qc = useQueryClient();
-  const [accessEmail, setAccessEmail] = useState('');
+  const [newLessonModal, setNewLessonModal] = useState(false);
+  const [newTopic, setNewTopic] = useState('');
+  const [newDate, setNewDate] = useState('');
+
+  const createLessonMutation = useMutation({
+    mutationFn: () => lessonsApi.create(id!, { topic: newTopic, lessonDate: newDate || undefined }),
+    onSuccess: (res) => {
+      const lessonId = (res.data as any).data.lesson.id;
+      navigate(`/teacher/lessons/${lessonId}`);
+    },
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ['course', id],
     queryFn: () => coursesApi.get(id!),
-  });
-
-  const grantMutation = useMutation({
-    mutationFn: (studentId: string) => coursesApi.grantAccess(id!, studentId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['course', id] }); setAccessEmail(''); },
   });
 
   const course = data?.data.data.course;
@@ -64,7 +69,7 @@ export default function CourseDetailPage() {
               </button>
             ))}
             <button
-              onClick={() => navigate(`/teacher/courses/${id}/edit`)}
+              onClick={() => { setNewTopic(''); setNewDate(''); setNewLessonModal(true); }}
               className="flex items-center justify-center w-16 h-16 rounded-xl border-2 border-dashed border-[#EEEBF5] text-[#9CA3AF] hover:border-primary/40 hover:text-primary transition"
             >
               <Plus size={18} />
@@ -103,29 +108,21 @@ export default function CourseDetailPage() {
         </Card>
       )}
 
-      {/* Special access */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <UserCheck size={14} className="text-[#7C3AED]" />
-            <h2 className="font-semibold text-sm">הרשאת גישה חריגה</h2>
-          </div>
-        </CardHeader>
-        <CardBody className="space-y-3">
-          <p className="text-xs text-[#9CA3AF]">הענקת גישה לתלמידה שאינה בקבוצה</p>
-          <div className="flex gap-2">
-            <Input
-              placeholder="ID של התלמידה"
-              value={accessEmail}
-              onChange={(e) => setAccessEmail(e.target.value)}
-              className="flex-1"
-            />
-            <Button size="sm" variant="violet" onClick={() => grantMutation.mutate(accessEmail)} disabled={!accessEmail}>
-              הענק גישה
-            </Button>
-          </div>
-        </CardBody>
-      </Card>
+      {/* New lesson modal */}
+      <Modal open={newLessonModal} onClose={() => setNewLessonModal(false)} title="שיעור חדש">
+        <div className="space-y-3">
+          <Input label="נושא השיעור *" value={newTopic} onChange={(e) => setNewTopic(e.target.value)} placeholder="React Hooks" />
+          <Input label="תאריך (אופציונלי)" type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
+          <Button
+            loading={createLessonMutation.isPending}
+            onClick={() => createLessonMutation.mutate()}
+            disabled={!newTopic.trim()}
+            className="w-full"
+          >
+            צור שיעור
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
