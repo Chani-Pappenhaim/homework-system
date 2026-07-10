@@ -1,14 +1,14 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, BookOpen, BarChart2, FileSpreadsheet, Bell, LogOut } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { LayoutDashboard, BarChart2, FileSpreadsheet, MessageSquare, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import useAuthStore from '@/store/authStore';
 import { authApi } from '@/api/auth.api';
+import { messagesApi } from '@/api/messages.api';
 
 const nav = [
   { section: 'ניהול', items: [
     { to: '/teacher', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
-    { to: '/teacher/groups', label: 'קבוצות', icon: Users },
-    { to: '/teacher/courses', label: 'קורסים', icon: BookOpen },
   ]},
   { section: 'דוחות', items: [
     { to: '/teacher/reports', label: 'ציונים', icon: BarChart2 },
@@ -18,6 +18,12 @@ const nav = [
 
 export default function TeacherLayout() {
   const { user, clearAuth } = useAuthStore();
+  const { data: unreadData } = useQuery({
+    queryKey: ['unread-messages'],
+    queryFn: () => messagesApi.getUnreadCount(),
+    refetchInterval: 60_000,
+  });
+  const unreadCount: number = (unreadData?.data as any)?.data?.count ?? 0;
   const navigate = useNavigate();
 
   async function handleLogout() {
@@ -32,7 +38,7 @@ export default function TeacherLayout() {
       <aside className="w-[200px] flex-shrink-0 bg-[#1A1830] flex flex-col border-l border-[rgba(255,255,255,0.06)]">
         {/* Logo */}
         <div className="px-4 py-5 border-b border-[rgba(255,255,255,0.06)]">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/teacher')}>
             <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center text-white font-bold text-lg">✦</div>
             <div>
               <p className="text-[#F0EAF8] text-sm font-semibold leading-tight">מערכת שיעורי בית</p>
@@ -46,11 +52,11 @@ export default function TeacherLayout() {
           {nav.map(({ section, items }) => (
             <div key={section} className="mb-4">
               <p className="px-4 text-[10px] font-semibold uppercase tracking-widest text-[#A89BC2]/60 mb-1">{section}</p>
-              {items.map(({ to, label, icon: Icon, end }) => (
+              {items.map(({ to, label, icon: Icon }) => (
                 <NavLink
                   key={to}
                   to={to}
-                  end={end}
+                  end={to === '/teacher'}
                   className={({ isActive }) => cn(
                     'flex items-center gap-2.5 px-4 py-2 text-sm transition-all',
                     isActive ? 'sidebar-active' : 'text-[#A89BC2] hover:text-[#F0EAF8] hover:bg-white/5'
@@ -65,14 +71,19 @@ export default function TeacherLayout() {
 
           <div className="px-4 mt-2">
             <NavLink
-              to="/teacher/alerts"
+              to="/teacher/messages"
               className={({ isActive }) => cn(
                 'flex items-center gap-2.5 px-0 py-2 text-sm transition-all',
                 isActive ? 'text-[#F0EAF8]' : 'text-[#A89BC2] hover:text-[#F0EAF8]'
               )}
             >
-              <Bell size={15} />
-              התרעות
+              <MessageSquare size={15} />
+              הודעות
+              {unreadCount > 0 && (
+                <span className="mr-auto bg-primary text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+                  {unreadCount}
+                </span>
+              )}
             </NavLink>
           </div>
         </nav>

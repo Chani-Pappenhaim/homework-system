@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Home, BookOpen, ClipboardList, LogOut } from 'lucide-react';
+import { Home, BookOpen, ClipboardList, MessageSquare, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import useAuthStore from '@/store/authStore';
 import { authApi } from '@/api/auth.api';
@@ -7,6 +7,7 @@ import { authApi } from '@/api/auth.api';
 const nav = [
   { to: '/student', label: 'בית', icon: Home, end: true },
   { to: '/student/assignments', label: 'מטלות', icon: ClipboardList },
+  { to: '/student/messages', label: 'הודעה למורה', icon: MessageSquare },
 ];
 
 export default function StudentLayout() {
@@ -24,7 +25,7 @@ export default function StudentLayout() {
       {/* Slim sidebar */}
       <aside className="w-[180px] flex-shrink-0 bg-[#1A1830] flex flex-col border-l border-[rgba(255,255,255,0.06)]">
         <div className="px-4 py-5 border-b border-[rgba(255,255,255,0.06)]">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/student')}>
             <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center text-white font-bold text-lg">✦</div>
             <div>
               <p className="text-[#F0EAF8] text-xs font-semibold leading-tight">שיעורי בית</p>
