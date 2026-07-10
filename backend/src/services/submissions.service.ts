@@ -1,12 +1,15 @@
 import { prisma } from '../config/prisma';
 import { cloudinary } from '../config/cloudinary';
-import { checkStudentCourseAccess } from './courses.service';
-
-const GITHUB_URL_REGEX = /^https:\/\/github\.com\/.+/;
+import { checkStudentLessonAccess } from './courses.service';
+import ExcelJS from 'exceljs';
 
 export async function submitAssignment(
   assignmentId: string, studentId: string,
-  payload: { githubUrl?: string; file?: { buffer: Buffer; originalName: string; mimeType: string } }
+  payload: {
+    repoName?: string;
+    notes?: string;
+    file?: { buffer: Buffer; originalName: string; mimeType: string };
+  }
 ) {
   const assignment = await prisma.assignment.findUnique({
     where: { id: assignmentId },
@@ -14,18 +17,19 @@ export async function submitAssignment(
   });
   if (!assignment) throw Object.assign(new Error('Assignment not found'), { status: 404 });
 
-  const course = assignment.lesson.course;
-  const hasAccess = await checkStudentCourseAccess(studentId, course.id, course.groupId);
+  const { lesson } = assignment;
+  const hasAccess = await checkStudentLessonAccess(studentId, lesson.id, lesson.course.groupId);
   if (!hasAccess) throw Object.assign(new Error('Forbidden'), { status: 403 });
 
   let fileUrl: string | undefined;
   let fileName: string | undefined;
   let githubUrl: string | undefined;
 
-  if (payload.githubUrl) {
+  if (payload.repoName) {
     if (!assignment.allowGithub) throw Object.assign(new Error('GitHub not allowed for this assignment'), { status: 400 });
-    if (!GITHUB_URL_REGEX.test(payload.githubUrl)) throw Object.assign(new Error('Invalid GitHub URL'), { status: 400 });
-    githubUrl = payload.githubUrl;
+    const student = await prisma.user.findUnique({ where: { id: studentId } });
+    if (!student?.githubUsername) throw Object.assign(new Error('No GitHub username set for your account'), { status: 400 });
+    githubUrl = `https://github.com/${student.githubUsername}/${payload.repoName}`;
   } else if (payload.file) {
     if (!assignment.allowFile) throw Object.assign(new Error('File upload not allowed for this assignment'), { status: 400 });
     if (assignment.allowedTypes.length > 0) {
@@ -41,10 +45,11 @@ export async function submitAssignment(
     fileUrl = result.secure_url;
     fileName = payload.file.originalName;
   } else {
-    throw Object.assign(new Error('No file or GitHub URL provided'), { status: 400 });
+    throw Object.assign(new Error('No file or repo name provided'), { status: 400 });
   }
 
   const isLate = assignment.deadline ? new Date() > assignment.deadline : false;
+  const notes = payload.notes ?? null;
 
   const existing = await prisma.submission.findUnique({
     where: { assignmentId_studentId: { assignmentId, studentId } },
@@ -53,12 +58,12 @@ export async function submitAssignment(
   if (existing) {
     return prisma.submission.update({
       where: { id: existing.id },
-      data: { fileUrl, fileName, githubUrl, submittedAt: new Date(), isLate },
+      data: { fileUrl, fileName, githubUrl, notes, submittedAt: new Date(), isLate },
     });
   }
 
   return prisma.submission.create({
-    data: { assignmentId, studentId, fileUrl, fileName, githubUrl, isLate },
+    data: { assignmentId, studentId, fileUrl, fileName, githubUrl, notes, isLate },
   });
 }
 
@@ -67,20 +72,20 @@ export async function getMySubmissions(studentId: string) {
     where: { id: studentId },
     include: {
       studentGroups: { select: { groupId: true } },
-      courseAccess: { select: { courseId: true } },
+      lessonAccess: { select: { lessonId: true } },
     },
   });
   const groupIds = student?.studentGroups.map((sg) => sg.groupId) ?? [];
-  const accessIds = student?.courseAccess.map((ca) => ca.courseId) ?? [];
+  const accessLessonIds = student?.lessonAccess.map((la) => la.lessonId) ?? [];
 
   const allAssignments = await prisma.assignment.findMany({
     where: {
       lesson: {
         hidden: false,
-        course: {
-          hidden: false,
-          OR: [{ groupId: { in: groupIds } }, { id: { in: accessIds } }],
-        },
+        OR: [
+          { course: { hidden: false, groupId: { in: groupIds } } },
+          { id: { in: accessLessonIds } },
+        ],
       },
     },
     include: {
@@ -105,7 +110,7 @@ export async function getMySubmissions(studentId: string) {
       submitted.push({
         submissionId: sub.id, assignmentTitle: assignment.title,
         lessonTopic: assignment.lesson.topic, courseName: assignment.lesson.course.name,
-        submittedAt: sub.submittedAt, isLate: sub.isLate,
+        submittedAt: sub.submittedAt, isLate: sub.isLate, notes: sub.notes,
         grade: grade ? { score: grade.score, feedback: grade.feedback, checklist: grade.checklist } : null,
       });
     }
@@ -130,4 +135,63 @@ export async function getSubmissionById(id: string, userId: string, role: string
     throw Object.assign(new Error('Forbidden'), { status: 403 });
   }
   return submission;
+}
+
+export async function importSubmissions(buffer: Buffer) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer as any);
+  const sheet = workbook.worksheets[0];
+
+  let imported = 0;
+  let skipped = 0;
+  const errors: string[] = [];
+
+  const rows: Array<{ assignmentTitle: string; studentEmail: string; repoName: string }> = [];
+
+  sheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return;
+    const assignmentTitle = String(row.getCell(1).value ?? '').trim();
+    const studentEmail = String(row.getCell(2).value ?? '').trim();
+    const repoName = String(row.getCell(3).value ?? '').trim();
+    if (!assignmentTitle || !studentEmail || !repoName) {
+      errors.push(`Row ${rowNumber}: missing data`);
+      return;
+    }
+    rows.push({ assignmentTitle, studentEmail, repoName });
+  });
+
+  for (const { assignmentTitle, studentEmail, repoName } of rows) {
+    try {
+      const student = await prisma.user.findUnique({ where: { email: studentEmail } });
+      if (!student) { errors.push(`Student not found: ${studentEmail}`); skipped++; continue; }
+
+      const assignment = await prisma.assignment.findFirst({ where: { title: assignmentTitle } });
+      if (!assignment) { errors.push(`Assignment not found: ${assignmentTitle}`); skipped++; continue; }
+
+      const githubUrl = student.githubUsername
+        ? `https://github.com/${student.githubUsername}/${repoName}`
+        : `https://github.com/${repoName}`;
+
+      const existing = await prisma.submission.findUnique({
+        where: { assignmentId_studentId: { assignmentId: assignment.id, studentId: student.id } },
+      });
+
+      if (existing) {
+        await prisma.submission.update({
+          where: { id: existing.id },
+          data: { githubUrl, submittedAt: new Date() },
+        });
+      } else {
+        const isLate = assignment.deadline ? new Date() > assignment.deadline : false;
+        await prisma.submission.create({
+          data: { assignmentId: assignment.id, studentId: student.id, githubUrl, isLate },
+        });
+      }
+      imported++;
+    } catch {
+      errors.push(`Failed: ${studentEmail} / ${assignmentTitle}`);
+    }
+  }
+
+  return { imported, skipped, errors };
 }

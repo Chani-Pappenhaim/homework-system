@@ -22,7 +22,7 @@ export async function getGroupById(id: string) {
   const group = await prisma.group.findUnique({
     where: { id },
     include: {
-      students: { include: { student: { select: { id: true, name: true, email: true, createdAt: true } } } },
+      students: { include: { student: { select: { id: true, name: true, email: true, githubUsername: true, createdAt: true } } } },
       courses: { select: { id: true, name: true } },
     },
   });
@@ -41,16 +41,16 @@ export async function updateGroup(id: string, data: { name?: string; seminar?: s
   return { ...group, studentCount: count };
 }
 
-export async function addStudent(groupId: string, name: string, email: string) {
+export async function addStudent(groupId: string, name: string, email: string, githubUsername?: string) {
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) throw Object.assign(new Error('Email already exists'), { status: 409 });
 
   const hashed = await bcrypt.hash('12345678', 12);
   const student = await prisma.user.create({
-    data: { name, email, password: hashed, role: 'STUDENT', mustChangePassword: true },
+    data: { name, email, password: hashed, role: 'STUDENT', mustChangePassword: true, githubUsername: githubUsername || null },
   });
   await prisma.studentGroup.create({ data: { studentId: student.id, groupId } });
-  return { id: student.id, name: student.name, email: student.email };
+  return { id: student.id, name: student.name, email: student.email, githubUsername: student.githubUsername };
 }
 
 export async function removeStudent(groupId: string, studentId: string) {
@@ -72,6 +72,7 @@ export async function importStudents(groupId: string, buffer: Buffer) {
     if (rowNumber === 1) return; // skip header
     const name = String(row.getCell(1).value ?? '').trim();
     const email = String(row.getCell(2).value ?? '').trim();
+    const githubUsername = String(row.getCell(3).value ?? '').trim() || null;
     if (!name || !email) { errors.push(`Row ${rowNumber}: missing name or email`); return; }
 
     // processed async via promise, collected below
@@ -80,7 +81,7 @@ export async function importStudents(groupId: string, buffer: Buffer) {
         let user = await prisma.user.findUnique({ where: { email } });
         if (!user) {
           user = await prisma.user.create({
-            data: { name, email, password: hashed, role: 'STUDENT', mustChangePassword: true },
+            data: { name, email, password: hashed, role: 'STUDENT', mustChangePassword: true, githubUsername },
           });
         }
         const exists = await prisma.studentGroup.findUnique({

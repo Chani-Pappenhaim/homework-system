@@ -32,8 +32,8 @@ export async function updateGroup(req: Request, res: Response) {
 
 export async function addStudent(req: Request, res: Response) {
   try {
-    const { name, email } = req.body;
-    const student = await groupsService.addStudent(req.params.id as string, name, email);
+    const { name, email, githubUsername } = req.body;
+    const student = await groupsService.addStudent(req.params.id as string, name, email, githubUsername);
     res.status(201).json({ success: true, data: { student } });
   } catch (err: any) {
     res.status(err.status || 500).json({ success: false, error: err.message });
