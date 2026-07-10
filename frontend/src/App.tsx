@@ -14,6 +14,7 @@ import CourseDetailPage from '@/pages/teacher/CourseDetailPage';
 import LessonDetailPage from '@/pages/teacher/LessonDetailPage';
 import ReportsPage from '@/pages/teacher/ReportsPage';
 import TeacherMessagesPage from '@/pages/teacher/MessagesPage';
+import AiUsagePage from '@/pages/teacher/AiUsagePage';
 
 import StudentHomePage from '@/pages/student/HomePage';
 import StudentCourseDetailPage from '@/pages/student/CourseDetailPage';
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="lessons/:id" element={<LessonDetailPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="messages" element={<TeacherMessagesPage />} />
+          <Route path="ai-usage" element={<AiUsagePage />} />
         </Route>
 
         {/* Student routes */}

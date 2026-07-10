@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, BarChart2, FileSpreadsheet, MessageSquare, LogOut } from 'lucide-react';
+import { LayoutDashboard, BarChart2, FileSpreadsheet, MessageSquare, Sparkles, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import useAuthStore from '@/store/authStore';
 import { authApi } from '@/api/auth.api';
@@ -13,6 +13,7 @@ const nav = [
   { section: 'דוחות', items: [
     { to: '/teacher/reports', label: 'ציונים', icon: BarChart2 },
     { to: '/teacher/reports?export=1', label: 'ייצוא Excel', icon: FileSpreadsheet },
+    { to: '/teacher/ai-usage', label: 'שימוש AI', icon: Sparkles },
   ]},
 ];
 
