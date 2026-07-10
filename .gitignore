@@ -32,3 +32,14 @@ Thumbs.db
 # Docker volumes (local data)
 pgdata/
 redisdata/
+
+# Local Claude Code tooling (agents, skills, settings)
+.claude/
+
+# Tests — kept locally, not committed (per project decision)
+backend/tests/
+frontend/tests/
+coverage/
+
+# Working documents
+*.docx
