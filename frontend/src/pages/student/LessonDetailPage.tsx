@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Github, Paperclip, CheckCircle, Clock, Bot } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
 import { submissionsApi } from '@/api/submissions.api';
+import { messagesApi } from '@/api/messages.api';
 import Card, { CardBody, CardHeader } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -97,6 +98,17 @@ function AssignmentCard({ assignment: a, submission: sub }: {
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [showAiReview, setShowAiReview] = useState(false);
+  const [lateFormOpen, setLateFormOpen] = useState(false);
+  const [lateReason, setLateReason] = useState('');
+  const [lateRequestSent, setLateRequestSent] = useState(false);
+
+  const lateRequestMutation = useMutation({
+    mutationFn: () => messagesApi.send(
+      `בקשת הגשה מאוחרת עבור "${a.title}"${lateReason.trim() ? `: ${lateReason.trim()}` : ''}`
+    ),
+    onSuccess: () => { setLateRequestSent(true); setLateFormOpen(false); setLateReason(''); setError(''); },
+    onError: (e: any) => setError(e.response?.data?.error ?? 'שגיאה בשליחת הבקשה'),
+  });
 
   const aiReviewMutation = useMutation({
     mutationFn: () => submissionsApi.requestAiReview(sub?.id),
@@ -192,6 +204,45 @@ function AssignmentCard({ assignment: a, submission: sub }: {
           </div>
         ) : (
           <>
+            {a.deadline && isOverdue(a.deadline) && (
+              <div className="space-y-2">
+                {lateRequestSent ? (
+                  <p className="text-xs text-[#059669] font-medium">הבקשה נשלחה למורה ✓</p>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setLateFormOpen(!lateFormOpen)}
+                  >
+                    בקשי אישור הגשה מאוחרת
+                  </Button>
+                )}
+                {lateFormOpen && !lateRequestSent && (
+                  <div className="space-y-2">
+                    <textarea
+                      className="w-full border border-[#E5E1F5] rounded-input px-3 py-2 text-sm resize-none placeholder:text-[#9CA3AF] focus:outline-none focus:ring-1 focus:ring-primary"
+                      rows={2}
+                      placeholder="סיבת האיחור (אופציונלי)"
+                      value={lateReason}
+                      onChange={(e) => setLateReason(e.target.value)}
+                      autoFocus
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        loading={lateRequestMutation.isPending}
+                        onClick={() => lateRequestMutation.mutate()}
+                      >
+                        שלחי בקשה
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setLateFormOpen(false); setLateReason(''); }}>
+                        ביטול
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             {a.allowFile && (
               <FileUpload
                 accept={a.allowedTypes.length ? a.allowedTypes.map((t) => `.${t}`).join(',') : undefined}
