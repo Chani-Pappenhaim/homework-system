@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { prisma } from '../config/prisma';
 import ExcelJS from 'exceljs';
+import { emailQueue } from '../workers/index';
 
 export async function getGroups() {
   const groups = await prisma.group.findMany({
@@ -104,8 +105,13 @@ export async function importStudents(groupId: string, buffer: Buffer) {
 
 export async function resetStudentPassword(studentId: string) {
   const hashed = await bcrypt.hash('12345678', 12);
-  await prisma.user.update({
+  const user = await prisma.user.update({
     where: { id: studentId },
     data: { password: hashed, mustChangePassword: true },
   });
+  try {
+    await emailQueue.add('reset-password', { email: user.email, name: user.name });
+  } catch (err) {
+    console.error('[groups] Failed to enqueue reset-password email:', err);
+  }
 }
