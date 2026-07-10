@@ -142,14 +142,21 @@ export default function LessonDetailPage() {
 
   function openGradeModal(sub: SubmissionDTO) {
     setGradeModal(sub);
-    setScore(sub.grade?.score?.toString() ?? '');
+    const nextChecklist = assignment?.requirements?.map((r) => ({
+      id: r.id, text: r.text,
+      checked: sub.grade?.checklist?.find((c) => c.id === r.id)?.checked ?? false,
+    })) ?? [];
+    setChecklist(nextChecklist);
+    if (sub.grade?.score != null) {
+      // Existing grade — never overwrite the teacher's score
+      setScore(sub.grade.score.toString());
+    } else {
+      // Suggested prefill: 100, minus 10 for late, minus 5 per unchecked requirement
+      const unchecked = nextChecklist.filter((c) => !c.checked).length;
+      const suggested = Math.max(0, 100 - (sub.isLate ? 10 : 0) - unchecked * 5);
+      setScore(String(suggested));
+    }
     setFeedback(sub.grade?.feedback ?? '');
-    setChecklist(
-      assignment?.requirements?.map((r) => ({
-        id: r.id, text: r.text,
-        checked: sub.grade?.checklist?.find((c) => c.id === r.id)?.checked ?? false,
-      })) ?? []
-    );
   }
 
   if (isLoading) return <div className="p-6 text-[#9CA3AF]">טוען...</div>;
@@ -470,7 +477,12 @@ export default function LessonDetailPage() {
               </div>
             )}
 
-            <Input label="ציון (0–100)" type="number" min={0} max={100} value={score} onChange={(e) => setScore(e.target.value)} placeholder="85" />
+            <div>
+              <Input label="ציון (0–100)" type="number" min={0} max={100} value={score} onChange={(e) => setScore(e.target.value)} placeholder="85" />
+              {gradeModal.grade?.score == null && (
+                <p className="text-xs text-[#9CA3AF] mt-1">הצעה אוטומטית: 100 − איחור (10) − דרישות חסרות (5 כ״א)</p>
+              )}
+            </div>
 
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium">משוב (Markdown)</label>
