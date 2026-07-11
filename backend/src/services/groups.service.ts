@@ -69,36 +69,38 @@ export async function importStudents(groupId: string, buffer: Buffer) {
 
   const hashed = await bcrypt.hash('12345678', 12);
 
+  const rows: Array<{ rowNumber: number; name: string; email: string; githubUsername: string | null }> = [];
+
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1) return; // skip header
     const name = String(row.getCell(1).value ?? '').trim();
     const email = String(row.getCell(2).value ?? '').trim();
     const githubUsername = String(row.getCell(3).value ?? '').trim() || null;
     if (!name || !email) { errors.push(`Row ${rowNumber}: missing name or email`); return; }
-
-    // processed async via promise, collected below
-    (async () => {
-      try {
-        let user = await prisma.user.findUnique({ where: { email } });
-        if (!user) {
-          user = await prisma.user.create({
-            data: { name, email, password: hashed, role: 'STUDENT', mustChangePassword: true, githubUsername },
-          });
-        }
-        const exists = await prisma.studentGroup.findUnique({
-          where: { studentId_groupId: { studentId: user.id, groupId } },
-        });
-        if (!exists) {
-          await prisma.studentGroup.create({ data: { studentId: user.id, groupId } });
-          imported++;
-        } else {
-          skipped++;
-        }
-      } catch {
-        errors.push(`Row ${rowNumber}: failed to process ${email}`);
-      }
-    })();
+    rows.push({ rowNumber, name, email, githubUsername });
   });
+
+  for (const { rowNumber, name, email, githubUsername } of rows) {
+    try {
+      let user = await prisma.user.findUnique({ where: { email } });
+      if (!user) {
+        user = await prisma.user.create({
+          data: { name, email, password: hashed, role: 'STUDENT', mustChangePassword: true, githubUsername },
+        });
+      }
+      const exists = await prisma.studentGroup.findUnique({
+        where: { studentId_groupId: { studentId: user.id, groupId } },
+      });
+      if (!exists) {
+        await prisma.studentGroup.create({ data: { studentId: user.id, groupId } });
+        imported++;
+      } else {
+        skipped++;
+      }
+    } catch {
+      errors.push(`Row ${rowNumber}: failed to process ${email}`);
+    }
+  }
 
   return { imported, skipped, errors };
 }
