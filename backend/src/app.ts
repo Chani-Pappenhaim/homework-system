@@ -15,6 +15,7 @@ import submissionRoutes from './routes/submissions.routes';
 import gradeRoutes from './routes/grades.routes';
 import quizRoutes from './routes/quizzes.routes';
 import messageRoutes from './routes/messages.routes';
+import aiUsageRoutes from './routes/ai-usage.routes';
 
 export function createApp() {
   const app = express();
@@ -45,6 +46,7 @@ export function createApp() {
   app.use('/api/grades', gradeRoutes);
   app.use('/api/lessons', quizRoutes);
   app.use('/api/messages', messageRoutes);
+  app.use('/api/ai-usage', aiUsageRoutes);
 
   return app;
 }
