@@ -14,7 +14,7 @@ export const groupsApi = {
   update: (id: string, data: Partial<{ name: string; seminar: string; year: string }>) =>
     api.put<{ success: true; data: { group: GroupDTO } }>(`/groups/${id}`, data),
 
-  addStudent: (groupId: string, data: { name: string; email: string }) =>
+  addStudent: (groupId: string, data: { name: string; email: string; githubUsername?: string }) =>
     api.post(`/groups/${groupId}/students`, data),
 
   removeStudent: (groupId: string, studentId: string) =>

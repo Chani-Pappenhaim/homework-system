@@ -11,7 +11,7 @@ export default function QuizPage() {
   const [answers, setAnswers] = useState<number[]>([]);
   const [result, setResult] = useState<{ score: number; correct: number; total: number } | null>(null);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['quiz', lessonId],
     queryFn: () => quizzesApi.get(lessonId!),
     refetchInterval: (query) => {

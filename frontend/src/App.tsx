@@ -8,17 +8,21 @@ import ChangePasswordPage from '@/pages/auth/ChangePasswordPage';
 import OAuthCallbackPage from '@/pages/auth/OAuthCallbackPage';
 
 import TeacherHomePage from '@/pages/teacher/HomePage';
+import GroupsPage from '@/pages/teacher/GroupsPage';
 import GroupFormPage from '@/pages/teacher/GroupFormPage';
 import CourseFormPage from '@/pages/teacher/CourseFormPage';
 import CourseDetailPage from '@/pages/teacher/CourseDetailPage';
 import LessonDetailPage from '@/pages/teacher/LessonDetailPage';
 import ReportsPage from '@/pages/teacher/ReportsPage';
+import TeacherMessagesPage from '@/pages/teacher/MessagesPage';
+import AiUsagePage from '@/pages/teacher/AiUsagePage';
 
 import StudentHomePage from '@/pages/student/HomePage';
 import StudentCourseDetailPage from '@/pages/student/CourseDetailPage';
 import StudentLessonDetailPage from '@/pages/student/LessonDetailPage';
 import AssignmentsPage from '@/pages/student/AssignmentsPage';
 import QuizPage from '@/pages/student/QuizPage';
+import StudentMessagesPage from '@/pages/student/MessagesPage';
 
 export default function App() {
   return (
@@ -38,13 +42,17 @@ export default function App() {
           <AuthGuard><ChangePasswordGuard><AdminGuard /></ChangePasswordGuard></AuthGuard>
         }>
           <Route index element={<TeacherHomePage />} />
+          <Route path="groups" element={<GroupsPage />} />
           <Route path="groups/new" element={<GroupFormPage />} />
           <Route path="groups/:id/edit" element={<GroupFormPage />} />
+          <Route path="courses" element={<Navigate to="/teacher" replace />} />
           <Route path="courses/new" element={<CourseFormPage />} />
           <Route path="courses/:id/edit" element={<CourseFormPage />} />
           <Route path="courses/:id" element={<CourseDetailPage />} />
           <Route path="lessons/:id" element={<LessonDetailPage />} />
           <Route path="reports" element={<ReportsPage />} />
+          <Route path="messages" element={<TeacherMessagesPage />} />
+          <Route path="ai-usage" element={<AiUsagePage />} />
         </Route>
 
         {/* Student routes */}
@@ -56,6 +64,7 @@ export default function App() {
           <Route path="lessons/:id" element={<StudentLessonDetailPage />} />
           <Route path="assignments" element={<AssignmentsPage />} />
           <Route path="quiz/:lessonId" element={<QuizPage />} />
+          <Route path="messages" element={<StudentMessagesPage />} />
         </Route>
 
         {/* Default redirect */}

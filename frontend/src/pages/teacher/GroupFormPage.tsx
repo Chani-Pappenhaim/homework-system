@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Trash2, RotateCcw, UserPlus, Upload } from 'lucide-react';
+import { Trash2, RotateCcw, UserPlus } from 'lucide-react';
 import { groupsApi } from '@/api/groups.api';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -23,6 +23,7 @@ export default function GroupFormPage() {
   const [tab, setTab] = useState<'manual' | 'excel'>('manual');
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
+  const [newGithub, setNewGithub] = useState('');
   const [addError, setAddError] = useState('');
 
   const { data } = useQuery({
@@ -54,10 +55,10 @@ export default function GroupFormPage() {
   });
 
   const addStudentMutation = useMutation({
-    mutationFn: () => groupsApi.addStudent(id!, { name: newName, email: newEmail }),
+    mutationFn: () => groupsApi.addStudent(id!, { name: newName, email: newEmail, githubUsername: newGithub || undefined }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['group', id] });
-      setNewName(''); setNewEmail(''); setAddError(''); setAddModal(false);
+      setNewName(''); setNewEmail(''); setNewGithub(''); setAddError(''); setAddModal(false);
     },
     onError: (e: any) => setAddError(e.response?.data?.error ?? 'שגיאה בהוספה'),
   });
@@ -114,6 +115,7 @@ export default function GroupFormPage() {
                 <div>
                   <p className="text-sm font-medium">{s.name}</p>
                   <p className="text-xs text-[#9CA3AF]">{s.email}</p>
+                  {s.githubUsername && <p className="text-xs text-[#9CA3AF]">GitHub: {s.githubUsername}</p>}
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -152,6 +154,7 @@ export default function GroupFormPage() {
           <div className="space-y-3">
             <Input label="שם מלא" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="ישראלה ישראלי" />
             <Input label="אימייל" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="student@example.com" />
+            <Input label="שם משתמש GitHub (אופציונלי)" value={newGithub} onChange={(e) => setNewGithub(e.target.value)} placeholder="username" />
             {addError && <p className="text-red-500 text-sm">{addError}</p>}
             <Button loading={addStudentMutation.isPending} onClick={() => addStudentMutation.mutate()} disabled={!newName || !newEmail} className="w-full">
               הוסף תלמידה
@@ -159,7 +162,7 @@ export default function GroupFormPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            <p className="text-xs text-[#6B7280]">קובץ Excel עם עמודות: name | email</p>
+            <p className="text-xs text-[#6B7280]">קובץ Excel עם עמודות: name | email | github (אופציונלי)</p>
             <FileUpload accept=".xlsx" onFile={handleImport} label="גרור קובץ Excel לכאן" />
           </div>
         )}

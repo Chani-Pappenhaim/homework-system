@@ -92,11 +92,6 @@ export default function CourseFormPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['course', id] }),
   });
 
-  const deleteLessonMutation = useMutation({
-    mutationFn: (lessonId: string) => lessonsApi.update(lessonId, {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['course', id] }),
-  });
-
   return (
     <div className="max-w-3xl space-y-5" dir="rtl">
       <div className="flex items-center justify-between">

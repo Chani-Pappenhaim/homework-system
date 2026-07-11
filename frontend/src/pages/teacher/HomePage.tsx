@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Users, BookOpen, ClipboardList, HardDrive, Plus } from 'lucide-react';
+import { Users, BookOpen, ClipboardList, Sparkles, Plus } from 'lucide-react';
 import useAuthStore from '@/store/authStore';
 import { groupsApi } from '@/api/groups.api';
 import { coursesApi } from '@/api/courses.api';
 import { gradesApi } from '@/api/grades.api';
+import { aiUsageApi } from '@/api/aiUsage.api';
 import Card, { CardBody } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { formatDate } from '@/lib/utils';
@@ -16,10 +17,12 @@ export default function TeacherHomePage() {
   const { data: groupsData } = useQuery({ queryKey: ['groups'], queryFn: () => groupsApi.list() });
   const { data: coursesData } = useQuery({ queryKey: ['courses'], queryFn: () => coursesApi.list() });
   const { data: pendingData } = useQuery({ queryKey: ['pending'], queryFn: () => gradesApi.pending() });
+  const { data: aiUsageData } = useQuery({ queryKey: ['ai-usage-summary'], queryFn: () => aiUsageApi.summary() });
 
   const groups = groupsData?.data.data.groups ?? [];
   const courses = coursesData?.data.data.courses ?? [];
   const pending = (pendingData?.data as any)?.data?.count ?? 0;
+  const aiCost = (aiUsageData?.data as any)?.data?.totalCostUsd;
 
   const today = new Intl.DateTimeFormat('he-IL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
 
@@ -46,7 +49,13 @@ export default function TeacherHomePage() {
         <StatCard icon={<Users size={20} className="text-[#7C3AED]" />} label="קבוצות" value={groups.length} bg="bg-[rgba(124,58,237,0.08)]" />
         <StatCard icon={<BookOpen size={20} className="text-[#C2185B]" />} label="קורסים" value={courses.length} bg="bg-[rgba(194,24,91,0.08)]" />
         <StatCard icon={<ClipboardList size={20} className="text-[#059669]" />} label="ממתינות לציון" value={pending} bg="bg-[rgba(5,150,105,0.08)]" urgent={pending > 0} />
-        <StatCard icon={<HardDrive size={20} className="text-[#D97706]" />} label="אחסון" value="—" bg="bg-[rgba(217,119,6,0.08)]" />
+        <StatCard
+          icon={<Sparkles size={20} className="text-[#D97706]" />}
+          label="AI ועלויות"
+          value={aiCost != null ? `$${Number(aiCost).toFixed(2)}` : '—'}
+          bg="bg-[rgba(217,119,6,0.08)]"
+          onClick={() => navigate('/teacher/ai-usage')}
+        />
       </div>
 
       {/* Lists */}
@@ -117,11 +126,11 @@ export default function TeacherHomePage() {
   );
 }
 
-function StatCard({ icon, label, value, bg, urgent }: {
-  icon: React.ReactNode; label: string; value: number | string; bg: string; urgent?: boolean;
+function StatCard({ icon, label, value, bg, urgent, onClick }: {
+  icon: React.ReactNode; label: string; value: number | string; bg: string; urgent?: boolean; onClick?: () => void;
 }) {
   return (
-    <Card>
+    <Card onClick={onClick} className={onClick ? 'cursor-pointer hover:bg-[#F8F7FC] transition' : undefined}>
       <CardBody className="flex items-center gap-3">
         <div className={`w-10 h-10 rounded-lg ${bg} flex items-center justify-center flex-shrink-0`}>
           {icon}

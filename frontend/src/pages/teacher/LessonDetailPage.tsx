@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Github, Paperclip, Edit, ExternalLink, Trash2, UserPlus, Plus, Bot, RotateCcw } from 'lucide-react';
+import { Github, Paperclip, Edit, ExternalLink, Trash2, UserPlus, Plus, Bot, RotateCcw, CheckCircle } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
 import { assignmentsApi } from '@/api/assignments.api';
 import { submissionsApi } from '@/api/submissions.api';
@@ -132,16 +132,31 @@ export default function LessonDetailPage() {
     },
   });
 
+  const approveAiMutation = useMutation({
+    mutationFn: () => submissionsApi.approveAi(gradeModal!.id),
+    onSuccess: () => {
+      setGradeModal((prev) => prev ? { ...prev, aiApproved: true } : prev);
+      qc.invalidateQueries({ queryKey: ['submissions', assignment?.id] });
+    },
+  });
+
   function openGradeModal(sub: SubmissionDTO) {
     setGradeModal(sub);
-    setScore(sub.grade?.score?.toString() ?? '');
+    const nextChecklist = assignment?.requirements?.map((r) => ({
+      id: r.id, text: r.text,
+      checked: sub.grade?.checklist?.find((c) => c.id === r.id)?.checked ?? false,
+    })) ?? [];
+    setChecklist(nextChecklist);
+    if (sub.grade?.score != null) {
+      // Existing grade — never overwrite the teacher's score
+      setScore(sub.grade.score.toString());
+    } else {
+      // Suggested prefill: 100, minus 10 for late, minus 5 per unchecked requirement
+      const unchecked = nextChecklist.filter((c) => !c.checked).length;
+      const suggested = Math.max(0, 100 - (sub.isLate ? 10 : 0) - unchecked * 5);
+      setScore(String(suggested));
+    }
     setFeedback(sub.grade?.feedback ?? '');
-    setChecklist(
-      assignment?.requirements?.map((r) => ({
-        id: r.id, text: r.text,
-        checked: sub.grade?.checklist?.find((c) => c.id === r.id)?.checked ?? false,
-      })) ?? []
-    );
   }
 
   if (isLoading) return <div className="p-6 text-[#9CA3AF]">טוען...</div>;
@@ -414,14 +429,27 @@ export default function LessonDetailPage() {
                   <p className="flex items-center gap-1.5 font-medium text-[#5B21B6]">
                     <Bot size={14} /> בדיקת AI — ציון: {gradeModal.aiScore ?? '—'}
                   </p>
-                  <Button
-                    size="sm" variant="ghost"
-                    loading={restoreAiScoreMutation.isPending}
-                    onClick={() => restoreAiScoreMutation.mutate()}
-                    disabled={gradeModal.aiScore == null}
-                  >
-                    <RotateCcw size={12} /> החזירי לציון AI
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {gradeModal.aiApproved ? (
+                      <Badge variant="green"><CheckCircle size={10} className="ml-1" /> אושר לתלמידה</Badge>
+                    ) : (
+                      <Button
+                        size="sm" variant="violet"
+                        loading={approveAiMutation.isPending}
+                        onClick={() => approveAiMutation.mutate()}
+                      >
+                        <CheckCircle size={12} /> אשרי ציון AI לתלמידה
+                      </Button>
+                    )}
+                    <Button
+                      size="sm" variant="ghost"
+                      loading={restoreAiScoreMutation.isPending}
+                      onClick={() => restoreAiScoreMutation.mutate()}
+                      disabled={gradeModal.aiScore == null}
+                    >
+                      <RotateCcw size={12} /> החזירי לציון AI
+                    </Button>
+                  </div>
                 </div>
                 {gradeModal.aiVerbalReview && (
                   <p className="text-xs text-[#6B7280] whitespace-pre-wrap">{gradeModal.aiVerbalReview}</p>
@@ -449,7 +477,12 @@ export default function LessonDetailPage() {
               </div>
             )}
 
-            <Input label="ציון (0–100)" type="number" min={0} max={100} value={score} onChange={(e) => setScore(e.target.value)} placeholder="85" />
+            <div>
+              <Input label="ציון (0–100)" type="number" min={0} max={100} value={score} onChange={(e) => setScore(e.target.value)} placeholder="85" />
+              {gradeModal.grade?.score == null && (
+                <p className="text-xs text-[#9CA3AF] mt-1">הצעה אוטומטית: 100 − איחור (10) − דרישות חסרות (5 כ״א)</p>
+              )}
+            </div>
 
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium">משוב (Markdown)</label>

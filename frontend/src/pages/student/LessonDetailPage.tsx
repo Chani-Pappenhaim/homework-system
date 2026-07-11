@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Github, Paperclip, CheckCircle, Clock } from 'lucide-react';
+import { Github, Paperclip, CheckCircle, Clock, Bot } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
 import { submissionsApi } from '@/api/submissions.api';
+import { messagesApi } from '@/api/messages.api';
 import Card, { CardBody, CardHeader } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -16,7 +17,6 @@ import type { AssignmentDTO } from '@/types';
 export default function StudentLessonDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ['lesson', id],
@@ -84,30 +84,51 @@ export default function StudentLessonDetailPage() {
       {/* Assignments */}
       {lesson.assignments.map((a) => {
         const sub = submitted.find((s) => s.assignmentTitle === a.title);
-        return <AssignmentCard key={a.id} assignment={a} submission={sub} lessonId={lesson.id} />;
+        return <AssignmentCard key={a.id} assignment={a} submission={sub} />;
       })}
     </div>
   );
 }
 
-function AssignmentCard({ assignment: a, submission: sub, lessonId }: {
-  assignment: AssignmentDTO; submission: any; lessonId: string;
+function AssignmentCard({ assignment: a, submission: sub }: {
+  assignment: AssignmentDTO; submission: any;
 }) {
   const qc = useQueryClient();
-  const [githubUrl, setGithubUrl] = useState('');
+  const [repoName, setRepoName] = useState('');
+  const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
+  const [showAiReview, setShowAiReview] = useState(false);
+  const [lateFormOpen, setLateFormOpen] = useState(false);
+  const [lateReason, setLateReason] = useState('');
+  const [lateRequestSent, setLateRequestSent] = useState(false);
+
+  const lateRequestMutation = useMutation({
+    mutationFn: () => messagesApi.send(
+      `בקשת הגשה מאוחרת עבור "${a.title}"${lateReason.trim() ? `: ${lateReason.trim()}` : ''}`
+    ),
+    onSuccess: () => { setLateRequestSent(true); setLateFormOpen(false); setLateReason(''); setError(''); },
+    onError: (e: any) => setError(e.response?.data?.error ?? 'שגיאה בשליחת הבקשה'),
+  });
+
+  const aiReviewMutation = useMutation({
+    mutationFn: () => submissionsApi.requestAiReview(sub?.id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['mine'] }),
+    onError: (e: any) => setError(e.response?.data?.error ?? 'שגיאה בבקשת בדיקה'),
+  });
 
   const fileMutation = useMutation({
-    mutationFn: (file: File) => submissionsApi.submitFile(a.id, file),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['mine'] }); setError(''); },
+    mutationFn: (file: File) => submissionsApi.submitFile(a.id, file, notes || undefined),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['mine'] }); setError(''); setNotes(''); },
     onError: (e: any) => setError(e.response?.data?.error ?? 'שגיאה בהגשה'),
   });
 
-  const githubMutation = useMutation({
-    mutationFn: () => submissionsApi.submitGithub(a.id, githubUrl),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['mine'] }); setGithubUrl(''); setError(''); },
+  const repoMutation = useMutation({
+    mutationFn: () => submissionsApi.submitRepo(a.id, repoName, notes || undefined),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['mine'] }); setRepoName(''); setNotes(''); setError(''); },
     onError: (e: any) => setError(e.response?.data?.error ?? 'שגיאה בהגשה'),
   });
+
+  const githubPreview = repoName ? `https://github.com/[username]/${repoName}` : '';
 
   return (
     <Card>
@@ -131,24 +152,97 @@ function AssignmentCard({ assignment: a, submission: sub, lessonId }: {
 
         {/* Already submitted */}
         {sub ? (
-          <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-input p-3 text-sm space-y-1">
-            <p className="text-[#065F46] font-medium">הגשתך התקבלה בהצלחה ✓</p>
-            <p className="text-[#6B7280] text-xs">הוגש: {formatDateTime(sub.submittedAt)}</p>
-            {sub.isLate && <Badge variant="amber">הוגש באיחור</Badge>}
-            {sub.grade && (
-              <div className="mt-2 space-y-1">
-                {sub.grade.score != null && <p className="font-semibold">ציון: {sub.grade.score}</p>}
-                {sub.grade.feedback && <MarkdownRenderer content={sub.grade.feedback} className="text-xs" />}
-                {sub.grade.checklist?.map((c: any) => (
-                  <div key={c.id} className={`text-xs flex items-center gap-1 ${c.checked ? 'text-[#059669]' : 'text-[#9CA3AF]'}`}>
-                    {c.checked ? '✓' : '✗'} {c.text}
+          <div className="space-y-3">
+            <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-input p-3 text-sm space-y-1">
+              <p className="text-[#065F46] font-medium">הגשתך התקבלה בהצלחה ✓</p>
+              <p className="text-[#6B7280] text-xs">הוגש: {formatDateTime(sub.submittedAt)}</p>
+              {sub.isLate && <Badge variant="amber">הוגש באיחור</Badge>}
+              {sub.notes && <p className="text-xs text-[#6B7280]">הערה: {sub.notes}</p>}
+              {sub.grade && (
+                <div className="mt-2 space-y-1">
+                  {sub.grade.score != null && <p className="font-semibold">ציון: {sub.grade.score}</p>}
+                  {sub.grade.feedback && <MarkdownRenderer content={sub.grade.feedback} className="text-xs" />}
+                  {sub.grade.checklist?.map((c: any) => (
+                    <div key={c.id} className={`text-xs flex items-center gap-1 ${c.checked ? 'text-[#059669]' : 'text-[#9CA3AF]'}`}>
+                      {c.checked ? '✓' : '✗'} {c.text}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* AI Review section */}
+            {sub.githubUrl && (
+              <div className="border border-[#E5E1F5] rounded-input p-3 text-sm space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1 font-medium text-[#1A1830]"><Bot size={14} /> בדיקת AI</span>
+                  {sub.aiStatus === 'none' && (
+                    <Button size="sm" variant="ghost" loading={aiReviewMutation.isPending}
+                      onClick={() => aiReviewMutation.mutate()}>
+                      בקשי בדיקה
+                    </Button>
+                  )}
+                  {sub.aiStatus === 'pending' && <Badge variant="amber">בודק...</Badge>}
+                  {sub.aiStatus === 'done' && !sub.aiApproved && <Badge variant="green">נבדק ✓</Badge>}
+                  {sub.aiStatus === 'error' && <Badge variant="pink">שגיאה</Badge>}
+                </div>
+                {sub.aiStatus === 'done' && sub.aiApproved && (
+                  <div className="space-y-2 pt-1">
+                    <p className="font-semibold text-[#1A1830]">ציון: {sub.aiScore}</p>
+                    <p className="text-[#6B7280] text-xs">{sub.aiVerbalReview}</p>
+                    <button className="text-xs text-primary underline" onClick={() => setShowAiReview(!showAiReview)}>
+                      {showAiReview ? 'הסתירי הערות קוד' : 'הצגי הערות קוד'}
+                    </button>
+                    {showAiReview && (
+                      <pre className="text-xs bg-[#F8F7FC] rounded p-2 whitespace-pre-wrap">{sub.aiCodeReview}</pre>
+                    )}
                   </div>
-                ))}
+                )}
+                {error && <p className="text-red-500 text-xs">{error}</p>}
               </div>
             )}
           </div>
         ) : (
           <>
+            {a.deadline && isOverdue(a.deadline) && (
+              <div className="space-y-2">
+                {lateRequestSent ? (
+                  <p className="text-xs text-[#059669] font-medium">הבקשה נשלחה למורה ✓</p>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setLateFormOpen(!lateFormOpen)}
+                  >
+                    בקשי אישור הגשה מאוחרת
+                  </Button>
+                )}
+                {lateFormOpen && !lateRequestSent && (
+                  <div className="space-y-2">
+                    <textarea
+                      className="w-full border border-[#E5E1F5] rounded-input px-3 py-2 text-sm resize-none placeholder:text-[#9CA3AF] focus:outline-none focus:ring-1 focus:ring-primary"
+                      rows={2}
+                      placeholder="סיבת האיחור (אופציונלי)"
+                      value={lateReason}
+                      onChange={(e) => setLateReason(e.target.value)}
+                      autoFocus
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        loading={lateRequestMutation.isPending}
+                        onClick={() => lateRequestMutation.mutate()}
+                      >
+                        שלחי בקשה
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setLateFormOpen(false); setLateReason(''); }}>
+                        ביטול
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             {a.allowFile && (
               <FileUpload
                 accept={a.allowedTypes.length ? a.allowedTypes.map((t) => `.${t}`).join(',') : undefined}
@@ -157,24 +251,38 @@ function AssignmentCard({ assignment: a, submission: sub, lessonId }: {
               />
             )}
             {a.allowGithub && (
-              <div className="flex gap-2">
-                <Input
-                  placeholder="https://github.com/..."
-                  value={githubUrl}
-                  onChange={(e) => setGithubUrl(e.target.value)}
-                  className="flex-1"
-                />
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  loading={githubMutation.isPending}
-                  onClick={() => githubMutation.mutate()}
-                  disabled={!githubUrl.startsWith('https://github.com/')}
-                >
-                  הגש
-                </Button>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="שם הפרויקט ב-GitHub"
+                    value={repoName}
+                    onChange={(e) => setRepoName(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    loading={repoMutation.isPending}
+                    onClick={() => repoMutation.mutate()}
+                    disabled={!repoName.trim()}
+                  >
+                    הגש
+                  </Button>
+                </div>
+                {githubPreview && (
+                  <p className="text-xs text-[#9CA3AF] flex items-center gap-1">
+                    <Github size={11} /> {githubPreview}
+                  </p>
+                )}
               </div>
             )}
+            <textarea
+              className="w-full border border-[#E5E1F5] rounded-input px-3 py-2 text-sm resize-none placeholder:text-[#9CA3AF] focus:outline-none focus:ring-1 focus:ring-primary"
+              rows={2}
+              placeholder="הערה למורה (אופציונלי)"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
             {error && <p className="text-red-500 text-xs">{error}</p>}
           </>
         )}

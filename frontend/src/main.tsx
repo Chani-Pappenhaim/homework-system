@@ -12,7 +12,14 @@ function Root() {
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: 1, staleTime: 1000 * 60 * 5 },
+    queries: {
+      retry: (failureCount, error: any) => {
+        if (error?.response?.status === 429 || error?.response?.status === 401) return false;
+        return failureCount < 1;
+      },
+      staleTime: 1000 * 60 * 5,
+      refetchOnWindowFocus: false,
+    },
   },
 });
 
