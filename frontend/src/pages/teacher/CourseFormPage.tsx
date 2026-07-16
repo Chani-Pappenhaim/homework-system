@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, GripVertical, EyeOff, Copy } from 'lucide-react';
 import { coursesApi } from '@/api/courses.api';
@@ -15,6 +15,7 @@ export default function CourseFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const [searchParams] = useSearchParams();
   const isEdit = Boolean(id);
 
   const [name, setName] = useState('');
@@ -48,6 +49,14 @@ export default function CourseFormPage() {
       setGroupId(course.groupId);
     }
   }, [course]);
+
+  // Prefill group when creating a course from a group's view page (?groupId=...)
+  useEffect(() => {
+    if (!isEdit) {
+      const preset = searchParams.get('groupId');
+      if (preset) setGroupId(preset);
+    }
+  }, [isEdit, searchParams]);
 
   const saveMutation = useMutation({
     mutationFn: () => isEdit

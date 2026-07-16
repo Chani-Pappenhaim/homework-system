@@ -13,6 +13,7 @@ import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 import MarkdownRenderer from '@/components/ui/MarkdownRenderer';
 import Input from '@/components/ui/Input';
+import FileUpload from '@/components/ui/FileUpload';
 import { formatDate, formatDateTime } from '@/lib/utils';
 import type { AssignmentDTO, ChecklistResult, SubmissionDTO } from '@/types';
 
@@ -27,6 +28,12 @@ export default function LessonDetailPage() {
   const [accessEmail, setAccessEmail] = useState('');
   const [accessError, setAccessError] = useState('');
   const [assignmentModal, setAssignmentModal] = useState<AssignmentDTO | null | 'new'>(null);
+  const [lessonEditOpen, setLessonEditOpen] = useState(false);
+  const [lTopic, setLTopic] = useState('');
+  const [lDate, setLDate] = useState('');
+  const [lContentMd, setLContentMd] = useState('');
+  const [lGithubUrl, setLGithubUrl] = useState('');
+  const [lHidden, setLHidden] = useState(false);
   const [aTitle, setATitle] = useState('');
   const [aDescription, setADescription] = useState('');
   const [aDeadline, setADeadline] = useState('');
@@ -77,6 +84,40 @@ export default function LessonDetailPage() {
     queryKey: ['submissions', assignment?.id],
     queryFn: () => assignmentsApi.getSubmissions(assignment!.id),
     enabled: Boolean(assignment?.id),
+  });
+
+  function openLessonEdit() {
+    if (!lesson) return;
+    setLTopic(lesson.topic);
+    setLDate(lesson.lessonDate ? lesson.lessonDate.slice(0, 10) : '');
+    setLContentMd(lesson.contentMd ?? '');
+    setLGithubUrl(lesson.githubUrl ?? '');
+    setLHidden(lesson.hidden);
+    setLessonEditOpen(true);
+  }
+
+  const saveLessonMutation = useMutation({
+    mutationFn: () => lessonsApi.update(id!, {
+      topic: lTopic,
+      lessonDate: lDate || undefined,
+      contentMd: lContentMd,
+      githubUrl: lGithubUrl,
+      hidden: lHidden,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['lesson', id] });
+      setLessonEditOpen(false);
+    },
+  });
+
+  const uploadFileMutation = useMutation({
+    mutationFn: (file: File) => lessonsApi.uploadFile(id!, file),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['lesson', id] }),
+  });
+
+  const deleteFileMutation = useMutation({
+    mutationFn: (fileId: string) => lessonsApi.deleteFile(id!, fileId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['lesson', id] }),
   });
 
   function openAssignmentModal(a: AssignmentDTO | 'new') {
@@ -174,28 +215,49 @@ export default function LessonDetailPage() {
               <h1 className="text-xl font-bold">{lesson.topic}</h1>
               {lesson.lessonDate && <p className="text-sm text-[#6B7280] mt-0.5">{formatDate(lesson.lessonDate)}</p>}
             </div>
-            {lesson.hidden && <Badge variant="amber">מוסתר</Badge>}
+            <div className="flex items-center gap-2">
+              {lesson.hidden && <Badge variant="amber">מוסתר</Badge>}
+              <Button size="sm" variant="ghost" onClick={openLessonEdit}>
+                <Edit size={12} /> ערוך שיעור
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardBody className="space-y-4">
-          {lesson.contentMd && <MarkdownRenderer content={lesson.contentMd} />}
+          {lesson.contentMd
+            ? <MarkdownRenderer content={lesson.contentMd} />
+            : <p className="text-sm text-[#9CA3AF]">אין תוכן לשיעור עדיין — לחצי על "ערוך שיעור" כדי להוסיף חומר לימוד.</p>}
           {lesson.githubUrl && (
             <a href={lesson.githubUrl} target="_blank" rel="noreferrer"
               className="inline-flex items-center gap-2 text-sm text-[#1A1830] border border-[#EEEBF5] rounded-input px-3 py-1.5 hover:bg-[#F8F7FC] transition">
               <Github size={14} /> קוד השיעור ב-GitHub
             </a>
           )}
-          {lesson.files.length > 0 && (
-            <div className="space-y-1">
-              <p className="text-xs text-[#9CA3AF] font-medium">קבצים מצורפים</p>
-              {lesson.files.map((f) => (
-                <a key={f.id} href={f.url} target="_blank" rel="noreferrer"
+
+          {/* Files management */}
+          <div className="space-y-2 pt-2 border-t border-[#EEEBF5]">
+            <p className="text-xs text-[#9CA3AF] font-medium">קבצים מצורפים</p>
+            {lesson.files.map((f) => (
+              <div key={f.id} className="flex items-center justify-between">
+                <a href={f.url} target="_blank" rel="noreferrer"
                   className="flex items-center gap-1.5 text-sm text-primary hover:underline">
                   <Paperclip size={12} /> {f.name}
                 </a>
-              ))}
-            </div>
-          )}
+                <Button size="sm" variant="danger"
+                  onClick={() => { if (confirm(`למחוק את הקובץ ${f.name}?`)) deleteFileMutation.mutate(f.id); }}>
+                  <Trash2 size={12} />
+                </Button>
+              </div>
+            ))}
+            {lesson.files.length === 0 && (
+              <p className="text-xs text-[#9CA3AF]">אין קבצים מצורפים</p>
+            )}
+            <FileUpload
+              onFile={(file) => uploadFileMutation.mutate(file)}
+              label={uploadFileMutation.isPending ? 'מעלה...' : 'גרור קובץ להעלאה או לחצי לבחירה'}
+              className="mt-1"
+            />
+          </div>
         </CardBody>
       </Card>
 
@@ -346,6 +408,39 @@ export default function LessonDetailPage() {
           )}
         </CardBody>
       </Card>
+
+      {/* Lesson edit modal */}
+      <Modal open={lessonEditOpen} onClose={() => setLessonEditOpen(false)} title="עריכת שיעור" size="lg">
+        <div className="space-y-4">
+          <Input label="נושא השיעור *" value={lTopic} onChange={(e) => setLTopic(e.target.value)} placeholder="React Hooks" />
+          <Input label="תאריך (אופציונלי)" type="date" value={lDate} onChange={(e) => setLDate(e.target.value)} />
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium">חומר הלימוד (Markdown)</label>
+            <textarea
+              value={lContentMd}
+              onChange={(e) => setLContentMd(e.target.value)}
+              rows={8}
+              className="w-full px-3 py-2 border border-[#EEEBF5] rounded-input text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-y font-mono"
+              placeholder="# כותרת&#10;&#10;תוכן השיעור, הסברים, דוגמאות קוד..."
+            />
+            <p className="text-xs text-[#9CA3AF]">אפשר לעצב עם Markdown: כותרות (#), רשימות, קוד (```), קישורים ועוד</p>
+          </div>
+          <Input label="קישור לקוד ב-GitHub (אופציונלי)" value={lGithubUrl} onChange={(e) => setLGithubUrl(e.target.value)} placeholder="https://github.com/..." />
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" checked={lHidden} onChange={(e) => setLHidden(e.target.checked)} className="accent-primary" />
+            הסתר שיעור מהתלמידות
+          </label>
+          <p className="text-xs text-[#9CA3AF]">קבצים מצורפים מנהלים ישירות בכרטיס השיעור (לא כאן).</p>
+          <Button
+            className="w-full"
+            loading={saveLessonMutation.isPending}
+            onClick={() => saveLessonMutation.mutate()}
+            disabled={!lTopic.trim()}
+          >
+            שמרי שינויים
+          </Button>
+        </div>
+      </Modal>
 
       {/* Assignment create/edit modal */}
       <Modal

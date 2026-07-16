@@ -9,7 +9,9 @@ import OAuthCallbackPage from '@/pages/auth/OAuthCallbackPage';
 
 import TeacherHomePage from '@/pages/teacher/HomePage';
 import GroupsPage from '@/pages/teacher/GroupsPage';
+import GroupDetailPage from '@/pages/teacher/GroupDetailPage';
 import GroupFormPage from '@/pages/teacher/GroupFormPage';
+import CoursesPage from '@/pages/teacher/CoursesPage';
 import CourseFormPage from '@/pages/teacher/CourseFormPage';
 import CourseDetailPage from '@/pages/teacher/CourseDetailPage';
 import LessonDetailPage from '@/pages/teacher/LessonDetailPage';
@@ -44,8 +46,9 @@ export default function App() {
           <Route index element={<TeacherHomePage />} />
           <Route path="groups" element={<GroupsPage />} />
           <Route path="groups/new" element={<GroupFormPage />} />
+          <Route path="groups/:id" element={<GroupDetailPage />} />
           <Route path="groups/:id/edit" element={<GroupFormPage />} />
-          <Route path="courses" element={<Navigate to="/teacher" replace />} />
+          <Route path="courses" element={<CoursesPage />} />
           <Route path="courses/new" element={<CourseFormPage />} />
           <Route path="courses/:id/edit" element={<CourseFormPage />} />
           <Route path="courses/:id" element={<CourseDetailPage />} />

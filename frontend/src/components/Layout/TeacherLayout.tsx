@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, Users, BarChart2, FileSpreadsheet, MessageSquare, Sparkles, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, BookOpen, BarChart2, FileSpreadsheet, MessageSquare, Sparkles, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import useAuthStore from '@/store/authStore';
 import { authApi } from '@/api/auth.api';
@@ -9,6 +9,7 @@ import { messagesApi } from '@/api/messages.api';
 const nav = [
   { section: 'ניהול', items: [
     { to: '/teacher', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
+    { to: '/teacher/courses', label: 'קורסים', icon: BookOpen },
     { to: '/teacher/groups', label: 'קבוצות', icon: Users },
   ]},
   { section: 'דוחות', items: [

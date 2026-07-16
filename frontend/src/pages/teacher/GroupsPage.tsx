@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Users, Plus, Edit } from 'lucide-react';
+import { Users, Plus, Eye } from 'lucide-react';
 import { groupsApi } from '@/api/groups.api';
 import Card, { CardBody } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -53,8 +53,8 @@ export default function GroupsPage() {
               </div>
               <div className="flex items-center justify-between">
                 <p className="text-xs text-[#6B7280]">{g.studentCount} תלמידות</p>
-                <Button size="sm" variant="ghost" onClick={() => navigate(`/teacher/groups/${g.id}/edit`)}>
-                  <Edit size={12} /> צפייה/עריכה
+                <Button size="sm" variant="ghost" onClick={() => navigate(`/teacher/groups/${g.id}`)}>
+                  <Eye size={12} /> צפייה
                 </Button>
               </div>
             </CardBody>

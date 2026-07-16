@@ -15,9 +15,16 @@ export default function CourseDetailPage() {
   const [newLessonModal, setNewLessonModal] = useState(false);
   const [newTopic, setNewTopic] = useState('');
   const [newDate, setNewDate] = useState('');
+  const [newContent, setNewContent] = useState('');
+  const [newGithub, setNewGithub] = useState('');
 
   const createLessonMutation = useMutation({
-    mutationFn: () => lessonsApi.create(id!, { topic: newTopic, lessonDate: newDate || undefined }),
+    mutationFn: () => lessonsApi.create(id!, {
+      topic: newTopic,
+      lessonDate: newDate || undefined,
+      contentMd: newContent || undefined,
+      githubUrl: newGithub || undefined,
+    }),
     onSuccess: (res) => {
       const lessonId = (res.data as any).data.lesson.id;
       navigate(`/teacher/lessons/${lessonId}`);
@@ -69,7 +76,7 @@ export default function CourseDetailPage() {
               </button>
             ))}
             <button
-              onClick={() => { setNewTopic(''); setNewDate(''); setNewLessonModal(true); }}
+              onClick={() => { setNewTopic(''); setNewDate(''); setNewContent(''); setNewGithub(''); setNewLessonModal(true); }}
               className="flex items-center justify-center w-16 h-16 rounded-xl border-2 border-dashed border-[#EEEBF5] text-[#9CA3AF] hover:border-primary/40 hover:text-primary transition"
             >
               <Plus size={18} />
@@ -113,6 +120,18 @@ export default function CourseDetailPage() {
         <div className="space-y-3">
           <Input label="נושא השיעור *" value={newTopic} onChange={(e) => setNewTopic(e.target.value)} placeholder="React Hooks" />
           <Input label="תאריך (אופציונלי)" type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium">חומר הלימוד (אופציונלי, Markdown)</label>
+            <textarea
+              value={newContent}
+              onChange={(e) => setNewContent(e.target.value)}
+              rows={5}
+              className="w-full px-3 py-2 border border-[#EEEBF5] rounded-input text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-y font-mono"
+              placeholder="# כותרת&#10;&#10;תוכן השיעור, הסברים, דוגמאות קוד..."
+            />
+          </div>
+          <Input label="קישור לקוד ב-GitHub (אופציונלי)" value={newGithub} onChange={(e) => setNewGithub(e.target.value)} placeholder="https://github.com/..." />
+          <p className="text-xs text-[#9CA3AF]">קבצים מצורפים אפשר להעלות אחרי היצירה, בתוך דף השיעור.</p>
           <Button
             loading={createLessonMutation.isPending}
             onClick={() => createLessonMutation.mutate()}
