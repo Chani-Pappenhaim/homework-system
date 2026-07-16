@@ -14,5 +14,5 @@ export const authApi = {
     api.get<{ success: true; data: { user: UserDTO } }>('/auth/me'),
 
   changePassword: (currentPassword: string, newPassword: string) =>
-    api.patch('/auth/change-password', { currentPassword, newPassword }),
+    api.post('/auth/change-password', { currentPassword, newPassword }),
 };
