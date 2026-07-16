@@ -1,0 +1,5 @@
+# Shell scripts must keep LF line endings even when checked out on Windows
+# (core.autocrlf=true would otherwise turn them into CRLF and break the
+# container entrypoint with: /bin/sh: bad interpreter: /bin/sh^M).
+*.sh text eol=lf
+backend/docker-entrypoint.sh text eol=lf

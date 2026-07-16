@@ -22,6 +22,9 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     env_file: .env
+    environment:
+      # Runs prisma migrate deploy + seed on startup (api only, not the worker)
+      RUN_MIGRATIONS: "true"
     ports:
       - "4000:4000"
     depends_on:
