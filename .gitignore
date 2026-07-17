@@ -36,9 +36,7 @@ redisdata/
 # Local Claude Code tooling (agents, skills, settings)
 .claude/
 
-# Tests — kept locally, not committed (per project decision)
-backend/tests/
-frontend/tests/
+# Coverage reports are generated — the tests themselves are committed
 coverage/
 
 # Working documents
