@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { Download } from 'lucide-react';
 import { gradesApi } from '@/api/grades.api';
 import { groupsApi } from '@/api/groups.api';
@@ -13,6 +13,7 @@ import type { ReportRow } from '@/types';
 export default function ReportsPage() {
   const [groupId, setGroupId] = useState('');
   const [courseId, setCourseId] = useState('');
+  const [exportError, setExportError] = useState('');
 
   const { data: groupsData } = useQuery({ queryKey: ['groups'], queryFn: () => groupsApi.list() });
   const { data: coursesData } = useQuery({ queryKey: ['courses'], queryFn: () => coursesApi.list() });
@@ -31,17 +32,30 @@ export default function ReportsPage() {
   const courses = coursesData?.data.data.courses ?? [];
   const report: ReportRow[] = (reportData?.data as any)?.data?.report ?? [];
 
-  const exportUrl = gradesApi.exportUrl(Object.keys(filters).length ? filters : undefined);
+  const exportMutation = useMutation({
+    mutationFn: () => gradesApi.exportReport(Object.keys(filters).length ? filters : undefined),
+    onSuccess: (res) => {
+      const url = URL.createObjectURL(res.data as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ציונים-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setExportError('');
+    },
+    onError: () => setExportError('ייצוא הקובץ נכשל, נסי שוב'),
+  });
 
   return (
     <div className="space-y-5" dir="rtl">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">דוחות ציונים</h1>
-        <a href={exportUrl} download>
-          <Button variant="ghost" size="sm">
+        <div className="flex items-center gap-2">
+          {exportError && <span className="text-red-500 text-xs">{exportError}</span>}
+          <Button variant="ghost" size="sm" loading={exportMutation.isPending} onClick={() => exportMutation.mutate()}>
             <Download size={13} /> ייצוא Excel
           </Button>
-        </a>
+        </div>
       </div>
 
       {/* Filters */}
