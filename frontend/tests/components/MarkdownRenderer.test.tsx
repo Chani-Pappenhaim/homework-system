@@ -25,12 +25,27 @@ describe('MarkdownRenderer', () => {
     expect(container.querySelector('table')).toBeInTheDocument();
   });
 
-  it('sanitizes dangerous script content (dompurify strips it)', () => {
+  it('never executes raw html (react-markdown escapes it without rehype-raw)', () => {
     const { container } = render(
       <MarkdownRenderer content={'<script>window.__pwn = 1</script>ok'} />
     );
     expect(container.querySelector('script')).toBeNull();
     expect((window as any).__pwn).toBeUndefined();
+  });
+
+  it('keeps html inside a code block intact — lessons teach html', () => {
+    // Regression: DOMPurify ran on the markdown source, so a lesson's ```html
+    // example was stripped before it ever became a code block.
+    const md = '```html\n<script>alert(1)</script>\n```';
+    const { container } = render(<MarkdownRenderer content={md} />);
+    const code = container.querySelector('code');
+    expect(code?.textContent).toContain('<script>alert(1)</script>');
+    expect(container.querySelector('script')).toBeNull(); // shown, not executed
+  });
+
+  it('renders inline html as literal text rather than dropping it', () => {
+    const { container } = render(<MarkdownRenderer content={'use `<div>` for layout'} />);
+    expect(container.textContent).toContain('<div>');
   });
 
   it('applies a custom wrapper className', () => {

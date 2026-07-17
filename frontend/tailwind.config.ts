@@ -19,7 +19,9 @@ export default {
         border: { DEFAULT: '#EEEBF5', hover: '#D8D4EC' },
         muted: { DEFAULT: '#EEEBF5', foreground: '#6B7280' },
       },
-      fontFamily: { sans: ['Inter', 'sans-serif'] },
+      // Heebo carries Hebrew and matches Inter's metrics, so mixed strings like
+      // "בדיקת AI" render in one typeface instead of two.
+      fontFamily: { sans: ['Heebo', 'Inter', 'sans-serif'] },
       borderRadius: {
         card: '12px',
         input: '8px',
@@ -27,5 +29,7 @@ export default {
       },
     },
   },
-  plugins: [],
+  // Without this every `prose` class in MarkdownRenderer is inert, so lesson
+  // content, AI reviews and feedback rendered as one undifferentiated blob.
+  plugins: [require('@tailwindcss/typography')],
 } satisfies Config;
