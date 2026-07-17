@@ -1,5 +1,6 @@
 import { prisma } from '../config/prisma';
 import { cloudinary } from '../config/cloudinary';
+import { checkStudentLessonAccess } from './courses.service';
 
 export async function getLessons(courseId: string, role: string) {
   const lessons = await prisma.lesson.findMany({
@@ -28,20 +29,47 @@ export async function createLesson(courseId: string, data: {
   });
 }
 
-export async function getLessonById(id: string, role: string) {
+export async function getLessonById(id: string, userId: string, role: string) {
   const lesson = await prisma.lesson.findUnique({
     where: { id },
     include: {
       files: true,
       assignments: true,
+      course: { select: { groupId: true, hidden: true } },
     },
   });
   if (!lesson) return null;
-  if (role !== 'ADMIN' && lesson.hidden) throw Object.assign(new Error('Forbidden'), { status: 403 });
+
+  if (role !== 'ADMIN') {
+    if (lesson.hidden || lesson.course.hidden) throw Object.assign(new Error('Forbidden'), { status: 403 });
+    // A student may only open a lesson from her own group's course, or one she was granted access to
+    const hasAccess = await checkStudentLessonAccess(userId, id, lesson.course.groupId);
+    if (!hasAccess) throw Object.assign(new Error('Forbidden'), { status: 403 });
+  }
+
+  const progress = await prisma.lessonProgress.findUnique({
+    where: { studentId_lessonId: { studentId: userId, lessonId: id } },
+  });
+  const { course: _course, ...rest } = lesson;
   return {
-    ...lesson,
+    ...rest,
+    completed: Boolean(progress),
     files: lesson.files.map((f) => ({ ...f, sizeBytes: f.sizeBytes?.toString() })),
   };
+}
+
+// Student self-marks a lesson complete (completed=true) or clears it (false)
+export async function setLessonProgress(studentId: string, lessonId: string, completed: boolean) {
+  if (completed) {
+    await prisma.lessonProgress.upsert({
+      where: { studentId_lessonId: { studentId, lessonId } },
+      create: { studentId, lessonId },
+      update: {},
+    });
+  } else {
+    await prisma.lessonProgress.deleteMany({ where: { studentId, lessonId } });
+  }
+  return { lessonId, completed };
 }
 
 export async function updateLesson(id: string, data: Partial<{

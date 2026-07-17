@@ -18,10 +18,25 @@ export async function getCoursesForUser(userId: string, role: string) {
 
   const courses = await prisma.course.findMany({
     where: { hidden: false, groupId: { in: groupIds } },
-    include: { group: { select: { name: true } }, _count: { select: { lessons: true } } },
+    include: {
+      group: { select: { name: true } },
+      _count: { select: { lessons: { where: { hidden: false } } } },
+    },
     orderBy: { createdAt: 'desc' },
   });
-  return courses.map(toCourseDTO);
+
+  // Count this student's completed (visible) lessons per course, for the progress meter
+  const courseIds = courses.map((c) => c.id);
+  const progress = await prisma.lessonProgress.findMany({
+    where: { studentId: userId, lesson: { hidden: false, courseId: { in: courseIds } } },
+    select: { lesson: { select: { courseId: true } } },
+  });
+  const completedByCourse: Record<string, number> = {};
+  for (const p of progress) {
+    completedByCourse[p.lesson.courseId] = (completedByCourse[p.lesson.courseId] ?? 0) + 1;
+  }
+
+  return courses.map((c) => ({ ...toCourseDTO(c), completedLessons: completedByCourse[c.id] ?? 0 }));
 }
 
 export async function createCourse(data: { name: string; year?: string; description?: string; groupId: string }) {
@@ -50,12 +65,23 @@ export async function getCourseById(id: string, userId: string, role: string) {
     if (!hasAccess) throw Object.assign(new Error('Forbidden'), { status: 403 });
   }
 
-  const lessons = course.lessons
-    .filter((l) => role === 'ADMIN' || !l.hidden)
-    .map((l) => ({
-      id: l.id, topic: l.topic, lessonDate: l.lessonDate,
-      hidden: l.hidden, order: l.order,
-    }));
+  const visibleLessons = course.lessons.filter((l) => role === 'ADMIN' || !l.hidden);
+
+  // Which of these lessons has the current student marked complete?
+  const completedIds = new Set(
+    role === 'ADMIN'
+      ? []
+      : (await prisma.lessonProgress.findMany({
+          where: { studentId: userId, lessonId: { in: visibleLessons.map((l) => l.id) } },
+          select: { lessonId: true },
+        })).map((p) => p.lessonId)
+  );
+
+  const lessons = visibleLessons.map((l) => ({
+    id: l.id, topic: l.topic, lessonDate: l.lessonDate,
+    hidden: l.hidden, order: l.order,
+    completed: completedIds.has(l.id),
+  }));
 
   return {
     id: course.id, name: course.name, year: course.year,
