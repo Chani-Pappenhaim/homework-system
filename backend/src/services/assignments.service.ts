@@ -1,7 +1,9 @@
 import { prisma } from '../config/prisma';
+import { assertLessonAccess } from '../utils/access';
 import ExcelJS from 'exceljs';
 
-export async function getAssignments(lessonId: string) {
+export async function getAssignments(lessonId: string, userId: string, role: string) {
+  await assertLessonAccess(userId, role, lessonId);
   return prisma.assignment.findMany({ where: { lessonId }, orderBy: { createdAt: 'asc' } });
 }
 

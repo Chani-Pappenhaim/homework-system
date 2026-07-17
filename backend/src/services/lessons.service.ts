@@ -1,8 +1,9 @@
 import { prisma } from '../config/prisma';
-import { cloudinary } from '../config/cloudinary';
-import { checkStudentLessonAccess } from './courses.service';
+import { uploadBuffer, destroyByUrl, toFileDTO } from '../utils/storage';
+import { assertLessonAccess, assertCourseAccess } from '../utils/access';
 
-export async function getLessons(courseId: string, role: string) {
+export async function getLessons(courseId: string, userId: string, role: string) {
+  await assertCourseAccess(userId, role, courseId);
   const lessons = await prisma.lesson.findMany({
     where: { courseId, ...(role !== 'ADMIN' && { hidden: false }) },
     include: { _count: { select: { assignments: true } } },
@@ -32,29 +33,19 @@ export async function createLesson(courseId: string, data: {
 export async function getLessonById(id: string, userId: string, role: string) {
   const lesson = await prisma.lesson.findUnique({
     where: { id },
-    include: {
-      files: true,
-      assignments: true,
-      course: { select: { groupId: true, hidden: true } },
-    },
+    include: { files: true, assignments: true },
   });
   if (!lesson) return null;
 
-  if (role !== 'ADMIN') {
-    if (lesson.hidden || lesson.course.hidden) throw Object.assign(new Error('Forbidden'), { status: 403 });
-    // A student may only open a lesson from her own group's course, or one she was granted access to
-    const hasAccess = await checkStudentLessonAccess(userId, id, lesson.course.groupId);
-    if (!hasAccess) throw Object.assign(new Error('Forbidden'), { status: 403 });
-  }
+  await assertLessonAccess(userId, role, id);
 
   const progress = await prisma.lessonProgress.findUnique({
     where: { studentId_lessonId: { studentId: userId, lessonId: id } },
   });
-  const { course: _course, ...rest } = lesson;
   return {
-    ...rest,
+    ...lesson,
     completed: Boolean(progress),
-    files: lesson.files.map((f) => ({ ...f, sizeBytes: f.sizeBytes?.toString() })),
+    files: lesson.files.map(toFileDTO),
   };
 }
 
@@ -86,20 +77,17 @@ export async function reorderLessons(lessons: { id: string; order: number }[]) {
 }
 
 export async function uploadLessonFile(lessonId: string, buffer: Buffer, originalName: string, mimeType: string) {
-  const result = await cloudinary.uploader.upload(
-    `data:${mimeType};base64,${buffer.toString('base64')}`,
-    { resource_type: 'auto', folder: 'lessons' }
-  );
-  return prisma.lessonFile.create({
-    data: { lessonId, name: originalName, url: result.secure_url, sizeBytes: result.bytes },
+  const uploaded = await uploadBuffer(buffer, mimeType, 'lessons');
+  const file = await prisma.lessonFile.create({
+    data: { lessonId, name: originalName, url: uploaded.url, sizeBytes: uploaded.bytes },
   });
+  return toFileDTO(file);
 }
 
 export async function deleteLessonFile(lessonId: string, fileId: string) {
   const file = await prisma.lessonFile.findUnique({ where: { id: fileId, lessonId } });
   if (!file) throw Object.assign(new Error('File not found'), { status: 404 });
-  const publicId = extractPublicId(file.url);
-  if (publicId) await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+  await destroyByUrl(file.url);
   await prisma.lessonFile.delete({ where: { id: fileId } });
 }
 
@@ -127,7 +115,3 @@ export async function revokeLessonAccess(lessonId: string, studentId: string) {
   await prisma.lessonAccess.delete({ where: { studentId_lessonId: { studentId, lessonId } } });
 }
 
-function extractPublicId(url: string): string | null {
-  const match = url.match(/\/upload\/(?:v\d+\/)?(.+)\.[^.]+$/);
-  return match ? match[1] : null;
-}
