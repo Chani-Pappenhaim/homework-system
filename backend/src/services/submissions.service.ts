@@ -62,6 +62,34 @@ export async function submitAssignment(
   });
 }
 
+interface SubmissionAiFields {
+  aiStatus: string;
+  aiScore: number | null;
+  aiApproved: boolean;
+  aiCodeReview: string | null;
+  aiVerbalReview: string | null;
+}
+
+/**
+ * What a student is allowed to see of an AI review.
+ *
+ * The code review is hers as soon as it is ready; the score and the verbal
+ * summary are the teacher's call and stay server-side until she approves.
+ * Hiding them in the client is not hiding them — the values were being sent
+ * over the wire and were visible in devtools.
+ */
+export function toStudentAiView(sub: SubmissionAiFields) {
+  const base = {
+    aiStatus: sub.aiStatus,
+    aiApproved: sub.aiApproved,
+    aiCodeReview: sub.aiStatus === 'done' ? sub.aiCodeReview : null,
+  };
+  if (!sub.aiApproved) {
+    return { ...base, aiScore: null, aiVerbalReview: null };
+  }
+  return { ...base, aiScore: sub.aiScore, aiVerbalReview: sub.aiVerbalReview };
+}
+
 export async function getMySubmissions(studentId: string) {
   const student = await prisma.user.findUnique({
     where: { id: studentId },
@@ -108,8 +136,7 @@ export async function getMySubmissions(studentId: string) {
         lessonTopic: assignment.lesson.topic, courseName: assignment.lesson.course.name,
         submittedAt: sub.submittedAt, isLate: sub.isLate, notes: sub.notes,
         githubUrl: sub.githubUrl, fileUrl: sub.fileUrl, fileName: sub.fileName,
-        aiStatus: sub.aiStatus, aiScore: sub.aiScore, aiApproved: sub.aiApproved,
-        aiVerbalReview: sub.aiVerbalReview, aiCodeReview: sub.aiCodeReview,
+        ...toStudentAiView(sub),
         grade: grade ? { score: grade.score, feedback: grade.feedback, checklist: grade.checklist } : null,
       });
     }
@@ -133,7 +160,8 @@ export async function getSubmissionById(id: string, userId: string, role: string
   if (role !== 'ADMIN' && submission.studentId !== userId) {
     throw Object.assign(new Error('Forbidden'), { status: 403 });
   }
-  return submission;
+  if (role === 'ADMIN') return submission;
+  return { ...submission, ...toStudentAiView(submission) };
 }
 
 export async function importSubmissions(buffer: Buffer) {
