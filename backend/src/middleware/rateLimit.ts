@@ -15,3 +15,18 @@ export const generalRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+/**
+ * Routes that can cause a paid AI call. The general limit of 1000/min is no
+ * limit at all when each request may bill a Claude or Gemini job, so these are
+ * kept deliberately tight and keyed per user rather than per IP (a whole class
+ * can share one school NAT address).
+ */
+export const aiRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  message: { success: false, error: 'Too many AI requests, please try again in a minute' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.user?.userId ?? req.ip ?? 'anonymous',
+});

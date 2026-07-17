@@ -60,7 +60,13 @@ export async function requestAiReview(req: Request, res: Response) {
     }
 
     await prisma.submission.update({ where: { id: submission.id }, data: { aiStatus: 'pending' } });
-    await aiReviewQueue.add('review', { submissionId: submission.id });
+    await aiReviewQueue.add(
+      'review',
+      { submissionId: submission.id },
+      // GitHub and Gemini both fail transiently; without retries a blip costs the
+      // student her one review attempt.
+      { attempts: 3, backoff: { type: 'exponential', delay: 5000 } }
+    );
     res.json({ success: true, data: null });
   } catch (err: any) {
     res.status(err.status || 500).json({ success: false, error: err.message });
