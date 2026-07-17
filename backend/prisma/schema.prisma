@@ -28,6 +28,7 @@ model User {
   quizAttempts     QuizAttempt[]
   gradesGiven      Grade[]
   lessonAccess     LessonAccess[]
+  lessonProgress   LessonProgress[]
   teacherMessages  TeacherMessage[]
 }
 
@@ -102,6 +103,18 @@ model Lesson {
   files        LessonFile[]
   quiz         Quiz?
   lessonAccess LessonAccess[]
+  progress     LessonProgress[]
+}
+
+// A student's self-marked completion of a lesson (presence of row = completed)
+model LessonProgress {
+  studentId   String
+  lessonId    String
+  completedAt DateTime @default(now())
+  student     User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, lessonId])
 }
 
 // Grants a specific student access to a single lesson outside her group
