@@ -1,5 +1,6 @@
 import { prisma } from '../config/prisma';
 import { uploadBuffer, destroyByUrl, toFileDTO } from '../utils/storage';
+import { assertCourseAccess } from '../utils/access';
 
 export async function getCoursesForUser(userId: string, role: string) {
   if (role === 'ADMIN') {
@@ -60,10 +61,7 @@ export async function getCourseById(id: string, userId: string, role: string) {
   });
   if (!course) return null;
 
-  if (role !== 'ADMIN') {
-    const hasAccess = await checkStudentCourseAccess(userId, id, course.groupId);
-    if (!hasAccess) throw Object.assign(new Error('Forbidden'), { status: 403 });
-  }
+  await assertCourseAccess(userId, role, id);
 
   const visibleLessons = course.lessons.filter((l) => role === 'ADMIN' || !l.hidden);
 
@@ -156,19 +154,6 @@ export async function deleteCourseFile(courseId: string, fileId: string) {
   await prisma.courseFile.delete({ where: { id: fileId } });
 }
 
-export async function checkStudentCourseAccess(studentId: string, courseId: string, groupId: string) {
-  const inGroup = await prisma.studentGroup.findFirst({ where: { studentId, groupId } });
-  return !!inGroup;
-}
-
-export async function checkStudentLessonAccess(studentId: string, lessonId: string, courseGroupId: string) {
-  const inGroup = await prisma.studentGroup.findFirst({ where: { studentId, groupId: courseGroupId } });
-  if (inGroup) return true;
-  const hasAccess = await prisma.lessonAccess.findUnique({
-    where: { studentId_lessonId: { studentId, lessonId } },
-  });
-  return !!hasAccess;
-}
 
 function toCourseDTO(course: any) {
   return {

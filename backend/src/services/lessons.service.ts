@@ -1,8 +1,9 @@
 import { prisma } from '../config/prisma';
 import { uploadBuffer, destroyByUrl, toFileDTO } from '../utils/storage';
-import { checkStudentLessonAccess } from './courses.service';
+import { assertLessonAccess, assertCourseAccess } from '../utils/access';
 
-export async function getLessons(courseId: string, role: string) {
+export async function getLessons(courseId: string, userId: string, role: string) {
+  await assertCourseAccess(userId, role, courseId);
   const lessons = await prisma.lesson.findMany({
     where: { courseId, ...(role !== 'ADMIN' && { hidden: false }) },
     include: { _count: { select: { assignments: true } } },
@@ -32,27 +33,17 @@ export async function createLesson(courseId: string, data: {
 export async function getLessonById(id: string, userId: string, role: string) {
   const lesson = await prisma.lesson.findUnique({
     where: { id },
-    include: {
-      files: true,
-      assignments: true,
-      course: { select: { groupId: true, hidden: true } },
-    },
+    include: { files: true, assignments: true },
   });
   if (!lesson) return null;
 
-  if (role !== 'ADMIN') {
-    if (lesson.hidden || lesson.course.hidden) throw Object.assign(new Error('Forbidden'), { status: 403 });
-    // A student may only open a lesson from her own group's course, or one she was granted access to
-    const hasAccess = await checkStudentLessonAccess(userId, id, lesson.course.groupId);
-    if (!hasAccess) throw Object.assign(new Error('Forbidden'), { status: 403 });
-  }
+  await assertLessonAccess(userId, role, id);
 
   const progress = await prisma.lessonProgress.findUnique({
     where: { studentId_lessonId: { studentId: userId, lessonId: id } },
   });
-  const { course: _course, ...rest } = lesson;
   return {
-    ...rest,
+    ...lesson,
     completed: Boolean(progress),
     files: lesson.files.map(toFileDTO),
   };

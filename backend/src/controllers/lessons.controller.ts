@@ -3,7 +3,9 @@ import * as lessonsService from '../services/lessons.service';
 
 export async function getLessons(req: Request, res: Response) {
   try {
-    const lessons = await lessonsService.getLessons(req.params.courseId as string, req.user!.role);
+    const lessons = await lessonsService.getLessons(
+      req.params.courseId as string, req.user!.userId, req.user!.role
+    );
     res.json({ success: true, data: { lessons } });
   } catch (err: any) {
     console.error('getLessons error:', err);

@@ -1,6 +1,6 @@
 import { prisma } from '../config/prisma';
 import { uploadBuffer } from '../utils/storage';
-import { checkStudentLessonAccess } from './courses.service';
+import { assertLessonAccess } from '../utils/access';
 import ExcelJS from 'exceljs';
 
 export async function submitAssignment(
@@ -17,9 +17,7 @@ export async function submitAssignment(
   });
   if (!assignment) throw Object.assign(new Error('Assignment not found'), { status: 404 });
 
-  const { lesson } = assignment;
-  const hasAccess = await checkStudentLessonAccess(studentId, lesson.id, lesson.course.groupId);
-  if (!hasAccess) throw Object.assign(new Error('Forbidden'), { status: 403 });
+  await assertLessonAccess(studentId, 'STUDENT', assignment.lessonId);
 
   let fileUrl: string | undefined;
   let fileName: string | undefined;

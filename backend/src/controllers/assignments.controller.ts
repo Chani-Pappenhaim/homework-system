@@ -2,8 +2,14 @@
 import * as assignmentsService from '../services/assignments.service';
 
 export async function getAssignments(req: Request, res: Response) {
-  const assignments = await assignmentsService.getAssignments(req.params.lessonId as string);
-  res.json({ success: true, data: { assignments } });
+  try {
+    const assignments = await assignmentsService.getAssignments(
+      req.params.lessonId as string, req.user!.userId, req.user!.role
+    );
+    res.json({ success: true, data: { assignments } });
+  } catch (err: any) {
+    res.status(err.status || 500).json({ success: false, error: err.message });
+  }
 }
 
 export async function createAssignment(req: Request, res: Response) {
