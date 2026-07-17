@@ -1,3 +1,4 @@
+import { toExternalUrl } from '@/lib/utils';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ExternalLink, Paperclip } from 'lucide-react';
@@ -49,7 +50,7 @@ export default function StudentCourseDetailPage() {
           <CardHeader><h2 className="font-semibold text-sm">קישורים שימושיים</h2></CardHeader>
           <CardBody className="space-y-2">
             {course.links.map((l) => (
-              <a key={l.id} href={l.url} target="_blank" rel="noreferrer"
+              <a key={l.id} href={toExternalUrl(l.url)} target="_blank" rel="noreferrer"
                 className="flex items-center gap-2 text-sm text-primary hover:underline">
                 <ExternalLink size={13} /> {l.label}
               </a>

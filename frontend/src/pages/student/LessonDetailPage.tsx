@@ -11,7 +11,7 @@ import Badge from '@/components/ui/Badge';
 import MarkdownRenderer from '@/components/ui/MarkdownRenderer';
 import FileUpload from '@/components/ui/FileUpload';
 import Input from '@/components/ui/Input';
-import { formatDate, formatDateTime, isOverdue } from '@/lib/utils';
+import { formatDate, formatDateTime, isOverdue, toExternalUrl } from '@/lib/utils';
 import type { AssignmentDTO } from '@/types';
 
 export default function StudentLessonDetailPage() {
@@ -52,7 +52,7 @@ export default function StudentLessonDetailPage() {
 
       {/* GitHub */}
       {lesson.githubUrl && (
-        <a href={lesson.githubUrl} target="_blank" rel="noreferrer"
+        <a href={toExternalUrl(lesson.githubUrl)} target="_blank" rel="noreferrer"
           className="inline-flex items-center gap-2 text-sm border border-[#EEEBF5] rounded-input px-4 py-2 text-[#1A1830] hover:bg-[#F8F7FC] transition">
           <Github size={14} /> קוד השיעור ב-GitHub
         </a>
