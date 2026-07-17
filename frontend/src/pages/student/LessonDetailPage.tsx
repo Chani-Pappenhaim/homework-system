@@ -83,7 +83,7 @@ export default function StudentLessonDetailPage() {
 
       {/* Assignments */}
       {lesson.assignments.map((a) => {
-        const sub = submitted.find((s) => s.assignmentTitle === a.title);
+        const sub = submitted.find((s) => s.assignmentId === a.id);
         return <AssignmentCard key={a.id} assignment={a} submission={sub} />;
       })}
     </div>

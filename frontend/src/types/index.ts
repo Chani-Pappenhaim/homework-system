@@ -137,11 +137,22 @@ export interface SubmissionDTO {
 
 export interface MySubmission {
   submissionId: string;
+  id: string;
+  assignmentId: string;
   assignmentTitle: string;
   lessonTopic: string;
   courseName: string;
   submittedAt: string;
   isLate: boolean;
+  notes?: string;
+  githubUrl?: string;
+  fileUrl?: string;
+  fileName?: string;
+  aiStatus?: string;
+  aiScore?: number | null;
+  aiApproved?: boolean;
+  aiVerbalReview?: string | null;
+  aiCodeReview?: string | null;
   grade: GradeDTO | null;
 }
 
