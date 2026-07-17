@@ -23,9 +23,19 @@ export async function createLesson(req: Request, res: Response) {
 
 export async function getLesson(req: Request, res: Response) {
   try {
-    const lesson = await lessonsService.getLessonById(req.params.id as string, req.user!.role);
+    const lesson = await lessonsService.getLessonById(req.params.id as string, req.user!.userId, req.user!.role);
     if (!lesson) { res.status(404).json({ success: false, error: 'Lesson not found' }); return; }
     res.json({ success: true, data: { lesson } });
+  } catch (err: any) {
+    res.status(err.status || 500).json({ success: false, error: err.message });
+  }
+}
+
+export async function setProgress(req: Request, res: Response) {
+  try {
+    const completed = req.body.completed !== false; // default true
+    const result = await lessonsService.setLessonProgress(req.user!.userId, req.params.id as string, completed);
+    res.json({ success: true, data: result });
   } catch (err: any) {
     res.status(err.status || 500).json({ success: false, error: err.message });
   }

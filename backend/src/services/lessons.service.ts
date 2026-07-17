@@ -28,7 +28,7 @@ export async function createLesson(courseId: string, data: {
   });
 }
 
-export async function getLessonById(id: string, role: string) {
+export async function getLessonById(id: string, userId: string, role: string) {
   const lesson = await prisma.lesson.findUnique({
     where: { id },
     include: {
@@ -38,10 +38,28 @@ export async function getLessonById(id: string, role: string) {
   });
   if (!lesson) return null;
   if (role !== 'ADMIN' && lesson.hidden) throw Object.assign(new Error('Forbidden'), { status: 403 });
+  const progress = await prisma.lessonProgress.findUnique({
+    where: { studentId_lessonId: { studentId: userId, lessonId: id } },
+  });
   return {
     ...lesson,
+    completed: Boolean(progress),
     files: lesson.files.map((f) => ({ ...f, sizeBytes: f.sizeBytes?.toString() })),
   };
+}
+
+// Student self-marks a lesson complete (completed=true) or clears it (false)
+export async function setLessonProgress(studentId: string, lessonId: string, completed: boolean) {
+  if (completed) {
+    await prisma.lessonProgress.upsert({
+      where: { studentId_lessonId: { studentId, lessonId } },
+      create: { studentId, lessonId },
+      update: {},
+    });
+  } else {
+    await prisma.lessonProgress.deleteMany({ where: { studentId, lessonId } });
+  }
+  return { lessonId, completed };
 }
 
 export async function updateLesson(id: string, data: Partial<{

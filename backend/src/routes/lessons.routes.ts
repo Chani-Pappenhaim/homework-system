@@ -12,6 +12,7 @@ router.use(verifyAccessTokenMiddleware);
 router.get('/:courseId/lessons', lessonsController.getLessons);
 router.post('/:courseId/lessons', requireRole('ADMIN'), lessonsController.createLesson);
 router.get('/:id', lessonsController.getLesson);
+router.post('/:id/progress', lessonsController.setProgress);
 router.put('/:id', requireRole('ADMIN'), lessonsController.updateLesson);
 router.patch('/reorder', requireRole('ADMIN'), lessonsController.reorderLessons);
 router.post('/:id/files', requireRole('ADMIN'), upload.single('file'), lessonsController.uploadFile);
