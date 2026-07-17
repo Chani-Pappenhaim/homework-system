@@ -1,5 +1,5 @@
 import { prisma } from '../config/prisma';
-import { cloudinary } from '../config/cloudinary';
+import { uploadBuffer, destroyByUrl, toFileDTO } from '../utils/storage';
 
 export async function getCoursesForUser(userId: string, role: string) {
   if (role === 'ADMIN') {
@@ -88,7 +88,7 @@ export async function getCourseById(id: string, userId: string, role: string) {
     description: course.description, imageUrl: course.imageUrl,
     hidden: course.hidden, groupId: course.groupId,
     links: course.links,
-    files: course.files.map((f) => ({ ...f, sizeBytes: f.sizeBytes?.toString() })),
+    files: course.files.map(toFileDTO),
     lessons,
   };
 }
@@ -142,20 +142,17 @@ export async function deleteCourseLink(courseId: string, linkId: string) {
 }
 
 export async function uploadCourseFile(courseId: string, buffer: Buffer, originalName: string, mimeType: string) {
-  const result = await cloudinary.uploader.upload(
-    `data:${mimeType};base64,${buffer.toString('base64')}`,
-    { resource_type: 'auto', folder: 'courses' }
-  );
-  return prisma.courseFile.create({
-    data: { courseId, name: originalName, url: result.secure_url, sizeBytes: result.bytes },
+  const uploaded = await uploadBuffer(buffer, mimeType, 'courses');
+  const file = await prisma.courseFile.create({
+    data: { courseId, name: originalName, url: uploaded.url, sizeBytes: uploaded.bytes },
   });
+  return toFileDTO(file);
 }
 
 export async function deleteCourseFile(courseId: string, fileId: string) {
   const file = await prisma.courseFile.findUnique({ where: { id: fileId, courseId } });
   if (!file) throw Object.assign(new Error('File not found'), { status: 404 });
-  const publicId = extractPublicId(file.url);
-  if (publicId) await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+  await destroyByUrl(file.url);
   await prisma.courseFile.delete({ where: { id: fileId } });
 }
 
@@ -183,7 +180,3 @@ function toCourseDTO(course: any) {
   };
 }
 
-function extractPublicId(url: string): string | null {
-  const match = url.match(/\/upload\/(?:v\d+\/)?(.+)\.[^.]+$/);
-  return match ? match[1] : null;
-}

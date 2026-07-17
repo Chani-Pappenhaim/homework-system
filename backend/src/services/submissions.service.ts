@@ -1,5 +1,5 @@
 import { prisma } from '../config/prisma';
-import { cloudinary } from '../config/cloudinary';
+import { uploadBuffer } from '../utils/storage';
 import { checkStudentLessonAccess } from './courses.service';
 import ExcelJS from 'exceljs';
 
@@ -38,11 +38,8 @@ export async function submitAssignment(
         throw Object.assign(new Error(`File type not allowed. Allowed: ${assignment.allowedTypes.join(', ')}`), { status: 400 });
       }
     }
-    const result = await cloudinary.uploader.upload(
-      `data:${payload.file.mimeType};base64,${payload.file.buffer.toString('base64')}`,
-      { resource_type: 'auto', folder: 'submissions' }
-    );
-    fileUrl = result.secure_url;
+    const uploaded = await uploadBuffer(payload.file.buffer, payload.file.mimeType, 'submissions');
+    fileUrl = uploaded.url;
     fileName = payload.file.originalName;
   } else {
     throw Object.assign(new Error('No file or repo name provided'), { status: 400 });
