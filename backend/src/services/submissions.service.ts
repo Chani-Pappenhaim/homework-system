@@ -108,9 +108,13 @@ export async function getMySubmissions(studentId: string) {
     } else {
       const grade = await prisma.grade.findUnique({ where: { submissionId: sub.id } });
       submitted.push({
-        submissionId: sub.id, assignmentTitle: assignment.title,
+        submissionId: sub.id, id: sub.id,
+        assignmentId: assignment.id, assignmentTitle: assignment.title,
         lessonTopic: assignment.lesson.topic, courseName: assignment.lesson.course.name,
         submittedAt: sub.submittedAt, isLate: sub.isLate, notes: sub.notes,
+        githubUrl: sub.githubUrl, fileUrl: sub.fileUrl, fileName: sub.fileName,
+        aiStatus: sub.aiStatus, aiScore: sub.aiScore, aiApproved: sub.aiApproved,
+        aiVerbalReview: sub.aiVerbalReview, aiCodeReview: sub.aiCodeReview,
         grade: grade ? { score: grade.score, feedback: grade.feedback, checklist: grade.checklist } : null,
       });
     }
