@@ -43,9 +43,9 @@
 ## Courses `/api/courses`
 | Method | Path | Auth | תיאור |
 |---|---|---|---|
-| GET | `/` | ✓ | ADMIN: כולם; STUDENT: רק של הקבוצה שלה |
+| GET | `/` | ✓ | ADMIN: כולם; STUDENT: רק של הקבוצה שלה. לתלמידה `lessonCount` סופר רק שיעורים גלויים + `completedLessons` (למד ההתקדמות) |
 | POST | `/` | ADMIN | `{ name, year?, description?, groupId }` |
-| GET | `/:id` | ✓ | פרטי קורס + lessons + links + files |
+| GET | `/:id` | ✓ | פרטי קורס + lessons + links + files. כל שיעור כולל `completed` לתלמידה; **403 אם התלמידה לא בקבוצת הקורס** |
 | PUT | `/:id` | ADMIN | עדכון |
 | POST | `/:id/copy` | ADMIN | `{ targetGroupId }` — מעתיק תוכן (לא submissions) |
 | POST | `/:id/links` | ADMIN | `{ label, url, order? }` |
@@ -60,7 +60,8 @@
 |---|---|---|---|
 | GET | `/courses/:courseId/lessons` | ✓ | STUDENT: ללא hidden |
 | POST | `/courses/:courseId/lessons` | ADMIN | `{ topic, lessonDate?, contentMd?, githubUrl?, hidden?, order? }` |
-| GET | `/lessons/:id` | ✓ | פרטי שיעור + files + assignments |
+| GET | `/lessons/:id` | ✓ | פרטי שיעור + files + assignments + `completed` (סימון התלמידה). **תלמידה: 403 אם השיעור לא בקבוצה שלה ואין LessonAccess** |
+| POST | `/lessons/:id/progress` | ✓ | `{ completed: boolean }` — התלמידה מסמנת שסיימה שיעור (בסיס למד ההתקדמות) |
 | PUT | `/lessons/:id` | ADMIN | עדכון |
 | PATCH | `/lessons/reorder` | ADMIN | `{ lessons: [{ id, order }] }` |
 | POST | `/lessons/:id/files` | ADMIN | multipart |

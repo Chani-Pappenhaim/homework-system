@@ -11,6 +11,7 @@
 | Course | קורס השייך לקבוצה אחת |
 | Lesson | שיעור בתוך קורס |
 | LessonAccess | גישה חריגה לשיעור לתלמידה ספציפית |
+| LessonProgress | סימון עצמי של תלמידה שסיימה שיעור (בסיס למד ההתקדמות) |
 | Assignment | מטלה בתוך שיעור |
 | Submission | הגשה של תלמידה למטלה (אחת בלבד) |
 | Grade | ציון להגשה — שני ציונים נפרדים |
@@ -121,6 +122,17 @@ model Lesson {
   files LessonFile[]
   quiz Quiz?
   lessonAccess LessonAccess[]
+  progress LessonProgress[]
+}
+
+// קיום שורה = התלמידה סימנה שסיימה את השיעור
+model LessonProgress {
+  studentId String
+  lessonId String
+  completedAt DateTime @default(now())
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  @@id([studentId, lessonId])
 }
 
 model Assignment {
