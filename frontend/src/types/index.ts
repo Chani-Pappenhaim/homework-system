@@ -32,6 +32,7 @@ export interface CourseDTO {
   groupId: string;
   groupName?: string;
   lessonCount: number;
+  completedLessons?: number;
   createdAt: string;
 }
 
@@ -57,6 +58,7 @@ export interface LessonSummary {
   hidden: boolean;
   order: number;
   assignmentCount?: number;
+  completed?: boolean;
 }
 
 export interface CourseDetailDTO extends CourseDTO {
@@ -105,6 +107,7 @@ export interface LessonDetailDTO {
   hidden: boolean;
   order: number;
   courseId: string;
+  completed?: boolean;
   files: LessonFile[];
   assignments: AssignmentDTO[];
 }

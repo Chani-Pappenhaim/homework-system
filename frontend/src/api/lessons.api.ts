@@ -17,6 +17,9 @@ export const lessonsApi = {
   reorder: (lessons: { id: string; order: number }[]) =>
     api.patch('/lessons/reorder', { lessons }),
 
+  setProgress: (id: string, completed: boolean) =>
+    api.post(`/lessons/${id}/progress`, { completed }),
+
   uploadFile: (id: string, file: File) => {
     const form = new FormData();
     form.append('file', file);
