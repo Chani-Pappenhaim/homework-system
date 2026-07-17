@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Github, Paperclip, CheckCircle, Clock, Bot } from 'lucide-react';
+import { Github, Paperclip, CheckCircle, Clock, Bot, Check } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
 import { submissionsApi } from '@/api/submissions.api';
 import { messagesApi } from '@/api/messages.api';
@@ -11,12 +11,13 @@ import Badge from '@/components/ui/Badge';
 import MarkdownRenderer from '@/components/ui/MarkdownRenderer';
 import FileUpload from '@/components/ui/FileUpload';
 import Input from '@/components/ui/Input';
-import { formatDate, formatDateTime, isOverdue } from '@/lib/utils';
+import { formatDate, formatDateTime, isOverdue, toExternalUrl } from '@/lib/utils';
 import type { AssignmentDTO } from '@/types';
 
 export default function StudentLessonDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ['lesson', id],
@@ -31,14 +32,37 @@ export default function StudentLessonDetailPage() {
   const lesson = data?.data.data.lesson;
   const submitted: any[] = (mineData?.data as any)?.data?.submitted ?? [];
 
+  const progressMutation = useMutation({
+    mutationFn: (completed: boolean) => lessonsApi.setProgress(id!, completed),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['lesson', id] });
+      qc.invalidateQueries({ queryKey: ['courses'] });
+      qc.invalidateQueries({ queryKey: ['course'] });
+    },
+  });
+
   if (isLoading) return <div className="p-6 text-[#9CA3AF]">טוען...</div>;
   if (!lesson) return <div className="p-6 text-red-500">שיעור לא נמצא</div>;
 
   return (
     <div className="max-w-2xl space-y-5" dir="rtl">
-      <div>
-        <h1 className="text-xl font-bold">{lesson.topic}</h1>
-        {lesson.lessonDate && <p className="text-[#6B7280] text-sm mt-0.5">{formatDate(lesson.lessonDate)}</p>}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold">{lesson.topic}</h1>
+          {lesson.lessonDate && <p className="text-[#6B7280] text-sm mt-0.5">{formatDate(lesson.lessonDate)}</p>}
+        </div>
+        <button
+          onClick={() => progressMutation.mutate(!lesson.completed)}
+          disabled={progressMutation.isPending}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition shrink-0 ${
+            lesson.completed
+              ? 'bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] hover:bg-[#D1FAE5]'
+              : 'gradient-primary text-white hover:opacity-90'
+          }`}
+        >
+          <Check size={15} strokeWidth={3} />
+          {lesson.completed ? 'הושלם — בטלי סימון' : 'סיימתי את השיעור'}
+        </button>
       </div>
 
       {/* Content */}
@@ -52,7 +76,7 @@ export default function StudentLessonDetailPage() {
 
       {/* GitHub */}
       {lesson.githubUrl && (
-        <a href={lesson.githubUrl} target="_blank" rel="noreferrer"
+        <a href={toExternalUrl(lesson.githubUrl)} target="_blank" rel="noreferrer"
           className="inline-flex items-center gap-2 text-sm border border-[#EEEBF5] rounded-input px-4 py-2 text-[#1A1830] hover:bg-[#F8F7FC] transition">
           <Github size={14} /> קוד השיעור ב-GitHub
         </a>
@@ -83,7 +107,7 @@ export default function StudentLessonDetailPage() {
 
       {/* Assignments */}
       {lesson.assignments.map((a) => {
-        const sub = submitted.find((s) => s.assignmentTitle === a.title);
+        const sub = submitted.find((s) => s.assignmentId === a.id);
         return <AssignmentCard key={a.id} assignment={a} submission={sub} />;
       })}
     </div>

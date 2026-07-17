@@ -39,24 +39,35 @@ export default function StudentHomePage() {
         <Card><CardBody><p className="text-[#9CA3AF] text-sm text-center py-6">לא שויכת לאף קורס עדיין</p></CardBody></Card>
       ) : (
         <div className="grid grid-cols-2 gap-4">
-          {courses.map((c, i) => (
-            <Card
-              key={c.id}
-              accent="primary"
-              className="cursor-pointer hover:shadow-md transition"
-              onClick={() => navigate(`/student/courses/${c.id}`)}
-            >
-              <CardBody>
-                <div className="text-3xl mb-2">{COURSE_EMOJIS[i % COURSE_EMOJIS.length]}</div>
-                <h2 className="font-semibold text-[#1A1830] text-sm leading-snug mb-1">{c.name}</h2>
-                <p className="text-xs text-[#9CA3AF] mb-3">{c.lessonCount} שיעורים</p>
-                {/* Progress bar */}
-                <div className="h-1.5 bg-[#EEEBF5] rounded-full overflow-hidden">
-                  <div className="h-full gradient-progress rounded-full" style={{ width: '40%' }} />
-                </div>
-              </CardBody>
-            </Card>
-          ))}
+          {courses.map((c, i) => {
+            const done = c.completedLessons ?? 0;
+            const total = c.lessonCount || 0;
+            const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+            return (
+              <Card
+                key={c.id}
+                accent="primary"
+                className="cursor-pointer hover:shadow-md transition"
+                onClick={() => navigate(`/student/courses/${c.id}`)}
+              >
+                <CardBody>
+                  <div className="text-3xl mb-2">{COURSE_EMOJIS[i % COURSE_EMOJIS.length]}</div>
+                  <h2 className="font-semibold text-[#1A1830] text-sm leading-snug mb-1">{c.name}</h2>
+                  <p className="text-xs text-[#9CA3AF] mb-3">{c.lessonCount} שיעורים</p>
+                  {/* Progress bar */}
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] font-medium text-[#6B7280]">
+                      {done}/{total} הושלמו {pct === 100 && total > 0 && '🎉'}
+                    </span>
+                    <span className="text-[11px] font-bold text-primary">{pct}%</span>
+                  </div>
+                  <div className="h-1.5 bg-[#EEEBF5] rounded-full overflow-hidden">
+                    <div className="h-full gradient-progress rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                  </div>
+                </CardBody>
+              </Card>
+            );
+          })}
         </div>
       )}
 

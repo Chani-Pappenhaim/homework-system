@@ -1,3 +1,4 @@
+import { toExternalUrl } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -179,7 +180,7 @@ export default function CourseFormPage() {
           <CardBody className="space-y-3">
             {course.links.map((l) => (
               <div key={l.id} className="flex items-center gap-2">
-                <a href={l.url} target="_blank" rel="noreferrer" className="flex-1 text-sm text-primary hover:underline truncate">{l.label}</a>
+                <a href={toExternalUrl(l.url)} target="_blank" rel="noreferrer" className="flex-1 text-sm text-primary hover:underline truncate">{l.label}</a>
                 <Button size="sm" variant="danger" onClick={() => deleteLinkMutation.mutate(l.id)}>
                   <Trash2 size={12} />
                 </Button>

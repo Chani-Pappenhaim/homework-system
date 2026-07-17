@@ -1,6 +1,7 @@
+import { toExternalUrl } from '@/lib/utils';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ExternalLink, Paperclip } from 'lucide-react';
+import { ExternalLink, Paperclip, Check } from 'lucide-react';
 import { coursesApi } from '@/api/courses.api';
 import Card, { CardBody, CardHeader } from '@/components/ui/Card';
 
@@ -17,6 +18,10 @@ export default function StudentCourseDetailPage() {
   if (isLoading) return <div className="p-6 text-[#9CA3AF]">טוען...</div>;
   if (!course) return <div className="p-6 text-red-500">קורס לא נמצא</div>;
 
+  const total = course.lessons.length;
+  const done = course.lessons.filter((l) => l.completed).length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
   return (
     <div className="max-w-2xl space-y-5" dir="rtl">
       <div>
@@ -24,6 +29,21 @@ export default function StudentCourseDetailPage() {
         <p className="text-[#6B7280] text-sm mt-0.5">{course.groupName} · {course.year}</p>
         {course.description && <p className="text-[#6B7280] text-sm mt-1">{course.description}</p>}
       </div>
+
+      {/* Progress meter */}
+      <Card>
+        <CardBody>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-semibold text-[#1A1830]">
+              ההתקדמות שלך {pct === 100 && total > 0 && '🎉 כל הכבוד!'}
+            </span>
+            <span className="text-sm font-bold text-primary">{done}/{total} · {pct}%</span>
+          </div>
+          <div className="h-2.5 bg-[#EEEBF5] rounded-full overflow-hidden">
+            <div className="h-full gradient-progress rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+          </div>
+        </CardBody>
+      </Card>
 
       {/* Lesson bubbles */}
       <Card accent="primary">
@@ -34,8 +54,18 @@ export default function StudentCourseDetailPage() {
               <button
                 key={l.id}
                 onClick={() => navigate(`/student/lessons/${l.id}`)}
-                className="flex flex-col items-center justify-center w-16 h-16 rounded-xl border-2 border-primary/20 bg-[rgba(194,24,91,0.05)] text-primary hover:bg-[rgba(194,24,91,0.1)] transition text-sm font-semibold"
+                title={l.completed ? 'הושלם' : l.topic}
+                className={`relative flex flex-col items-center justify-center w-16 h-16 rounded-xl border-2 transition text-sm font-semibold ${
+                  l.completed
+                    ? 'border-[#34D399] bg-[#ECFDF5] text-[#059669] hover:bg-[#D1FAE5]'
+                    : 'border-primary/20 bg-[rgba(194,24,91,0.05)] text-primary hover:bg-[rgba(194,24,91,0.1)]'
+                }`}
               >
+                {l.completed && (
+                  <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#34D399] flex items-center justify-center text-white">
+                    <Check size={12} strokeWidth={3} />
+                  </span>
+                )}
                 {i + 1}
               </button>
             ))}
@@ -49,7 +79,7 @@ export default function StudentCourseDetailPage() {
           <CardHeader><h2 className="font-semibold text-sm">קישורים שימושיים</h2></CardHeader>
           <CardBody className="space-y-2">
             {course.links.map((l) => (
-              <a key={l.id} href={l.url} target="_blank" rel="noreferrer"
+              <a key={l.id} href={toExternalUrl(l.url)} target="_blank" rel="noreferrer"
                 className="flex items-center gap-2 text-sm text-primary hover:underline">
                 <ExternalLink size={13} /> {l.label}
               </a>

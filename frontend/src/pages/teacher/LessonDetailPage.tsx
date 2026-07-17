@@ -14,7 +14,7 @@ import Modal from '@/components/ui/Modal';
 import MarkdownRenderer from '@/components/ui/MarkdownRenderer';
 import Input from '@/components/ui/Input';
 import FileUpload from '@/components/ui/FileUpload';
-import { formatDate, formatDateTime } from '@/lib/utils';
+import { formatDate, formatDateTime, toExternalUrl } from '@/lib/utils';
 import type { AssignmentDTO, ChecklistResult, SubmissionDTO } from '@/types';
 
 export default function LessonDetailPage() {
@@ -228,7 +228,7 @@ export default function LessonDetailPage() {
             ? <MarkdownRenderer content={lesson.contentMd} />
             : <p className="text-sm text-[#9CA3AF]">אין תוכן לשיעור עדיין — לחצי על "ערוך שיעור" כדי להוסיף חומר לימוד.</p>}
           {lesson.githubUrl && (
-            <a href={lesson.githubUrl} target="_blank" rel="noreferrer"
+            <a href={toExternalUrl(lesson.githubUrl)} target="_blank" rel="noreferrer"
               className="inline-flex items-center gap-2 text-sm text-[#1A1830] border border-[#EEEBF5] rounded-input px-3 py-1.5 hover:bg-[#F8F7FC] transition">
               <Github size={14} /> קוד השיעור ב-GitHub
             </a>

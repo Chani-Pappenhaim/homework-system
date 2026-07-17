@@ -20,6 +20,17 @@ export function isOverdue(deadline: string | Date | null | undefined): boolean {
   return new Date(deadline) < new Date();
 }
 
+// Teachers often type "github.com/..." without a scheme. Without one the browser
+// treats the href as a relative path and navigates inside the app instead of out.
+export function toExternalUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^\/\//.test(trimmed)) return `https:${trimmed}`;
+  return `https://${trimmed.replace(/^\/+/, '')}`;
+}
+
 export function formatBytes(bytes: number | bigint | null | undefined): string {
   if (!bytes) return '0 B';
   const n = Number(bytes);
