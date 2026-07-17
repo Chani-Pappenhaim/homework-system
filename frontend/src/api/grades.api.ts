@@ -11,8 +11,11 @@ export const gradesApi = {
   pending: () =>
     api.get('/grades/pending'),
 
-  exportUrl: (filters?: { groupId?: string; courseId?: string }) => {
-    const params = new URLSearchParams(filters as Record<string, string>).toString();
-    return `/api/grades/report/export${params ? `?${params}` : ''}`;
-  },
+  /**
+   * Fetched through axios rather than an <a download>: a plain navigation sends
+   * cookies but not the Authorization header, and the route requires a Bearer
+   * token with no cookie fallback — so the "download" was always a 401 JSON body.
+   */
+  exportReport: (filters?: { groupId?: string; courseId?: string }) =>
+    api.get('/grades/report/export', { params: filters, responseType: 'blob' }),
 };

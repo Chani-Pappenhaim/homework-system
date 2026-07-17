@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '@/api/auth.api';
 import useAuthStore from '@/store/authStore';
@@ -8,10 +8,19 @@ import Input from '@/components/ui/Input';
 export default function LoginPage() {
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
+  const user = useAuthStore((s) => s.user);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // A restored session landing here (e.g. the old bootstrap race, or a manual
+  // /login visit) should go straight in rather than ask for a password again.
+  useEffect(() => {
+    if (!user) return;
+    if (user.mustChangePassword) navigate('/change-password', { replace: true });
+    else navigate(user.role === 'ADMIN' ? '/teacher' : '/student', { replace: true });
+  }, [user, navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
