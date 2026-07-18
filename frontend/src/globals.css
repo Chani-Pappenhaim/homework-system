@@ -3,15 +3,44 @@
 @tailwind utilities;
 
 @layer base {
+  /*
+    shadcn/ui design tokens.
+
+    Values are space-separated RGB channels rather than hex so Tailwind can
+    apply opacity modifiers (`bg-primary/40`, `ring-primary/20`) — with a plain
+    hex in the var, `rgb(var(--primary) / 0.4)` would be invalid CSS and the
+    utility would silently drop. The channels are the exact brand colors:
+    194 24 91 = #C2185B (pink), 124 58 237 = #7C3AED (violet).
+  */
   :root {
-    --background: 250 244 252;
+    --background: 248 247 252;
     --foreground: 26 24 48;
+
+    --card: 255 255 255;
+    --card-foreground: 26 24 48;
+
+    --popover: 255 255 255;
+    --popover-foreground: 26 24 48;
+
     --primary: 194 24 91;
     --primary-foreground: 255 255 255;
+
     --secondary: 124 58 237;
+    --secondary-foreground: 255 255 255;
+
     --muted: 238 235 245;
     --muted-foreground: 107 114 128;
+
+    --accent: 238 235 245;
+    --accent-foreground: 26 24 48;
+
+    --destructive: 239 68 68;
+    --destructive-foreground: 255 255 255;
+
     --border: 238 235 245;
+    --input: 238 235 245;
+    --ring: 194 24 91;
+
     --radius: 0.625rem;
   }
 
