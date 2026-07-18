@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import Card, { CardHeader, CardBody } from '@/components/ui/Card';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
 
 describe('Card', () => {
   it('renders children', () => {
@@ -18,12 +18,12 @@ describe('Card', () => {
 
   it('applies the primary accent border', () => {
     render(<Card accent="primary">a</Card>);
-    expect(screen.getByText('a')).toHaveClass('border-t-[#C2185B]');
+    expect(screen.getByText('a')).toHaveClass('border-t-primary');
   });
 
-  it('applies the violet accent border', () => {
-    render(<Card accent="violet">a</Card>);
-    expect(screen.getByText('a')).toHaveClass('border-t-[#7C3AED]');
+  it('applies the secondary accent border', () => {
+    render(<Card accent="secondary">a</Card>);
+    expect(screen.getByText('a')).toHaveClass('border-t-secondary');
   });
 
   it('merges a custom className', () => {
@@ -36,8 +36,8 @@ describe('Card', () => {
     expect(screen.getByText('head')).toBeInTheDocument();
   });
 
-  it('CardBody renders children', () => {
-    render(<CardBody>body</CardBody>);
+  it('CardContent renders children', () => {
+    render(<CardContent>body</CardContent>);
     expect(screen.getByText('body')).toBeInTheDocument();
   });
 });

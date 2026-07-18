@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { messagesApi } from '@/api/messages.api';
-import Card, { CardBody, CardHeader } from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import Badge from '@/components/ui/Badge';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { formatDateTime } from '@/lib/utils';
 
 export default function StudentMessagesPage() {
@@ -33,7 +33,7 @@ export default function StudentMessagesPage() {
       <h1 className="text-xl font-bold">הודעה למורה</h1>
       <Card>
         <CardHeader><h2 className="text-sm font-semibold">שלחי הודעה</h2></CardHeader>
-        <CardBody className="space-y-3">
+        <CardContent className="space-y-3">
           {sent && (
             <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-input p-3 text-sm text-[#065F46]">
               ההודעה נשלחה בהצלחה ✓
@@ -50,7 +50,7 @@ export default function StudentMessagesPage() {
           <Button loading={mutation.isPending} onClick={() => mutation.mutate()} disabled={!content.trim()}>
             שלחי
           </Button>
-        </CardBody>
+        </CardContent>
       </Card>
 
       {/* Message history with teacher replies */}
@@ -59,12 +59,12 @@ export default function StudentMessagesPage() {
           <h2 className="text-sm font-semibold text-[#6B7280]">ההודעות שלי</h2>
           {messages.map((msg) => (
             <Card key={msg.id}>
-              <CardBody className="space-y-1.5">
+              <CardContent className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-[#9CA3AF]">{formatDateTime(msg.createdAt)}</span>
                   {msg.replyContent
-                    ? <Badge variant="green">נענתה</Badge>
-                    : <Badge variant="amber">ממתינה</Badge>}
+                    ? <Badge variant="success">נענתה</Badge>
+                    : <Badge variant="warning">ממתינה</Badge>}
                 </div>
                 <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                 {msg.replyContent && (
@@ -73,7 +73,7 @@ export default function StudentMessagesPage() {
                     <p className="text-sm whitespace-pre-wrap">{msg.replyContent}</p>
                   </div>
                 )}
-              </CardBody>
+              </CardContent>
             </Card>
           ))}
         </div>

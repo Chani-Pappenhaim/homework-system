@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import FileUpload from '@/components/ui/FileUpload';
+import { FileUpload } from '@/components/ui/file-upload';
 
 function getFileInput(container: HTMLElement) {
   return container.querySelector('input[type="file"]') as HTMLInputElement;

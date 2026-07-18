@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import Button from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 
 describe('Button', () => {
   it('renders its children', () => {
@@ -31,19 +31,30 @@ describe('Button', () => {
     expect(container.querySelector('svg.animate-spin')).toBeInTheDocument();
   });
 
-  it('applies primary variant classes by default', () => {
+  it('applies the brand gradient for the default variant', () => {
     render(<Button>Primary</Button>);
     expect(screen.getByRole('button')).toHaveClass('gradient-primary');
   });
 
-  it('applies the danger variant classes', () => {
-    render(<Button variant="danger">Delete</Button>);
-    expect(screen.getByRole('button')).toHaveClass('bg-red-500');
+  it('applies the destructive variant classes', () => {
+    render(<Button variant="destructive">Delete</Button>);
+    expect(screen.getByRole('button')).toHaveClass('bg-destructive');
   });
 
-  it('applies the violet variant classes', () => {
-    render(<Button variant="violet">V</Button>);
-    expect(screen.getByRole('button')).toHaveClass('bg-[#7C3AED]');
+  it('applies the secondary variant classes', () => {
+    render(<Button variant="secondary">V</Button>);
+    expect(screen.getByRole('button')).toHaveClass('bg-secondary');
+  });
+
+  it('renders as the child element when asChild is set', () => {
+    render(
+      <Button asChild>
+        <a href="/somewhere">Link</a>
+      </Button>
+    );
+    const link = screen.getByRole('link', { name: 'Link' });
+    expect(link).toHaveClass('gradient-primary');
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('applies size classes', () => {

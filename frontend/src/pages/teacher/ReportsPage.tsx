@@ -4,9 +4,9 @@ import { Download } from 'lucide-react';
 import { gradesApi } from '@/api/grades.api';
 import { groupsApi } from '@/api/groups.api';
 import { coursesApi } from '@/api/courses.api';
-import Card, { CardHeader } from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import Badge from '@/components/ui/Badge';
+import { Card, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { formatDate, formatDateTime } from '@/lib/utils';
 import type { ReportRow } from '@/types';
 
@@ -52,7 +52,7 @@ export default function ReportsPage() {
         <h1 className="text-xl font-bold">דוחות ציונים</h1>
         <div className="flex items-center gap-2">
           {exportError && <span className="text-red-500 text-xs">{exportError}</span>}
-          <Button variant="ghost" size="sm" loading={exportMutation.isPending} onClick={() => exportMutation.mutate()}>
+          <Button variant="outline" size="sm" loading={exportMutation.isPending} onClick={() => exportMutation.mutate()}>
             <Download size={13} /> ייצוא Excel
           </Button>
         </div>
@@ -80,7 +80,7 @@ export default function ReportsPage() {
           </select>
 
           {(groupId || courseId) && (
-            <Button size="sm" variant="ghost" onClick={() => { setGroupId(''); setCourseId(''); }}>
+            <Button size="sm" variant="outline" onClick={() => { setGroupId(''); setCourseId(''); }}>
               נקה פילטרים
             </Button>
           )}
@@ -122,7 +122,7 @@ export default function ReportsPage() {
                     <td className="px-4 py-3 text-[#6B7280] text-xs">{formatDate(r.deadline)}</td>
                     <td className="px-4 py-3">
                       <p className="text-xs text-[#6B7280]">{formatDateTime(r.submittedAt)}</p>
-                      {r.isLate && <Badge variant="amber">איחור</Badge>}
+                      {r.isLate && <Badge variant="warning">איחור</Badge>}
                     </td>
                     <td className="px-4 py-3">
                       {r.score != null

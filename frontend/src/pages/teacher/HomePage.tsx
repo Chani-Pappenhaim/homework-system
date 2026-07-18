@@ -6,8 +6,8 @@ import { groupsApi } from '@/api/groups.api';
 import { coursesApi } from '@/api/courses.api';
 import { gradesApi } from '@/api/grades.api';
 import { aiUsageApi } from '@/api/aiUsage.api';
-import Card, { CardBody } from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/utils';
 
 export default function TeacherHomePage() {
@@ -35,7 +35,7 @@ export default function TeacherHomePage() {
           <p className="text-[#6B7280] text-sm mt-0.5">{today}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="violet" onClick={() => navigate('/teacher/groups/new')}>
+          <Button variant="secondary" onClick={() => navigate('/teacher/groups/new')}>
             <Plus size={15} /> קבוצה חדשה
           </Button>
           <Button onClick={() => navigate('/teacher/courses/new')}>
@@ -131,7 +131,7 @@ function StatCard({ icon, label, value, bg, urgent, onClick }: {
 }) {
   return (
     <Card onClick={onClick} className={onClick ? 'cursor-pointer hover:bg-[#F8F7FC] transition' : undefined}>
-      <CardBody className="flex items-center gap-3">
+      <CardContent className="flex items-center gap-3">
         <div className={`w-10 h-10 rounded-lg ${bg} flex items-center justify-center flex-shrink-0`}>
           {icon}
         </div>
@@ -139,7 +139,7 @@ function StatCard({ icon, label, value, bg, urgent, onClick }: {
           <p className={`text-xl font-bold ${urgent ? 'text-red-500' : 'text-[#1A1830]'}`}>{value}</p>
           <p className="text-xs text-[#6B7280]">{label}</p>
         </div>
-      </CardBody>
+      </CardContent>
     </Card>
   );
 }

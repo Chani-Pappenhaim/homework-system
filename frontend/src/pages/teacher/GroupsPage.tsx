@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Users, Plus, Eye } from 'lucide-react';
 import { groupsApi } from '@/api/groups.api';
-import Card, { CardBody } from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import type { GroupDTO } from '@/types';
 
 export default function GroupsPage() {
@@ -22,23 +22,23 @@ export default function GroupsPage() {
     <div className="max-w-4xl space-y-5" dir="rtl">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">קבוצות</h1>
-        <Button variant="violet" onClick={() => navigate('/teacher/groups/new')}>
+        <Button variant="secondary" onClick={() => navigate('/teacher/groups/new')}>
           <Plus size={15} /> קבוצה חדשה
         </Button>
       </div>
 
       {groups.length === 0 && (
         <Card>
-          <CardBody>
+          <CardContent>
             <p className="text-sm text-[#9CA3AF]">אין קבוצות עדיין</p>
-          </CardBody>
+          </CardContent>
         </Card>
       )}
 
       <div className="grid grid-cols-2 gap-4">
         {groups.map((g) => (
           <Card key={g.id}>
-            <CardBody className="space-y-3">
+            <CardContent className="space-y-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-[rgba(124,58,237,0.08)] flex items-center justify-center flex-shrink-0">
@@ -53,11 +53,11 @@ export default function GroupsPage() {
               </div>
               <div className="flex items-center justify-between">
                 <p className="text-xs text-[#6B7280]">{g.studentCount} תלמידות</p>
-                <Button size="sm" variant="ghost" onClick={() => navigate(`/teacher/groups/${g.id}`)}>
+                <Button size="sm" variant="outline" onClick={() => navigate(`/teacher/groups/${g.id}`)}>
                   <Eye size={12} /> צפייה
                 </Button>
               </div>
-            </CardBody>
+            </CardContent>
           </Card>
         ))}
       </div>

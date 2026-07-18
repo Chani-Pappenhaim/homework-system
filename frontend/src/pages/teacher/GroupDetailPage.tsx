@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Edit, Users, BookOpen, Plus, Github } from 'lucide-react';
 import { groupsApi } from '@/api/groups.api';
-import Card, { CardBody, CardHeader } from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 export default function GroupDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -35,7 +35,7 @@ export default function GroupDetailPage() {
             </p>
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => navigate(`/teacher/groups/${id}/edit`)}>
+        <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/groups/${id}/edit`)}>
           <Edit size={13} /> ערוך קבוצה
         </Button>
       </div>
@@ -47,12 +47,12 @@ export default function GroupDetailPage() {
             <h2 className="font-semibold text-sm flex items-center gap-1.5">
               <BookOpen size={15} className="text-primary" /> קורסים ({group.courses.length})
             </h2>
-            <Button size="sm" variant="violet" onClick={() => navigate(`/teacher/courses/new?groupId=${id}`)}>
+            <Button size="sm" variant="secondary" onClick={() => navigate(`/teacher/courses/new?groupId=${id}`)}>
               <Plus size={13} /> קורס לקבוצה
             </Button>
           </div>
         </CardHeader>
-        <CardBody>
+        <CardContent>
           {group.courses.length === 0 ? (
             <p className="text-sm text-[#9CA3AF]">אין קורסים בקבוצה זו עדיין</p>
           ) : (
@@ -69,7 +69,7 @@ export default function GroupDetailPage() {
               ))}
             </div>
           )}
-        </CardBody>
+        </CardContent>
       </Card>
 
       {/* Students (read-only) */}

@@ -4,8 +4,8 @@ import { Clock } from 'lucide-react';
 import useAuthStore from '@/store/authStore';
 import { coursesApi } from '@/api/courses.api';
 import { submissionsApi } from '@/api/submissions.api';
-import Card, { CardBody } from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { formatDate, isOverdue } from '@/lib/utils';
 
 const COURSE_EMOJIS = ['📚', '💻', '🎯', '🔧', '⚡', '🌟', '🧩', '🚀'];
@@ -30,13 +30,13 @@ export default function StudentHomePage() {
           <p className="text-[#6B7280] text-sm mt-0.5">{user?.name}</p>
         </div>
         {pending.length > 0 && (
-          <Badge variant="pink">{pending.length} מטלות ממתינות</Badge>
+          <Badge variant="default">{pending.length} מטלות ממתינות</Badge>
         )}
       </div>
 
       {/* Course grid */}
       {courses.length === 0 ? (
-        <Card><CardBody><p className="text-[#9CA3AF] text-sm text-center py-6">לא שויכת לאף קורס עדיין</p></CardBody></Card>
+        <Card><CardContent><p className="text-[#9CA3AF] text-sm text-center py-6">לא שויכת לאף קורס עדיין</p></CardContent></Card>
       ) : (
         <div className="grid grid-cols-2 gap-4">
           {courses.map((c, i) => {
@@ -50,7 +50,7 @@ export default function StudentHomePage() {
                 className="cursor-pointer hover:shadow-md transition"
                 onClick={() => navigate(`/student/courses/${c.id}`)}
               >
-                <CardBody>
+                <CardContent>
                   <div className="text-3xl mb-2">{COURSE_EMOJIS[i % COURSE_EMOJIS.length]}</div>
                   <h2 className="font-semibold text-[#1A1830] text-sm leading-snug mb-1">{c.name}</h2>
                   <p className="text-xs text-[#9CA3AF] mb-3">{c.lessonCount} שיעורים</p>
@@ -64,7 +64,7 @@ export default function StudentHomePage() {
                   <div className="h-1.5 bg-[#EEEBF5] rounded-full overflow-hidden">
                     <div className="h-full gradient-progress rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
                   </div>
-                </CardBody>
+                </CardContent>
               </Card>
             );
           })}
@@ -87,7 +87,7 @@ export default function StudentHomePage() {
                   <p className="text-xs text-[#9CA3AF]">{p.courseName} · {p.lessonTopic}</p>
                 </div>
                 {p.deadline && (
-                  <Badge variant={isOverdue(p.deadline) ? 'pink' : 'amber'}>
+                  <Badge variant={isOverdue(p.deadline) ? 'default' : 'warning'}>
                     {isOverdue(p.deadline) ? 'פג תוקף' : formatDate(p.deadline)}
                   </Badge>
                 )}

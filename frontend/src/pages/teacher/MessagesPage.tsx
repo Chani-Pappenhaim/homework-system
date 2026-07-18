@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Reply } from 'lucide-react';
 import { messagesApi } from '@/api/messages.api';
-import Card, { CardBody } from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
-import Button from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { formatDateTime } from '@/lib/utils';
 
 export default function TeacherMessagesPage() {
@@ -41,12 +41,12 @@ export default function TeacherMessagesPage() {
       {messages.length === 0 && <p className="text-[#9CA3AF] text-sm">אין הודעות</p>}
       {messages.map((msg) => (
         <Card key={msg.id} className={msg.isRead && msg.replyContent ? 'opacity-70' : ''}>
-          <CardBody className="space-y-1">
+          <CardContent className="space-y-1">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-sm">{msg.student.name}</span>
               <div className="flex items-center gap-2">
-                {!msg.isRead && <Badge variant="amber">חדש</Badge>}
-                {msg.replyContent && <Badge variant="green">נענתה</Badge>}
+                {!msg.isRead && <Badge variant="warning">חדש</Badge>}
+                {msg.replyContent && <Badge variant="success">נענתה</Badge>}
                 <span className="text-xs text-[#9CA3AF]">{formatDateTime(msg.createdAt)}</span>
               </div>
             </div>
@@ -81,7 +81,7 @@ export default function TeacherMessagesPage() {
                   >
                     שלחי תגובה
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => { setReplyingTo(null); setReplyText(''); }}>
+                  <Button size="sm" variant="outline" onClick={() => { setReplyingTo(null); setReplyText(''); }}>
                     ביטול
                   </Button>
                 </div>
@@ -104,7 +104,7 @@ export default function TeacherMessagesPage() {
                 )}
               </div>
             )}
-          </CardBody>
+          </CardContent>
         </Card>
       ))}
     </div>

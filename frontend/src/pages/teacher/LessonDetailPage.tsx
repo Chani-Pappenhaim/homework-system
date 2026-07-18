@@ -7,13 +7,13 @@ import { assignmentsApi } from '@/api/assignments.api';
 import { submissionsApi } from '@/api/submissions.api';
 import { gradesApi } from '@/api/grades.api';
 import { groupsApi } from '@/api/groups.api';
-import Card, { CardBody, CardHeader } from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import Badge from '@/components/ui/Badge';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import Modal from '@/components/ui/Modal';
-import MarkdownRenderer from '@/components/ui/MarkdownRenderer';
-import Input from '@/components/ui/Input';
-import FileUpload from '@/components/ui/FileUpload';
+import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
+import { Input } from '@/components/ui/input';
+import { FileUpload } from '@/components/ui/file-upload';
 import { formatDate, formatDateTime, toExternalUrl } from '@/lib/utils';
 import type { AssignmentDTO, ChecklistResult, SubmissionDTO } from '@/types';
 
@@ -216,14 +216,14 @@ export default function LessonDetailPage() {
               {lesson.lessonDate && <p className="text-sm text-[#6B7280] mt-0.5">{formatDate(lesson.lessonDate)}</p>}
             </div>
             <div className="flex items-center gap-2">
-              {lesson.hidden && <Badge variant="amber">מוסתר</Badge>}
-              <Button size="sm" variant="ghost" onClick={openLessonEdit}>
+              {lesson.hidden && <Badge variant="warning">מוסתר</Badge>}
+              <Button size="sm" variant="outline" onClick={openLessonEdit}>
                 <Edit size={12} /> ערוך שיעור
               </Button>
             </div>
           </div>
         </CardHeader>
-        <CardBody className="space-y-4">
+        <CardContent className="space-y-4">
           {lesson.contentMd
             ? <MarkdownRenderer content={lesson.contentMd} />
             : <p className="text-sm text-[#9CA3AF]">אין תוכן לשיעור עדיין — לחצי על "ערוך שיעור" כדי להוסיף חומר לימוד.</p>}
@@ -243,7 +243,7 @@ export default function LessonDetailPage() {
                   className="flex items-center gap-1.5 text-sm text-primary hover:underline">
                   <Paperclip size={12} /> {f.name}
                 </a>
-                <Button size="sm" variant="danger"
+                <Button size="sm" variant="destructive"
                   onClick={() => { if (confirm(`למחוק את הקובץ ${f.name}?`)) deleteFileMutation.mutate(f.id); }}>
                   <Trash2 size={12} />
                 </Button>
@@ -258,7 +258,7 @@ export default function LessonDetailPage() {
               className="mt-1"
             />
           </div>
-        </CardBody>
+        </CardContent>
       </Card>
 
       {/* Assignments + submissions */}
@@ -276,7 +276,7 @@ export default function LessonDetailPage() {
                   <span className="text-sm text-[#9CA3AF]">אין מטלות עדיין</span>
                 )}
               </div>
-              <Button size="sm" variant="violet" onClick={() => openAssignmentModal('new')}>
+              <Button size="sm" variant="secondary" onClick={() => openAssignmentModal('new')}>
                 <Plus size={13} /> מטלה חדשה
               </Button>
             </div>
@@ -297,10 +297,10 @@ export default function LessonDetailPage() {
                     )}
                   </div>
                   <div className="flex gap-1 shrink-0">
-                    <Button size="sm" variant="ghost" onClick={() => openAssignmentModal(assignment)}>
+                    <Button size="sm" variant="outline" onClick={() => openAssignmentModal(assignment)}>
                       <Edit size={12} />
                     </Button>
-                    <Button size="sm" variant="danger" onClick={() => {
+                    <Button size="sm" variant="destructive" onClick={() => {
                       if (confirm('למחוק מטלה זו?')) deleteAssignmentMutation.mutate(assignment.id);
                     }}>
                       <Trash2 size={12} />
@@ -344,7 +344,7 @@ export default function LessonDetailPage() {
                         </td>
                         <td className="px-3 py-3 text-[#6B7280] text-xs">
                           {formatDateTime(s.submittedAt)}
-                          {s.isLate && <Badge variant="amber" className="mr-1">איחור</Badge>}
+                          {s.isLate && <Badge variant="warning" className="mr-1">איחור</Badge>}
                         </td>
                         <td className="px-3 py-3">
                           {s.grade?.score != null
@@ -352,7 +352,7 @@ export default function LessonDetailPage() {
                             : <span className="text-[#9CA3AF]">—</span>}
                         </td>
                         <td className="px-3 py-3">
-                          <Button size="sm" variant={s.grade ? 'ghost' : 'primary'} onClick={() => openGradeModal(s)}>
+                          <Button size="sm" variant={s.grade ? 'outline' : 'default'} onClick={() => openGradeModal(s)}>
                             {s.grade ? <><Edit size={12} /> ערוך</> : 'בדוק עכשיו'}
                           </Button>
                         </td>
@@ -370,7 +370,7 @@ export default function LessonDetailPage() {
         <CardHeader>
           <h2 className="font-semibold text-sm">הרשאת גישה חריגה לשיעור זה</h2>
         </CardHeader>
-        <CardBody className="space-y-3">
+        <CardContent className="space-y-3">
           <p className="text-xs text-[#9CA3AF]">מתן גישה לתלמידה שאינה בקבוצה הרגילה של הקורס</p>
           <div className="flex gap-2">
             <Input
@@ -382,7 +382,7 @@ export default function LessonDetailPage() {
             />
             <Button
               size="sm"
-              variant="violet"
+              variant="secondary"
               loading={grantAccessMutation.isPending}
               onClick={() => grantAccessMutation.mutate(accessEmail)}
               disabled={!accessEmail}
@@ -399,14 +399,14 @@ export default function LessonDetailPage() {
                     <p className="text-sm font-medium">{s.name}</p>
                     <p className="text-xs text-[#9CA3AF]">{s.email}</p>
                   </div>
-                  <Button size="sm" variant="danger" onClick={() => revokeAccessMutation.mutate(s.id)}>
+                  <Button size="sm" variant="destructive" onClick={() => revokeAccessMutation.mutate(s.id)}>
                     <Trash2 size={12} />
                   </Button>
                 </div>
               ))}
             </div>
           )}
-        </CardBody>
+        </CardContent>
       </Card>
 
       {/* Lesson edit modal */}
@@ -526,10 +526,10 @@ export default function LessonDetailPage() {
                   </p>
                   <div className="flex items-center gap-2">
                     {gradeModal.aiApproved ? (
-                      <Badge variant="green"><CheckCircle size={10} className="ml-1" /> אושר לתלמידה</Badge>
+                      <Badge variant="success"><CheckCircle size={10} className="ml-1" /> אושר לתלמידה</Badge>
                     ) : (
                       <Button
-                        size="sm" variant="violet"
+                        size="sm" variant="secondary"
                         loading={approveAiMutation.isPending}
                         onClick={() => approveAiMutation.mutate()}
                       >
@@ -537,7 +537,7 @@ export default function LessonDetailPage() {
                       </Button>
                     )}
                     <Button
-                      size="sm" variant="ghost"
+                      size="sm" variant="outline"
                       loading={restoreAiScoreMutation.isPending}
                       onClick={() => restoreAiScoreMutation.mutate()}
                       disabled={gradeModal.aiScore == null}

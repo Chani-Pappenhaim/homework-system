@@ -18,7 +18,7 @@ interface Props {
  * If raw HTML is ever wanted here, add rehype-raw AND sanitize at the rehype
  * stage — sanitizing the source string is the wrong layer either way.
  */
-export default function MarkdownRenderer({ content, className }: Props) {
+function MarkdownRenderer({ content, className }: Props) {
   return (
     <div className={className}>
       <ReactMarkdown
@@ -30,3 +30,5 @@ export default function MarkdownRenderer({ content, className }: Props) {
     </div>
   );
 }
+
+export { MarkdownRenderer };

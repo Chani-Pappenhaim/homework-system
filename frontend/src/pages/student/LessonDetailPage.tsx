@@ -5,12 +5,12 @@ import { Github, Paperclip, CheckCircle, Clock, Bot, Check } from 'lucide-react'
 import { lessonsApi } from '@/api/lessons.api';
 import { submissionsApi } from '@/api/submissions.api';
 import { messagesApi } from '@/api/messages.api';
-import Card, { CardBody, CardHeader } from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import Badge from '@/components/ui/Badge';
-import MarkdownRenderer from '@/components/ui/MarkdownRenderer';
-import FileUpload from '@/components/ui/FileUpload';
-import Input from '@/components/ui/Input';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
+import { FileUpload } from '@/components/ui/file-upload';
+import { Input } from '@/components/ui/input';
 import { formatDate, formatDateTime, isOverdue, toExternalUrl } from '@/lib/utils';
 import type { AssignmentDTO } from '@/types';
 
@@ -68,9 +68,9 @@ export default function StudentLessonDetailPage() {
       {/* Content */}
       {lesson.contentMd && (
         <Card>
-          <CardBody>
+          <CardContent>
             <MarkdownRenderer content={lesson.contentMd} />
-          </CardBody>
+          </CardContent>
         </Card>
       )}
 
@@ -86,14 +86,14 @@ export default function StudentLessonDetailPage() {
       {lesson.files.length > 0 && (
         <Card>
           <CardHeader><h2 className="text-sm font-semibold">קבצים</h2></CardHeader>
-          <CardBody className="space-y-2">
+          <CardContent className="space-y-2">
             {lesson.files.map((f) => (
               <a key={f.id} href={f.url} target="_blank" rel="noreferrer"
                 className="flex items-center gap-2 text-sm text-primary hover:underline">
                 <Paperclip size={12} /> {f.name}
               </a>
             ))}
-          </CardBody>
+          </CardContent>
         </Card>
       )}
 
@@ -160,15 +160,15 @@ function AssignmentCard({ assignment: a, submission: sub }: {
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-sm">{a.title}</h3>
           {sub ? (
-            <Badge variant="green"><CheckCircle size={10} className="ml-1" /> הוגש</Badge>
+            <Badge variant="success"><CheckCircle size={10} className="ml-1" /> הוגש</Badge>
           ) : a.deadline && isOverdue(a.deadline) ? (
-            <Badge variant="pink">פג תוקף</Badge>
+            <Badge variant="default">פג תוקף</Badge>
           ) : (
-            <Badge variant="amber"><Clock size={10} className="ml-1" /> ממתין</Badge>
+            <Badge variant="warning"><Clock size={10} className="ml-1" /> ממתין</Badge>
           )}
         </div>
       </CardHeader>
-      <CardBody className="space-y-3">
+      <CardContent className="space-y-3">
         {a.description && <p className="text-sm text-[#6B7280]">{a.description}</p>}
         {a.deadline && (
           <p className="text-xs text-[#9CA3AF]">מועד אחרון: <span className="font-medium">{formatDate(a.deadline)}</span></p>
@@ -180,7 +180,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
             <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-input p-3 text-sm space-y-1">
               <p className="text-[#065F46] font-medium">הגשתך התקבלה בהצלחה ✓</p>
               <p className="text-[#6B7280] text-xs">הוגש: {formatDateTime(sub.submittedAt)}</p>
-              {sub.isLate && <Badge variant="amber">הוגש באיחור</Badge>}
+              {sub.isLate && <Badge variant="warning">הוגש באיחור</Badge>}
               {sub.notes && <p className="text-xs text-[#6B7280]">הערה: {sub.notes}</p>}
               {sub.grade && (
                 <div className="mt-2 space-y-1">
@@ -201,14 +201,14 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1 font-medium text-[#1A1830]"><Bot size={14} /> בדיקת AI</span>
                   {sub.aiStatus === 'none' && (
-                    <Button size="sm" variant="ghost" loading={aiReviewMutation.isPending}
+                    <Button size="sm" variant="outline" loading={aiReviewMutation.isPending}
                       onClick={() => aiReviewMutation.mutate()}>
                       בקשי בדיקה
                     </Button>
                   )}
-                  {sub.aiStatus === 'pending' && <Badge variant="amber">בודק...</Badge>}
-                  {sub.aiStatus === 'done' && !sub.aiApproved && <Badge variant="green">נבדק ✓</Badge>}
-                  {sub.aiStatus === 'error' && <Badge variant="pink">שגיאה</Badge>}
+                  {sub.aiStatus === 'pending' && <Badge variant="warning">בודק...</Badge>}
+                  {sub.aiStatus === 'done' && !sub.aiApproved && <Badge variant="success">נבדק ✓</Badge>}
+                  {sub.aiStatus === 'error' && <Badge variant="default">שגיאה</Badge>}
                 </div>
                 {sub.aiStatus === 'done' && sub.aiApproved && (
                   <div className="space-y-2 pt-1">
@@ -235,7 +235,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                 ) : (
                   <Button
                     size="sm"
-                    variant="ghost"
+                    variant="outline"
                     onClick={() => setLateFormOpen(!lateFormOpen)}
                   >
                     בקשי אישור הגשה מאוחרת
@@ -259,7 +259,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                       >
                         שלחי בקשה
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => { setLateFormOpen(false); setLateReason(''); }}>
+                      <Button size="sm" variant="outline" onClick={() => { setLateFormOpen(false); setLateReason(''); }}>
                         ביטול
                       </Button>
                     </div>
@@ -285,7 +285,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                   />
                   <Button
                     size="sm"
-                    variant="ghost"
+                    variant="outline"
                     loading={repoMutation.isPending}
                     onClick={() => repoMutation.mutate()}
                     disabled={!repoName.trim()}
@@ -310,7 +310,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
             {error && <p className="text-red-500 text-xs">{error}</p>}
           </>
         )}
-      </CardBody>
+      </CardContent>
     </Card>
   );
 }
