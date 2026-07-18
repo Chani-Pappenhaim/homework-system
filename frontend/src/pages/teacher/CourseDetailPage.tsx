@@ -7,7 +7,13 @@ import { lessonsApi } from '@/api/lessons.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import Modal from '@/components/ui/Modal';
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useState } from 'react';
 
 export default function CourseDetailPage() {
@@ -117,7 +123,12 @@ export default function CourseDetailPage() {
       )}
 
       {/* New lesson modal */}
-      <Modal open={newLessonModal} onClose={() => setNewLessonModal(false)} title="שיעור חדש">
+      <Dialog open={newLessonModal} onOpenChange={setNewLessonModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>שיעור חדש</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
         <div className="space-y-3">
           <Input label="נושא השיעור *" value={newTopic} onChange={(e) => setNewTopic(e.target.value)} placeholder="React Hooks" />
           <Input label="תאריך (אופציונלי)" type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
@@ -142,7 +153,9 @@ export default function CourseDetailPage() {
             צור שיעור
           </Button>
         </div>
-      </Modal>
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

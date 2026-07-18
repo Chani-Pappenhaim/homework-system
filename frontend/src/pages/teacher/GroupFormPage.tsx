@@ -5,7 +5,13 @@ import { Trash2, RotateCcw, UserPlus } from 'lucide-react';
 import { groupsApi } from '@/api/groups.api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import Modal from '@/components/ui/Modal';
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { FileUpload } from '@/components/ui/file-upload';
 
@@ -140,7 +146,12 @@ export default function GroupFormPage() {
       )}
 
       {/* Add student modal */}
-      <Modal open={addModal} onClose={() => setAddModal(false)} title="הוספת תלמידה">
+      <Dialog open={addModal} onOpenChange={setAddModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>הוספת תלמידה</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
         <div className="flex gap-2 mb-4">
           {(['manual', 'excel'] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)}
@@ -166,7 +177,9 @@ export default function GroupFormPage() {
             <FileUpload accept=".xlsx" onFile={handleImport} label="גרור קובץ Excel לכאן" />
           </div>
         )}
-      </Modal>
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

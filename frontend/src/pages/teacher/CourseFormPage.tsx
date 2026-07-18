@@ -9,7 +9,13 @@ import { lessonsApi } from '@/api/lessons.api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import Modal from '@/components/ui/Modal';
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { FileUpload } from '@/components/ui/file-upload';
 
 export default function CourseFormPage() {
@@ -216,7 +222,12 @@ export default function CourseFormPage() {
       )}
 
       {/* Copy modal */}
-      <Modal open={copyModal} onClose={() => setCopyModal(false)} title="העתקת קורס לקבוצה אחרת">
+      <Dialog open={copyModal} onOpenChange={setCopyModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>העתקת קורס לקבוצה אחרת</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
         <div className="space-y-3">
           <select
             value={copyGroupId}
@@ -232,7 +243,9 @@ export default function CourseFormPage() {
             העתק קורס
           </Button>
         </div>
-      </Modal>
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
