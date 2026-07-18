@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import Badge from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/badge';
 
 describe('Badge', () => {
   it('renders its children', () => {
@@ -8,16 +8,17 @@ describe('Badge', () => {
     expect(screen.getByText('Hello')).toBeInTheDocument();
   });
 
-  it('defaults to the gray variant', () => {
+  it('defaults to the muted variant', () => {
     render(<Badge>Gray</Badge>);
-    expect(screen.getByText('Gray')).toHaveClass('bg-[#EEEBF5]');
+    expect(screen.getByText('Gray')).toHaveClass('bg-muted');
   });
 
   it.each([
-    ['pink', 'text-[#E91E8C]'],
-    ['violet', 'text-[#A78BFA]'],
-    ['green', 'text-[#10B981]'],
-    ['amber', 'text-[#F59E0B]'],
+    ['default', 'text-primary'],
+    ['secondary', 'text-secondary'],
+    ['success', 'text-emerald-600'],
+    ['warning', 'text-amber-600'],
+    ['destructive', 'text-destructive'],
   ] as const)('applies the %s variant class', (variant, cls) => {
     render(<Badge variant={variant}>{variant}</Badge>);
     expect(screen.getByText(variant)).toHaveClass(cls);

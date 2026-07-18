@@ -6,11 +6,18 @@ import { Plus, Trash2, GripVertical, EyeOff, Copy } from 'lucide-react';
 import { coursesApi } from '@/api/courses.api';
 import { groupsApi } from '@/api/groups.api';
 import { lessonsApi } from '@/api/lessons.api';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import Card, { CardBody, CardHeader } from '@/components/ui/Card';
-import Modal from '@/components/ui/Modal';
-import FileUpload from '@/components/ui/FileUpload';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { FileUpload } from '@/components/ui/file-upload';
 
 export default function CourseFormPage() {
   const { id } = useParams();
@@ -107,7 +114,7 @@ export default function CourseFormPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">{isEdit ? 'עריכת קורס' : 'קורס חדש'}</h1>
         {isEdit && (
-          <Button variant="ghost" size="sm" onClick={() => setCopyModal(true)}>
+          <Button variant="outline" size="sm" onClick={() => setCopyModal(true)}>
             <Copy size={13} /> העתק לקבוצה אחרת
           </Button>
         )}
@@ -115,7 +122,7 @@ export default function CourseFormPage() {
 
       {/* Basic info */}
       <Card>
-        <CardBody className="space-y-4">
+        <CardContent className="space-y-4">
           <Input label="שם הקורס *" value={name} onChange={(e) => setName(e.target.value)} placeholder="React מתקדם" />
           <Input label='שנה"ל' value={year} onChange={(e) => setYear(e.target.value)} placeholder='תשפ"ו' />
           <div className="flex flex-col gap-1">
@@ -123,7 +130,7 @@ export default function CourseFormPage() {
             <select
               value={groupId}
               onChange={(e) => setGroupId(e.target.value)}
-              className="w-full px-3 py-2 border border-[#EEEBF5] rounded-input text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="w-full px-3 py-2 border border-input bg-card rounded-input text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               <option value="">בחרי קבוצה...</option>
               {groups.map((g) => <option key={g.id} value={g.id}>{g.name} — {g.year}</option>)}
@@ -131,11 +138,11 @@ export default function CourseFormPage() {
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium">תיאור</label>
-            <textarea
+            <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 border border-[#EEEBF5] rounded-input text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+              className="resize-none"
               placeholder="תיאור קצר של הקורס..."
             />
           </div>
@@ -143,7 +150,7 @@ export default function CourseFormPage() {
           <Button loading={saveMutation.isPending} onClick={() => saveMutation.mutate()} disabled={!name || !groupId}>
             {isEdit ? 'שמור שינויים' : 'צור קורס'}
           </Button>
-        </CardBody>
+        </CardContent>
       </Card>
 
       {/* Lessons table — edit only */}
@@ -164,7 +171,7 @@ export default function CourseFormPage() {
                   {l.topic}
                 </span>
                 {l.hidden && <EyeOff size={13} className="text-[#9CA3AF]" />}
-                <Button size="sm" variant="ghost" onClick={() => toggleHiddenMutation.mutate(l)}>
+                <Button size="sm" variant="outline" onClick={() => toggleHiddenMutation.mutate(l)}>
                   {l.hidden ? 'הצג' : 'הסתר'}
                 </Button>
               </div>
@@ -177,11 +184,11 @@ export default function CourseFormPage() {
       {isEdit && course && (
         <Card>
           <CardHeader><h2 className="font-semibold text-sm">קישורים שימושיים</h2></CardHeader>
-          <CardBody className="space-y-3">
+          <CardContent className="space-y-3">
             {course.links.map((l) => (
               <div key={l.id} className="flex items-center gap-2">
                 <a href={toExternalUrl(l.url)} target="_blank" rel="noreferrer" className="flex-1 text-sm text-primary hover:underline truncate">{l.label}</a>
-                <Button size="sm" variant="danger" onClick={() => deleteLinkMutation.mutate(l.id)}>
+                <Button size="sm" variant="destructive" onClick={() => deleteLinkMutation.mutate(l.id)}>
                   <Trash2 size={12} />
                 </Button>
               </div>
@@ -193,7 +200,7 @@ export default function CourseFormPage() {
                 <Plus size={13} />
               </Button>
             </div>
-          </CardBody>
+          </CardContent>
         </Card>
       )}
 
@@ -201,27 +208,32 @@ export default function CourseFormPage() {
       {isEdit && course && (
         <Card>
           <CardHeader><h2 className="font-semibold text-sm">קבצים</h2></CardHeader>
-          <CardBody className="space-y-3">
+          <CardContent className="space-y-3">
             {course.files.map((f) => (
               <div key={f.id} className="flex items-center gap-2">
                 <a href={f.url} target="_blank" rel="noreferrer" className="flex-1 text-sm text-[#1A1830] hover:text-primary truncate">{f.name}</a>
-                <Button size="sm" variant="danger" onClick={() => deleteFileMutation.mutate(f.id)}>
+                <Button size="sm" variant="destructive" onClick={() => deleteFileMutation.mutate(f.id)}>
                   <Trash2 size={12} />
                 </Button>
               </div>
             ))}
             <FileUpload onFile={(file) => uploadFileMutation.mutate(file)} label="העלה קובץ לקורס" />
-          </CardBody>
+          </CardContent>
         </Card>
       )}
 
       {/* Copy modal */}
-      <Modal open={copyModal} onClose={() => setCopyModal(false)} title="העתקת קורס לקבוצה אחרת">
+      <Dialog open={copyModal} onOpenChange={setCopyModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>העתקת קורס לקבוצה אחרת</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
         <div className="space-y-3">
           <select
             value={copyGroupId}
             onChange={(e) => setCopyGroupId(e.target.value)}
-            className="w-full px-3 py-2 border border-[#EEEBF5] rounded-input text-sm"
+            className="w-full px-3 py-2 border border-input bg-card rounded-input text-sm text-foreground"
           >
             <option value="">בחרי קבוצה יעד...</option>
             {groups.filter((g) => g.id !== groupId).map((g) => (
@@ -232,7 +244,9 @@ export default function CourseFormPage() {
             העתק קורס
           </Button>
         </div>
-      </Modal>
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

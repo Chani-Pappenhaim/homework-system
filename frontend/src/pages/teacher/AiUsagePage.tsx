@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Bot, HelpCircle, Cpu, DollarSign } from 'lucide-react';
 import { aiUsageApi } from '@/api/aiUsage.api';
-import Card, { CardBody, CardHeader } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 function formatMonth(month: string) {
   const [year, m] = month.split('-');
@@ -95,7 +95,7 @@ function StatCard({ icon, label, value, bg }: {
 }) {
   return (
     <Card>
-      <CardBody className="flex items-center gap-3">
+      <CardContent className="flex items-center gap-3">
         <div className={`w-10 h-10 rounded-lg ${bg} flex items-center justify-center flex-shrink-0`}>
           {icon}
         </div>
@@ -103,7 +103,7 @@ function StatCard({ icon, label, value, bg }: {
           <p className="text-xl font-bold text-[#1A1830]">{value}</p>
           <p className="text-xs text-[#6B7280]">{label}</p>
         </div>
-      </CardBody>
+      </CardContent>
     </Card>
   );
 }

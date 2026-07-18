@@ -4,10 +4,17 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { Edit, Lock, ExternalLink, Plus } from 'lucide-react';
 import { coursesApi } from '@/api/courses.api';
 import { lessonsApi } from '@/api/lessons.api';
-import Card, { CardBody, CardHeader } from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import Modal from '@/components/ui/Modal';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useState } from 'react';
 
 export default function CourseDetailPage() {
@@ -50,7 +57,7 @@ export default function CourseDetailPage() {
           <p className="text-[#6B7280] text-sm mt-0.5">{course.groupName} · {course.year}</p>
           {course.description && <p className="text-[#6B7280] text-sm mt-1">{course.description}</p>}
         </div>
-        <Button variant="ghost" size="sm" onClick={() => navigate(`/teacher/courses/${id}/edit`)}>
+        <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/courses/${id}/edit`)}>
           <Edit size={13} /> ערוך קורס
         </Button>
       </div>
@@ -60,7 +67,7 @@ export default function CourseDetailPage() {
         <CardHeader>
           <h2 className="font-semibold text-sm">שיעורים ({course.lessons.length})</h2>
         </CardHeader>
-        <CardBody>
+        <CardContent>
           <div className="flex flex-wrap gap-3">
             {course.lessons.map((l, i) => (
               <button
@@ -83,21 +90,21 @@ export default function CourseDetailPage() {
               <Plus size={18} />
             </button>
           </div>
-        </CardBody>
+        </CardContent>
       </Card>
 
       {/* Links */}
       {course.links.length > 0 && (
         <Card>
           <CardHeader><h2 className="font-semibold text-sm">קישורים שימושיים</h2></CardHeader>
-          <CardBody className="space-y-2">
+          <CardContent className="space-y-2">
             {course.links.map((l) => (
               <a key={l.id} href={toExternalUrl(l.url)} target="_blank" rel="noreferrer"
                 className="flex items-center gap-2 text-sm text-primary hover:underline">
                 <ExternalLink size={13} /> {l.label}
               </a>
             ))}
-          </CardBody>
+          </CardContent>
         </Card>
       )}
 
@@ -105,29 +112,34 @@ export default function CourseDetailPage() {
       {course.files.length > 0 && (
         <Card>
           <CardHeader><h2 className="font-semibold text-sm">קבצים</h2></CardHeader>
-          <CardBody className="space-y-2">
+          <CardContent className="space-y-2">
             {course.files.map((f) => (
               <a key={f.id} href={f.url} target="_blank" rel="noreferrer"
                 className="flex items-center gap-2 text-sm text-[#1A1830] hover:text-primary">
                 <ExternalLink size={13} /> {f.name}
               </a>
             ))}
-          </CardBody>
+          </CardContent>
         </Card>
       )}
 
       {/* New lesson modal */}
-      <Modal open={newLessonModal} onClose={() => setNewLessonModal(false)} title="שיעור חדש">
+      <Dialog open={newLessonModal} onOpenChange={setNewLessonModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>שיעור חדש</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
         <div className="space-y-3">
           <Input label="נושא השיעור *" value={newTopic} onChange={(e) => setNewTopic(e.target.value)} placeholder="React Hooks" />
           <Input label="תאריך (אופציונלי)" type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium">חומר הלימוד (אופציונלי, Markdown)</label>
-            <textarea
+            <Textarea
               value={newContent}
               onChange={(e) => setNewContent(e.target.value)}
               rows={5}
-              className="w-full px-3 py-2 border border-[#EEEBF5] rounded-input text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-y font-mono"
+              className="resize-y font-mono"
               placeholder="# כותרת&#10;&#10;תוכן השיעור, הסברים, דוגמאות קוד..."
             />
           </div>
@@ -142,7 +154,9 @@ export default function CourseDetailPage() {
             צור שיעור
           </Button>
         </div>
-      </Modal>
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

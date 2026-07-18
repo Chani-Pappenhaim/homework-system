@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { quizzesApi } from '@/api/quizzes.api';
-import Card, { CardBody } from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import Badge from '@/components/ui/Badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 export default function QuizPage() {
   const { lessonId } = useParams<{ lessonId: string }>();
@@ -53,18 +53,18 @@ export default function QuizPage() {
     return (
       <div className="max-w-lg mx-auto space-y-5" dir="rtl">
         <Card accent="primary">
-          <CardBody className="text-center space-y-2">
+          <CardContent className="text-center space-y-2">
             <p className="text-5xl font-bold text-primary">{Math.round(result.score)}%</p>
             <p className="text-[#6B7280]">{result.correct} מתוך {result.total} תשובות נכונות</p>
-            <Badge variant={result.score >= 80 ? 'green' : result.score >= 60 ? 'amber' : 'pink'}>
+            <Badge variant={result.score >= 80 ? 'success' : result.score >= 60 ? 'warning' : 'default'}>
               {result.score >= 80 ? 'מצוין!' : result.score >= 60 ? 'טוב' : 'נסי שוב'}
             </Badge>
-          </CardBody>
+          </CardContent>
         </Card>
 
         {quiz?.questions.map((q: any, i: number) => (
           <Card key={q.id}>
-            <CardBody className="space-y-2">
+            <CardContent className="space-y-2">
               <p className="text-sm font-medium">{i + 1}. {q.question}</p>
               {q.options.map((opt: string, j: number) => {
                 const isCorrect = q.correctIndex === j;
@@ -79,7 +79,7 @@ export default function QuizPage() {
                   </div>
                 );
               })}
-            </CardBody>
+            </CardContent>
           </Card>
         ))}
       </div>
@@ -90,12 +90,12 @@ export default function QuizPage() {
     <div className="max-w-lg mx-auto space-y-5" dir="rtl">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">חידון השיעור ✦</h1>
-        <Badge variant="violet">{quiz?.questions.length} שאלות</Badge>
+        <Badge variant="secondary">{quiz?.questions.length} שאלות</Badge>
       </div>
 
       {quiz?.questions.map((q: any, i: number) => (
         <Card key={q.id}>
-          <CardBody className="space-y-3">
+          <CardContent className="space-y-3">
             <p className="text-sm font-medium">{i + 1}. {q.question}</p>
             {q.options.map((opt: string, j: number) => (
               <label key={j} className={`flex items-center gap-3 px-3 py-2 rounded-input cursor-pointer transition border
@@ -112,7 +112,7 @@ export default function QuizPage() {
                 <span className="text-sm">{opt}</span>
               </label>
             ))}
-          </CardBody>
+          </CardContent>
         </Card>
       ))}
 

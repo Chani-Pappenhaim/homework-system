@@ -3,11 +3,17 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Trash2, RotateCcw, UserPlus } from 'lucide-react';
 import { groupsApi } from '@/api/groups.api';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import Modal from '@/components/ui/Modal';
-import Card, { CardBody, CardHeader } from '@/components/ui/Card';
-import FileUpload from '@/components/ui/FileUpload';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { FileUpload } from '@/components/ui/file-upload';
 
 export default function GroupFormPage() {
   const { id } = useParams();
@@ -84,7 +90,7 @@ export default function GroupFormPage() {
 
       {/* Form */}
       <Card>
-        <CardBody className="space-y-4">
+        <CardContent className="space-y-4">
           <Input label="שם סמינר (אופציונלי)" value={seminar} onChange={(e) => setSeminar(e.target.value)} placeholder='בית יעקב' />
           <Input label="שם קבוצה *" value={name} onChange={(e) => setName(e.target.value)} placeholder='קבוצה א' required />
           <Input label='שנה"ל *' value={year} onChange={(e) => setYear(e.target.value)} placeholder='תשפ"ו' required />
@@ -92,7 +98,7 @@ export default function GroupFormPage() {
           <Button loading={saveMutation.isPending} onClick={() => saveMutation.mutate()} disabled={!name || !year}>
             {isEdit ? 'שמור שינויים' : 'צור קבוצה'}
           </Button>
-        </CardBody>
+        </CardContent>
       </Card>
 
       {/* Students table — only in edit mode */}
@@ -101,7 +107,7 @@ export default function GroupFormPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <h2 className="font-semibold text-sm">תלמידות ({group?.students.length ?? 0})</h2>
-              <Button size="sm" variant="violet" onClick={() => setAddModal(true)}>
+              <Button size="sm" variant="secondary" onClick={() => setAddModal(true)}>
                 <UserPlus size={13} /> הוספת תלמידה
               </Button>
             </div>
@@ -119,14 +125,14 @@ export default function GroupFormPage() {
                 </div>
                 <div className="flex gap-2">
                   <Button
-                    size="sm" variant="ghost"
+                    size="sm" variant="outline"
                     onClick={() => { if (confirm(`לאפס סיסמא ל-${s.name}?`)) resetPasswordMutation.mutate(s.id); }}
                     title="איפוס סיסמא"
                   >
                     <RotateCcw size={13} />
                   </Button>
                   <Button
-                    size="sm" variant="danger"
+                    size="sm" variant="destructive"
                     onClick={() => { if (confirm(`להסיר את ${s.name} מהקבוצה?`)) removeStudentMutation.mutate(s.id); }}
                     title="הסרה מהקבוצה"
                   >
@@ -140,7 +146,12 @@ export default function GroupFormPage() {
       )}
 
       {/* Add student modal */}
-      <Modal open={addModal} onClose={() => setAddModal(false)} title="הוספת תלמידה">
+      <Dialog open={addModal} onOpenChange={setAddModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>הוספת תלמידה</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
         <div className="flex gap-2 mb-4">
           {(['manual', 'excel'] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)}
@@ -166,7 +177,9 @@ export default function GroupFormPage() {
             <FileUpload accept=".xlsx" onFile={handleImport} label="גרור קובץ Excel לכאן" />
           </div>
         )}
-      </Modal>
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

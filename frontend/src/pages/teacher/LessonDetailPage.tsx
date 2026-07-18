@@ -7,13 +7,21 @@ import { assignmentsApi } from '@/api/assignments.api';
 import { submissionsApi } from '@/api/submissions.api';
 import { gradesApi } from '@/api/grades.api';
 import { groupsApi } from '@/api/groups.api';
-import Card, { CardBody, CardHeader } from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import Badge from '@/components/ui/Badge';
-import Modal from '@/components/ui/Modal';
-import MarkdownRenderer from '@/components/ui/MarkdownRenderer';
-import Input from '@/components/ui/Input';
-import FileUpload from '@/components/ui/FileUpload';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { FileUpload } from '@/components/ui/file-upload';
 import { formatDate, formatDateTime, toExternalUrl } from '@/lib/utils';
 import type { AssignmentDTO, ChecklistResult, SubmissionDTO } from '@/types';
 
@@ -216,14 +224,14 @@ export default function LessonDetailPage() {
               {lesson.lessonDate && <p className="text-sm text-[#6B7280] mt-0.5">{formatDate(lesson.lessonDate)}</p>}
             </div>
             <div className="flex items-center gap-2">
-              {lesson.hidden && <Badge variant="amber">מוסתר</Badge>}
-              <Button size="sm" variant="ghost" onClick={openLessonEdit}>
+              {lesson.hidden && <Badge variant="warning">מוסתר</Badge>}
+              <Button size="sm" variant="outline" onClick={openLessonEdit}>
                 <Edit size={12} /> ערוך שיעור
               </Button>
             </div>
           </div>
         </CardHeader>
-        <CardBody className="space-y-4">
+        <CardContent className="space-y-4">
           {lesson.contentMd
             ? <MarkdownRenderer content={lesson.contentMd} />
             : <p className="text-sm text-[#9CA3AF]">אין תוכן לשיעור עדיין — לחצי על "ערוך שיעור" כדי להוסיף חומר לימוד.</p>}
@@ -243,7 +251,7 @@ export default function LessonDetailPage() {
                   className="flex items-center gap-1.5 text-sm text-primary hover:underline">
                   <Paperclip size={12} /> {f.name}
                 </a>
-                <Button size="sm" variant="danger"
+                <Button size="sm" variant="destructive"
                   onClick={() => { if (confirm(`למחוק את הקובץ ${f.name}?`)) deleteFileMutation.mutate(f.id); }}>
                   <Trash2 size={12} />
                 </Button>
@@ -258,7 +266,7 @@ export default function LessonDetailPage() {
               className="mt-1"
             />
           </div>
-        </CardBody>
+        </CardContent>
       </Card>
 
       {/* Assignments + submissions */}
@@ -276,7 +284,7 @@ export default function LessonDetailPage() {
                   <span className="text-sm text-[#9CA3AF]">אין מטלות עדיין</span>
                 )}
               </div>
-              <Button size="sm" variant="violet" onClick={() => openAssignmentModal('new')}>
+              <Button size="sm" variant="secondary" onClick={() => openAssignmentModal('new')}>
                 <Plus size={13} /> מטלה חדשה
               </Button>
             </div>
@@ -297,10 +305,10 @@ export default function LessonDetailPage() {
                     )}
                   </div>
                   <div className="flex gap-1 shrink-0">
-                    <Button size="sm" variant="ghost" onClick={() => openAssignmentModal(assignment)}>
+                    <Button size="sm" variant="outline" onClick={() => openAssignmentModal(assignment)}>
                       <Edit size={12} />
                     </Button>
-                    <Button size="sm" variant="danger" onClick={() => {
+                    <Button size="sm" variant="destructive" onClick={() => {
                       if (confirm('למחוק מטלה זו?')) deleteAssignmentMutation.mutate(assignment.id);
                     }}>
                       <Trash2 size={12} />
@@ -344,7 +352,7 @@ export default function LessonDetailPage() {
                         </td>
                         <td className="px-3 py-3 text-[#6B7280] text-xs">
                           {formatDateTime(s.submittedAt)}
-                          {s.isLate && <Badge variant="amber" className="mr-1">איחור</Badge>}
+                          {s.isLate && <Badge variant="warning" className="mr-1">איחור</Badge>}
                         </td>
                         <td className="px-3 py-3">
                           {s.grade?.score != null
@@ -352,7 +360,7 @@ export default function LessonDetailPage() {
                             : <span className="text-[#9CA3AF]">—</span>}
                         </td>
                         <td className="px-3 py-3">
-                          <Button size="sm" variant={s.grade ? 'ghost' : 'primary'} onClick={() => openGradeModal(s)}>
+                          <Button size="sm" variant={s.grade ? 'outline' : 'default'} onClick={() => openGradeModal(s)}>
                             {s.grade ? <><Edit size={12} /> ערוך</> : 'בדוק עכשיו'}
                           </Button>
                         </td>
@@ -370,7 +378,7 @@ export default function LessonDetailPage() {
         <CardHeader>
           <h2 className="font-semibold text-sm">הרשאת גישה חריגה לשיעור זה</h2>
         </CardHeader>
-        <CardBody className="space-y-3">
+        <CardContent className="space-y-3">
           <p className="text-xs text-[#9CA3AF]">מתן גישה לתלמידה שאינה בקבוצה הרגילה של הקורס</p>
           <div className="flex gap-2">
             <Input
@@ -382,7 +390,7 @@ export default function LessonDetailPage() {
             />
             <Button
               size="sm"
-              variant="violet"
+              variant="secondary"
               loading={grantAccessMutation.isPending}
               onClick={() => grantAccessMutation.mutate(accessEmail)}
               disabled={!accessEmail}
@@ -399,104 +407,123 @@ export default function LessonDetailPage() {
                     <p className="text-sm font-medium">{s.name}</p>
                     <p className="text-xs text-[#9CA3AF]">{s.email}</p>
                   </div>
-                  <Button size="sm" variant="danger" onClick={() => revokeAccessMutation.mutate(s.id)}>
+                  <Button size="sm" variant="destructive" onClick={() => revokeAccessMutation.mutate(s.id)}>
                     <Trash2 size={12} />
                   </Button>
                 </div>
               ))}
             </div>
           )}
-        </CardBody>
+        </CardContent>
       </Card>
 
       {/* Lesson edit modal */}
-      <Modal open={lessonEditOpen} onClose={() => setLessonEditOpen(false)} title="עריכת שיעור" size="lg">
-        <div className="space-y-4">
-          <Input label="נושא השיעור *" value={lTopic} onChange={(e) => setLTopic(e.target.value)} placeholder="React Hooks" />
-          <Input label="תאריך (אופציונלי)" type="date" value={lDate} onChange={(e) => setLDate(e.target.value)} />
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium">חומר הלימוד (Markdown)</label>
-            <textarea
-              value={lContentMd}
-              onChange={(e) => setLContentMd(e.target.value)}
-              rows={8}
-              className="w-full px-3 py-2 border border-[#EEEBF5] rounded-input text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-y font-mono"
-              placeholder="# כותרת&#10;&#10;תוכן השיעור, הסברים, דוגמאות קוד..."
-            />
-            <p className="text-xs text-[#9CA3AF]">אפשר לעצב עם Markdown: כותרות (#), רשימות, קוד (```), קישורים ועוד</p>
-          </div>
-          <Input label="קישור לקוד ב-GitHub (אופציונלי)" value={lGithubUrl} onChange={(e) => setLGithubUrl(e.target.value)} placeholder="https://github.com/..." />
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" checked={lHidden} onChange={(e) => setLHidden(e.target.checked)} className="accent-primary" />
-            הסתר שיעור מהתלמידות
-          </label>
-          <p className="text-xs text-[#9CA3AF]">קבצים מצורפים מנהלים ישירות בכרטיס השיעור (לא כאן).</p>
-          <Button
-            className="w-full"
-            loading={saveLessonMutation.isPending}
-            onClick={() => saveLessonMutation.mutate()}
-            disabled={!lTopic.trim()}
-          >
-            שמרי שינויים
-          </Button>
-        </div>
-      </Modal>
+      <Dialog open={lessonEditOpen} onOpenChange={setLessonEditOpen}>
+        <DialogContent size="lg">
+          <DialogHeader>
+            <DialogTitle>עריכת שיעור</DialogTitle>
+          </DialogHeader>
+          <DialogBody className="space-y-4">
+            <Input label="נושא השיעור *" value={lTopic} onChange={(e) => setLTopic(e.target.value)} placeholder="React Hooks" />
+            <Input label="תאריך (אופציונלי)" type="date" value={lDate} onChange={(e) => setLDate(e.target.value)} />
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="lesson-content">חומר הלימוד (Markdown)</Label>
+              <Textarea
+                id="lesson-content"
+                value={lContentMd}
+                onChange={(e) => setLContentMd(e.target.value)}
+                rows={8}
+                className="resize-y font-mono"
+                placeholder="# כותרת&#10;&#10;תוכן השיעור, הסברים, דוגמאות קוד..."
+              />
+              <p className="text-xs text-muted-foreground">אפשר לעצב עם Markdown: כותרות (#), רשימות, קוד (```), קישורים ועוד</p>
+            </div>
+            <Input label="קישור לקוד ב-GitHub (אופציונלי)" value={lGithubUrl} onChange={(e) => setLGithubUrl(e.target.value)} placeholder="https://github.com/..." />
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" checked={lHidden} onChange={(e) => setLHidden(e.target.checked)} className="accent-primary" />
+              הסתר שיעור מהתלמידות
+            </label>
+            <p className="text-xs text-muted-foreground">קבצים מצורפים מנהלים ישירות בכרטיס השיעור (לא כאן).</p>
+            <Button
+              className="w-full"
+              loading={saveLessonMutation.isPending}
+              onClick={() => saveLessonMutation.mutate()}
+              disabled={!lTopic.trim()}
+            >
+              שמרי שינויים
+            </Button>
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
 
       {/* Assignment create/edit modal */}
-      <Modal
+      <Dialog
         open={Boolean(assignmentModal)}
-        onClose={() => setAssignmentModal(null)}
-        title={assignmentModal === 'new' ? 'מטלה חדשה' : 'עריכת מטלה'}
+        onOpenChange={(open) => { if (!open) setAssignmentModal(null); }}
       >
-        <div className="space-y-4">
-          <Input
-            label="כותרת המטלה"
-            value={aTitle}
-            onChange={(e) => setATitle(e.target.value)}
-            placeholder="למשל: פרויקט גיטהב"
-          />
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium">תיאור (אופציונלי)</label>
-            <textarea
-              value={aDescription}
-              onChange={(e) => setADescription(e.target.value)}
-              rows={2}
-              className="w-full px-3 py-2 border border-[#EEEBF5] rounded-input text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
-              placeholder="הוראות לתלמידה..."
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{assignmentModal === 'new' ? 'מטלה חדשה' : 'עריכת מטלה'}</DialogTitle>
+          </DialogHeader>
+          <DialogBody className="space-y-4">
+            <Input
+              label="כותרת המטלה"
+              value={aTitle}
+              onChange={(e) => setATitle(e.target.value)}
+              placeholder="למשל: פרויקט גיטהב"
             />
-          </div>
-          <Input
-            label="מועד אחרון (אופציונלי)"
-            type="datetime-local"
-            value={aDeadline}
-            onChange={(e) => setADeadline(e.target.value)}
-          />
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium">הנחיות לבדיקת AI (אופציונלי)</label>
-            <textarea
-              value={aAiInstructions}
-              onChange={(e) => setAAiInstructions(e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2 border border-[#EEEBF5] rounded-input text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
-              placeholder="למשל: בדקי שיש שימוש ב-async/await, שהקוד מחולק לפונקציות, ושיש טיפול בשגיאות..."
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="assignment-description">תיאור (אופציונלי)</Label>
+              <Textarea
+                id="assignment-description"
+                value={aDescription}
+                onChange={(e) => setADescription(e.target.value)}
+                rows={2}
+                className="resize-none"
+                placeholder="הוראות לתלמידה..."
+              />
+            </div>
+            <Input
+              label="מועד אחרון (אופציונלי)"
+              type="datetime-local"
+              value={aDeadline}
+              onChange={(e) => setADeadline(e.target.value)}
             />
-            <p className="text-xs text-[#9CA3AF]">הנחיות אלו יישלחו ל-AI בעת בדיקת עבודות התלמידות</p>
-          </div>
-          <Button
-            className="w-full"
-            loading={saveAssignmentMutation.isPending}
-            onClick={() => saveAssignmentMutation.mutate()}
-            disabled={!aTitle.trim()}
-          >
-            {assignmentModal === 'new' ? 'צרי מטלה' : 'שמרי שינויים'}
-          </Button>
-        </div>
-      </Modal>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="assignment-ai-instructions">הנחיות לבדיקת AI (אופציונלי)</Label>
+              <Textarea
+                id="assignment-ai-instructions"
+                value={aAiInstructions}
+                onChange={(e) => setAAiInstructions(e.target.value)}
+                rows={3}
+                className="resize-none"
+                placeholder="למשל: בדקי שיש שימוש ב-async/await, שהקוד מחולק לפונקציות, ושיש טיפול בשגיאות..."
+              />
+              <p className="text-xs text-muted-foreground">הנחיות אלו יישלחו ל-AI בעת בדיקת עבודות התלמידות</p>
+            </div>
+            <Button
+              className="w-full"
+              loading={saveAssignmentMutation.isPending}
+              onClick={() => saveAssignmentMutation.mutate()}
+              disabled={!aTitle.trim()}
+            >
+              {assignmentModal === 'new' ? 'צרי מטלה' : 'שמרי שינויים'}
+            </Button>
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
 
       {/* Grade modal */}
-      <Modal open={Boolean(gradeModal)} onClose={() => setGradeModal(null)} title={`ציון — ${gradeModal?.studentName}`} size="lg">
-        {gradeModal && (
-          <div className="space-y-4">
+      <Dialog
+        open={Boolean(gradeModal)}
+        onOpenChange={(open) => { if (!open) setGradeModal(null); }}
+      >
+        <DialogContent size="lg">
+          <DialogHeader>
+            <DialogTitle>{`ציון — ${gradeModal?.studentName}`}</DialogTitle>
+          </DialogHeader>
+          {gradeModal && (
+            <DialogBody className="space-y-4">
             {/* Submission link */}
             {gradeModal.fileUrl && (
               <a href={gradeModal.fileUrl} target="_blank" rel="noreferrer"
@@ -526,10 +553,10 @@ export default function LessonDetailPage() {
                   </p>
                   <div className="flex items-center gap-2">
                     {gradeModal.aiApproved ? (
-                      <Badge variant="green"><CheckCircle size={10} className="ml-1" /> אושר לתלמידה</Badge>
+                      <Badge variant="success"><CheckCircle size={10} className="ml-1" /> אושר לתלמידה</Badge>
                     ) : (
                       <Button
-                        size="sm" variant="violet"
+                        size="sm" variant="secondary"
                         loading={approveAiMutation.isPending}
                         onClick={() => approveAiMutation.mutate()}
                       >
@@ -537,7 +564,7 @@ export default function LessonDetailPage() {
                       </Button>
                     )}
                     <Button
-                      size="sm" variant="ghost"
+                      size="sm" variant="outline"
                       loading={restoreAiScoreMutation.isPending}
                       onClick={() => restoreAiScoreMutation.mutate()}
                       disabled={gradeModal.aiScore == null}
@@ -580,12 +607,13 @@ export default function LessonDetailPage() {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium">משוב (Markdown)</label>
-              <textarea
+              <Label htmlFor="grade-feedback">משוב (Markdown)</Label>
+              <Textarea
+                id="grade-feedback"
                 value={feedback}
                 onChange={(e) => setFeedback(e.target.value)}
                 rows={4}
-                className="w-full px-3 py-2 border border-[#EEEBF5] rounded-input text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+                className="resize-none"
                 placeholder="כתבי משוב מפורט..."
               />
             </div>
@@ -593,9 +621,10 @@ export default function LessonDetailPage() {
             <Button loading={gradeMutation.isPending} onClick={() => gradeMutation.mutate()} className="w-full">
               שמור ציון
             </Button>
-          </div>
-        )}
-      </Modal>
+            </DialogBody>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,12 +1,24 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import Input from '@/components/ui/Input';
+import { Input } from '@/components/ui/input';
 
 describe('Input', () => {
   it('renders a label associated with the input', () => {
+    // Regression: the label used to be plain markup with no htmlFor, so it was
+    // findable by text but never actually tied to the field.
     render(<Input label="Email" />);
-    expect(screen.getByText('Email')).toBeInTheDocument();
+    expect(screen.getByLabelText('Email')).toBeInstanceOf(HTMLInputElement);
+  });
+
+  it('gives each input a distinct id so labels do not collide', () => {
+    render(
+      <>
+        <Input label="First" />
+        <Input label="Second" />
+      </>
+    );
+    expect(screen.getByLabelText('First')).not.toBe(screen.getByLabelText('Second'));
   });
 
   it('renders without a label', () => {
@@ -21,15 +33,21 @@ describe('Input', () => {
     expect(onChange).toHaveBeenCalled();
   });
 
-  it('shows an error message and applies the error border', () => {
+  it('shows an error message and marks the field invalid', () => {
     render(<Input error="Required" placeholder="p" />);
+    const field = screen.getByPlaceholderText('p');
     expect(screen.getByText('Required')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('p')).toHaveClass('border-red-400');
+    expect(field).toHaveClass('border-destructive');
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+    // The message is announced with the field rather than sitting beside it.
+    expect(field).toHaveAccessibleDescription('Required');
   });
 
   it('does not apply the error border when there is no error', () => {
     render(<Input placeholder="ok" />);
-    expect(screen.getByPlaceholderText('ok')).not.toHaveClass('border-red-400');
+    const field = screen.getByPlaceholderText('ok');
+    expect(field).not.toHaveClass('border-destructive');
+    expect(field).not.toHaveAttribute('aria-invalid');
   });
 
   it('forwards arbitrary input attributes such as type', () => {

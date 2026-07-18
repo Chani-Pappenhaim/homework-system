@@ -1,7 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import useAuthStore from '@/store/authStore';
 import TeacherLayout from '@/components/Layout/TeacherLayout';
-import FullPageSpinner from '@/components/ui/FullPageSpinner';
+import { FullPageSpinner } from '@/components/ui/full-page-spinner';
 
 export default function AdminGuard() {
   const user = useAuthStore((s) => s.user);

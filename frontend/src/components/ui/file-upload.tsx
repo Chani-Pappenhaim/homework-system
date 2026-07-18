@@ -9,7 +9,7 @@ interface FileUploadProps {
   className?: string;
 }
 
-export default function FileUpload({ onFile, accept, label = 'גרור קובץ לכאן או לחצי לבחירה', className }: FileUploadProps) {
+function FileUpload({ onFile, accept, label = 'גרור קובץ לכאן או לחצי לבחירה', className }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -44,3 +44,5 @@ export default function FileUpload({ onFile, accept, label = 'גרור קובץ 
     </div>
   );
 }
+
+export { FileUpload };

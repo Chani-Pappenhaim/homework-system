@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { submissionsApi } from '@/api/submissions.api';
-import Card, { CardHeader } from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
-import MarkdownRenderer from '@/components/ui/MarkdownRenderer';
+import { Card, CardHeader } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { formatDate, formatDateTime, isOverdue } from '@/lib/utils';
 
 export default function AssignmentsPage() {
@@ -40,7 +40,7 @@ export default function AssignmentsPage() {
                 <p className="text-xs text-[#9CA3AF]">{p.courseName} · {p.lessonTopic}</p>
               </div>
               {p.deadline && (
-                <Badge variant={isOverdue(p.deadline) ? 'pink' : 'amber'}>
+                <Badge variant={isOverdue(p.deadline) ? 'default' : 'warning'}>
                   {isOverdue(p.deadline) ? 'פג תוקף' : formatDate(p.deadline)}
                 </Badge>
               )}
@@ -69,14 +69,14 @@ export default function AssignmentsPage() {
                   <p className="text-xs text-[#9CA3AF]">{s.courseName} · {formatDateTime(s.submittedAt)}</p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  {s.isLate && <Badge variant="amber">איחור</Badge>}
+                  {s.isLate && <Badge variant="warning">איחור</Badge>}
                   {s.grade?.score != null && (
                     <span className="font-semibold text-sm text-[#1A1830]">{s.grade.score}</span>
                   )}
                   {s.grade ? (
                     expanded === s.submissionId ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                   ) : (
-                    <Badge variant="gray">ממתין לציון</Badge>
+                    <Badge variant="muted">ממתין לציון</Badge>
                   )}
                 </div>
               </button>

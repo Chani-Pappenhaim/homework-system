@@ -1,6 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import useAuthStore from '@/store/authStore';
-import FullPageSpinner from '@/components/ui/FullPageSpinner';
+import { FullPageSpinner } from '@/components/ui/full-page-spinner';
 
 interface Props { children?: React.ReactNode }
 
