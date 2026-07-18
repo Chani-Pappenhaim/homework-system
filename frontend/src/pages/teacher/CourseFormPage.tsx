@@ -7,6 +7,7 @@ import { coursesApi } from '@/api/courses.api';
 import { groupsApi } from '@/api/groups.api';
 import { lessonsApi } from '@/api/lessons.api';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
@@ -129,7 +130,7 @@ export default function CourseFormPage() {
             <select
               value={groupId}
               onChange={(e) => setGroupId(e.target.value)}
-              className="w-full px-3 py-2 border border-[#EEEBF5] rounded-input text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="w-full px-3 py-2 border border-input bg-card rounded-input text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               <option value="">בחרי קבוצה...</option>
               {groups.map((g) => <option key={g.id} value={g.id}>{g.name} — {g.year}</option>)}
@@ -137,11 +138,11 @@ export default function CourseFormPage() {
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium">תיאור</label>
-            <textarea
+            <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 border border-[#EEEBF5] rounded-input text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+              className="resize-none"
               placeholder="תיאור קצר של הקורס..."
             />
           </div>
@@ -232,7 +233,7 @@ export default function CourseFormPage() {
           <select
             value={copyGroupId}
             onChange={(e) => setCopyGroupId(e.target.value)}
-            className="w-full px-3 py-2 border border-[#EEEBF5] rounded-input text-sm"
+            className="w-full px-3 py-2 border border-input bg-card rounded-input text-sm text-foreground"
           >
             <option value="">בחרי קבוצה יעד...</option>
             {groups.filter((g) => g.id !== groupId).map((g) => (

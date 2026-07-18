@@ -6,6 +6,7 @@ import { coursesApi } from '@/api/courses.api';
 import { lessonsApi } from '@/api/lessons.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import {
   Dialog,
@@ -134,11 +135,11 @@ export default function CourseDetailPage() {
           <Input label="תאריך (אופציונלי)" type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium">חומר הלימוד (אופציונלי, Markdown)</label>
-            <textarea
+            <Textarea
               value={newContent}
               onChange={(e) => setNewContent(e.target.value)}
               rows={5}
-              className="w-full px-3 py-2 border border-[#EEEBF5] rounded-input text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-y font-mono"
+              className="resize-y font-mono"
               placeholder="# כותרת&#10;&#10;תוכן השיעור, הסברים, דוגמאות קוד..."
             />
           </div>

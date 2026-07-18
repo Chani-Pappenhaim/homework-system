@@ -5,6 +5,7 @@ import { messagesApi } from '@/api/messages.api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { formatDateTime } from '@/lib/utils';
 
 export default function TeacherMessagesPage() {
@@ -64,8 +65,8 @@ export default function TeacherMessagesPage() {
             {/* Reply form */}
             {replyingTo === msg.id ? (
               <div className="mt-2 space-y-2">
-                <textarea
-                  className="w-full border border-[#EEEBF5] rounded-input px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+                <Textarea
+                  className="resize-none"
                   rows={3}
                   placeholder="כתבי תגובה לתלמידה..."
                   value={replyText}

@@ -64,7 +64,7 @@ export default function ReportsPage() {
           <select
             value={groupId}
             onChange={(e) => setGroupId(e.target.value)}
-            className="px-3 py-2 border border-[#EEEBF5] rounded-input text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="px-3 py-2 border border-input bg-card rounded-input text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
           >
             <option value="">כל הקבוצות</option>
             {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -73,7 +73,7 @@ export default function ReportsPage() {
           <select
             value={courseId}
             onChange={(e) => setCourseId(e.target.value)}
-            className="px-3 py-2 border border-[#EEEBF5] rounded-input text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="px-3 py-2 border border-input bg-card rounded-input text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
           >
             <option value="">כל הקורסים</option>
             {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}

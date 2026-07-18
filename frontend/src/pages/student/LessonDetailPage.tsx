@@ -7,6 +7,7 @@ import { submissionsApi } from '@/api/submissions.api';
 import { messagesApi } from '@/api/messages.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { FileUpload } from '@/components/ui/file-upload';
@@ -243,8 +244,8 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                 )}
                 {lateFormOpen && !lateRequestSent && (
                   <div className="space-y-2">
-                    <textarea
-                      className="w-full border border-[#E5E1F5] rounded-input px-3 py-2 text-sm resize-none placeholder:text-[#9CA3AF] focus:outline-none focus:ring-1 focus:ring-primary"
+                    <Textarea
+                      className="resize-none"
                       rows={2}
                       placeholder="סיבת האיחור (אופציונלי)"
                       value={lateReason}
@@ -300,8 +301,8 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                 )}
               </div>
             )}
-            <textarea
-              className="w-full border border-[#E5E1F5] rounded-input px-3 py-2 text-sm resize-none placeholder:text-[#9CA3AF] focus:outline-none focus:ring-1 focus:ring-primary"
+            <Textarea
+              className="resize-none"
               rows={2}
               placeholder="הערה למורה (אופציונלי)"
               value={notes}
