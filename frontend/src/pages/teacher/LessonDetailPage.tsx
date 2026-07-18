@@ -522,8 +522,8 @@ export default function LessonDetailPage() {
           <DialogHeader>
             <DialogTitle>{`ציון — ${gradeModal?.studentName}`}</DialogTitle>
           </DialogHeader>
-        {gradeModal && (
-          <DialogBody className="space-y-4">
+          {gradeModal && (
+            <DialogBody className="space-y-4">
             {/* Submission link */}
             {gradeModal.fileUrl && (
               <a href={gradeModal.fileUrl} target="_blank" rel="noreferrer"
@@ -621,8 +621,8 @@ export default function LessonDetailPage() {
             <Button loading={gradeMutation.isPending} onClick={() => gradeMutation.mutate()} className="w-full">
               שמור ציון
             </Button>
-          </DialogBody>
-        )}
+            </DialogBody>
+          )}
         </DialogContent>
       </Dialog>
     </div>
