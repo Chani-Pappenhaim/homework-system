@@ -100,8 +100,8 @@ export async function restoreAiScore(req: Request, res: Response) {
     }
     const grade = await prisma.grade.upsert({
       where: { submissionId: submission.id },
-      create: { submissionId: submission.id, gradedById: req.user!.userId, score: submission.aiScore },
-      update: { score: submission.aiScore, gradedAt: new Date(), gradedById: req.user!.userId },
+      create: { submissionId: submission.id, gradedById: req.user!.userId, contentScore: submission.aiScore },
+      update: { contentScore: submission.aiScore, gradedAt: new Date(), gradedById: req.user!.userId },
     });
     res.json({ success: true, data: { grade } });
   } catch (err: any) {

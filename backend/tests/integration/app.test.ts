@@ -209,15 +209,20 @@ describe('submissions controller — AI review (prisma-direct routes)', () => {
     expect(res.status).toBe(400);
   });
 
-  it('restore-ai-score upserts the grade back to the AI score for an admin', async () => {
+  it('restore-ai-score upserts the AI score into contentScore for an admin', async () => {
     p.submission.findUnique.mockResolvedValue({ id: 'sub1', aiScore: 77 });
-    p.grade.upsert.mockResolvedValue({ id: 'gr1', score: 77 });
+    p.grade.upsert.mockResolvedValue({ id: 'gr1', contentScore: 77 });
     const res = await request(app)
       .post('/api/submissions/sub1/restore-ai-score')
       .set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
-    expect(res.body.data.grade).toMatchObject({ score: 77 });
+    expect(res.body.data.grade).toMatchObject({ contentScore: 77 });
     expect(p.grade.upsert).toHaveBeenCalled();
+    const arg = p.grade.upsert.mock.calls[0][0];
+    expect(arg.create).toMatchObject({ contentScore: 77 });
+    expect(arg.update).toMatchObject({ contentScore: 77 });
+    expect(arg.create).not.toHaveProperty('score');
+    expect(arg.update).not.toHaveProperty('score');
   });
 
   it('restore-ai-score is 403 for a student (ADMIN-only route)', async () => {
@@ -233,20 +238,20 @@ describe('grades controller', () => {
     const res = await request(app)
       .post('/api/submissions/sub1/grade')
       .set('Authorization', `Bearer ${studentToken}`)
-      .send({ score: 90 });
+      .send({ submissionScore: 90 });
     expect(res.status).toBe(403);
     expect(gradesService.gradeSubmission).not.toHaveBeenCalled();
   });
 
   it('POST /api/submissions/:id/grade succeeds for an admin', async () => {
-    (gradesService.gradeSubmission as any).mockResolvedValue({ id: 'gr1', score: 90 });
+    (gradesService.gradeSubmission as any).mockResolvedValue({ id: 'gr1', submissionScore: 90, contentScore: 80 });
     const res = await request(app)
       .post('/api/submissions/sub1/grade')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ score: 90, feedback: 'great' });
+      .send({ submissionScore: 90, contentScore: 80, feedback: 'great' });
     expect(res.status).toBe(200);
-    expect(res.body.data.grade).toMatchObject({ id: 'gr1', score: 90 });
-    expect(gradesService.gradeSubmission).toHaveBeenCalledWith('sub1', 'admin1', { score: 90, feedback: 'great' });
+    expect(res.body.data.grade).toMatchObject({ id: 'gr1', submissionScore: 90, contentScore: 80 });
+    expect(gradesService.gradeSubmission).toHaveBeenCalledWith('sub1', 'admin1', { submissionScore: 90, contentScore: 80, feedback: 'great' });
   });
 
   it('GET /api/grades/pending returns the pending payload for an admin', async () => {

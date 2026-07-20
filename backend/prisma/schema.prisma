@@ -183,7 +183,8 @@ model Grade {
   id           String     @id @default(uuid())
   submissionId String     @unique
   submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  score        Float?
+  submissionScore Float?
+  contentScore    Float?
   feedback     String?
   checklist    Json?
   gradedAt     DateTime   @default(now())
