@@ -1,5 +1,5 @@
 import { Worker } from 'bullmq';
-import { connection } from './index';
+import { connection } from '../config/redis';
 import { prisma } from '../config/prisma';
 import { fetchGithubCode, extractZipCode, extractDocxText, reviewCode } from '../services/gemini.service';
 
@@ -9,7 +9,7 @@ async function downloadFile(fileUrl: string): Promise<Buffer> {
   return Buffer.from(await res.arrayBuffer());
 }
 
-new Worker(
+const aiReviewWorker = new Worker(
   'ai-review',
   async (job) => {
     const { submissionId } = job.data;
@@ -69,4 +69,10 @@ new Worker(
     }
   },
   { connection }
+);
+
+// An unhandled 'error' event on a BullMQ Worker would crash the process.
+aiReviewWorker.on('error', (err) => console.error('[ai-review] worker error:', err));
+aiReviewWorker.on('failed', (job, err) =>
+  console.error(`[ai-review] job ${job?.id} failed:`, err.message)
 );

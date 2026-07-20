@@ -1,11 +1,11 @@
 import { Worker } from 'bullmq';
 import Anthropic from '@anthropic-ai/sdk';
 import { prisma } from '../config/prisma';
-import { connection } from './index';
+import { connection } from '../config/redis';
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
 
-new Worker(
+const quizWorker = new Worker(
   'quiz',
   async (job) => {
     const { lessonId, lessonContent } = job.data;
@@ -37,3 +37,6 @@ ${lessonContent}`,
   },
   { connection }
 );
+
+quizWorker.on('error', (err) => console.error('[quiz] worker error:', err));
+quizWorker.on('failed', (job, err) => console.error(`[quiz] job ${job?.id} failed:`, err.message));

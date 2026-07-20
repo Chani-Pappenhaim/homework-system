@@ -2,6 +2,23 @@
 import * as authService from '../services/auth.service';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt';
 
+const isProd = process.env.NODE_ENV === 'production';
+const REFRESH_COOKIE = 'refreshToken';
+const REFRESH_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+// One source of truth for the refresh cookie's attributes, used for both setting
+// and clearing it — the browser only deletes a cookie when the clear call uses the
+// same attributes. In production the SPA is served from a different origin (Vercel)
+// than the API, so the cookie must be SameSite=None + Secure to be sent at all; in
+// development everything is same-origin, so SameSite=Lax without Secure works over
+// plain http.
+const refreshCookieOptions = {
+  httpOnly: true,
+  secure: isProd,
+  sameSite: isProd ? ('none' as const) : ('lax' as const),
+  path: '/',
+};
+
 export async function login(req: Request, res: Response): Promise<void> {
   try {
     const { email, password } = req.body;
@@ -9,12 +26,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     const accessToken = signAccessToken({ userId: user.id, role: user.role });
     const refreshToken = signRefreshToken({ userId: user.id, role: user.role });
 
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie(REFRESH_COOKIE, refreshToken, { ...refreshCookieOptions, maxAge: REFRESH_MAX_AGE });
 
     res.json({ success: true, data: { user: authService.toUserDTO(user), accessToken } });
   } catch (err: any) {
@@ -34,12 +46,7 @@ export async function refresh(req: Request, res: Response): Promise<void> {
     const accessToken = signAccessToken({ userId: user.id, role: user.role });
     const newRefreshToken = signRefreshToken({ userId: user.id, role: user.role });
 
-    res.cookie('refreshToken', newRefreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie(REFRESH_COOKIE, newRefreshToken, { ...refreshCookieOptions, maxAge: REFRESH_MAX_AGE });
 
     res.json({ success: true, data: { accessToken } });
   } catch {
@@ -48,7 +55,7 @@ export async function refresh(req: Request, res: Response): Promise<void> {
 }
 
 export async function logout(_req: Request, res: Response): Promise<void> {
-  res.clearCookie('refreshToken');
+  res.clearCookie(REFRESH_COOKIE, refreshCookieOptions);
   res.json({ success: true, data: null });
 }
 
@@ -77,12 +84,7 @@ export async function oauthCallback(req: Request, res: Response): Promise<void> 
   const accessToken = signAccessToken({ userId: user.id, role: user.role });
   const refreshToken = signRefreshToken({ userId: user.id, role: user.role });
 
-  res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
+  res.cookie(REFRESH_COOKIE, refreshToken, { ...refreshCookieOptions, maxAge: REFRESH_MAX_AGE });
 
   res.redirect(`${process.env.OAUTH_SUCCESS_REDIRECT}?token=${accessToken}`);
 }

@@ -1,8 +1,9 @@
 import axios from 'axios';
 import useAuthStore from '@/store/authStore';
+import { API_URL } from '@/lib/config';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_URL,
   withCredentials: true,
 });
 
@@ -23,7 +24,7 @@ api.interceptors.response.use(
       try {
         if (!refreshing) {
           refreshing = axios
-            .post<{ success: true; data: { accessToken: string } }>('/api/auth/refresh', {}, { withCredentials: true })
+            .post<{ success: true; data: { accessToken: string } }>(`${API_URL}/auth/refresh`, {}, { withCredentials: true })
             .then((r) => r.data.data.accessToken)
             .finally(() => { refreshing = null; });
         }

@@ -1,5 +1,5 @@
 import { Worker } from 'bullmq';
-import { connection } from './index';
+import { connection } from '../config/redis';
 import { sendMail } from '../services/email.service';
 
 function wrapRtl(body: string): string {
@@ -78,7 +78,7 @@ function buildDeadlineReportHtml(data: {
   `);
 }
 
-new Worker(
+const emailWorker = new Worker(
   'email',
   async (job) => {
     const adminEmail = process.env.ADMIN_EMAIL;
@@ -151,3 +151,6 @@ new Worker(
   },
   { connection }
 );
+
+emailWorker.on('error', (err) => console.error('[email] worker error:', err));
+emailWorker.on('failed', (job, err) => console.error(`[email] job ${job?.id} failed:`, err.message));

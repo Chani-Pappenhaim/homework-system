@@ -1,14 +1,11 @@
 import { Worker } from 'bullmq';
-import IORedis from 'ioredis';
 import { prisma } from '../config/prisma';
-import { connection, emailQueue } from './index';
-
-const redis = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379');
+import { connection, emailQueue } from '../config/redis';
 
 const REPORT_TTL_SECONDS = 30 * 24 * 60 * 60; // remember sent reports for 30 days
 const LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000; // ignore deadlines older than 7 days
 
-new Worker(
+const deadlineWorker = new Worker(
   'deadline-check',
   async () => {
     const now = new Date();
@@ -25,7 +22,7 @@ new Worker(
 
     for (const assignment of assignments) {
       const sentKey = `deadline_report_sent:${assignment.id}`;
-      if (await redis.get(sentKey)) continue;
+      if (await connection.get(sentKey)) continue;
 
       const groupStudents = await prisma.studentGroup.findMany({
         where: { groupId: assignment.lesson.course.groupId },
@@ -50,9 +47,14 @@ new Worker(
         deadline: assignment.deadline,
         rows,
       });
-      await redis.setex(sentKey, REPORT_TTL_SECONDS, '1');
+      await connection.setex(sentKey, REPORT_TTL_SECONDS, '1');
       console.log(`[deadline] Report enqueued for assignment "${assignment.title}" (${assignment.id})`);
     }
   },
   { connection }
+);
+
+deadlineWorker.on('error', (err) => console.error('[deadline] worker error:', err));
+deadlineWorker.on('failed', (job, err) =>
+  console.error(`[deadline] job ${job?.id} failed:`, err.message)
 );

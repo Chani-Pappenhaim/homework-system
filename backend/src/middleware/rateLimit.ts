@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
 export const authRateLimit = rateLimit({
   windowMs: 60 * 1000,
@@ -28,5 +28,8 @@ export const aiRateLimit = rateLimit({
   message: { success: false, error: 'Too many AI requests, please try again in a minute' },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.user?.userId ?? req.ip ?? 'anonymous',
+  // Authenticated requests are keyed per user; unauthenticated ones fall back to
+  // the IP. ipKeyGenerator normalises IPv6 addresses (masking to a /64) so an IPv6
+  // client cannot rotate addresses to bypass the limit.
+  keyGenerator: (req) => req.user?.userId ?? ipKeyGenerator(req.ip ?? 'anonymous'),
 });

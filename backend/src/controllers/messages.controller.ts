@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/prisma';
-import { emailQueue } from '../workers/index';
+import { emailQueue } from '../config/redis';
 
 export async function sendMessage(req: Request, res: Response) {
   try {

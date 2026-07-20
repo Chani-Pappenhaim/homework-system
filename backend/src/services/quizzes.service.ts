@@ -1,6 +1,6 @@
 import { prisma } from '../config/prisma';
 import { assertLessonAccess } from '../utils/access';
-import { quizQueue } from '../workers';
+import { quizQueue } from '../config/redis';
 
 export async function getQuiz(lessonId: string, userId: string, role: string) {
   await assertLessonAccess(userId, role, lessonId);
