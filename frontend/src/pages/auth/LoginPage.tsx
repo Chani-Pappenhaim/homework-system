@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '@/api/auth.api';
 import useAuthStore from '@/store/authStore';
+import { API_URL } from '@/lib/config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -43,7 +44,9 @@ export default function LoginPage() {
   }
 
   function handleOAuth(provider: 'github' | 'google') {
-    window.location.href = `/api/auth/${provider}`;
+    // Full-page navigation straight to the backend (not the SPA host) so the OAuth
+    // redirect chain and the refresh cookie all live on the backend's origin.
+    window.location.href = `${API_URL}/auth/${provider}`;
   }
 
   return (
