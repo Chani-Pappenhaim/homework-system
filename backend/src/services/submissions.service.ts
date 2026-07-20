@@ -137,7 +137,7 @@ export async function getMySubmissions(studentId: string) {
         submittedAt: sub.submittedAt, isLate: sub.isLate, notes: sub.notes,
         githubUrl: sub.githubUrl, fileUrl: sub.fileUrl, fileName: sub.fileName,
         ...toStudentAiView(sub),
-        grade: grade ? { score: grade.score, feedback: grade.feedback, checklist: grade.checklist } : null,
+        grade: grade ? { submissionScore: grade.submissionScore, contentScore: sub.aiApproved ? grade.contentScore : null, feedback: grade.feedback, checklist: grade.checklist } : null,
       });
     }
   }
@@ -161,7 +161,12 @@ export async function getSubmissionById(id: string, userId: string, role: string
     throw Object.assign(new Error('Forbidden'), { status: 403 });
   }
   if (role === 'ADMIN') return submission;
-  return { ...submission, ...toStudentAiView(submission) };
+  // The content score is the teacher's call and stays hidden until she approves
+  // the AI review; the submission score is always the student's to see.
+  const grade = submission.grade
+    ? { ...submission.grade, contentScore: submission.aiApproved ? submission.grade.contentScore : null }
+    : submission.grade;
+  return { ...submission, grade, ...toStudentAiView(submission) };
 }
 
 export async function importSubmissions(buffer: Buffer) {

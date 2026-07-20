@@ -113,7 +113,8 @@ export interface LessonDetailDTO {
 }
 
 export interface GradeDTO {
-  score?: number;
+  submissionScore?: number | null;
+  contentScore?: number | null;
   feedback?: string;
   checklist?: ChecklistResult[];
   gradedAt: string;
@@ -177,7 +178,8 @@ export interface ReportRow {
   deadline?: string;
   submittedAt: string;
   isLate: boolean;
-  score?: number;
+  submissionScore?: number | null;
+  contentScore?: number | null;
   feedback?: string;
   checklist?: ChecklistResult[];
 }

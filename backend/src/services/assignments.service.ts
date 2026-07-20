@@ -89,7 +89,8 @@ export async function getAssignmentSubmissions(assignmentId: string) {
       aiStatus: s.aiStatus, aiScore: s.aiScore, aiApproved: s.aiApproved,
       aiCodeReview: s.aiCodeReview, aiVerbalReview: s.aiVerbalReview,
       grade: s.grade ? {
-        score: s.grade.score, feedback: s.grade.feedback,
+        submissionScore: s.grade.submissionScore, contentScore: s.grade.contentScore,
+        feedback: s.grade.feedback,
         checklist: s.grade.checklist, gradedAt: s.grade.gradedAt,
       } : null,
     })),

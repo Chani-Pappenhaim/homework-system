@@ -2,7 +2,7 @@ import api from './axios';
 import type { ChecklistResult } from '@/types';
 
 export const gradesApi = {
-  grade: (submissionId: string, data: { score?: number; feedback?: string; checklist?: ChecklistResult[] }) =>
+  grade: (submissionId: string, data: { submissionScore?: number; contentScore?: number; feedback?: string; checklist?: ChecklistResult[] }) =>
     api.post(`/submissions/${submissionId}/grade`, data),
 
   report: (filters?: { groupId?: string; courseId?: string }) =>

@@ -17,11 +17,11 @@ beforeEach(() => vi.clearAllMocks());
 describe('grades.service.gradeSubmission', () => {
   it('upserts with create + update payloads', async () => {
     p.grade.upsert.mockResolvedValue({ id: 'gr1' });
-    await gradeSubmission('sub1', 'teacher1', { score: 88, feedback: 'nice' });
+    await gradeSubmission('sub1', 'teacher1', { submissionScore: 88, contentScore: 75, feedback: 'nice' });
     const arg = p.grade.upsert.mock.calls[0][0];
     expect(arg.where).toEqual({ submissionId: 'sub1' });
-    expect(arg.create).toMatchObject({ submissionId: 'sub1', gradedById: 'teacher1', score: 88, feedback: 'nice' });
-    expect(arg.update).toMatchObject({ score: 88, feedback: 'nice', gradedById: 'teacher1' });
+    expect(arg.create).toMatchObject({ submissionId: 'sub1', gradedById: 'teacher1', submissionScore: 88, contentScore: 75, feedback: 'nice' });
+    expect(arg.update).toMatchObject({ submissionScore: 88, contentScore: 75, feedback: 'nice', gradedById: 'teacher1' });
     expect(arg.update.gradedAt).toBeInstanceOf(Date);
   });
 });
@@ -45,7 +45,7 @@ describe('grades.service.getReport', () => {
     const rows = await getReport({});
     expect(rows[0]).toMatchObject({
       studentName: 'A', groupName: 'G', courseName: 'C', lessonTopic: 'Topic',
-      assignmentTitle: 'T', isLate: true, score: null, feedback: null, checklist: null,
+      assignmentTitle: 'T', isLate: true, submissionScore: null, contentScore: null, feedback: null, checklist: null,
     });
   });
 
@@ -54,12 +54,13 @@ describe('grades.service.getReport', () => {
       {
         student: { name: 'A', email: 'a@x.com', studentGroups: [] },
         assignment: { title: 'T', deadline: null, lesson: { topic: 'Topic', course: { name: 'C' } } },
-        submittedAt: new Date(), isLate: false, grade: { score: 70, feedback: 'ok', checklist: null },
+        submittedAt: new Date(), isLate: false, grade: { submissionScore: 70, contentScore: 65, feedback: 'ok', checklist: null },
       },
     ]);
     const rows = await getReport({});
     expect(rows[0].groupName).toBe('');
-    expect(rows[0].score).toBe(70);
+    expect(rows[0].submissionScore).toBe(70);
+    expect(rows[0].contentScore).toBe(65);
   });
 });
 
@@ -83,7 +84,7 @@ describe('grades.service.exportReport', () => {
       {
         student: { name: 'A', email: 'a@x.com', studentGroups: [{ group: { name: 'G' } }] },
         assignment: { title: 'T', deadline: new Date('2026-01-01'), lesson: { topic: 'Topic', course: { name: 'C' } } },
-        submittedAt: new Date('2026-01-02'), isLate: true, grade: { score: 80, feedback: 'ok', checklist: null },
+        submittedAt: new Date('2026-01-02'), isLate: true, grade: { submissionScore: 80, contentScore: 72, feedback: 'ok', checklist: null },
       },
     ]);
     const buf = await exportReport({});
@@ -94,7 +95,11 @@ describe('grades.service.exportReport', () => {
     await wb.xlsx.load(buf as any);
     const sheet = wb.getWorksheet('Grades')!;
     expect(sheet.getRow(1).getCell(1).value).toBe('Student Name');
+    expect(sheet.getRow(1).getCell(10).value).toBe('Submission Score');
+    expect(sheet.getRow(1).getCell(11).value).toBe('Content Score');
     expect(sheet.getRow(2).getCell(1).value).toBe('A');
     expect(sheet.getRow(2).getCell(9).value).toBe('Yes'); // Late
+    expect(sheet.getRow(2).getCell(10).value).toBe(80); // Submission Score
+    expect(sheet.getRow(2).getCell(11).value).toBe(72); // Content Score
   });
 });

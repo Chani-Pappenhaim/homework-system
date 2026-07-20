@@ -70,8 +70,8 @@ export default function AssignmentsPage() {
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {s.isLate && <Badge variant="warning">איחור</Badge>}
-                  {s.grade?.score != null && (
-                    <span className="font-semibold text-sm text-[#1A1830]">{s.grade.score}</span>
+                  {s.grade?.submissionScore != null && (
+                    <span className="font-semibold text-sm text-[#1A1830]">{s.grade.submissionScore}</span>
                   )}
                   {s.grade ? (
                     expanded === s.submissionId ? <ChevronUp size={14} /> : <ChevronDown size={14} />
@@ -83,6 +83,14 @@ export default function AssignmentsPage() {
 
               {expanded === s.submissionId && s.grade && (
                 <div className="px-5 pb-4 space-y-3 bg-[#F8F7FC]">
+                  <div className="flex flex-wrap gap-4 pt-3 text-sm">
+                    {s.grade.submissionScore != null && (
+                      <p><span className="text-[#9CA3AF]">ציון הגשה: </span><span className="font-semibold text-[#1A1830]">{s.grade.submissionScore}</span></p>
+                    )}
+                    {s.grade.contentScore != null && (
+                      <p><span className="text-[#9CA3AF]">ציון תוכן: </span><span className="font-semibold text-[#1A1830]">{s.grade.contentScore}</span></p>
+                    )}
+                  </div>
                   {s.grade.checklist?.map((c: any) => (
                     <div key={c.id} className={`text-xs flex items-center gap-1.5 ${c.checked ? 'text-[#059669]' : 'text-[#9CA3AF]'}`}>
                       <span>{c.checked ? '✓' : '✗'}</span> {c.text}

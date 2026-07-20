@@ -28,15 +28,18 @@ beforeEach(() => {
 });
 
 const rows = [
-  { studentName: 'נועה', studentEmail: 'noa@x.com', groupName: 'קבוצה א', courseName: 'קורס א', lessonTopic: 'שיעור 1', assignmentTitle: 'מטלה 1', submittedAt: '2026-07-01T10:00:00Z', isLate: true, score: 88 },
+  { studentName: 'נועה', studentEmail: 'noa@x.com', groupName: 'קבוצה א', courseName: 'קורס א', lessonTopic: 'שיעור 1', assignmentTitle: 'מטלה 1', submittedAt: '2026-07-01T10:00:00Z', isLate: true, submissionScore: 88, contentScore: 74 },
 ];
 
 describe('ReportsPage', () => {
-  it('renders report rows returned by the api', async () => {
+  it('renders report rows with both submission and content scores', async () => {
     report.mockResolvedValue({ data: { data: { report: rows } } });
     renderWithProviders(<ReportsPage />);
     expect(await screen.findByText('נועה')).toBeInTheDocument();
     expect(screen.getByText('88')).toBeInTheDocument();
+    expect(screen.getByText('74')).toBeInTheDocument();
+    expect(screen.getByText('ציון הגשה')).toBeInTheDocument();
+    expect(screen.getByText('ציון תוכן')).toBeInTheDocument();
     expect(screen.getByText('תוצאות (1)')).toBeInTheDocument();
   });
 

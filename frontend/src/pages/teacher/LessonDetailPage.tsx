@@ -30,7 +30,8 @@ export default function LessonDetailPage() {
   const qc = useQueryClient();
   const [selectedAssignment, setSelectedAssignment] = useState(0);
   const [gradeModal, setGradeModal] = useState<SubmissionDTO | null>(null);
-  const [score, setScore] = useState('');
+  const [submissionScore, setSubmissionScore] = useState('');
+  const [contentScore, setContentScore] = useState('');
   const [feedback, setFeedback] = useState('');
   const [checklist, setChecklist] = useState<ChecklistResult[]>([]);
   const [accessEmail, setAccessEmail] = useState('');
@@ -163,7 +164,8 @@ export default function LessonDetailPage() {
 
   const gradeMutation = useMutation({
     mutationFn: () => gradesApi.grade(gradeModal!.id, {
-      score: score ? Number(score) : undefined,
+      submissionScore: submissionScore ? Number(submissionScore) : undefined,
+      contentScore: contentScore ? Number(contentScore) : undefined,
       feedback: feedback || undefined,
       checklist,
     }),
@@ -176,7 +178,7 @@ export default function LessonDetailPage() {
   const restoreAiScoreMutation = useMutation({
     mutationFn: () => submissionsApi.restoreAiScore(gradeModal!.id),
     onSuccess: () => {
-      setScore(gradeModal?.aiScore?.toString() ?? '');
+      setContentScore(gradeModal?.aiScore?.toString() ?? '');
       qc.invalidateQueries({ queryKey: ['submissions', assignment?.id] });
     },
   });
@@ -196,15 +198,18 @@ export default function LessonDetailPage() {
       checked: sub.grade?.checklist?.find((c) => c.id === r.id)?.checked ?? false,
     })) ?? [];
     setChecklist(nextChecklist);
-    if (sub.grade?.score != null) {
-      // Existing grade — never overwrite the teacher's score
-      setScore(sub.grade.score.toString());
+    if (sub.grade?.submissionScore != null) {
+      // Existing grade — never overwrite the teacher's submission score
+      setSubmissionScore(sub.grade.submissionScore.toString());
     } else {
       // Suggested prefill: 100, minus 10 for late, minus 5 per unchecked requirement
       const unchecked = nextChecklist.filter((c) => !c.checked).length;
       const suggested = Math.max(0, 100 - (sub.isLate ? 10 : 0) - unchecked * 5);
-      setScore(String(suggested));
+      setSubmissionScore(String(suggested));
     }
+    // Content score is prefilled only from an existing grade; the "restore AI"
+    // button is what fills it from the AI score.
+    setContentScore(sub.grade?.contentScore != null ? sub.grade.contentScore.toString() : '');
     setFeedback(sub.grade?.feedback ?? '');
   }
 
@@ -355,8 +360,8 @@ export default function LessonDetailPage() {
                           {s.isLate && <Badge variant="warning" className="mr-1">איחור</Badge>}
                         </td>
                         <td className="px-3 py-3">
-                          {s.grade?.score != null
-                            ? <span className="font-semibold text-[#1A1830]">{s.grade.score}</span>
+                          {s.grade?.submissionScore != null
+                            ? <span className="font-semibold text-[#1A1830]">{s.grade.submissionScore}</span>
                             : <span className="text-[#9CA3AF]">—</span>}
                         </td>
                         <td className="px-3 py-3">
@@ -600,10 +605,14 @@ export default function LessonDetailPage() {
             )}
 
             <div>
-              <Input label="ציון (0–100)" type="number" min={0} max={100} value={score} onChange={(e) => setScore(e.target.value)} placeholder="85" />
-              {gradeModal.grade?.score == null && (
+              <Input label="ציון הגשה (0–100)" type="number" min={0} max={100} value={submissionScore} onChange={(e) => setSubmissionScore(e.target.value)} placeholder="85" />
+              {gradeModal.grade?.submissionScore == null && (
                 <p className="text-xs text-[#9CA3AF] mt-1">הצעה אוטומטית: 100 − איחור (10) − דרישות חסרות (5 כ״א)</p>
               )}
+            </div>
+
+            <div>
+              <Input label="ציון תוכן (0–100)" type="number" min={0} max={100} value={contentScore} onChange={(e) => setContentScore(e.target.value)} placeholder="90" />
             </div>
 
             <div className="flex flex-col gap-1">
