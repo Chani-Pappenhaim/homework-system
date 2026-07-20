@@ -14,9 +14,11 @@ vi.mock('bullmq', () => ({
     on() {}
   },
 }));
-vi.mock('../../src/workers/index', () => ({ connection: {} }));
+vi.mock('../../src/config/redis', () => ({ connection: {} }));
 vi.mock('../../src/config/prisma', () => ({
-  prisma: { submission: { findUnique: vi.fn(), update: vi.fn() } },
+  // update() must return a promise: the worker's error path calls .catch() on it,
+  // mirroring the real Prisma client (a bare vi.fn() returns undefined and throws).
+  prisma: { submission: { findUnique: vi.fn(), update: vi.fn().mockResolvedValue({}) } },
 }));
 vi.mock('../../src/services/gemini.service', () => ({
   fetchGithubCode: vi.fn(),

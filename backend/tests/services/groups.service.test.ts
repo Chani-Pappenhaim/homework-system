@@ -13,7 +13,7 @@ vi.mock('bcryptjs', () => ({
 }));
 
 const { emailAdd } = vi.hoisted(() => ({ emailAdd: vi.fn() }));
-vi.mock('../../src/workers/index', () => ({
+vi.mock('../../src/config/redis', () => ({
   emailQueue: { add: emailAdd },
 }));
 

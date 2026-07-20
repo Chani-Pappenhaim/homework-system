@@ -9,7 +9,7 @@ vi.mock('../../src/config/prisma', () => ({
 }));
 
 const { quizAdd } = vi.hoisted(() => ({ quizAdd: vi.fn() }));
-vi.mock('../../src/workers', () => ({
+vi.mock('../../src/config/redis', () => ({
   quizQueue: { add: quizAdd },
 }));
 

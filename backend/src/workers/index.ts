@@ -1,18 +1,9 @@
-import { Queue } from 'bullmq';
+import { deadlineQueue, storageQueue } from '../config/redis';
 
-function redisConnection() {
-  const url = process.env.REDIS_URL || 'redis://localhost:6379';
-  const parsed = new URL(url);
-  return { host: parsed.hostname, port: Number(parsed.port) || 6379 };
-}
-
-export const connection = redisConnection();
-export const quizQueue = new Queue('quiz', { connection });
-export const emailQueue = new Queue('email', { connection });
-export const aiReviewQueue = new Queue('ai-review', { connection });
-export const deadlineQueue = new Queue('deadline-check', { connection });
-export const storageQueue = new Queue('storage-monitor', { connection });
-
+// Worker process entrypoint. Importing each worker file registers its BullMQ
+// Worker against the shared connection in ../config/redis. Only this process
+// (the `worker` container) imports these files — the API imports queues straight
+// from ../config/redis, so it never spins up workers of its own.
 import './quiz.worker';
 import './email.worker';
 import './storage.worker';
