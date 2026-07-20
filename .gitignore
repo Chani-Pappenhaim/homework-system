@@ -45,3 +45,5 @@ coverage/
 # Personal Claude/agent instruction files — kept locally, not in repo
 CLAUDE.md
 AGENT_SPEC.md
+        
+##
