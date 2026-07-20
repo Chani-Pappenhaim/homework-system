@@ -103,7 +103,7 @@ export default function ReportsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[#EEEBF5] bg-[#F8F7FC]">
-                  {['תלמידה', 'קבוצה', 'קורס', 'שיעור', 'מטלה', 'מועד אחרון', 'הגשה', 'ציון'].map((h) => (
+                  {['תלמידה', 'קבוצה', 'קורס', 'שיעור', 'מטלה', 'מועד אחרון', 'הגשה', 'ציון הגשה', 'ציון תוכן'].map((h) => (
                     <th key={h} className="px-4 py-2.5 text-right text-xs text-[#9CA3AF] font-medium">{h}</th>
                   ))}
                 </tr>
@@ -125,8 +125,13 @@ export default function ReportsPage() {
                       {r.isLate && <Badge variant="warning">איחור</Badge>}
                     </td>
                     <td className="px-4 py-3">
-                      {r.score != null
-                        ? <span className="font-semibold text-[#1A1830]">{r.score}</span>
+                      {r.submissionScore != null
+                        ? <span className="font-semibold text-[#1A1830]">{r.submissionScore}</span>
+                        : <span className="text-[#9CA3AF]">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      {r.contentScore != null
+                        ? <span className="font-semibold text-[#1A1830]">{r.contentScore}</span>
                         : <span className="text-[#9CA3AF]">—</span>}
                     </td>
                   </tr>

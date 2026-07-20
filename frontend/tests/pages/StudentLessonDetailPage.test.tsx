@@ -105,6 +105,24 @@ describe('StudentLessonDetailPage', () => {
     await waitFor(() => expect(requestAiReview).toHaveBeenCalledWith('sub1'));
   });
 
+  it('shows the submission score but hides the content score when it is null', async () => {
+    getLesson.mockResolvedValue(
+      lessonWith([{ id: 'a4', title: 'מטלה עם ציון', deadline: FUTURE, allowFile: false, allowGithub: true, allowedTypes: [] }])
+    );
+    mine.mockResolvedValue({
+      data: { data: { submitted: [
+        {
+          id: 'sub2', assignmentId: 'a4', assignmentTitle: 'מטלה עם ציון',
+          submittedAt: '2026-07-01T10:00:00Z', isLate: false, githubUrl: 'https://github.com/x/y',
+          grade: { submissionScore: 91, contentScore: null, feedback: '', checklist: [] },
+        },
+      ] } },
+    });
+    renderPage();
+    expect(await screen.findByText(/ציון הגשה: 91/)).toBeInTheDocument();
+    expect(screen.queryByText(/ציון תוכן/)).not.toBeInTheDocument();
+  });
+
   it('shows a late-submission request button when the deadline has passed and nothing is submitted', async () => {
     getLesson.mockResolvedValue(
       lessonWith([{ id: 'a3', title: 'מטלה מאוחרת', deadline: PAST, allowFile: false, allowGithub: true, allowedTypes: [] }])

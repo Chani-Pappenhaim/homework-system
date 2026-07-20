@@ -30,14 +30,14 @@ describe('AssignmentsPage', () => {
     expect(screen.getByText('לא הוגשו (1)')).toBeInTheDocument();
   });
 
-  it('expands a graded submission to reveal feedback and checklist', async () => {
+  it('expands a graded submission to reveal both scores, feedback and checklist', async () => {
     mine.mockResolvedValue({ data: { data: {
       pending: [],
       submitted: [
         {
           submissionId: 's1', assignmentTitle: 'מטלה שהוגשה', courseName: 'קורס',
           submittedAt: '2026-07-01T10:00:00Z', isLate: false,
-          grade: { score: 90, feedback: 'עבודה מצוינת', checklist: [{ id: 'r1', text: 'דרישה 1', checked: true }] },
+          grade: { submissionScore: 90, contentScore: 84, feedback: 'עבודה מצוינת', checklist: [{ id: 'r1', text: 'דרישה 1', checked: true }] },
         },
       ],
     } } });
@@ -48,6 +48,27 @@ describe('AssignmentsPage', () => {
     await userEvent.click(row);
     expect(await screen.findByText('עבודה מצוינת')).toBeInTheDocument();
     expect(screen.getByText('דרישה 1')).toBeInTheDocument();
+    expect(screen.getByText(/ציון הגשה:/)).toBeInTheDocument();
+    expect(screen.getByText(/ציון תוכן:/)).toBeInTheDocument();
+    expect(screen.getByText('84')).toBeInTheDocument();
+  });
+
+  it('shows the submission score but no content score when content is not yet approved (null)', async () => {
+    mine.mockResolvedValue({ data: { data: {
+      pending: [],
+      submitted: [
+        {
+          submissionId: 's3', assignmentTitle: 'רק ציון הגשה', courseName: 'קורס',
+          submittedAt: '2026-07-01T10:00:00Z', isLate: false,
+          grade: { submissionScore: 88, contentScore: null, feedback: 'משוב', checklist: [] },
+        },
+      ],
+    } } });
+    renderWithProviders(<AssignmentsPage />);
+    const row = await screen.findByText('רק ציון הגשה');
+    await userEvent.click(row);
+    expect(await screen.findByText(/ציון הגשה:/)).toBeInTheDocument();
+    expect(screen.queryByText(/ציון תוכן:/)).not.toBeInTheDocument();
   });
 
   it('shows a "waiting for grade" badge for an ungraded submission', async () => {

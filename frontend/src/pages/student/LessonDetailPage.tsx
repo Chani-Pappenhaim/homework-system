@@ -185,7 +185,8 @@ function AssignmentCard({ assignment: a, submission: sub }: {
               {sub.notes && <p className="text-xs text-[#6B7280]">הערה: {sub.notes}</p>}
               {sub.grade && (
                 <div className="mt-2 space-y-1">
-                  {sub.grade.score != null && <p className="font-semibold">ציון: {sub.grade.score}</p>}
+                  {sub.grade.submissionScore != null && <p className="font-semibold">ציון הגשה: {sub.grade.submissionScore}</p>}
+                  {sub.grade.contentScore != null && <p className="font-semibold">ציון תוכן: {sub.grade.contentScore}</p>}
                   {sub.grade.feedback && <MarkdownRenderer content={sub.grade.feedback} className="text-xs" />}
                   {sub.grade.checklist?.map((c: any) => (
                     <div key={c.id} className={`text-xs flex items-center gap-1 ${c.checked ? 'text-[#059669]' : 'text-[#9CA3AF]'}`}>

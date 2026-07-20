@@ -19,11 +19,13 @@ vi.mock('@/api/groups.api', () => ({ groupsApi: { list: vi.fn(), get: vi.fn() } 
 import { lessonsApi } from '@/api/lessons.api';
 import { assignmentsApi } from '@/api/assignments.api';
 import { submissionsApi } from '@/api/submissions.api';
+import { gradesApi } from '@/api/grades.api';
 
 const getLesson = lessonsApi.get as unknown as ReturnType<typeof vi.fn>;
 const getAccess = lessonsApi.getAccess as unknown as ReturnType<typeof vi.fn>;
 const getSubmissions = assignmentsApi.getSubmissions as unknown as ReturnType<typeof vi.fn>;
 const approveAi = submissionsApi.approveAi as unknown as ReturnType<typeof vi.fn>;
+const grade = gradesApi.grade as unknown as ReturnType<typeof vi.fn>;
 
 import { groupsApi } from '@/api/groups.api';
 const groupsList = groupsApi.list as unknown as ReturnType<typeof vi.fn>;
@@ -93,18 +95,44 @@ describe('TeacherLessonDetailPage', () => {
     expect(scoreInput.value).toBe('95');
   });
 
-  it('prefills the existing teacher score when the submission is already graded', async () => {
+  it('prefills the existing teacher scores when the submission is already graded', async () => {
     getSubmissions.mockResolvedValue({
       data: { data: { submissions: [
-        { id: 's2', studentName: 'נועה', studentEmail: 'noa@x.com', submittedAt: '2026-07-10T10:00:00Z', isLate: true, githubUrl: 'https://github.com/a/b', grade: { score: 77, feedback: '', gradedAt: '' } },
+        { id: 's2', studentName: 'נועה', studentEmail: 'noa@x.com', submittedAt: '2026-07-10T10:00:00Z', isLate: true, githubUrl: 'https://github.com/a/b', grade: { submissionScore: 77, contentScore: 82, feedback: '', gradedAt: '' } },
       ] } },
     });
     renderPage();
     // Exact name: /ערוך/ also matches the "ערוך שיעור" button and would open
     // the lesson editor instead of the grade modal.
     await userEvent.click(await screen.findByRole('button', { name: 'ערוך' }));
-    const scoreInput = await screen.findByPlaceholderText('85') as HTMLInputElement;
-    expect(scoreInput.value).toBe('77');
+    const submissionInput = await screen.findByPlaceholderText('85') as HTMLInputElement;
+    const contentInput = screen.getByPlaceholderText('90') as HTMLInputElement;
+    expect(submissionInput.value).toBe('77');
+    expect(contentInput.value).toBe('82');
+  });
+
+  it('renders two score inputs and the grade mutation sends both scores', async () => {
+    getSubmissions.mockResolvedValue({
+      data: { data: { submissions: [
+        { id: 's4', studentName: 'רותי', studentEmail: 'ruti@x.com', submittedAt: '2026-07-10T10:00:00Z', isLate: false, githubUrl: 'https://github.com/a/b', grade: null },
+      ] } },
+    });
+    grade.mockResolvedValue({ data: {} });
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'בדוק עכשיו' }));
+
+    // Both inputs render; submissionScore prefilled to the suggestion (95), content empty.
+    const submissionInput = await screen.findByPlaceholderText('85') as HTMLInputElement;
+    const contentInput = screen.getByPlaceholderText('90') as HTMLInputElement;
+    expect(submissionInput.value).toBe('95');
+    expect(contentInput.value).toBe('');
+    await userEvent.type(contentInput, '90');
+    await userEvent.click(screen.getByRole('button', { name: 'שמור ציון' }));
+
+    await waitFor(() => expect(grade).toHaveBeenCalledWith('s4', expect.objectContaining({
+      submissionScore: 95,
+      contentScore: 90,
+    })));
   });
 
   it('shows approve-AI and restore-AI controls when the submission has a completed AI review', async () => {
