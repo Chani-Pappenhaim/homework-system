@@ -37,23 +37,15 @@ export function configurePassport(passport: PassportStatic) {
             const email = profile.emails?.[0]?.value;
             if (!email) return done(new Error('No email from GitHub'));
 
-            let user = await prisma.user.findUnique({ where: { email } });
-            if (user) {
-              if (!user.oauthProvider) {
-                user = await prisma.user.update({
-                  where: { id: user.id },
-                  data: { oauthProvider: 'github', oauthId: profile.id },
-                });
-              }
-            } else {
-              user = await prisma.user.create({
-                data: {
-                  name: profile.displayName || profile.username || email,
-                  email,
-                  oauthProvider: 'github',
-                  oauthId: profile.id,
-                  mustChangePassword: false,
-                },
+            const user = await prisma.user.findUnique({ where: { email } });
+            // Only accounts the teacher has already added may sign in. OAuth
+            // links to an existing account by email — it never creates one.
+            if (!user) return done(null, false, { message: 'unregistered' });
+
+            if (!user.oauthProvider) {
+              await prisma.user.update({
+                where: { id: user.id },
+                data: { oauthProvider: 'github', oauthId: profile.id },
               });
             }
             return done(null, user);
@@ -78,23 +70,15 @@ export function configurePassport(passport: PassportStatic) {
             const email = profile.emails?.[0]?.value;
             if (!email) return done(new Error('No email from Google'));
 
-            let user = await prisma.user.findUnique({ where: { email } });
-            if (user) {
-              if (!user.oauthProvider) {
-                user = await prisma.user.update({
-                  where: { id: user.id },
-                  data: { oauthProvider: 'google', oauthId: profile.id },
-                });
-              }
-            } else {
-              user = await prisma.user.create({
-                data: {
-                  name: profile.displayName || email,
-                  email,
-                  oauthProvider: 'google',
-                  oauthId: profile.id,
-                  mustChangePassword: false,
-                },
+            const user = await prisma.user.findUnique({ where: { email } });
+            // Only accounts the teacher has already added may sign in. OAuth
+            // links to an existing account by email — it never creates one.
+            if (!user) return done(null, false, { message: 'unregistered' });
+
+            if (!user.oauthProvider) {
+              await prisma.user.update({
+                where: { id: user.id },
+                data: { oauthProvider: 'google', oauthId: profile.id },
               });
             }
             return done(null, user);
