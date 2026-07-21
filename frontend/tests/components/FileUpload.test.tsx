@@ -44,4 +44,39 @@ describe('FileUpload', () => {
     dropzone.dispatchEvent(dropEvent);
     expect(onFile).toHaveBeenCalledWith(file);
   });
+
+  describe('withName', () => {
+    it('does not upload immediately; shows a name field prefilled without the extension', async () => {
+      const onFile = vi.fn();
+      const { container } = render(<FileUpload withName onFile={onFile} />);
+      const file = new File(['hello'], 'my-report.pdf', { type: 'application/pdf' });
+      await userEvent.upload(getFileInput(container), file);
+      expect(onFile).not.toHaveBeenCalled();
+      expect(screen.getByDisplayValue('my-report')).toBeInTheDocument();
+    });
+
+    it('uploads with the edited name once confirmed', async () => {
+      const onFile = vi.fn();
+      const { container } = render(<FileUpload withName onFile={onFile} />);
+      const file = new File(['hello'], 'my-report.pdf', { type: 'application/pdf' });
+      await userEvent.upload(getFileInput(container), file);
+      const nameInput = screen.getByDisplayValue('my-report');
+      await userEvent.clear(nameInput);
+      await userEvent.type(nameInput, 'מצגת שיעור');
+      await userEvent.click(screen.getByText('העלה קובץ'));
+      expect(onFile).toHaveBeenCalledTimes(1);
+      expect(onFile.mock.calls[0][0]).toBe(file);
+      expect(onFile.mock.calls[0][1]).toBe('מצגת שיעור');
+    });
+
+    it('cancels the naming step without uploading', async () => {
+      const onFile = vi.fn();
+      const { container } = render(<FileUpload withName onFile={onFile} />);
+      const file = new File(['hello'], 'my-report.pdf', { type: 'application/pdf' });
+      await userEvent.upload(getFileInput(container), file);
+      await userEvent.click(screen.getByText('ביטול'));
+      expect(onFile).not.toHaveBeenCalled();
+      expect(screen.queryByDisplayValue('my-report')).not.toBeInTheDocument();
+    });
+  });
 });

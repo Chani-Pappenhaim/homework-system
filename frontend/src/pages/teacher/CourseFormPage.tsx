@@ -18,11 +18,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { FileUpload } from '@/components/ui/file-upload';
+import { useToast } from '@/components/ui/toast';
 
 export default function CourseFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const toast = useToast();
   const [searchParams] = useSearchParams();
   const isEdit = Boolean(id);
 
@@ -72,6 +74,7 @@ export default function CourseFormPage() {
       : coursesApi.create({ name, year, description, groupId }),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['courses'] });
+      toast.success(isEdit ? 'הקורס נשמר בהצלחה' : 'הקורס נוצר בהצלחה');
       const cid = isEdit ? id! : (res.data as any).data.course.id;
       navigate(`/teacher/courses/${cid}`);
     },
@@ -80,7 +83,7 @@ export default function CourseFormPage() {
 
   const addLinkMutation = useMutation({
     mutationFn: () => coursesApi.addLink(id!, newLink),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['course', id] }); setNewLink({ label: '', url: '' }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['course', id] }); setNewLink({ label: '', url: '' }); toast.success('הקישור נוסף'); },
   });
 
   const deleteLinkMutation = useMutation({
@@ -90,7 +93,7 @@ export default function CourseFormPage() {
 
   const uploadFileMutation = useMutation({
     mutationFn: (vars: { file: File; name?: string }) => coursesApi.uploadFile(id!, vars.file, vars.name),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['course', id] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['course', id] }); toast.success('הקובץ הועלה'); },
   });
 
   const deleteFileMutation = useMutation({
@@ -100,7 +103,7 @@ export default function CourseFormPage() {
 
   const copyMutation = useMutation({
     mutationFn: () => coursesApi.copy(id!, copyGroupId),
-    onSuccess: () => { setCopyModal(false); qc.invalidateQueries({ queryKey: ['courses'] }); },
+    onSuccess: () => { setCopyModal(false); qc.invalidateQueries({ queryKey: ['courses'] }); toast.success('הקורס הועתק בהצלחה'); },
   });
 
   const toggleHiddenMutation = useMutation({

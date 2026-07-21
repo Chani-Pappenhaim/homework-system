@@ -16,11 +16,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useState } from 'react';
+import { useToast } from '@/components/ui/toast';
 
 export default function CourseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const toast = useToast();
   const [newLessonModal, setNewLessonModal] = useState(false);
   const [newTopic, setNewTopic] = useState('');
   const [newDate, setNewDate] = useState('');
@@ -36,6 +38,7 @@ export default function CourseDetailPage() {
     }),
     onSuccess: (res) => {
       const lessonId = (res.data as any).data.lesson.id;
+      toast.success('השיעור נוצר בהצלחה');
       navigate(`/teacher/lessons/${lessonId}`);
     },
   });
@@ -44,6 +47,7 @@ export default function CourseDetailPage() {
     mutationFn: () => coursesApi.delete(id!),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['courses'] });
+      toast.success('הקורס נמחק');
       navigate('/teacher/courses');
     },
   });
