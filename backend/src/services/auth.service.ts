@@ -1,15 +1,40 @@
 import bcrypt from 'bcryptjs';
 import { prisma } from '../config/prisma';
-import { User } from '@prisma/client';
+import { User, Group } from '@prisma/client';
 
-export type UserDTO = { id: string; name: string; email: string; role: string; mustChangePassword: boolean };
+export type UserDTO = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  mustChangePassword: boolean;
+  groups: { id: string; name: string }[];
+};
 
-export function toUserDTO(user: User): UserDTO {
-  return { id: user.id, name: user.name, email: user.email, role: user.role, mustChangePassword: user.mustChangePassword };
+// A user loaded together with its group memberships. Students belong to one or
+// more groups; teachers have none.
+type UserWithGroups = User & {
+  studentGroups?: { group: Pick<Group, 'id' | 'name'> }[];
+};
+
+// Prisma include that attaches each student's groups (id + name only).
+const groupsInclude = {
+  studentGroups: { include: { group: { select: { id: true, name: true } } } },
+};
+
+export function toUserDTO(user: UserWithGroups): UserDTO {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    mustChangePassword: user.mustChangePassword,
+    groups: user.studentGroups?.map((sg) => sg.group) ?? [],
+  };
 }
 
-export async function loginWithPassword(email: string, password: string): Promise<User> {
-  const user = await prisma.user.findUnique({ where: { email } });
+export async function loginWithPassword(email: string, password: string): Promise<UserWithGroups> {
+  const user = await prisma.user.findUnique({ where: { email }, include: groupsInclude });
   if (!user) throw Object.assign(new Error('Invalid credentials'), { status: 401 });
   if (!user.password) throw Object.assign(new Error('Use OAuth to login'), { status: 403 });
 
@@ -19,8 +44,8 @@ export async function loginWithPassword(email: string, password: string): Promis
   return user;
 }
 
-export async function getUserById(id: string): Promise<User | null> {
-  return prisma.user.findUnique({ where: { id } });
+export async function getUserById(id: string): Promise<UserWithGroups | null> {
+  return prisma.user.findUnique({ where: { id }, include: groupsInclude });
 }
 
 export async function changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {

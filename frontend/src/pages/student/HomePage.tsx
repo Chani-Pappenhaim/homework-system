@@ -28,6 +28,12 @@ export default function StudentHomePage() {
         <div>
           <h1 className="text-xl font-bold">הקורסים שלי ✦</h1>
           <p className="text-[#6B7280] text-sm mt-0.5">{user?.name}</p>
+          {user?.groups && user.groups.length > 0 && (
+            <p className="text-xs text-[#9CA3AF] mt-0.5">
+              {user.groups.length > 1 ? 'קבוצות: ' : 'קבוצה: '}
+              {user.groups.map((g) => g.name).join(', ')}
+            </p>
+          )}
         </div>
         {pending.length > 0 && (
           <Badge variant="default">{pending.length} מטלות ממתינות</Badge>
