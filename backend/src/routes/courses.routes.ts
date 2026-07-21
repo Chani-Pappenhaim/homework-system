@@ -13,6 +13,7 @@ router.get('/', coursesController.getCourses);
 router.post('/', requireRole('ADMIN'), coursesController.createCourse);
 router.get('/:id', coursesController.getCourse);
 router.put('/:id', requireRole('ADMIN'), coursesController.updateCourse);
+router.delete('/:id', requireRole('ADMIN'), coursesController.deleteCourse);
 router.post('/:id/copy', requireRole('ADMIN'), coursesController.copyCourse);
 router.post('/:id/links', requireRole('ADMIN'), coursesController.addLink);
 router.delete('/:id/links/:linkId', requireRole('ADMIN'), coursesController.deleteLink);

@@ -14,6 +14,9 @@ export const coursesApi = {
   update: (id: string, data: Partial<{ name: string; year: string; description: string; imageUrl: string; hidden: boolean; groupId: string }>) =>
     api.put<{ success: true; data: { course: CourseDTO } }>(`/courses/${id}`, data),
 
+  delete: (id: string) =>
+    api.delete(`/courses/${id}`),
+
   copy: (id: string, targetGroupId: string) =>
     api.post(`/courses/${id}/copy`, { targetGroupId }),
 
@@ -29,9 +32,10 @@ export const coursesApi = {
   deleteLink: (id: string, linkId: string) =>
     api.delete(`/courses/${id}/links/${linkId}`),
 
-  uploadFile: (id: string, file: File) => {
+  uploadFile: (id: string, file: File, name?: string) => {
     const form = new FormData();
     form.append('file', file);
+    if (name?.trim()) form.append('name', name.trim());
     return api.post(`/courses/${id}/files`, form);
   },
 

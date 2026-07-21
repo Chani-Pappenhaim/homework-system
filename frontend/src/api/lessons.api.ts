@@ -14,15 +14,19 @@ export const lessonsApi = {
   update: (id: string, data: Partial<{ topic: string; lessonDate: string; contentMd: string; githubUrl: string; hidden: boolean; order: number }>) =>
     api.put(`/lessons/${id}`, data),
 
+  delete: (id: string) =>
+    api.delete(`/lessons/${id}`),
+
   reorder: (lessons: { id: string; order: number }[]) =>
     api.patch('/lessons/reorder', { lessons }),
 
   setProgress: (id: string, completed: boolean) =>
     api.post(`/lessons/${id}/progress`, { completed }),
 
-  uploadFile: (id: string, file: File) => {
+  uploadFile: (id: string, file: File, name?: string) => {
     const form = new FormData();
     form.append('file', file);
+    if (name?.trim()) form.append('name', name.trim());
     return api.post(`/lessons/${id}/files`, form);
   },
 

@@ -1,7 +1,7 @@
 import { toExternalUrl } from '@/lib/utils';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { Edit, Lock, ExternalLink, Plus } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Edit, Lock, ExternalLink, Plus, Trash2 } from 'lucide-react';
 import { coursesApi } from '@/api/courses.api';
 import { lessonsApi } from '@/api/lessons.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -20,6 +20,7 @@ import { useState } from 'react';
 export default function CourseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [newLessonModal, setNewLessonModal] = useState(false);
   const [newTopic, setNewTopic] = useState('');
   const [newDate, setNewDate] = useState('');
@@ -36,6 +37,14 @@ export default function CourseDetailPage() {
     onSuccess: (res) => {
       const lessonId = (res.data as any).data.lesson.id;
       navigate(`/teacher/lessons/${lessonId}`);
+    },
+  });
+
+  const deleteCourseMutation = useMutation({
+    mutationFn: () => coursesApi.delete(id!),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['courses'] });
+      navigate('/teacher/courses');
     },
   });
 
@@ -57,9 +66,23 @@ export default function CourseDetailPage() {
           <p className="text-[#6B7280] text-sm mt-0.5">{course.groupName} · {course.year}</p>
           {course.description && <p className="text-[#6B7280] text-sm mt-1">{course.description}</p>}
         </div>
-        <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/courses/${id}/edit`)}>
-          <Edit size={13} /> ערוך קורס
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/courses/${id}/edit`)}>
+            <Edit size={13} /> ערוך קורס
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            loading={deleteCourseMutation.isPending}
+            onClick={() => {
+              if (confirm(`למחוק את הקורס "${course.name}"? כל השיעורים, המטלות, ההגשות והקבצים של הקורס יימחקו לצמיתות.`)) {
+                deleteCourseMutation.mutate();
+              }
+            }}
+          >
+            <Trash2 size={13} /> מחק קורס
+          </Button>
+        </div>
       </div>
 
       {/* Lesson bubbles */}

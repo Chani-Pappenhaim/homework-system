@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../src/config/prisma', () => ({
   prisma: {
-    lesson: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+    lesson: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
     lessonAccess: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), delete: vi.fn() },
     lessonFile: { findUnique: vi.fn(), create: vi.fn(), delete: vi.fn() },
     lessonProgress: { findUnique: vi.fn(), upsert: vi.fn(), deleteMany: vi.fn() },
@@ -38,6 +38,7 @@ import {
   importMarkdown,
   uploadLessonFile,
   deleteLessonFile,
+  deleteLesson,
 } from '../../src/services/lessons.service';
 
 const p = prisma as any;
@@ -162,6 +163,13 @@ describe('lessons.service file upload/delete', () => {
     expect(r).toMatchObject({ lessonId: 'l1', name: 'x.pdf', url: 'https://cdn/x.pdf' });
   });
 
+  it('uploadLessonFile uses the given display name over the original filename', async () => {
+    uploadMock.mockResolvedValue({ url: 'https://cdn/x.pdf', bytes: 99, resourceType: 'image', publicId: 'p' });
+    p.lessonFile.create.mockImplementation(({ data }: any) => Promise.resolve(data));
+    const r: any = await uploadLessonFile('l1', Buffer.from('x'), 'x.pdf', 'application/pdf', 'תרגיל בית');
+    expect(r.name).toBe('תרגיל בית');
+  });
+
   it('uploadLessonFile stringifies sizeBytes so the response cannot throw on BigInt', async () => {
     uploadMock.mockResolvedValue({ url: 'https://cdn/x.pdf', bytes: 99, resourceType: 'image', publicId: 'p' });
     p.lessonFile.create.mockResolvedValue({ id: 'f1', lessonId: 'l1', name: 'x.pdf', url: 'https://cdn/x.pdf', sizeBytes: 99n });
@@ -180,5 +188,30 @@ describe('lessons.service file upload/delete', () => {
     await deleteLessonFile('l1', 'f1');
     expect(destroyMock).toHaveBeenCalled();
     expect(p.lessonFile.delete).toHaveBeenCalledWith({ where: { id: 'f1' } });
+  });
+});
+
+describe('lessons.service.deleteLesson', () => {
+  it('throws 404 when the lesson is missing', async () => {
+    p.lesson.findUnique.mockResolvedValue(null);
+    await expect(deleteLesson('l1')).rejects.toMatchObject({ status: 404 });
+    expect(p.lesson.delete).not.toHaveBeenCalled();
+  });
+
+  it('destroys the lesson file assets, then deletes the lesson', async () => {
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', files: [{ url: 'https://cdn/a.pdf' }, { url: 'https://cdn/b.pdf' }] });
+    destroyMock.mockResolvedValue({});
+    p.lesson.delete.mockResolvedValue({});
+    await deleteLesson('l1');
+    expect(destroyMock).toHaveBeenCalledTimes(2);
+    expect(p.lesson.delete).toHaveBeenCalledWith({ where: { id: 'l1' } });
+  });
+
+  it('still deletes the lesson when a storage destroy fails', async () => {
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', files: [{ url: 'https://cdn/a.pdf' }] });
+    destroyMock.mockRejectedValue(new Error('cloudinary down'));
+    p.lesson.delete.mockResolvedValue({});
+    await deleteLesson('l1');
+    expect(p.lesson.delete).toHaveBeenCalledWith({ where: { id: 'l1' } });
   });
 });

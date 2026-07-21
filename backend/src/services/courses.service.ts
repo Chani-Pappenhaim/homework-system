@@ -139,10 +139,10 @@ export async function deleteCourseLink(courseId: string, linkId: string) {
   await prisma.courseLink.delete({ where: { id: linkId, courseId } });
 }
 
-export async function uploadCourseFile(courseId: string, buffer: Buffer, originalName: string, mimeType: string) {
+export async function uploadCourseFile(courseId: string, buffer: Buffer, originalName: string, mimeType: string, displayName?: string) {
   const uploaded = await uploadBuffer(buffer, mimeType, 'courses');
   const file = await prisma.courseFile.create({
-    data: { courseId, name: originalName, url: uploaded.url, sizeBytes: uploaded.bytes },
+    data: { courseId, name: displayName?.trim() || originalName, url: uploaded.url, sizeBytes: uploaded.bytes },
   });
   return toFileDTO(file);
 }
@@ -152,6 +152,37 @@ export async function deleteCourseFile(courseId: string, fileId: string) {
   if (!file) throw Object.assign(new Error('File not found'), { status: 404 });
   await destroyByUrl(file.url);
   await prisma.courseFile.delete({ where: { id: fileId } });
+}
+
+// Deletes a course and everything under it. Prisma cascades the DB rows (lessons,
+// links, files, assignments, submissions...), so we only need to clean up the
+// stored (Cloudinary) assets first, best-effort — a storage hiccup must not block
+// the delete.
+export async function deleteCourse(id: string) {
+  const course = await prisma.course.findUnique({
+    where: { id },
+    include: { files: true, lessons: { include: { files: true } } },
+  });
+  if (!course) throw Object.assign(new Error('Course not found'), { status: 404 });
+
+  const urls = [
+    ...course.files.map((f) => f.url),
+    ...course.lessons.flatMap((l) => l.files.map((f) => f.url)),
+  ];
+  await destroyUrls(urls);
+
+  await prisma.course.delete({ where: { id } });
+}
+
+/** Best-effort removal of stored assets; never throws. */
+export async function destroyUrls(urls: string[]) {
+  for (const url of urls) {
+    try {
+      await destroyByUrl(url);
+    } catch (err) {
+      console.error('[storage] failed to destroy asset:', url, err);
+    }
+  }
 }
 
 

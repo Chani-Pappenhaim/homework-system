@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../config/prisma';
 import ExcelJS from 'exceljs';
 import { emailQueue } from '../infrastructure/queues/queues';
+import { deleteCourse } from './courses.service';
 
 export async function getGroups() {
   const groups = await prisma.group.findMany({
@@ -56,6 +57,25 @@ export async function addStudent(groupId: string, name: string, email: string, g
 
 export async function removeStudent(groupId: string, studentId: string) {
   await prisma.studentGroup.delete({ where: { studentId_groupId: { studentId, groupId } } });
+}
+
+// Deletes a group. Student memberships (StudentGroup) cascade automatically, but
+// the Course->Group relation is Restrict, so we must remove the group's courses
+// first (which cascades their lessons/assignments/submissions and cleans up
+// stored files). Student user accounts are left intact — they may belong to
+// other groups.
+export async function deleteGroup(id: string) {
+  const group = await prisma.group.findUnique({
+    where: { id },
+    include: { courses: { select: { id: true } } },
+  });
+  if (!group) throw Object.assign(new Error('Group not found'), { status: 404 });
+
+  for (const course of group.courses) {
+    await deleteCourse(course.id);
+  }
+
+  await prisma.group.delete({ where: { id } });
 }
 
 export async function importStudents(groupId: string, buffer: Buffer) {

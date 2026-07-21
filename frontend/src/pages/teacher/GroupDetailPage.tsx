@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Edit, Users, BookOpen, Plus, Github } from 'lucide-react';
+import { Edit, Users, BookOpen, Plus, Github, Trash2 } from 'lucide-react';
 import { groupsApi } from '@/api/groups.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 export default function GroupDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ['group', id],
@@ -15,6 +16,15 @@ export default function GroupDetailPage() {
   });
 
   const group = data?.data.data.group;
+
+  const deleteGroupMutation = useMutation({
+    mutationFn: () => groupsApi.delete(id!),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['groups'] });
+      qc.invalidateQueries({ queryKey: ['courses'] });
+      navigate('/teacher/groups');
+    },
+  });
 
   if (isLoading) return <div className="p-6 text-[#9CA3AF]">טוען...</div>;
   if (!group) return <div className="p-6 text-red-500">קבוצה לא נמצאה</div>;
@@ -35,9 +45,26 @@ export default function GroupDetailPage() {
             </p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/groups/${id}/edit`)}>
-          <Edit size={13} /> ערוך קבוצה
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/groups/${id}/edit`)}>
+            <Edit size={13} /> ערוך קבוצה
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            loading={deleteGroupMutation.isPending}
+            onClick={() => {
+              const coursesNote = group.courses.length > 0
+                ? ` כל ${group.courses.length} הקורסים של הקבוצה (כולל שיעורים, מטלות והגשות) יימחקו גם הם לצמיתות.`
+                : '';
+              if (confirm(`למחוק את הקבוצה "${group.name}"?${coursesNote} התלמידות לא יימחקו מהמערכת, רק ישויכו החוצה מהקבוצה.`)) {
+                deleteGroupMutation.mutate();
+              }
+            }}
+          >
+            <Trash2 size={13} /> מחק קבוצה
+          </Button>
+        </div>
       </div>
 
       {/* Courses of this group */}

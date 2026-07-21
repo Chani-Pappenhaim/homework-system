@@ -89,7 +89,7 @@ export default function CourseFormPage() {
   });
 
   const uploadFileMutation = useMutation({
-    mutationFn: (file: File) => coursesApi.uploadFile(id!, file),
+    mutationFn: (vars: { file: File; name?: string }) => coursesApi.uploadFile(id!, vars.file, vars.name),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['course', id] }),
   });
 
@@ -217,7 +217,7 @@ export default function CourseFormPage() {
                 </Button>
               </div>
             ))}
-            <FileUpload onFile={(file) => uploadFileMutation.mutate(file)} label="העלה קובץ לקורס" />
+            <FileUpload withName onFile={(file, name) => uploadFileMutation.mutate({ file, name })} label="העלה קובץ לקורס" />
           </CardContent>
         </Card>
       )}
