@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { FileUpload } from '@/components/ui/file-upload';
+import { useToast } from '@/components/ui/toast';
 import { formatDate, formatDateTime, toExternalUrl } from '@/lib/utils';
 import type { AssignmentDTO, ChecklistResult, SubmissionDTO } from '@/types';
 
@@ -29,6 +30,7 @@ export default function LessonDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const toast = useToast();
   const [selectedAssignment, setSelectedAssignment] = useState(0);
   const [gradeModal, setGradeModal] = useState<SubmissionDTO | null>(null);
   const [submissionScore, setSubmissionScore] = useState('');
@@ -117,12 +119,13 @@ export default function LessonDetailPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['lesson', id] });
       setLessonEditOpen(false);
+      toast.success('השיעור נשמר בהצלחה');
     },
   });
 
   const uploadFileMutation = useMutation({
     mutationFn: (vars: { file: File; name?: string }) => lessonsApi.uploadFile(id!, vars.file, vars.name),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['lesson', id] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lesson', id] }); toast.success('הקובץ הועלה'); },
   });
 
   const deleteLessonMutation = useMutation({
@@ -131,6 +134,7 @@ export default function LessonDetailPage() {
       const courseId = lesson?.courseId;
       qc.invalidateQueries({ queryKey: ['course', courseId] });
       qc.invalidateQueries({ queryKey: ['courses'] });
+      toast.success('השיעור נמחק');
       navigate(courseId ? `/teacher/courses/${courseId}` : '/teacher/courses');
     },
   });
@@ -164,13 +168,15 @@ export default function LessonDetailPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['lesson', id] });
+      const wasNew = assignmentModal === 'new';
       setAssignmentModal(null);
+      toast.success(wasNew ? 'המטלה נוצרה בהצלחה' : 'המטלה נשמרה בהצלחה');
     },
   });
 
   const deleteAssignmentMutation = useMutation({
     mutationFn: (aId: string) => assignmentsApi.delete(aId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['lesson', id] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lesson', id] }); toast.success('המטלה נמחקה'); },
   });
 
   const gradeMutation = useMutation({
@@ -183,6 +189,7 @@ export default function LessonDetailPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['submissions', assignment?.id] });
       setGradeModal(null);
+      toast.success('הציון נשמר בהצלחה');
     },
   });
 

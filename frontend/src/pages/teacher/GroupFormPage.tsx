@@ -14,11 +14,13 @@ import {
 } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { FileUpload } from '@/components/ui/file-upload';
+import { useToast } from '@/components/ui/toast';
 
 export default function GroupFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const toast = useToast();
   const isEdit = Boolean(id);
 
   const [name, setName] = useState('');
@@ -54,6 +56,7 @@ export default function GroupFormPage() {
       : groupsApi.create({ name, seminar: seminar || undefined, year }),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['groups'] });
+      toast.success(isEdit ? 'הקבוצה נשמרה בהצלחה' : 'הקבוצה נוצרה בהצלחה');
       const gid = isEdit ? id! : (res.data as any).data.group.id;
       navigate(`/teacher/groups/${gid}/edit`);
     },
@@ -65,6 +68,7 @@ export default function GroupFormPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['group', id] });
       setNewName(''); setNewEmail(''); setNewGithub(''); setAddError(''); setAddModal(false);
+      toast.success('התלמידה נוספה בהצלחה');
     },
     onError: (e: any) => setAddError(e.response?.data?.error ?? 'שגיאה בהוספה'),
   });
@@ -82,6 +86,7 @@ export default function GroupFormPage() {
     await groupsApi.importStudents(id!, file);
     qc.invalidateQueries({ queryKey: ['group', id] });
     setAddModal(false);
+    toast.success('התלמידות יובאו בהצלחה');
   }
 
   return (

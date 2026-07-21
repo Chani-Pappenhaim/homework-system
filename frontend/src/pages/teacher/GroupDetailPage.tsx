@@ -4,11 +4,13 @@ import { Edit, Users, BookOpen, Plus, Github, Trash2 } from 'lucide-react';
 import { groupsApi } from '@/api/groups.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/toast';
 
 export default function GroupDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const toast = useToast();
 
   const { data, isLoading } = useQuery({
     queryKey: ['group', id],
@@ -22,6 +24,7 @@ export default function GroupDetailPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['groups'] });
       qc.invalidateQueries({ queryKey: ['courses'] });
+      toast.success('הקבוצה נמחקה');
       navigate('/teacher/groups');
     },
   });
