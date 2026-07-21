@@ -1,10 +1,11 @@
-import express from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import passport from 'passport';
 import { generalRateLimit } from './middleware/rateLimit';
 import { configurePassport } from './config/passport';
+import { GENERIC_SERVER_ERROR } from './utils/http';
 
 import authRoutes from './routes/auth.routes';
 import groupRoutes from './routes/groups.routes';
@@ -47,6 +48,16 @@ export function createApp() {
   app.use('/api/lessons', quizRoutes);
   app.use('/api/messages', messageRoutes);
   app.use('/api/ai-usage', aiUsageRoutes);
+
+  // Safety net: anything that escapes a controller's try/catch (or is thrown
+  // synchronously by a route) lands here. Log the real error, return a generic
+  // message so no internal detail (DB, keys, stack) ever reaches the client.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    console.error('[unhandled]', err);
+    if (res.headersSent) return;
+    res.status(500).json({ success: false, error: GENERIC_SERVER_ERROR });
+  });
 
   return app;
 }

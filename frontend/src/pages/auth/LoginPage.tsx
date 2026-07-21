@@ -5,6 +5,7 @@ import useAuthStore from '@/store/authStore';
 import { API_URL } from '@/lib/config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { getApiErrorMessage } from '@/lib/errors';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -46,7 +47,7 @@ export default function LoginPage() {
         navigate(user.role === 'ADMIN' ? '/teacher' : '/student');
       }
     } catch (err: any) {
-      setError(err.response?.data?.error ?? 'שגיאה בכניסה למערכת');
+      setError(getApiErrorMessage(err, 'שגיאה בכניסה למערכת. אנא בדקו את הפרטים ונסו שוב.'));
     } finally {
       setLoading(false);
     }

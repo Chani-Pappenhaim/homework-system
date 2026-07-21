@@ -23,6 +23,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { FileUpload } from '@/components/ui/file-upload';
 import { useToast } from '@/components/ui/toast';
+import { getApiErrorMessage } from '@/lib/errors';
 import { formatDate, formatDateTime, toExternalUrl } from '@/lib/utils';
 import type { AssignmentDTO, ChecklistResult, SubmissionDTO } from '@/types';
 
@@ -84,7 +85,7 @@ export default function LessonDetailPage() {
       throw new Error('תלמידה לא נמצאה');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['lesson-access', id] }); setAccessEmail(''); setAccessError(''); },
-    onError: (e: any) => setAccessError(e.response?.data?.error ?? e.message ?? 'שגיאה'),
+    onError: (e: any) => setAccessError(getApiErrorMessage(e, e.message ?? 'שגיאה')),
   });
 
   const revokeAccessMutation = useMutation({

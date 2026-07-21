@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dialog';
 import { FileUpload } from '@/components/ui/file-upload';
 import { useToast } from '@/components/ui/toast';
+import { getApiErrorMessage } from '@/lib/errors';
 
 export default function CourseFormPage() {
   const { id } = useParams();
@@ -78,7 +79,7 @@ export default function CourseFormPage() {
       const cid = isEdit ? id! : (res.data as any).data.course.id;
       navigate(`/teacher/courses/${cid}`);
     },
-    onError: (e: any) => setError(e.response?.data?.error ?? 'שגיאה בשמירה'),
+    onError: (e: any) => setError(getApiErrorMessage(e, 'שגיאה בשמירה')),
   });
 
   const addLinkMutation = useMutation({
