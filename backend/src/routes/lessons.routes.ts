@@ -14,6 +14,7 @@ router.post('/:courseId/lessons', requireRole('ADMIN'), lessonsController.create
 router.get('/:id', lessonsController.getLesson);
 router.post('/:id/progress', lessonsController.setProgress);
 router.put('/:id', requireRole('ADMIN'), lessonsController.updateLesson);
+router.delete('/:id', requireRole('ADMIN'), lessonsController.deleteLesson);
 router.patch('/reorder', requireRole('ADMIN'), lessonsController.reorderLessons);
 router.post('/:id/files', requireRole('ADMIN'), upload.single('file'), lessonsController.uploadFile);
 router.delete('/:id/files/:fileId', requireRole('ADMIN'), lessonsController.deleteFile);

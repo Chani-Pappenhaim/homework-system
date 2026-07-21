@@ -68,9 +68,18 @@ export async function uploadFile(req: Request, res: Response) {
   try {
     if (!req.file) { res.status(400).json({ success: false, error: 'No file uploaded' }); return; }
     const file = await coursesService.uploadCourseFile(
-      req.params.id as string, req.file.buffer, req.file.originalname, req.file.mimetype
+      req.params.id as string, req.file.buffer, req.file.originalname, req.file.mimetype, req.body.name
     );
     res.status(201).json({ success: true, data: { file } });
+  } catch (err: any) {
+    res.status(err.status || 500).json({ success: false, error: err.message });
+  }
+}
+
+export async function deleteCourse(req: Request, res: Response) {
+  try {
+    await coursesService.deleteCourse(req.params.id as string);
+    res.json({ success: true, data: null });
   } catch (err: any) {
     res.status(err.status || 500).json({ success: false, error: err.message });
   }

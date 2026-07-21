@@ -4,8 +4,14 @@ vi.mock('../../src/config/prisma', () => ({
   prisma: {
     user: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     studentGroup: { create: vi.fn(), delete: vi.fn(), count: vi.fn(), findUnique: vi.fn() },
-    group: { findMany: vi.fn(), create: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+    group: { findMany: vi.fn(), create: vi.fn(), findUnique: vi.fn(), update: vi.fn(), delete: vi.fn() },
   },
+}));
+
+// deleteGroup delegates course removal (with its storage cleanup) to courses.service.
+const { deleteCourseMock } = vi.hoisted(() => ({ deleteCourseMock: vi.fn() }));
+vi.mock('../../src/services/courses.service', () => ({
+  deleteCourse: deleteCourseMock,
 }));
 
 vi.mock('bcryptjs', () => ({
@@ -28,6 +34,7 @@ import {
   getGroups,
   getGroupById,
   importStudents,
+  deleteGroup,
 } from '../../src/services/groups.service';
 
 const p = prisma as any;
@@ -146,6 +153,33 @@ describe('groups.service', () => {
       const r = await getGroupById('g1');
       expect(r!.students).toEqual([expect.objectContaining({ id: 's1', githubUsername: 'gh' })]);
       expect(r!.courses).toEqual([{ id: 'c1', name: 'C' }]);
+    });
+  });
+
+  describe('deleteGroup', () => {
+    it('throws 404 when the group is missing', async () => {
+      p.group.findUnique.mockResolvedValue(null);
+      await expect(deleteGroup('g1')).rejects.toMatchObject({ status: 404 });
+      expect(p.group.delete).not.toHaveBeenCalled();
+    });
+
+    it("deletes each of the group's courses first, then the group", async () => {
+      p.group.findUnique.mockResolvedValue({ id: 'g1', courses: [{ id: 'c1' }, { id: 'c2' }] });
+      deleteCourseMock.mockResolvedValue(undefined);
+      p.group.delete.mockResolvedValue({});
+      await deleteGroup('g1');
+      expect(deleteCourseMock).toHaveBeenCalledTimes(2);
+      expect(deleteCourseMock).toHaveBeenCalledWith('c1');
+      expect(deleteCourseMock).toHaveBeenCalledWith('c2');
+      expect(p.group.delete).toHaveBeenCalledWith({ where: { id: 'g1' } });
+    });
+
+    it('deletes a group with no courses directly', async () => {
+      p.group.findUnique.mockResolvedValue({ id: 'g1', courses: [] });
+      p.group.delete.mockResolvedValue({});
+      await deleteGroup('g1');
+      expect(deleteCourseMock).not.toHaveBeenCalled();
+      expect(p.group.delete).toHaveBeenCalledWith({ where: { id: 'g1' } });
     });
   });
 

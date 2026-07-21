@@ -30,6 +30,15 @@ export async function updateGroup(req: Request, res: Response) {
   }
 }
 
+export async function deleteGroup(req: Request, res: Response) {
+  try {
+    await groupsService.deleteGroup(req.params.id as string);
+    res.json({ success: true, data: null });
+  } catch (err: any) {
+    res.status(err.status || 500).json({ success: false, error: err.message });
+  }
+}
+
 export async function addStudent(req: Request, res: Response) {
   try {
     const { name, email, githubUsername } = req.body;
