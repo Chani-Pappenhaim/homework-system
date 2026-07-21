@@ -14,7 +14,6 @@ vi.mock('bullmq', () => ({
     on() {}
   },
 }));
-vi.mock('../../src/config/redis', () => ({ connection: {} }));
 vi.mock('../../src/config/prisma', () => ({
   // update() must return a promise: the worker's error path calls .catch() on it,
   // mirroring the real Prisma client (a bare vi.fn() returns undefined and throws).
@@ -29,7 +28,11 @@ vi.mock('../../src/services/gemini.service', () => ({
 
 import { prisma } from '../../src/config/prisma';
 import * as gemini from '../../src/services/gemini.service';
-import '../../src/workers/ai-review.worker';
+import { registerAiReviewWorker } from '../../src/workers/ai-review.worker';
+
+// Registering the worker constructs the (mocked) BullMQ Worker, which captures
+// the processor via setProcessor. The connection is irrelevant under the mock.
+registerAiReviewWorker({} as any);
 
 const p = prisma as any;
 const run = (submissionId: string, opts?: { attemptsMade?: number; attempts?: number }) =>

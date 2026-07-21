@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/prisma';
-import { emailQueue } from '../config/redis';
+import { emailQueue } from '../infrastructure/queues/queues';
 
 export async function sendMessage(req: Request, res: Response) {
   try {
@@ -64,7 +64,7 @@ export async function replyMessage(req: Request, res: Response) {
         studentEmail: message.student.email,
         studentName: message.student.name,
         originalContent: message.content,
-        replyContent: message.replyContent,
+        replyContent: reply.trim(),
       });
     } catch (err) {
       console.error('[messages] Failed to enqueue teacher-reply email:', err);

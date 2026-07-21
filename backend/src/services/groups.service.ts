@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { prisma } from '../config/prisma';
 import ExcelJS from 'exceljs';
-import { emailQueue } from '../config/redis';
+import { emailQueue } from '../infrastructure/queues/queues';
 
 export async function getGroups() {
   const groups = await prisma.group.findMany({

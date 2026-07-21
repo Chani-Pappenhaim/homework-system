@@ -1,23 +1,25 @@
-import { deadlineQueue, storageQueue } from '../config/redis';
+import 'dotenv/config';
+import { prisma } from '../config/prisma';
+import { closeQueues } from '../infrastructure/queues/queues';
+import { closeSharedConnection } from '../infrastructure/redis/connection';
+import { registerGracefulShutdown } from '../infrastructure/shutdown';
+import { startWorkers, stopWorkers } from './start-workers';
 
-// Worker process entrypoint. Importing each worker file registers its BullMQ
-// Worker against the shared connection in ../config/redis. Only this process
-// (the `worker` container) imports these files — the API imports queues straight
-// from ../config/redis, so it never spins up workers of its own.
-import './quiz.worker';
-import './email.worker';
-import './storage.worker';
-import './ai-review.worker';
-import './deadline.worker';
+// Standalone worker process entry (the docker-compose `worker` service runs
+// `node dist/src/workers/index.js`). On a single-service deploy the API process
+// starts the workers inline instead — see src/index.ts.
+async function main(): Promise<void> {
+  const handles = await startWorkers();
 
-// Repeatable jobs — deadline reports every 15 min, storage monitoring every hour.
-// Errors are logged, not thrown, so startup never crashes if Redis is down.
-(async () => {
-  try {
-    await deadlineQueue.add('check', {}, { repeat: { every: 15 * 60 * 1000 }, jobId: 'repeat' });
-    await storageQueue.add('check', {}, { repeat: { every: 60 * 60 * 1000 }, jobId: 'repeat' });
-    console.log('[workers] Repeatable jobs registered (deadline-check, storage-monitor)');
-  } catch (err) {
-    console.error('[workers] Failed to register repeatable jobs:', err);
-  }
-})();
+  registerGracefulShutdown(async () => {
+    await stopWorkers(handles);
+    await closeQueues();
+    await closeSharedConnection();
+    await prisma.$disconnect();
+  });
+}
+
+main().catch((err) => {
+  console.error('[workers] fatal startup error:', err);
+  process.exit(1);
+});
