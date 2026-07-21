@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import * as submissionsService from '../services/submissions.service';
-import { aiReviewQueue } from '../config/redis';
+import { aiReviewQueue } from '../infrastructure/queues/queues';
 import { prisma } from '../config/prisma';
 
 export async function submit(req: Request, res: Response) {

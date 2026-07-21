@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Keep the Redis/BullMQ queues out of the import chain — the messages and
 // submissions controllers enqueue jobs through this module.
-vi.mock('../../src/config/redis', () => ({
+vi.mock('../../src/infrastructure/queues/queues', () => ({
   emailQueue: { add: vi.fn() },
   aiReviewQueue: { add: vi.fn() },
 }));
