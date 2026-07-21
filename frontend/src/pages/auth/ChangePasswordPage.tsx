@@ -4,6 +4,7 @@ import { authApi } from '@/api/auth.api';
 import useAuthStore from '@/store/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { getApiErrorMessage } from '@/lib/errors';
 
 export default function ChangePasswordPage() {
   const navigate = useNavigate();
@@ -28,7 +29,7 @@ export default function ChangePasswordPage() {
       }
       navigate(user?.role === 'ADMIN' ? '/teacher' : '/student');
     } catch (err: any) {
-      setError(err.response?.data?.error ?? 'שגיאה בשינוי סיסמא');
+      setError(getApiErrorMessage(err, 'שגיאה בשינוי סיסמא'));
     } finally {
       setLoading(false);
     }

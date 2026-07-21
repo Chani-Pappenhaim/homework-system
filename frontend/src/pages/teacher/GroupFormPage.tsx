@@ -15,6 +15,7 @@ import {
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { FileUpload } from '@/components/ui/file-upload';
 import { useToast } from '@/components/ui/toast';
+import { getApiErrorMessage } from '@/lib/errors';
 
 export default function GroupFormPage() {
   const { id } = useParams();
@@ -60,7 +61,7 @@ export default function GroupFormPage() {
       const gid = isEdit ? id! : (res.data as any).data.group.id;
       navigate(`/teacher/groups/${gid}/edit`);
     },
-    onError: (e: any) => setError(e.response?.data?.error ?? 'שגיאה בשמירה'),
+    onError: (e: any) => setError(getApiErrorMessage(e, 'שגיאה בשמירה')),
   });
 
   const addStudentMutation = useMutation({
@@ -70,7 +71,7 @@ export default function GroupFormPage() {
       setNewName(''); setNewEmail(''); setNewGithub(''); setAddError(''); setAddModal(false);
       toast.success('התלמידה נוספה בהצלחה');
     },
-    onError: (e: any) => setAddError(e.response?.data?.error ?? 'שגיאה בהוספה'),
+    onError: (e: any) => setAddError(getApiErrorMessage(e, 'שגיאה בהוספה')),
   });
 
   const removeStudentMutation = useMutation({

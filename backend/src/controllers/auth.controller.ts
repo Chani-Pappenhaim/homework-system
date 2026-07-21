@@ -1,6 +1,7 @@
 ﻿import { Request, Response } from 'express';
 import * as authService from '../services/auth.service';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt';
+import { sendError } from '../utils/http';
 
 const isProd = process.env.NODE_ENV === 'production';
 const REFRESH_COOKIE = 'refreshToken';
@@ -30,7 +31,7 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     res.json({ success: true, data: { user: authService.toUserDTO(user), accessToken } });
   } catch (err: any) {
-    res.status(err.status || 401).json({ success: false, error: err.message });
+    sendError(res, err, 401);
   }
 }
 
@@ -65,7 +66,7 @@ export async function changePassword(req: Request, res: Response): Promise<void>
     await authService.changePassword(req.user!.userId, currentPassword, newPassword);
     res.json({ success: true, data: null });
   } catch (err: any) {
-    res.status(err.status || 400).json({ success: false, error: err.message });
+    sendError(res, err, 400);
   }
 }
 
@@ -75,7 +76,7 @@ export async function me(req: Request, res: Response): Promise<void> {
     if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
     res.json({ success: true, data: { user: authService.toUserDTO(user) } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 

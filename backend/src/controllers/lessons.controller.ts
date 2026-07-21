@@ -1,5 +1,6 @@
 ﻿import { Request, Response } from 'express';
 import * as lessonsService from '../services/lessons.service';
+import { sendError } from '../utils/http';
 
 export async function getLessons(req: Request, res: Response) {
   try {
@@ -9,7 +10,7 @@ export async function getLessons(req: Request, res: Response) {
     res.json({ success: true, data: { lessons } });
   } catch (err: any) {
     console.error('getLessons error:', err);
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -19,7 +20,7 @@ export async function createLesson(req: Request, res: Response) {
     res.status(201).json({ success: true, data: { lesson } });
   } catch (err: any) {
     console.error('createLesson error:', err);
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -29,7 +30,7 @@ export async function getLesson(req: Request, res: Response) {
     if (!lesson) { res.status(404).json({ success: false, error: 'Lesson not found' }); return; }
     res.json({ success: true, data: { lesson } });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -39,7 +40,7 @@ export async function setProgress(req: Request, res: Response) {
     const result = await lessonsService.setLessonProgress(req.user!.userId, req.params.id as string, completed);
     res.json({ success: true, data: result });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -48,7 +49,7 @@ export async function updateLesson(req: Request, res: Response) {
     const lesson = await lessonsService.updateLesson(req.params.id as string, req.body);
     res.json({ success: true, data: { lesson } });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -57,7 +58,7 @@ export async function reorderLessons(req: Request, res: Response) {
     await lessonsService.reorderLessons(req.body.lessons);
     res.json({ success: true, data: null });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -69,7 +70,7 @@ export async function uploadFile(req: Request, res: Response) {
     );
     res.status(201).json({ success: true, data: { file } });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -78,7 +79,7 @@ export async function deleteLesson(req: Request, res: Response) {
     await lessonsService.deleteLesson(req.params.id as string);
     res.json({ success: true, data: null });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -87,7 +88,7 @@ export async function deleteFile(req: Request, res: Response) {
     await lessonsService.deleteLessonFile(req.params.id as string, req.params.fileId as string);
     res.json({ success: true, data: null });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -96,7 +97,7 @@ export async function getLessonAccess(req: Request, res: Response) {
     const students = await lessonsService.getLessonAccess(req.params.id as string);
     res.json({ success: true, data: { students } });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -105,7 +106,7 @@ export async function grantLessonAccess(req: Request, res: Response) {
     await lessonsService.grantLessonAccess(req.params.id as string, req.body.studentId);
     res.status(201).json({ success: true, data: null });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -114,7 +115,7 @@ export async function revokeLessonAccess(req: Request, res: Response) {
     await lessonsService.revokeLessonAccess(req.params.id as string, req.params.studentId as string);
     res.json({ success: true, data: null });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -125,7 +126,7 @@ export async function importMarkdown(req: Request, res: Response) {
     const lesson = await lessonsService.importMarkdown(req.params.id as string, content);
     res.json({ success: true, data: { lesson: { id: lesson.id, contentMd: lesson.contentMd } } });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 

@@ -1,5 +1,6 @@
 ﻿import { Request, Response } from 'express';
 import * as coursesService from '../services/courses.service';
+import { sendError } from '../utils/http';
 
 export async function getCourses(req: Request, res: Response) {
   const courses = await coursesService.getCoursesForUser(req.user!.userId, req.user!.role);
@@ -11,7 +12,7 @@ export async function createCourse(req: Request, res: Response) {
     const course = await coursesService.createCourse(req.body);
     res.status(201).json({ success: true, data: { course } });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -21,7 +22,7 @@ export async function getCourse(req: Request, res: Response) {
     if (!course) { res.status(404).json({ success: false, error: 'Course not found' }); return; }
     res.json({ success: true, data: { course } });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -30,7 +31,7 @@ export async function updateCourse(req: Request, res: Response) {
     const course = await coursesService.updateCourse(req.params.id as string, req.body);
     res.json({ success: true, data: { course } });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -40,7 +41,7 @@ export async function copyCourse(req: Request, res: Response) {
     const course = await coursesService.copyCourse(req.params.id as string, targetGroupId);
     res.status(201).json({ success: true, data: { course } });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -51,7 +52,7 @@ export async function addLink(req: Request, res: Response) {
     const link = await coursesService.addCourseLink(req.params.id as string, label, url, order);
     res.status(201).json({ success: true, data: { link } });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -60,7 +61,7 @@ export async function deleteLink(req: Request, res: Response) {
     await coursesService.deleteCourseLink(req.params.id as string, req.params.linkId as string);
     res.json({ success: true, data: null });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -72,7 +73,7 @@ export async function uploadFile(req: Request, res: Response) {
     );
     res.status(201).json({ success: true, data: { file } });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -81,7 +82,7 @@ export async function deleteCourse(req: Request, res: Response) {
     await coursesService.deleteCourse(req.params.id as string);
     res.json({ success: true, data: null });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -90,7 +91,7 @@ export async function deleteFile(req: Request, res: Response) {
     await coursesService.deleteCourseFile(req.params.id as string, req.params.fileId as string);
     res.json({ success: true, data: null });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
