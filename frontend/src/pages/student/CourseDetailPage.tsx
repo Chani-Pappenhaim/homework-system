@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { ExternalLink, Paperclip, Check } from 'lucide-react';
 import { coursesApi } from '@/api/courses.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-header';
+import { cn } from '@/lib/utils';
 
 export default function StudentCourseDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -15,8 +17,8 @@ export default function StudentCourseDetailPage() {
   });
 
   const course = data?.data.data.course;
-  if (isLoading) return <div className="p-6 text-ink/50">טוען...</div>;
-  if (!course) return <div className="p-6 text-tomato">קורס לא נמצא</div>;
+  if (isLoading) return <div className="p-6 font-mono text-ink/50">טוען…</div>;
+  if (!course) return <div className="p-6 font-mono text-tomato">קורס לא נמצא</div>;
 
   const total = course.lessons.length;
   const done = course.lessons.filter((l) => l.completed).length;
@@ -24,30 +26,32 @@ export default function StudentCourseDetailPage() {
 
   return (
     <div className="max-w-2xl space-y-5" dir="rtl">
-      <div>
-        <h1 className="text-2xl font-bold">{course.name}</h1>
-        <p className="text-ink/70 text-sm mt-0.5">{course.groupName} · {course.year}</p>
-        {course.description && <p className="text-ink/70 text-sm mt-1">{course.description}</p>}
-      </div>
+      <PageHeader
+        title={course.name}
+        meta={`${course.groupName} · ${course.year}`}
+        back
+        backLabel="חזרה"
+      />
+      {course.description && <p className="text-sm text-ink/70">{course.description}</p>}
 
-      {/* Progress meter */}
-      <Card>
+      {/* Progress — measuring tape */}
+      <Card accent="forest">
         <CardContent>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold text-ink">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-sm font-bold text-ink">
               ההתקדמות שלך {pct === 100 && total > 0 && '🎉 כל הכבוד!'}
             </span>
-            <span className="text-sm font-bold text-primary">{done}/{total} · {pct}%</span>
+            <span className="font-mono text-sm font-bold text-forest tabular">{done}/{total} · {pct}%</span>
           </div>
-          <div className="h-2.5 bg-ink/20 rounded-full overflow-hidden">
-            <div className="h-full bg-forest rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+          <div className="h-4 border-2 border-ink bg-paper">
+            <div className="h-full bg-forest transition-all duration-500" style={{ width: `${pct}%` }} />
           </div>
         </CardContent>
       </Card>
 
-      {/* Lesson bubbles */}
+      {/* Lesson tiles */}
       <Card accent="cobalt">
-        <CardHeader><h2 className="font-semibold text-sm">שיעורים</h2></CardHeader>
+        <CardHeader><h2 className="font-display text-base font-bold">שיעורים</h2></CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-3">
             {course.lessons.map((l, i) => (
@@ -55,15 +59,14 @@ export default function StudentCourseDetailPage() {
                 key={l.id}
                 onClick={() => navigate(`/student/lessons/${l.id}`)}
                 title={l.completed ? 'הושלם' : l.topic}
-                className={`relative flex flex-col items-center justify-center w-16 h-16 rounded-xl border-2 transition text-sm font-semibold ${
-                  l.completed
-                    ? 'border-forest bg-forest/10 text-forest hover:bg-forest/20'
-                    : 'border-primary/20 bg-[rgba(194,24,91,0.05)] text-primary hover:bg-[rgba(194,24,91,0.1)]'
-                }`}
+                className={cn(
+                  'relative grid size-16 place-items-center border-2 border-ink font-display text-lg font-black shadow-brutal-sm transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5',
+                  l.completed ? 'bg-forest text-paper' : 'bg-paper text-ink',
+                )}
               >
                 {l.completed && (
-                  <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-forest flex items-center justify-center text-white">
-                    <Check size={12} strokeWidth={3} />
+                  <span className="absolute -right-2 -top-2 grid size-5 place-items-center rounded-full border-2 border-ink bg-mustard text-ink">
+                    <Check size={11} strokeWidth={3} />
                   </span>
                 )}
                 {i + 1}

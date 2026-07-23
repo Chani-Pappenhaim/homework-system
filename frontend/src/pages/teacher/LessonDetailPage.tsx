@@ -21,6 +21,7 @@ import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { BackLink } from '@/components/ui/back-link';
 import { FileUpload } from '@/components/ui/file-upload';
 import { formatDate, formatDateTime, toExternalUrl } from '@/lib/utils';
 import type { AssignmentDTO, ChecklistResult, SubmissionDTO } from '@/types';
@@ -220,6 +221,7 @@ export default function LessonDetailPage() {
 
   return (
     <div className="max-w-4xl space-y-5" dir="rtl">
+      <BackLink to={`/teacher/courses/${lesson.courseId}`} label="חזרה לקורס" />
       {/* Lesson content */}
       <Card>
         <CardHeader>

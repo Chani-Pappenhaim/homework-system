@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { FileUpload } from '@/components/ui/file-upload';
+import { BackLink } from '@/components/ui/back-link';
 
 export default function CourseFormPage() {
   const { id } = useParams();
@@ -111,13 +112,16 @@ export default function CourseFormPage() {
 
   return (
     <div className="max-w-3xl space-y-5" dir="rtl">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-black text-ink">{isEdit ? 'עריכת קורס' : 'קורס חדש'}</h1>
-        {isEdit && (
-          <Button variant="outline" size="sm" onClick={() => setCopyModal(true)}>
-            <Copy size={13} /> העתק לקבוצה אחרת
-          </Button>
-        )}
+      <div className="border-b-2 border-ink pb-3">
+        <BackLink className="mb-2" />
+        <div className="flex items-center justify-between">
+          <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{isEdit ? 'עריכת קורס' : 'קורס חדש'}</h1>
+          {isEdit && (
+            <Button variant="outline" size="sm" onClick={() => setCopyModal(true)}>
+              <Copy size={13} /> העתק לקבוצה אחרת
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Basic info */}

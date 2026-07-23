@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { BackLink } from '@/components/ui/back-link';
 import {
   Dialog,
   DialogBody,
@@ -51,9 +52,10 @@ export default function CourseDetailPage() {
   return (
     <div className="max-w-3xl space-y-5" dir="rtl">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between border-b-2 border-ink pb-3">
         <div>
-          <h1 className="text-2xl font-bold text-ink">{course.name}</h1>
+          <BackLink className="mb-2" />
+          <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{course.name}</h1>
           <p className="text-ink/70 text-sm mt-0.5">{course.groupName} · {course.year}</p>
           {course.description && <p className="text-ink/70 text-sm mt-1">{course.description}</p>}
         </div>

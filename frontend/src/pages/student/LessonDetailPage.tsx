@@ -12,7 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { FileUpload } from '@/components/ui/file-upload';
 import { Input } from '@/components/ui/input';
-import { formatDate, formatDateTime, isOverdue, toExternalUrl } from '@/lib/utils';
+import { BackLink } from '@/components/ui/back-link';
+import { cn, formatDate, formatDateTime, isOverdue, toExternalUrl } from '@/lib/utils';
 import type { AssignmentDTO } from '@/types';
 
 export default function StudentLessonDetailPage() {
@@ -47,23 +48,27 @@ export default function StudentLessonDetailPage() {
 
   return (
     <div className="max-w-2xl space-y-5" dir="rtl">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl font-black text-ink">{lesson.topic}</h1>
-          {lesson.lessonDate && <p className="text-ink/70 text-sm mt-0.5">{formatDate(lesson.lessonDate)}</p>}
+      <div className="border-b-2 border-ink pb-3">
+        <BackLink to={`/student/courses/${lesson.courseId}`} label="חזרה לקורס" className="mb-2" />
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{lesson.topic}</h1>
+            {lesson.lessonDate && (
+              <p className="mt-1 font-mono text-xs text-ink/60">{formatDate(lesson.lessonDate)}</p>
+            )}
+          </div>
+          <button
+            onClick={() => progressMutation.mutate(!lesson.completed)}
+            disabled={progressMutation.isPending}
+            className={cn(
+              'flex shrink-0 items-center gap-1.5 border-2 border-ink px-3 py-2 text-sm font-bold shadow-brutal-sm transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5 disabled:opacity-50',
+              lesson.completed ? 'bg-forest text-paper' : 'bg-mustard text-ink',
+            )}
+          >
+            <Check size={15} strokeWidth={3} />
+            {lesson.completed ? 'הושלם — בטלי סימון' : 'סיימתי את השיעור'}
+          </button>
         </div>
-        <button
-          onClick={() => progressMutation.mutate(!lesson.completed)}
-          disabled={progressMutation.isPending}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition shrink-0 ${
-            lesson.completed
-              ? 'bg-forest/10 text-forest border border-forest/40 hover:bg-forest/20'
-              : 'bg-mustard text-white hover:opacity-90'
-          }`}
-        >
-          <Check size={15} strokeWidth={3} />
-          {lesson.completed ? 'הושלם — בטלי סימון' : 'סיימתי את השיעור'}
-        </button>
       </div>
 
       {/* Content */}
@@ -101,9 +106,9 @@ export default function StudentLessonDetailPage() {
       {/* Quiz button */}
       <button
         onClick={() => navigate(`/student/quiz/${lesson.id}`)}
-        className="w-full py-3 bg-mustard text-white rounded-card text-sm font-medium hover:opacity-90 transition"
+        className="w-full border-2 border-ink bg-mustard py-3 text-sm font-bold text-ink shadow-brutal transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5"
       >
-        ✦ פתחי חידון לשיעור זה
+        פתחי חידון לשיעור זה ←
       </button>
 
       {/* Assignments */}

@@ -5,6 +5,8 @@ import { quizzesApi } from '@/api/quizzes.api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/ui/page-header';
+import { cn } from '@/lib/utils';
 
 export default function QuizPage() {
   const { lessonId } = useParams<{ lessonId: string }>();
@@ -37,44 +39,55 @@ export default function QuizPage() {
     },
   });
 
-  if (isLoading) return <div className="p-6 text-ink/50">טוען...</div>;
+  if (isLoading) return <div className="p-6 font-mono text-ink/50">טוען…</div>;
 
   if (status === 'generating') {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20" dir="rtl">
-        <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        <p className="text-ink/70 text-sm">החידון נוצר, אנא המתיני...</p>
-        <p className="text-xs text-ink/50">Claude AI מכין שאלות בעברית על תוכן השיעור</p>
+        <div className="size-10 animate-spin border-2 border-ink border-t-transparent" />
+        <p className="text-sm font-bold text-ink">החידון נוצר, אנא המתיני…</p>
+        <p className="font-mono text-xs text-ink/50">Claude AI מכין שאלות בעברית על תוכן השיעור</p>
       </div>
     );
   }
 
   if (result) {
     return (
-      <div className="max-w-lg mx-auto space-y-5" dir="rtl">
+      <div className="mx-auto max-w-lg space-y-5" dir="rtl">
         <Card accent="cobalt">
-          <CardContent className="text-center space-y-2">
-            <p className="text-5xl font-bold text-primary">{Math.round(result.score)}%</p>
-            <p className="text-ink/70">{result.correct} מתוך {result.total} תשובות נכונות</p>
-            <Badge variant={result.score >= 80 ? 'success' : result.score >= 60 ? 'warning' : 'default'}>
-              {result.score >= 80 ? 'מצוין!' : result.score >= 60 ? 'טוב' : 'נסי שוב'}
-            </Badge>
+          <CardContent className="space-y-3 text-center">
+            <span className="pen-circle mx-auto inline-flex font-display text-5xl font-black tabular text-tomato">
+              {Math.round(result.score)}%
+            </span>
+            <p className="font-mono text-sm text-ink/70">{result.correct} מתוך {result.total} תשובות נכונות</p>
+            <div>
+              <Badge variant={result.score >= 80 ? 'success' : result.score >= 60 ? 'warning' : 'destructive'}>
+                {result.score >= 80 ? 'מצוין!' : result.score >= 60 ? 'טוב' : 'נסי שוב'}
+              </Badge>
+            </div>
           </CardContent>
         </Card>
 
         {quiz?.questions.map((q: any, i: number) => (
           <Card key={q.id}>
             <CardContent className="space-y-2">
-              <p className="text-sm font-medium">{i + 1}. {q.question}</p>
+              <p className="text-sm font-bold text-ink">{i + 1}. {q.question}</p>
               {q.options.map((opt: string, j: number) => {
                 const isCorrect = q.correctIndex === j;
                 const isSelected = answers[i] === j;
                 return (
-                  <div key={j} className={`px-3 py-2 rounded-input text-sm flex items-center gap-2
-                    ${isCorrect ? 'bg-forest/20 text-forest border border-forest/30' :
-                      isSelected && !isCorrect ? 'bg-tomato/15 text-tomato border border-tomato/30' :
-                      'bg-cream/60 text-ink/70'}`}>
-                    <span>{isCorrect ? '✓' : isSelected ? '✗' : '○'}</span>
+                  <div
+                    key={j}
+                    className={cn(
+                      'flex items-center gap-2 border-2 px-3 py-2 text-sm',
+                      isCorrect
+                        ? 'border-forest bg-forest/20 text-forest'
+                        : isSelected
+                          ? 'border-tomato bg-tomato/15 text-tomato'
+                          : 'border-ink/15 bg-cream/50 text-ink/70',
+                    )}
+                  >
+                    <span className="font-mono">{isCorrect ? '✓' : isSelected ? '✗' : '○'}</span>
                     {opt}
                   </div>
                 );
@@ -87,27 +100,33 @@ export default function QuizPage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto space-y-5" dir="rtl">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-black text-ink">חידון השיעור ✦</h1>
-        <Badge variant="secondary">{quiz?.questions.length} שאלות</Badge>
-      </div>
+    <div className="mx-auto max-w-lg space-y-5" dir="rtl">
+      <PageHeader
+        title="חידון השיעור"
+        meta="שיעור · חידון"
+        back={`/student/lessons/${lessonId}`}
+        backLabel="חזרה לשיעור"
+        actions={<Badge variant="secondary">{quiz?.questions.length} שאלות</Badge>}
+      />
 
       {quiz?.questions.map((q: any, i: number) => (
         <Card key={q.id}>
           <CardContent className="space-y-3">
-            <p className="text-sm font-medium">{i + 1}. {q.question}</p>
+            <p className="text-sm font-bold text-ink">{i + 1}. {q.question}</p>
             {q.options.map((opt: string, j: number) => (
-              <label key={j} className={`flex items-center gap-3 px-3 py-2 rounded-input cursor-pointer transition border
-                ${answers[i] === j
-                  ? 'border-primary bg-[rgba(194,24,91,0.05)] text-ink'
-                  : 'border-ink/20 hover:border-primary/30 text-ink/70'}`}>
+              <label
+                key={j}
+                className={cn(
+                  'flex cursor-pointer items-center gap-3 border-2 px-3 py-2 transition-colors',
+                  answers[i] === j ? 'border-ink bg-mustard/25 text-ink' : 'border-ink/20 text-ink/70 hover:border-ink/50',
+                )}
+              >
                 <input
                   type="radio"
                   name={`q-${i}`}
                   checked={answers[i] === j}
                   onChange={() => setAnswers((prev) => { const n = [...prev]; n[i] = j; return n; })}
-                  className="accent-primary"
+                  className="accent-ink"
                 />
                 <span className="text-sm">{opt}</span>
               </label>
@@ -117,6 +136,7 @@ export default function QuizPage() {
       ))}
 
       <Button
+        variant="mustard"
         className="w-full"
         size="lg"
         loading={attemptMutation.isPending}

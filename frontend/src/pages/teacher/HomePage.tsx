@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Pencil, UploadCloud, Sparkles, CheckSquare, Square } from 'lucide-react';
+import { Pencil, Sparkles, CheckSquare, Square } from 'lucide-react';
 import useAuthStore from '@/store/authStore';
+import useUiStore from '@/store/uiStore';
 import { groupsApi } from '@/api/groups.api';
 import { coursesApi } from '@/api/courses.api';
 import { gradesApi } from '@/api/grades.api';
@@ -38,7 +40,9 @@ function rowStatus(r: ReportRow): { variant: PillVariant; label: string } {
 
 export default function TeacherHomePage() {
   const user = useAuthStore((s) => s.user);
+  const search = useUiStore((s) => s.search);
   const navigate = useNavigate();
+  const [showAll, setShowAll] = useState(false);
 
   const { data: groupsData } = useQuery({ queryKey: ['groups'], queryFn: () => groupsApi.list() });
   const { data: coursesData } = useQuery({ queryKey: ['courses'], queryFn: () => coursesApi.list() });
@@ -52,8 +56,15 @@ export default function TeacherHomePage() {
   const aiCost = (aiUsageData?.data as any)?.data?.totalCostUsd;
   const report: ReportRow[] = (reportData?.data as any)?.data?.report ?? [];
 
-  const queue = report.filter((r) => r.contentScore == null);
+  const q = search.trim().toLowerCase();
+  const matches = (r: ReportRow) =>
+    !q ||
+    [r.studentName, r.courseName, r.assignmentTitle, r.groupName]
+      .some((f) => f?.toLowerCase().includes(q));
+
+  const queue = report.filter((r) => r.contentScore == null && matches(r));
   const graded = report.filter((r) => r.contentScore != null);
+  const visibleQueue = showAll ? queue : queue.slice(0, 8);
   const avg =
     graded.length > 0
       ? (graded.reduce((s, r) => s + (r.contentScore ?? 0), 0) / graded.length).toFixed(1)
@@ -67,10 +78,10 @@ export default function TeacherHomePage() {
   const clock = new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit' }).format(new Date());
 
   const kpis = [
-    { tag: '01', accent: 'cobalt' as const, value: groups.length, label: 'קבוצות', hint: 'פעילות', trend: 'יציב' },
-    { tag: '02', accent: 'plum' as const, value: courses.length, label: 'קורסים', hint: 'במערכת', trend: 'עדכני' },
-    { tag: '03', accent: 'tomato' as const, value: pending, label: 'ממתינות לבדיקה', hint: 'תור פתוח', trend: pending > 0 ? 'דורש טיפול' : 'ריק' },
-    { tag: '04', accent: 'forest' as const, value: aiCost != null ? `$${Number(aiCost).toFixed(2)}` : '—', label: 'עלות AI', hint: 'החודש', trend: 'במסגרת' },
+    { tag: '01', accent: 'cobalt' as const, value: groups.length, label: 'קבוצות', hint: 'פעילות', trend: 'יציב', to: '/teacher/groups' },
+    { tag: '02', accent: 'plum' as const, value: courses.length, label: 'קורסים', hint: 'במערכת', trend: 'עדכני', to: '/teacher/courses' },
+    { tag: '03', accent: 'tomato' as const, value: pending, label: 'ממתינות לבדיקה', hint: 'תור פתוח', trend: pending > 0 ? 'דורש טיפול' : 'ריק', to: '/teacher/reports' },
+    { tag: '04', accent: 'forest' as const, value: aiCost != null ? `$${Number(aiCost).toFixed(2)}` : '—', label: 'עלות AI', hint: 'החודש', trend: 'במסגרת', to: '/teacher/ai-usage' },
   ];
 
   return (
@@ -128,9 +139,10 @@ export default function TeacherHomePage() {
       {/* KPI row */}
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {kpis.map((k, i) => (
-          <div
+          <button
             key={k.tag}
-            className="group relative border-2 border-ink bg-paper p-4 shadow-brutal transition-transform duration-150 ease-linear hover:!rotate-0"
+            onClick={() => navigate(k.to)}
+            className="group relative border-2 border-ink bg-paper p-4 text-right shadow-brutal transition-transform duration-150 ease-linear hover:!rotate-0 hover:-translate-x-0.5 hover:-translate-y-0.5"
             style={{ transform: `rotate(${i % 2 === 0 ? -0.7 : 0.7}deg)` }}
           >
             <span className={cn('absolute inset-x-0 top-0 h-[3px]', `bg-${k.accent}`)} />
@@ -144,7 +156,7 @@ export default function TeacherHomePage() {
                 <span className={cn('size-2', `bg-${k.accent}`)} /> {k.trend}
               </span>
             </div>
-          </div>
+          </button>
         ))}
       </section>
 
@@ -165,9 +177,11 @@ export default function TeacherHomePage() {
 
           <div className="ps-3">
             {queue.length === 0 ? (
-              <div className="py-12 text-center font-mono text-sm text-ink/50">התור ריק ✓</div>
+              <div className="py-12 text-center font-mono text-sm text-ink/50">
+                {search ? `אין תוצאות ל"${search}"` : 'התור ריק ✓'}
+              </div>
             ) : (
-              queue.slice(0, 8).map((r, i) => {
+              visibleQueue.map((r, i) => {
                 const st = rowStatus(r);
                 return (
                   <div
@@ -217,10 +231,13 @@ export default function TeacherHomePage() {
 
           <div className="flex items-center justify-between border-t-2 border-ink px-4 py-2.5">
             <span className="font-mono text-[11px] text-ink/50">
-              {Math.min(queue.length, 8)}/{queue.length}
+              {visibleQueue.length}/{queue.length}
             </span>
-            <button onClick={() => navigate('/teacher/reports')} className="ink-underline text-sm font-bold text-ink">
-              טעני הבא ↓
+            <button
+              onClick={() => (queue.length > 8 ? setShowAll((v) => !v) : navigate('/teacher/reports'))}
+              className="ink-underline text-sm font-bold text-ink"
+            >
+              {queue.length > 8 ? (showAll ? 'הצג פחות ↑' : 'טעני הבא ↓') : 'לכל הדוחות ↓'}
             </button>
           </div>
         </div>
@@ -234,13 +251,15 @@ export default function TeacherHomePage() {
             </span>
           </div>
 
-          {/* Assignment brief — chalkboard */}
+          {/* Submission brief — chalkboard preview of the spotlight student */}
           <div className="relative border-2 border-ink bg-ink p-5 text-paper shadow-brutal">
             <Tape color="tomato" rotate={6} className="-top-3 right-6 h-5 w-16" />
             <Tape color="mustard" rotate={-6} className="-top-3 left-6 h-5 w-16" />
-            <div className="absolute left-4 top-4 border-2 border-mustard bg-mustard px-2 py-0.5 font-mono text-[10px] font-bold text-ink">
-              דדליין 23:59
-            </div>
+            {spotlight?.deadline && (
+              <div className="absolute left-4 top-4 border-2 border-mustard bg-mustard px-2 py-0.5 font-mono text-[10px] font-bold text-ink">
+                {new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'numeric' }).format(new Date(spotlight.deadline))}
+              </div>
+            )}
             <div className="font-mono text-[11px] uppercase tracking-wider text-mustard">
               {spotlight?.courseName ?? 'קורס'}
             </div>
@@ -251,26 +270,33 @@ export default function TeacherHomePage() {
               {spotlight?.studentName ?? '—'} · {spotlight ? formatDateTime(spotlight.submittedAt) : ''}
             </div>
 
+            {/* Checklist derived from the real submission */}
             <ul className="mt-4 space-y-2">
-              {['פתרון מלא ומוסבר', 'הרצה ללא שגיאות', 'הגשה בזמן'].map((req, idx) => (
-                <li key={req} className="flex items-center gap-2 text-sm text-paper/90">
+              {[
+                { label: 'התקבלה הגשה', done: !!spotlight },
+                { label: 'ציון הגשה חושב', done: spotlight?.submissionScore != null },
+                { label: 'הוגש בזמן', done: !!spotlight && !spotlight.isLate },
+              ].map((req) => (
+                <li key={req.label} className="flex items-center gap-2 text-sm text-paper/90">
                   <span className="grid size-4 place-items-center border-2 border-paper/70">
-                    {idx < 2 ? <CheckSquare size={12} className="text-forest" /> : <Square size={12} />}
+                    {req.done ? <CheckSquare size={12} className="text-forest" /> : <Square size={12} />}
                   </span>
-                  {req}
+                  {req.label}
                 </li>
               ))}
             </ul>
 
-            <div className="mt-4 flex items-center justify-center gap-2 border-2 border-dashed border-paper/40 py-5 text-paper/60">
-              <UploadCloud size={18} /> <span className="font-mono text-xs">גררי קובץ לכאן</span>
+            <div className="mt-4 border-2 border-dashed border-paper/30 py-3 text-center font-mono text-[10px] uppercase tracking-wider text-paper/45">
+              תצוגה מקדימה · מה שהתלמידה רואה
             </div>
 
             <button
-              className="mt-4 w-full border-2 border-ink bg-mustard py-2.5 font-bold text-ink transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5"
+              disabled={!spotlight}
+              onClick={() => navigate('/teacher/reports')}
+              className="mt-4 w-full border-2 border-ink bg-mustard py-2.5 font-bold text-ink transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5 disabled:opacity-50"
               style={{ boxShadow: '5px 5px 0 0 oklch(var(--tomato))' }}
             >
-              הגשה סופית
+              פתחי לבדיקה מלאה →
             </button>
           </div>
 
@@ -292,15 +318,18 @@ export default function TeacherHomePage() {
 
             <div className="space-y-2.5">
               {[
-                { label: 'נכונות', frac: '9/10', accent: 'cobalt', pct: 90 },
-                { label: 'קוד נקי', frac: '8/10', accent: 'plum', pct: 80 },
-                { label: 'בזמן', frac: '10/10', accent: 'forest', pct: 100 },
+                { label: 'תוכן', pct: lastGraded?.contentScore ?? 0, accent: 'cobalt' },
+                { label: 'הגשה', pct: lastGraded?.submissionScore ?? 0, accent: 'plum' },
+                { label: 'בזמן', pct: lastGraded ? (lastGraded.isLate ? 0 : 100) : 0, accent: 'forest' },
               ].map((row) => (
                 <div key={row.label} className="flex items-center gap-2">
                   <span className="w-14 text-xs font-bold text-ink">{row.label}</span>
-                  <span className="w-10 font-mono text-[11px] text-ink/60">{row.frac}</span>
+                  <span className="w-10 font-mono text-[11px] text-ink/60 tabular">{Math.round(row.pct)}</span>
                   <span className="h-3 flex-1 border-2 border-ink bg-white">
-                    <span className={cn('block h-full', `bg-${row.accent}`)} style={{ width: `${row.pct}%` }} />
+                    <span
+                      className={cn('block h-full', `bg-${row.accent}`)}
+                      style={{ width: `${Math.max(0, Math.min(100, row.pct))}%` }}
+                    />
                   </span>
                 </div>
               ))}

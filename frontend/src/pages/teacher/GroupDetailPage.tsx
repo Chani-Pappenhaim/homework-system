@@ -4,6 +4,7 @@ import { Edit, Users, BookOpen, Plus, Github } from 'lucide-react';
 import { groupsApi } from '@/api/groups.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { BackLink } from '@/components/ui/back-link';
 
 export default function GroupDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -16,28 +17,31 @@ export default function GroupDetailPage() {
 
   const group = data?.data.data.group;
 
-  if (isLoading) return <div className="p-6 text-ink/50">טוען...</div>;
-  if (!group) return <div className="p-6 text-tomato">קבוצה לא נמצאה</div>;
+  if (isLoading) return <div className="p-6 font-mono text-ink/50">טוען…</div>;
+  if (!group) return <div className="p-6 font-mono text-tomato">קבוצה לא נמצאה</div>;
 
   return (
     <div className="max-w-3xl space-y-5" dir="rtl">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-[rgba(124,58,237,0.08)] flex items-center justify-center flex-shrink-0">
-            <Users size={22} className="text-cobalt" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-ink">{group.name}</h1>
+      <div className="border-b-2 border-ink pb-3">
+        <BackLink className="mb-2" />
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="grid size-11 shrink-0 place-items-center border-2 border-ink bg-lilac">
+              <Users size={20} className="text-ink" />
+            </div>
+            <div>
+              <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{group.name}</h1>
             <p className="text-ink/70 text-sm mt-0.5">
               {group.seminar && <span>{group.seminar} · </span>}
               שנה"ל {group.year} · {group.students.length} תלמידות
             </p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/groups/${id}/edit`)}>
-          <Edit size={13} /> ערוך קבוצה
-        </Button>
+          <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/groups/${id}/edit`)}>
+            <Edit size={13} /> ערוך קבוצה
+          </Button>
+        </div>
       </div>
 
       {/* Courses of this group */}

@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { FileUpload } from '@/components/ui/file-upload';
+import { BackLink } from '@/components/ui/back-link';
 
 export default function GroupFormPage() {
   const { id } = useParams();
@@ -86,7 +87,10 @@ export default function GroupFormPage() {
 
   return (
     <div className="max-w-2xl space-y-5" dir="rtl">
-      <h1 className="font-display text-2xl font-black text-ink">{isEdit ? 'עריכת קבוצה' : 'קבוצה חדשה'}</h1>
+      <div className="border-b-2 border-ink pb-3">
+        <BackLink className="mb-2" />
+        <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{isEdit ? 'עריכת קבוצה' : 'קבוצה חדשה'}</h1>
+      </div>
 
       {/* Form */}
       <Card>

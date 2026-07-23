@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -6,6 +7,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import useAuthStore from '@/store/authStore';
+import useUiStore from '@/store/uiStore';
 import { authApi } from '@/api/auth.api';
 import { messagesApi } from '@/api/messages.api';
 import { BrandMark, Tape, Paperclip, Stamp } from '@/components/decor';
@@ -28,6 +30,8 @@ const shortcuts = [
 
 export default function TeacherLayout() {
   const { user, clearAuth } = useAuthStore();
+  const { search, setSearch } = useUiStore();
+  const searchRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { data: unreadData } = useQuery({
     queryKey: ['unread-messages'],
@@ -35,6 +39,24 @@ export default function TeacherLayout() {
     refetchInterval: 60_000,
   });
   const unreadCount: number = (unreadData?.data as any)?.data?.count ?? 0;
+
+  // ⌘K / Ctrl+K focuses the search box from anywhere.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Typing in the header search jumps to the dashboard, where the queue filters.
+  function onSearchChange(value: string) {
+    setSearch(value);
+    if (value && window.location.pathname !== '/teacher') navigate('/teacher');
+  }
 
   async function handleLogout() {
     await authApi.logout().catch(() => {});
@@ -63,15 +85,26 @@ export default function TeacherLayout() {
           <div className="mx-auto hidden w-full max-w-md items-center gap-2 border-2 border-ink bg-paper px-3 py-2 shadow-brutal-sm transition-all focus-within:shadow-brutal md:flex">
             <Search size={16} className="text-ink/50" />
             <input
+              ref={searchRef}
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
               className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink/40"
               placeholder="חיפוש תלמידה, מטלה, קורס…"
             />
-            <kbd className="border-2 border-ink bg-mustard px-1.5 py-0.5 font-mono text-[10px] font-bold text-ink">⌘K</kbd>
+            {search ? (
+              <button onClick={() => setSearch('')} className="font-mono text-xs text-ink/50 hover:text-tomato">✕</button>
+            ) : (
+              <kbd className="border-2 border-ink bg-mustard px-1.5 py-0.5 font-mono text-[10px] font-bold text-ink">⌘K</kbd>
+            )}
           </div>
 
           {/* Actions (left) */}
           <div className="mr-auto flex items-center gap-2 md:mr-0">
-            <button className="relative grid size-9 place-items-center border-2 border-ink bg-paper shadow-brutal-sm hover-lift">
+            <button
+              onClick={() => navigate('/teacher/messages')}
+              title="הודעות"
+              className="relative grid size-9 place-items-center border-2 border-ink bg-paper shadow-brutal-sm hover-lift"
+            >
               <Bell size={16} />
               {unreadCount > 0 && (
                 <span className="absolute -left-2 -top-2 grid size-5 place-items-center rounded-full border-2 border-ink bg-tomato font-mono text-[10px] font-bold text-paper">
@@ -80,7 +113,7 @@ export default function TeacherLayout() {
               )}
             </button>
             <button
-              onClick={() => navigate('/teacher/courses')}
+              onClick={() => navigate('/teacher/courses/new')}
               className="hidden items-center gap-2 border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm hover-lift sm:flex"
             >
               <span className="grid size-4 place-items-center bg-mustard"><Plus size={12} /></span>
