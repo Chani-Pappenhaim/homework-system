@@ -29,6 +29,15 @@ export function createApp() {
   }));
   app.use(express.json());
   app.use(cookieParser());
+
+  // Lightweight liveness probe — no auth, no DB — so an external keep-alive
+  // pinger (and the client's warm-up call) can wake a spun-down free-tier
+  // instance and confirm it's up without doing any real work. Kept before the
+  // rate limiter so frequent pings are never throttled.
+  app.get('/api/health', (_req, res) => {
+    res.json({ success: true, data: { status: 'ok', uptime: process.uptime() } });
+  });
+
   app.use(generalRateLimit);
 
   configurePassport(passport);
