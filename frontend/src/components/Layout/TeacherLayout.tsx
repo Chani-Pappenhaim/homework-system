@@ -40,6 +40,16 @@ export default function TeacherLayout() {
   });
   const unreadCount: number = (unreadData?.data as any)?.data?.count ?? 0;
 
+  // Newest unread message drives the sidebar "hot alert" — real subject, not a
+  // hardcoded "handed in late" line (a message isn't always about a late submission).
+  const { data: msgData } = useQuery({
+    queryKey: ['teacher-messages'],
+    queryFn: () => messagesApi.getAll(),
+    refetchInterval: 60_000,
+  });
+  const messages: any[] = (msgData?.data as any)?.data?.messages ?? [];
+  const latestUnread = messages.find((m) => !m.isRead) ?? messages[0];
+
   // ⌘K / Ctrl+K focuses the search box from anywhere.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -178,26 +188,32 @@ export default function TeacherLayout() {
             </div>
           </nav>
 
-          {/* Sticky-note hot alert */}
+          {/* Sticky-note hot alert — driven by the newest real message */}
           <div
             className="relative border-2 border-ink bg-mustard p-3 shadow-brutal"
             style={{ transform: 'rotate(-2deg)' }}
           >
             <Tape color="lilac" rotate={4} className="-top-3 right-6 h-5 w-16" />
             <div className="mb-1 flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-wide text-ink">
-              <Zap size={13} /> התראה חמה
+              <Zap size={13} /> {latestUnread && !latestUnread.isRead ? 'הודעה חדשה' : 'תיבת הודעות'}
             </div>
-            <p className="text-sm leading-snug text-ink">
-              <span className="scribble-underline font-bold">נעמה</span> הגישה מטלה באיחור — ממתינה לבדיקה.
-            </p>
+            {latestUnread ? (
+              <p className="text-sm leading-snug text-ink">
+                <span className="scribble-underline font-bold">{latestUnread.student?.name ?? 'תלמידה'}</span>{' '}
+                {latestUnread.assignmentId ? 'כתבה לגבי מטלה: ' : 'כתבה: '}
+                <span className="line-clamp-2">"{(latestUnread.content ?? '').slice(0, 80)}"</span>
+              </p>
+            ) : (
+              <p className="text-sm leading-snug text-ink">אין הודעות חדשות כרגע.</p>
+            )}
             <div className="mt-2 flex items-center justify-between">
               <button
                 onClick={() => navigate('/teacher/messages')}
                 className="border-2 border-ink bg-paper px-2 py-1 text-xs font-bold shadow-brutal-sm hover-lift"
               >
-                פתחי לבדיקה →
+                פתחי הודעות →
               </button>
-              <Stamp>URGENT</Stamp>
+              {latestUnread && !latestUnread.isRead && <Stamp>חדש</Stamp>}
             </div>
           </div>
 
