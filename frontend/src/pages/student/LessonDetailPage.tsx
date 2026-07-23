@@ -49,7 +49,7 @@ export default function StudentLessonDetailPage() {
     <div className="max-w-2xl space-y-5" dir="rtl">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold">{lesson.topic}</h1>
+          <h1 className="font-display text-2xl font-black text-ink">{lesson.topic}</h1>
           {lesson.lessonDate && <p className="text-ink/70 text-sm mt-0.5">{formatDate(lesson.lessonDate)}</p>}
         </div>
         <button

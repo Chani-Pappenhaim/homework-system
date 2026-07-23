@@ -7,6 +7,8 @@ import { coursesApi } from '@/api/courses.api';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
 import { formatDate, formatDateTime } from '@/lib/utils';
 import type { ReportRow } from '@/types';
 
@@ -48,15 +50,18 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-5" dir="rtl">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">דוחות ציונים</h1>
-        <div className="flex items-center gap-2">
-          {exportError && <span className="text-tomato text-xs">{exportError}</span>}
-          <Button variant="outline" size="sm" loading={exportMutation.isPending} onClick={() => exportMutation.mutate()}>
-            <Download size={13} /> ייצוא Excel
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="דוחות ציונים"
+        meta="דוחות · ייצוא"
+        actions={
+          <>
+            {exportError && <span className="font-mono text-xs text-tomato">{exportError}</span>}
+            <Button variant="outline" size="sm" loading={exportMutation.isPending} onClick={() => exportMutation.mutate()}>
+              <Download size={13} /> ייצוא Excel
+            </Button>
+          </>
+        }
+      />
 
       {/* Filters */}
       <Card>
@@ -64,7 +69,7 @@ export default function ReportsPage() {
           <select
             value={groupId}
             onChange={(e) => setGroupId(e.target.value)}
-            className="px-3 py-2 border border-input bg-card rounded-input text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="border-2 border-ink bg-paper px-3 py-2 text-sm text-ink shadow-brutal-sm focus:outline-none"
           >
             <option value="">כל הקבוצות</option>
             {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -73,7 +78,7 @@ export default function ReportsPage() {
           <select
             value={courseId}
             onChange={(e) => setCourseId(e.target.value)}
-            className="px-3 py-2 border border-input bg-card rounded-input text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="border-2 border-ink bg-paper px-3 py-2 text-sm text-ink shadow-brutal-sm focus:outline-none"
           >
             <option value="">כל הקורסים</option>
             {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -91,26 +96,29 @@ export default function ReportsPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-sm">תוצאות ({report.length})</h2>
+            <h2 className="font-display text-base font-bold">תוצאות</h2>
+            <span className="border-2 border-ink bg-ink px-2 py-0.5 font-mono text-[11px] font-bold text-mustard">
+              {report.length}
+            </span>
           </div>
         </CardHeader>
         <div className="overflow-x-auto">
           {isLoading ? (
-            <div className="p-6 text-center text-ink/50">טוען...</div>
+            <div className="p-6 text-center font-mono text-ink/50">טוען…</div>
           ) : report.length === 0 ? (
-            <div className="p-6 text-center text-ink/50">אין נתונים לפי הפילטרים הנבחרים</div>
+            <EmptyState className="border-0">אין נתונים לפי הפילטרים הנבחרים</EmptyState>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-ink/20 bg-cream/60">
+                <tr className="border-b-2 border-ink bg-cream/70">
                   {['תלמידה', 'קבוצה', 'קורס', 'שיעור', 'מטלה', 'מועד אחרון', 'הגשה', 'ציון הגשה', 'ציון תוכן'].map((h) => (
-                    <th key={h} className="px-4 py-2.5 text-right text-xs text-ink/50 font-medium">{h}</th>
+                    <th key={h} className="px-4 py-2.5 text-right font-mono text-[11px] font-bold uppercase text-ink/60">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-ink/20">
+              <tbody className="divide-y-2 divide-dashed divide-ink/20">
                 {report.map((r, i) => (
-                  <tr key={i} className="hover:bg-cream/60 transition">
+                  <tr key={i} className="transition-colors hover:bg-mustard/15">
                     <td className="px-4 py-3">
                       <p className="font-medium text-ink">{r.studentName}</p>
                       <p className="text-xs text-ink/50">{r.studentEmail}</p>

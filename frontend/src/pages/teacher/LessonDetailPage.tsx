@@ -225,7 +225,7 @@ export default function LessonDetailPage() {
         <CardHeader>
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-xl font-bold">{lesson.topic}</h1>
+              <h1 className="font-display text-2xl font-black text-ink">{lesson.topic}</h1>
               {lesson.lessonDate && <p className="text-sm text-ink/70 mt-0.5">{formatDate(lesson.lessonDate)}</p>}
             </div>
             <div className="flex items-center gap-2">

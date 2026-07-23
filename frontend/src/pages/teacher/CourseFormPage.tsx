@@ -112,7 +112,7 @@ export default function CourseFormPage() {
   return (
     <div className="max-w-3xl space-y-5" dir="rtl">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">{isEdit ? 'עריכת קורס' : 'קורס חדש'}</h1>
+        <h1 className="font-display text-2xl font-black text-ink">{isEdit ? 'עריכת קורס' : 'קורס חדש'}</h1>
         {isEdit && (
           <Button variant="outline" size="sm" onClick={() => setCopyModal(true)}>
             <Copy size={13} /> העתק לקבוצה אחרת

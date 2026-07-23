@@ -4,6 +4,7 @@ import { authApi } from '@/api/auth.api';
 import useAuthStore from '@/store/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { BrandMark, Tape } from '@/components/decor';
 
 export default function ChangePasswordPage() {
   const navigate = useNavigate();
@@ -35,18 +36,19 @@ export default function ChangePasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-cream/60 flex items-center justify-center p-4" dir="rtl">
+    <div className="flex min-h-screen items-center justify-center bg-grid-paper p-4" dir="rtl">
       <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 rounded-xl bg-mustard flex items-center justify-center text-white text-xl font-bold mb-4">✦</div>
-          <h1 className="text-ink text-xl font-bold">שינוי סיסמא</h1>
-          <p className="text-ink/70 text-sm mt-1 text-center">
+        <div className="mb-6 flex flex-col items-center">
+          <BrandMark className="size-14" />
+          <h1 className="mt-4 font-display text-2xl font-black text-ink">שינוי סיסמא</h1>
+          <p className="mt-1 text-center text-sm text-ink/70">
             ברוכה הבאה, {user?.name}!<br />
             נא להגדיר סיסמא אישית לפני הכניסה למערכת.
           </p>
         </div>
 
-        <div className="bg-white rounded-card p-6 border border-ink/20 shadow-sm">
+        <div className="relative border-2 border-ink bg-paper p-6 shadow-brutal-lg">
+          <Tape color="mustard" rotate={-5} className="-top-3.5 right-10 h-6 w-24" />
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <Input
               label="סיסמא נוכחית"
@@ -75,12 +77,12 @@ export default function ChangePasswordPage() {
             />
 
             {error && (
-              <p className="text-tomato text-sm bg-tomato/10 border border-tomato/40 rounded-input px-3 py-2">
+              <p className="border-2 border-tomato bg-tomato/10 px-3 py-2 font-mono text-sm text-tomato">
                 {error}
               </p>
             )}
 
-            <Button type="submit" loading={loading} className="w-full mt-1">
+            <Button type="submit" variant="mustard" loading={loading} className="mt-1 w-full">
               שמור סיסמא חדשה
             </Button>
           </form>

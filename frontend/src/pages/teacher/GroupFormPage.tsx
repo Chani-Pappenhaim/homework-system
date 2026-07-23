@@ -86,7 +86,7 @@ export default function GroupFormPage() {
 
   return (
     <div className="max-w-2xl space-y-5" dir="rtl">
-      <h1 className="text-xl font-bold">{isEdit ? 'עריכת קבוצה' : 'קבוצה חדשה'}</h1>
+      <h1 className="font-display text-2xl font-black text-ink">{isEdit ? 'עריכת קבוצה' : 'קבוצה חדשה'}</h1>
 
       {/* Form */}
       <Card>

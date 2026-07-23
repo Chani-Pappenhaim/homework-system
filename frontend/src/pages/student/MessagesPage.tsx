@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/ui/page-header';
 import { formatDateTime } from '@/lib/utils';
 
 export default function StudentMessagesPage() {
@@ -31,12 +32,12 @@ export default function StudentMessagesPage() {
 
   return (
     <div className="max-w-lg space-y-4" dir="rtl">
-      <h1 className="text-xl font-bold">הודעה למורה</h1>
-      <Card>
-        <CardHeader><h2 className="text-sm font-semibold">שלחי הודעה</h2></CardHeader>
+      <PageHeader title="הודעה למורה" meta="חדר מורה · צ׳אט" />
+      <Card accent="cobalt">
+        <CardHeader><h2 className="font-display text-base font-bold">שלחי הודעה</h2></CardHeader>
         <CardContent className="space-y-3">
           {sent && (
-            <div className="bg-forest/10 border border-forest/30 rounded-input p-3 text-sm text-forest">
+            <div className="border-2 border-forest bg-forest/15 p-3 text-sm font-bold text-forest">
               ההודעה נשלחה בהצלחה ✓
             </div>
           )}

@@ -89,7 +89,7 @@ export default function QuizPage() {
   return (
     <div className="max-w-lg mx-auto space-y-5" dir="rtl">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">חידון השיעור ✦</h1>
+        <h1 className="font-display text-2xl font-black text-ink">חידון השיעור ✦</h1>
         <Badge variant="secondary">{quiz?.questions.length} שאלות</Badge>
       </div>
 

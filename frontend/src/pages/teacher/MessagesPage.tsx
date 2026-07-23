@@ -6,6 +6,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
 import { formatDateTime } from '@/lib/utils';
 
 export default function TeacherMessagesPage() {
@@ -34,14 +36,19 @@ export default function TeacherMessagesPage() {
 
   const messages: any[] = (data?.data as any)?.data?.messages ?? [];
 
-  if (isLoading) return <div className="p-6 text-ink/50">טוען...</div>;
+  if (isLoading) return <div className="p-6 font-mono text-ink/50">טוען…</div>;
 
   return (
     <div className="max-w-2xl space-y-4" dir="rtl">
-      <h1 className="text-xl font-bold">הודעות מתלמידות</h1>
-      {messages.length === 0 && <p className="text-ink/50 text-sm">אין הודעות</p>}
-      {messages.map((msg) => (
-        <Card key={msg.id} className={msg.isRead && msg.replyContent ? 'opacity-70' : ''}>
+      <PageHeader title="הודעות מתלמידות" meta="תיבת דואר · נכנס" />
+      {messages.length === 0 && <EmptyState icon={<Reply size={22} />}>אין הודעות</EmptyState>}
+      {messages.map((msg, i) => (
+        <Card
+          key={msg.id}
+          accent={!msg.isRead ? 'tomato' : 'forest'}
+          className={msg.isRead && msg.replyContent ? 'opacity-70' : ''}
+          style={{ transform: `rotate(${i % 2 ? 0.3 : -0.3}deg)` }}
+        >
           <CardContent className="space-y-1">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-sm">{msg.student.name}</span>

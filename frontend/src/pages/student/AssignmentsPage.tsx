@@ -5,6 +5,7 @@ import { submissionsApi } from '@/api/submissions.api';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
+import { PageHeader } from '@/components/ui/page-header';
 import { formatDate, formatDateTime, isOverdue } from '@/lib/utils';
 
 export default function AssignmentsPage() {
@@ -22,12 +23,12 @@ export default function AssignmentsPage() {
 
   return (
     <div className="max-w-2xl space-y-5" dir="rtl">
-      <h1 className="text-xl font-bold">המטלות שלי</h1>
+      <PageHeader title="המטלות שלי" meta="מחברת · מטלות" />
 
       {/* Pending */}
-      <Card>
+      <Card accent="tomato">
         <CardHeader>
-          <h2 className="font-semibold text-sm">לא הוגשו ({sortedPending.length})</h2>
+          <h2 className="font-display text-base font-bold">לא הוגשו ({sortedPending.length})</h2>
         </CardHeader>
         <div className="divide-y divide-ink/20">
           {sortedPending.length === 0 && (
@@ -50,9 +51,9 @@ export default function AssignmentsPage() {
       </Card>
 
       {/* Submitted */}
-      <Card>
+      <Card accent="forest">
         <CardHeader>
-          <h2 className="font-semibold text-sm">הוגשו ({submitted.length})</h2>
+          <h2 className="font-display text-base font-bold">הוגשו ({submitted.length})</h2>
         </CardHeader>
         <div className="divide-y divide-ink/20">
           {submitted.length === 0 && (

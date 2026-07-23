@@ -5,6 +5,8 @@ import { coursesApi } from '@/api/courses.api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
 import type { CourseDTO } from '@/types';
 
 export default function CoursesPage() {
@@ -17,51 +19,50 @@ export default function CoursesPage() {
 
   const courses: CourseDTO[] = (data?.data as any)?.data?.courses ?? [];
 
-  if (isLoading) return <div className="p-6 text-ink/50">טוען...</div>;
+  if (isLoading) return <div className="p-6 font-mono text-ink/50">טוען…</div>;
 
   return (
     <div className="max-w-4xl space-y-5" dir="rtl">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">קורסים</h1>
-        <Button variant="secondary" onClick={() => navigate('/teacher/courses/new')}>
-          <Plus size={15} /> קורס חדש
-        </Button>
-      </div>
+      <PageHeader
+        title="קורסים"
+        meta="ניהול · קורסים"
+        actions={
+          <Button variant="mustard" onClick={() => navigate('/teacher/courses/new')}>
+            <Plus size={15} /> קורס חדש
+          </Button>
+        }
+      />
 
-      {courses.length === 0 && (
-        <Card>
-          <CardContent>
-            <p className="text-sm text-ink/50">אין קורסים עדיין</p>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid grid-cols-2 gap-4">
-        {courses.map((c) => (
-          <Card key={c.id}>
-            <CardContent className="space-y-3">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-[rgba(194,24,91,0.08)] flex items-center justify-center flex-shrink-0">
-                    <BookOpen size={20} className="text-primary" />
+      {courses.length === 0 ? (
+        <EmptyState icon={<BookOpen size={22} />}>אין קורסים עדיין</EmptyState>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {courses.map((c, i) => (
+            <Card key={c.id} accent={i % 2 ? 'cobalt' : 'tomato'} className="hover-lift">
+              <CardContent className="space-y-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="grid size-10 shrink-0 place-items-center border-2 border-ink bg-mustard">
+                      <BookOpen size={18} className="text-ink" />
+                    </div>
+                    <div>
+                      <p className="font-display text-base font-bold text-ink">{c.name}</p>
+                      {c.groupName && <p className="font-mono text-[11px] text-ink/55">{c.groupName}</p>}
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold text-sm text-ink">{c.name}</p>
-                    {c.groupName && <p className="text-xs text-ink/50">{c.groupName}</p>}
-                  </div>
+                  {c.hidden && <Badge variant="warning"><Lock size={10} className="ml-1" /> מוסתר</Badge>}
                 </div>
-                {c.hidden && <Badge variant="warning"><Lock size={10} className="ml-1" /> מוסתר</Badge>}
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-ink/70">{c.lessonCount} שיעורים</p>
-                <Button size="sm" variant="outline" onClick={() => navigate(`/teacher/courses/${c.id}`)}>
-                  פתח קורס
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                <div className="flex items-center justify-between border-t-2 border-dashed border-ink/25 pt-2">
+                  <p className="font-mono text-[11px] text-ink/70">{c.lessonCount} שיעורים</p>
+                  <Button size="sm" variant="outline" onClick={() => navigate(`/teacher/courses/${c.id}`)}>
+                    פתח קורס →
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

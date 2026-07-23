@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Bot, HelpCircle, Cpu, DollarSign } from 'lucide-react';
 import { aiUsageApi } from '@/api/aiUsage.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-header';
+import { cn } from '@/lib/utils';
 
 function formatMonth(month: string) {
   const [year, m] = month.split('-');
@@ -18,68 +20,48 @@ export default function AiUsagePage() {
 
   const summary = (data?.data as any)?.data;
 
-  if (isLoading) return <div className="p-6 text-ink/50">טוען...</div>;
+  if (isLoading) return <div className="p-6 font-mono text-ink/50">טוען…</div>;
 
   const totalTokens = (summary?.totalTokensInput ?? 0) + (summary?.totalTokensOutput ?? 0);
   const byMonth: any[] = summary?.byMonth ?? [];
 
   return (
     <div className="max-w-4xl space-y-5" dir="rtl">
-      <h1 className="text-xl font-bold">שימוש AI</h1>
+      <PageHeader title="שימוש AI" meta="דוחות · צריכת AI" />
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
-        <StatCard
-          icon={<Bot size={20} className="text-cobalt" />}
-          label='סה"כ בדיקות AI'
-          value={summary?.totalReviews ?? 0}
-          bg="bg-[rgba(124,58,237,0.08)]"
-        />
-        <StatCard
-          icon={<HelpCircle size={20} className="text-tomato" />}
-          label='סה"כ חידונים'
-          value={summary?.totalQuizzes ?? 0}
-          bg="bg-[rgba(194,24,91,0.08)]"
-        />
-        <StatCard
-          icon={<Cpu size={20} className="text-forest" />}
-          label='סה"כ טוקנים'
-          value={totalTokens.toLocaleString()}
-          bg="bg-[rgba(5,150,105,0.08)]"
-        />
-        <StatCard
-          icon={<DollarSign size={20} className="text-mustard" />}
-          label="עלות מצטברת $"
-          value={`$${(summary?.totalCostUsd ?? 0).toFixed(2)}`}
-          bg="bg-[rgba(217,119,6,0.08)]"
-        />
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard icon={<Bot size={18} />} tile="cobalt" label='סה"כ בדיקות AI' value={summary?.totalReviews ?? 0} />
+        <StatCard icon={<HelpCircle size={18} />} tile="tomato" label='סה"כ חידונים' value={summary?.totalQuizzes ?? 0} />
+        <StatCard icon={<Cpu size={18} />} tile="forest" label='סה"כ טוקנים' value={totalTokens.toLocaleString()} />
+        <StatCard icon={<DollarSign size={18} />} tile="mustard" label="עלות מצטברת $" value={`$${(summary?.totalCostUsd ?? 0).toFixed(2)}`} />
       </div>
 
       {/* Monthly breakdown */}
       <Card>
         <CardHeader>
-          <h2 className="font-semibold text-sm">פירוט חודשי</h2>
+          <h2 className="font-display text-base font-bold">פירוט חודשי</h2>
         </CardHeader>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-ink/20 text-xs text-ink/50">
-                <th className="px-5 py-2.5 text-right font-medium">חודש</th>
-                <th className="px-3 py-2.5 text-right font-medium">בדיקות</th>
-                <th className="px-3 py-2.5 text-right font-medium">חידונים</th>
-                <th className="px-3 py-2.5 text-right font-medium">עלות</th>
+              <tr className="border-b-2 border-ink bg-cream/70 font-mono text-[11px] uppercase text-ink/60">
+                <th className="px-5 py-2.5 text-right font-bold">חודש</th>
+                <th className="px-3 py-2.5 text-right font-bold">בדיקות</th>
+                <th className="px-3 py-2.5 text-right font-bold">חידונים</th>
+                <th className="px-3 py-2.5 text-right font-bold">עלות</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-ink/20">
+            <tbody className="divide-y-2 divide-dashed divide-ink/20">
               {byMonth.length === 0 && (
                 <tr><td colSpan={4} className="px-5 py-4 text-center text-ink/50">אין נתוני שימוש עדיין</td></tr>
               )}
               {byMonth.map((m) => (
-                <tr key={m.month} className="hover:bg-cream/60 transition">
-                  <td className="px-5 py-3 font-medium text-ink">{formatMonth(m.month)}</td>
-                  <td className="px-3 py-3 text-ink/70">{m.reviews}</td>
-                  <td className="px-3 py-3 text-ink/70">{m.quizzes}</td>
-                  <td className="px-3 py-3 text-ink/70">${(m.costUsd ?? 0).toFixed(2)}</td>
+                <tr key={m.month} className="transition-colors hover:bg-mustard/15">
+                  <td className="px-5 py-3 font-bold text-ink">{formatMonth(m.month)}</td>
+                  <td className="px-3 py-3 font-mono text-ink/70 tabular">{m.reviews}</td>
+                  <td className="px-3 py-3 font-mono text-ink/70 tabular">{m.quizzes}</td>
+                  <td className="px-3 py-3 font-mono text-ink/70 tabular">${(m.costUsd ?? 0).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -90,18 +72,25 @@ export default function AiUsagePage() {
   );
 }
 
-function StatCard({ icon, label, value, bg }: {
-  icon: React.ReactNode; label: string; value: number | string; bg: string;
+const tiles: Record<string, string> = {
+  cobalt: 'bg-cobalt text-paper',
+  tomato: 'bg-tomato text-paper',
+  forest: 'bg-forest text-paper',
+  mustard: 'bg-mustard text-ink',
+};
+
+function StatCard({ icon, label, value, tile }: {
+  icon: React.ReactNode; label: string; value: number | string; tile: keyof typeof tiles | string;
 }) {
   return (
-    <Card>
+    <Card className="hover-lift">
       <CardContent className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-lg ${bg} flex items-center justify-center flex-shrink-0`}>
+        <div className={cn('grid size-10 shrink-0 place-items-center border-2 border-ink', tiles[tile])}>
           {icon}
         </div>
         <div>
-          <p className="text-xl font-bold text-ink">{value}</p>
-          <p className="text-xs text-ink/70">{label}</p>
+          <p className="font-display text-2xl font-black tabular text-ink">{value}</p>
+          <p className="font-mono text-[11px] text-ink/60">{label}</p>
         </div>
       </CardContent>
     </Card>
