@@ -16,8 +16,8 @@ export default function GroupDetailPage() {
 
   const group = data?.data.data.group;
 
-  if (isLoading) return <div className="p-6 text-[#9CA3AF]">טוען...</div>;
-  if (!group) return <div className="p-6 text-red-500">קבוצה לא נמצאה</div>;
+  if (isLoading) return <div className="p-6 text-ink/50">טוען...</div>;
+  if (!group) return <div className="p-6 text-tomato">קבוצה לא נמצאה</div>;
 
   return (
     <div className="max-w-3xl space-y-5" dir="rtl">
@@ -25,11 +25,11 @@ export default function GroupDetailPage() {
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-xl bg-[rgba(124,58,237,0.08)] flex items-center justify-center flex-shrink-0">
-            <Users size={22} className="text-[#7C3AED]" />
+            <Users size={22} className="text-cobalt" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-[#1A1830]">{group.name}</h1>
-            <p className="text-[#6B7280] text-sm mt-0.5">
+            <h1 className="text-2xl font-bold text-ink">{group.name}</h1>
+            <p className="text-ink/70 text-sm mt-0.5">
               {group.seminar && <span>{group.seminar} · </span>}
               שנה"ל {group.year} · {group.students.length} תלמידות
             </p>
@@ -54,17 +54,17 @@ export default function GroupDetailPage() {
         </CardHeader>
         <CardContent>
           {group.courses.length === 0 ? (
-            <p className="text-sm text-[#9CA3AF]">אין קורסים בקבוצה זו עדיין</p>
+            <p className="text-sm text-ink/50">אין קורסים בקבוצה זו עדיין</p>
           ) : (
             <div className="grid grid-cols-2 gap-3">
               {group.courses.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => navigate(`/teacher/courses/${c.id}`)}
-                  className="flex items-center gap-2 px-4 py-3 rounded-xl border border-[#EEEBF5] text-right hover:border-primary/40 hover:bg-[rgba(194,24,91,0.03)] transition"
+                  className="flex items-center gap-2 px-4 py-3 rounded-xl border border-ink/20 text-right hover:border-primary/40 hover:bg-[rgba(194,24,91,0.03)] transition"
                 >
                   <BookOpen size={16} className="text-primary flex-shrink-0" />
-                  <span className="text-sm font-medium text-[#1A1830]">{c.name}</span>
+                  <span className="text-sm font-medium text-ink">{c.name}</span>
                 </button>
               ))}
             </div>
@@ -77,16 +77,16 @@ export default function GroupDetailPage() {
         <CardHeader>
           <h2 className="font-semibold text-sm">תלמידות ({group.students.length})</h2>
         </CardHeader>
-        <div className="divide-y divide-[#EEEBF5]">
+        <div className="divide-y divide-ink/20">
           {group.students.length === 0 && (
-            <p className="px-5 py-4 text-sm text-[#9CA3AF]">אין תלמידות עדיין</p>
+            <p className="px-5 py-4 text-sm text-ink/50">אין תלמידות עדיין</p>
           )}
           {group.students.map((s) => (
             <div key={s.id} className="px-5 py-3">
-              <p className="text-sm font-medium text-[#1A1830]">{s.name}</p>
-              <p className="text-xs text-[#9CA3AF]">{s.email}</p>
+              <p className="text-sm font-medium text-ink">{s.name}</p>
+              <p className="text-xs text-ink/50">{s.email}</p>
               {s.githubUsername && (
-                <p className="text-xs text-[#9CA3AF] flex items-center gap-1 mt-0.5">
+                <p className="text-xs text-ink/50 flex items-center gap-1 mt-0.5">
                   <Github size={11} /> {s.githubUsername}
                 </p>
               )}

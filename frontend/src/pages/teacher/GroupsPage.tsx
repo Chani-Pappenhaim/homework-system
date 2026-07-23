@@ -16,7 +16,7 @@ export default function GroupsPage() {
 
   const groups: GroupDTO[] = (data?.data as any)?.data?.groups ?? [];
 
-  if (isLoading) return <div className="p-6 text-[#9CA3AF]">טוען...</div>;
+  if (isLoading) return <div className="p-6 text-ink/50">טוען...</div>;
 
   return (
     <div className="max-w-4xl space-y-5" dir="rtl">
@@ -30,7 +30,7 @@ export default function GroupsPage() {
       {groups.length === 0 && (
         <Card>
           <CardContent>
-            <p className="text-sm text-[#9CA3AF]">אין קבוצות עדיין</p>
+            <p className="text-sm text-ink/50">אין קבוצות עדיין</p>
           </CardContent>
         </Card>
       )}
@@ -42,17 +42,17 @@ export default function GroupsPage() {
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-[rgba(124,58,237,0.08)] flex items-center justify-center flex-shrink-0">
-                    <Users size={20} className="text-[#7C3AED]" />
+                    <Users size={20} className="text-cobalt" />
                   </div>
                   <div>
-                    <p className="font-semibold text-sm text-[#1A1830]">{g.name}</p>
-                    {g.seminar && <p className="text-xs text-[#9CA3AF]">{g.seminar}</p>}
+                    <p className="font-semibold text-sm text-ink">{g.name}</p>
+                    {g.seminar && <p className="text-xs text-ink/50">{g.seminar}</p>}
                   </div>
                 </div>
-                <span className="text-xs text-[#9CA3AF]">{g.year}</span>
+                <span className="text-xs text-ink/50">{g.year}</span>
               </div>
               <div className="flex items-center justify-between">
-                <p className="text-xs text-[#6B7280]">{g.studentCount} תלמידות</p>
+                <p className="text-xs text-ink/70">{g.studentCount} תלמידות</p>
                 <Button size="sm" variant="outline" onClick={() => navigate(`/teacher/groups/${g.id}`)}>
                   <Eye size={12} /> צפייה
                 </Button>

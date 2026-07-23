@@ -45,17 +45,17 @@ export default function CourseDetailPage() {
   });
 
   const course = data?.data.data.course;
-  if (isLoading) return <div className="p-6 text-[#9CA3AF]">טוען...</div>;
-  if (!course) return <div className="p-6 text-red-500">קורס לא נמצא</div>;
+  if (isLoading) return <div className="p-6 text-ink/50">טוען...</div>;
+  if (!course) return <div className="p-6 text-tomato">קורס לא נמצא</div>;
 
   return (
     <div className="max-w-3xl space-y-5" dir="rtl">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#1A1830]">{course.name}</h1>
-          <p className="text-[#6B7280] text-sm mt-0.5">{course.groupName} · {course.year}</p>
-          {course.description && <p className="text-[#6B7280] text-sm mt-1">{course.description}</p>}
+          <h1 className="text-2xl font-bold text-ink">{course.name}</h1>
+          <p className="text-ink/70 text-sm mt-0.5">{course.groupName} · {course.year}</p>
+          {course.description && <p className="text-ink/70 text-sm mt-1">{course.description}</p>}
         </div>
         <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/courses/${id}/edit`)}>
           <Edit size={13} /> ערוך קורס
@@ -75,17 +75,17 @@ export default function CourseDetailPage() {
                 onClick={() => navigate(`/teacher/lessons/${l.id}`)}
                 className={`relative flex flex-col items-center justify-center w-16 h-16 rounded-xl border-2 transition text-sm font-semibold
                   ${l.hidden
-                    ? 'border-[#EEEBF5] bg-[#F8F7FC] text-[#9CA3AF]'
+                    ? 'border-ink/20 bg-cream/60 text-ink/50'
                     : 'border-primary/20 bg-[rgba(194,24,91,0.05)] text-primary hover:bg-[rgba(194,24,91,0.1)]'
                   }`}
               >
                 <span>{i + 1}</span>
-                {l.hidden && <Lock size={10} className="absolute top-1 left-1 text-[#9CA3AF]" />}
+                {l.hidden && <Lock size={10} className="absolute top-1 left-1 text-ink/50" />}
               </button>
             ))}
             <button
               onClick={() => { setNewTopic(''); setNewDate(''); setNewContent(''); setNewGithub(''); setNewLessonModal(true); }}
-              className="flex items-center justify-center w-16 h-16 rounded-xl border-2 border-dashed border-[#EEEBF5] text-[#9CA3AF] hover:border-primary/40 hover:text-primary transition"
+              className="flex items-center justify-center w-16 h-16 rounded-xl border-2 border-dashed border-ink/20 text-ink/50 hover:border-primary/40 hover:text-primary transition"
             >
               <Plus size={18} />
             </button>
@@ -115,7 +115,7 @@ export default function CourseDetailPage() {
           <CardContent className="space-y-2">
             {course.files.map((f) => (
               <a key={f.id} href={f.url} target="_blank" rel="noreferrer"
-                className="flex items-center gap-2 text-sm text-[#1A1830] hover:text-primary">
+                className="flex items-center gap-2 text-sm text-ink hover:text-primary">
                 <ExternalLink size={13} /> {f.name}
               </a>
             ))}
@@ -144,7 +144,7 @@ export default function CourseDetailPage() {
             />
           </div>
           <Input label="קישור לקוד ב-GitHub (אופציונלי)" value={newGithub} onChange={(e) => setNewGithub(e.target.value)} placeholder="https://github.com/..." />
-          <p className="text-xs text-[#9CA3AF]">קבצים מצורפים אפשר להעלות אחרי היצירה, בתוך דף השיעור.</p>
+          <p className="text-xs text-ink/50">קבצים מצורפים אפשר להעלות אחרי היצירה, בתוך דף השיעור.</p>
           <Button
             loading={createLessonMutation.isPending}
             onClick={() => createLessonMutation.mutate()}

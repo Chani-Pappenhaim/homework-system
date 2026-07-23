@@ -17,7 +17,7 @@ export default function CoursesPage() {
 
   const courses: CourseDTO[] = (data?.data as any)?.data?.courses ?? [];
 
-  if (isLoading) return <div className="p-6 text-[#9CA3AF]">טוען...</div>;
+  if (isLoading) return <div className="p-6 text-ink/50">טוען...</div>;
 
   return (
     <div className="max-w-4xl space-y-5" dir="rtl">
@@ -31,7 +31,7 @@ export default function CoursesPage() {
       {courses.length === 0 && (
         <Card>
           <CardContent>
-            <p className="text-sm text-[#9CA3AF]">אין קורסים עדיין</p>
+            <p className="text-sm text-ink/50">אין קורסים עדיין</p>
           </CardContent>
         </Card>
       )}
@@ -46,14 +46,14 @@ export default function CoursesPage() {
                     <BookOpen size={20} className="text-primary" />
                   </div>
                   <div>
-                    <p className="font-semibold text-sm text-[#1A1830]">{c.name}</p>
-                    {c.groupName && <p className="text-xs text-[#9CA3AF]">{c.groupName}</p>}
+                    <p className="font-semibold text-sm text-ink">{c.name}</p>
+                    {c.groupName && <p className="text-xs text-ink/50">{c.groupName}</p>}
                   </div>
                 </div>
                 {c.hidden && <Badge variant="warning"><Lock size={10} className="ml-1" /> מוסתר</Badge>}
               </div>
               <div className="flex items-center justify-between">
-                <p className="text-xs text-[#6B7280]">{c.lessonCount} שיעורים</p>
+                <p className="text-xs text-ink/70">{c.lessonCount} שיעורים</p>
                 <Button size="sm" variant="outline" onClick={() => navigate(`/teacher/courses/${c.id}`)}>
                   פתח קורס
                 </Button>

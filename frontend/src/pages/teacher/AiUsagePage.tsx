@@ -18,7 +18,7 @@ export default function AiUsagePage() {
 
   const summary = (data?.data as any)?.data;
 
-  if (isLoading) return <div className="p-6 text-[#9CA3AF]">טוען...</div>;
+  if (isLoading) return <div className="p-6 text-ink/50">טוען...</div>;
 
   const totalTokens = (summary?.totalTokensInput ?? 0) + (summary?.totalTokensOutput ?? 0);
   const byMonth: any[] = summary?.byMonth ?? [];
@@ -30,25 +30,25 @@ export default function AiUsagePage() {
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
         <StatCard
-          icon={<Bot size={20} className="text-[#7C3AED]" />}
+          icon={<Bot size={20} className="text-cobalt" />}
           label='סה"כ בדיקות AI'
           value={summary?.totalReviews ?? 0}
           bg="bg-[rgba(124,58,237,0.08)]"
         />
         <StatCard
-          icon={<HelpCircle size={20} className="text-[#C2185B]" />}
+          icon={<HelpCircle size={20} className="text-tomato" />}
           label='סה"כ חידונים'
           value={summary?.totalQuizzes ?? 0}
           bg="bg-[rgba(194,24,91,0.08)]"
         />
         <StatCard
-          icon={<Cpu size={20} className="text-[#059669]" />}
+          icon={<Cpu size={20} className="text-forest" />}
           label='סה"כ טוקנים'
           value={totalTokens.toLocaleString()}
           bg="bg-[rgba(5,150,105,0.08)]"
         />
         <StatCard
-          icon={<DollarSign size={20} className="text-[#D97706]" />}
+          icon={<DollarSign size={20} className="text-mustard" />}
           label="עלות מצטברת $"
           value={`$${(summary?.totalCostUsd ?? 0).toFixed(2)}`}
           bg="bg-[rgba(217,119,6,0.08)]"
@@ -63,23 +63,23 @@ export default function AiUsagePage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#EEEBF5] text-xs text-[#9CA3AF]">
+              <tr className="border-b border-ink/20 text-xs text-ink/50">
                 <th className="px-5 py-2.5 text-right font-medium">חודש</th>
                 <th className="px-3 py-2.5 text-right font-medium">בדיקות</th>
                 <th className="px-3 py-2.5 text-right font-medium">חידונים</th>
                 <th className="px-3 py-2.5 text-right font-medium">עלות</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#EEEBF5]">
+            <tbody className="divide-y divide-ink/20">
               {byMonth.length === 0 && (
-                <tr><td colSpan={4} className="px-5 py-4 text-center text-[#9CA3AF]">אין נתוני שימוש עדיין</td></tr>
+                <tr><td colSpan={4} className="px-5 py-4 text-center text-ink/50">אין נתוני שימוש עדיין</td></tr>
               )}
               {byMonth.map((m) => (
-                <tr key={m.month} className="hover:bg-[#F8F7FC] transition">
-                  <td className="px-5 py-3 font-medium text-[#1A1830]">{formatMonth(m.month)}</td>
-                  <td className="px-3 py-3 text-[#6B7280]">{m.reviews}</td>
-                  <td className="px-3 py-3 text-[#6B7280]">{m.quizzes}</td>
-                  <td className="px-3 py-3 text-[#6B7280]">${(m.costUsd ?? 0).toFixed(2)}</td>
+                <tr key={m.month} className="hover:bg-cream/60 transition">
+                  <td className="px-5 py-3 font-medium text-ink">{formatMonth(m.month)}</td>
+                  <td className="px-3 py-3 text-ink/70">{m.reviews}</td>
+                  <td className="px-3 py-3 text-ink/70">{m.quizzes}</td>
+                  <td className="px-3 py-3 text-ink/70">${(m.costUsd ?? 0).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -100,8 +100,8 @@ function StatCard({ icon, label, value, bg }: {
           {icon}
         </div>
         <div>
-          <p className="text-xl font-bold text-[#1A1830]">{value}</p>
-          <p className="text-xs text-[#6B7280]">{label}</p>
+          <p className="text-xl font-bold text-ink">{value}</p>
+          <p className="text-xs text-ink/70">{label}</p>
         </div>
       </CardContent>
     </Card>

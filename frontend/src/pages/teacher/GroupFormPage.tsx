@@ -94,7 +94,7 @@ export default function GroupFormPage() {
           <Input label="שם סמינר (אופציונלי)" value={seminar} onChange={(e) => setSeminar(e.target.value)} placeholder='בית יעקב' />
           <Input label="שם קבוצה *" value={name} onChange={(e) => setName(e.target.value)} placeholder='קבוצה א' required />
           <Input label='שנה"ל *' value={year} onChange={(e) => setYear(e.target.value)} placeholder='תשפ"ו' required />
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && <p className="text-tomato text-sm">{error}</p>}
           <Button loading={saveMutation.isPending} onClick={() => saveMutation.mutate()} disabled={!name || !year}>
             {isEdit ? 'שמור שינויים' : 'צור קבוצה'}
           </Button>
@@ -112,16 +112,16 @@ export default function GroupFormPage() {
               </Button>
             </div>
           </CardHeader>
-          <div className="divide-y divide-[#EEEBF5]">
+          <div className="divide-y divide-ink/20">
             {group?.students.length === 0 && (
-              <p className="px-5 py-4 text-sm text-[#9CA3AF]">אין תלמידות עדיין</p>
+              <p className="px-5 py-4 text-sm text-ink/50">אין תלמידות עדיין</p>
             )}
             {group?.students.map((s) => (
               <div key={s.id} className="px-5 py-3 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium">{s.name}</p>
-                  <p className="text-xs text-[#9CA3AF]">{s.email}</p>
-                  {s.githubUsername && <p className="text-xs text-[#9CA3AF]">GitHub: {s.githubUsername}</p>}
+                  <p className="text-xs text-ink/50">{s.email}</p>
+                  {s.githubUsername && <p className="text-xs text-ink/50">GitHub: {s.githubUsername}</p>}
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -155,7 +155,7 @@ export default function GroupFormPage() {
         <div className="flex gap-2 mb-4">
           {(['manual', 'excel'] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-3 py-1.5 text-sm rounded-input transition ${tab === t ? 'gradient-primary text-white' : 'border border-[#EEEBF5] text-[#6B7280]'}`}>
+              className={`px-3 py-1.5 text-sm rounded-input transition ${tab === t ? 'bg-mustard text-white' : 'border border-ink/20 text-ink/70'}`}>
               {t === 'manual' ? 'הוספה ידנית' : 'ייבוא מ-Excel'}
             </button>
           ))}
@@ -166,14 +166,14 @@ export default function GroupFormPage() {
             <Input label="שם מלא" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="ישראלה ישראלי" />
             <Input label="אימייל" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="student@example.com" />
             <Input label="שם משתמש GitHub (אופציונלי)" value={newGithub} onChange={(e) => setNewGithub(e.target.value)} placeholder="username" />
-            {addError && <p className="text-red-500 text-sm">{addError}</p>}
+            {addError && <p className="text-tomato text-sm">{addError}</p>}
             <Button loading={addStudentMutation.isPending} onClick={() => addStudentMutation.mutate()} disabled={!newName || !newEmail} className="w-full">
               הוסף תלמידה
             </Button>
           </div>
         ) : (
           <div className="space-y-3">
-            <p className="text-xs text-[#6B7280]">קובץ Excel עם עמודות: name | email | github (אופציונלי)</p>
+            <p className="text-xs text-ink/70">קובץ Excel עם עמודות: name | email | github (אופציונלי)</p>
             <FileUpload accept=".xlsx" onFile={handleImport} label="גרור קובץ Excel לכאן" />
           </div>
         )}

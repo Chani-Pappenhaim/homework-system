@@ -146,7 +146,7 @@ export default function CourseFormPage() {
               placeholder="תיאור קצר של הקורס..."
             />
           </div>
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && <p className="text-tomato text-sm">{error}</p>}
           <Button loading={saveMutation.isPending} onClick={() => saveMutation.mutate()} disabled={!name || !groupId}>
             {isEdit ? 'שמור שינויים' : 'צור קורס'}
           </Button>
@@ -159,18 +159,18 @@ export default function CourseFormPage() {
           <CardHeader>
             <h2 className="font-semibold text-sm">שיעורים ({course.lessons.length})</h2>
           </CardHeader>
-          <div className="divide-y divide-[#EEEBF5]">
+          <div className="divide-y divide-ink/20">
             {course.lessons.map((l, i) => (
               <div key={l.id} className="px-5 py-3 flex items-center gap-3">
-                <GripVertical size={14} className="text-[#9CA3AF] cursor-grab flex-shrink-0" />
-                <span className="text-xs text-[#9CA3AF] w-5 flex-shrink-0">{i + 1}</span>
+                <GripVertical size={14} className="text-ink/50 cursor-grab flex-shrink-0" />
+                <span className="text-xs text-ink/50 w-5 flex-shrink-0">{i + 1}</span>
                 <span
                   className="flex-1 text-sm cursor-pointer hover:text-primary transition"
                   onClick={() => navigate(`/teacher/lessons/${l.id}`)}
                 >
                   {l.topic}
                 </span>
-                {l.hidden && <EyeOff size={13} className="text-[#9CA3AF]" />}
+                {l.hidden && <EyeOff size={13} className="text-ink/50" />}
                 <Button size="sm" variant="outline" onClick={() => toggleHiddenMutation.mutate(l)}>
                   {l.hidden ? 'הצג' : 'הסתר'}
                 </Button>
@@ -211,7 +211,7 @@ export default function CourseFormPage() {
           <CardContent className="space-y-3">
             {course.files.map((f) => (
               <div key={f.id} className="flex items-center gap-2">
-                <a href={f.url} target="_blank" rel="noreferrer" className="flex-1 text-sm text-[#1A1830] hover:text-primary truncate">{f.name}</a>
+                <a href={f.url} target="_blank" rel="noreferrer" className="flex-1 text-sm text-ink hover:text-primary truncate">{f.name}</a>
                 <Button size="sm" variant="destructive" onClick={() => deleteFileMutation.mutate(f.id)}>
                   <Trash2 size={12} />
                 </Button>

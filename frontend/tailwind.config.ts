@@ -68,10 +68,15 @@ export default {
         sm: '0px',
         md: '0px',
         lg: '0px',
+        xl: '0px',
+        '2xl': '0px',
+        '3xl': '0px',
         DEFAULT: '0px',
         card: '0px',
         input: '0px',
         badge: '0px',
+        // Only status dots stay round.
+        full: '9999px',
       },
 
       borderWidth: {

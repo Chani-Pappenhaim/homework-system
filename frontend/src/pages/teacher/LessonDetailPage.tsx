@@ -213,8 +213,8 @@ export default function LessonDetailPage() {
     setFeedback(sub.grade?.feedback ?? '');
   }
 
-  if (isLoading) return <div className="p-6 text-[#9CA3AF]">טוען...</div>;
-  if (!lesson) return <div className="p-6 text-red-500">שיעור לא נמצא</div>;
+  if (isLoading) return <div className="p-6 text-ink/50">טוען...</div>;
+  if (!lesson) return <div className="p-6 text-tomato">שיעור לא נמצא</div>;
 
   const submissions: SubmissionDTO[] = (submissionsData?.data as any)?.data?.submissions ?? [];
 
@@ -226,7 +226,7 @@ export default function LessonDetailPage() {
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-xl font-bold">{lesson.topic}</h1>
-              {lesson.lessonDate && <p className="text-sm text-[#6B7280] mt-0.5">{formatDate(lesson.lessonDate)}</p>}
+              {lesson.lessonDate && <p className="text-sm text-ink/70 mt-0.5">{formatDate(lesson.lessonDate)}</p>}
             </div>
             <div className="flex items-center gap-2">
               {lesson.hidden && <Badge variant="warning">מוסתר</Badge>}
@@ -239,17 +239,17 @@ export default function LessonDetailPage() {
         <CardContent className="space-y-4">
           {lesson.contentMd
             ? <MarkdownRenderer content={lesson.contentMd} />
-            : <p className="text-sm text-[#9CA3AF]">אין תוכן לשיעור עדיין — לחצי על "ערוך שיעור" כדי להוסיף חומר לימוד.</p>}
+            : <p className="text-sm text-ink/50">אין תוכן לשיעור עדיין — לחצי על "ערוך שיעור" כדי להוסיף חומר לימוד.</p>}
           {lesson.githubUrl && (
             <a href={toExternalUrl(lesson.githubUrl)} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-2 text-sm text-[#1A1830] border border-[#EEEBF5] rounded-input px-3 py-1.5 hover:bg-[#F8F7FC] transition">
+              className="inline-flex items-center gap-2 text-sm text-ink border border-ink/20 rounded-input px-3 py-1.5 hover:bg-cream/60 transition">
               <Github size={14} /> קוד השיעור ב-GitHub
             </a>
           )}
 
           {/* Files management */}
-          <div className="space-y-2 pt-2 border-t border-[#EEEBF5]">
-            <p className="text-xs text-[#9CA3AF] font-medium">קבצים מצורפים</p>
+          <div className="space-y-2 pt-2 border-t border-ink/20">
+            <p className="text-xs text-ink/50 font-medium">קבצים מצורפים</p>
             {lesson.files.map((f) => (
               <div key={f.id} className="flex items-center justify-between">
                 <a href={f.url} target="_blank" rel="noreferrer"
@@ -263,7 +263,7 @@ export default function LessonDetailPage() {
               </div>
             ))}
             {lesson.files.length === 0 && (
-              <p className="text-xs text-[#9CA3AF]">אין קבצים מצורפים</p>
+              <p className="text-xs text-ink/50">אין קבצים מצורפים</p>
             )}
             <FileUpload
               onFile={(file) => uploadFileMutation.mutate(file)}
@@ -281,12 +281,12 @@ export default function LessonDetailPage() {
               <div className="flex gap-2 flex-wrap">
                 {lesson.assignments.map((a, i) => (
                   <button key={a.id} onClick={() => setSelectedAssignment(i)}
-                    className={`px-3 py-1.5 text-sm rounded-input transition ${i === selectedAssignment ? 'gradient-primary text-white' : 'border border-[#EEEBF5] text-[#6B7280] hover:bg-[#F8F7FC]'}`}>
+                    className={`px-3 py-1.5 text-sm rounded-input transition ${i === selectedAssignment ? 'bg-mustard text-white' : 'border border-ink/20 text-ink/70 hover:bg-cream/60'}`}>
                     {a.title}
                   </button>
                 ))}
                 {lesson.assignments.length === 0 && (
-                  <span className="text-sm text-[#9CA3AF]">אין מטלות עדיין</span>
+                  <span className="text-sm text-ink/50">אין מטלות עדיין</span>
                 )}
               </div>
               <Button size="sm" variant="secondary" onClick={() => openAssignmentModal('new')}>
@@ -298,13 +298,13 @@ export default function LessonDetailPage() {
           {assignment && (
             <div>
               {/* Assignment info */}
-              <div className="px-5 py-3 bg-[#F8F7FC] border-b border-[#EEEBF5] text-sm text-[#6B7280]">
+              <div className="px-5 py-3 bg-cream/60 border-b border-ink/20 text-sm text-ink/70">
                 <div className="flex items-start justify-between gap-2">
                   <div className="space-y-0.5">
                     {assignment.description && <p className="mb-1">{assignment.description}</p>}
-                    {assignment.deadline && <p>מועד אחרון: <span className="font-medium text-[#1A1830]">{formatDate(assignment.deadline)}</span></p>}
+                    {assignment.deadline && <p>מועד אחרון: <span className="font-medium text-ink">{formatDate(assignment.deadline)}</span></p>}
                     {assignment.aiInstructions && (
-                      <p className="text-xs text-[#9CA3AF] mt-1">
+                      <p className="text-xs text-ink/50 mt-1">
                         <span className="font-medium">הנחיות AI:</span> {assignment.aiInstructions}
                       </p>
                     )}
@@ -326,7 +326,7 @@ export default function LessonDetailPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-[#EEEBF5] text-xs text-[#9CA3AF]">
+                    <tr className="border-b border-ink/20 text-xs text-ink/50">
                       <th className="px-5 py-2.5 text-right font-medium">תלמידה</th>
                       <th className="px-3 py-2.5 text-right font-medium">הגשה</th>
                       <th className="px-3 py-2.5 text-right font-medium">תאריך</th>
@@ -334,15 +334,15 @@ export default function LessonDetailPage() {
                       <th className="px-3 py-2.5 text-right font-medium">פעולה</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#EEEBF5]">
+                  <tbody className="divide-y divide-ink/20">
                     {submissions.length === 0 && (
-                      <tr><td colSpan={5} className="px-5 py-4 text-center text-[#9CA3AF]">אין הגשות עדיין</td></tr>
+                      <tr><td colSpan={5} className="px-5 py-4 text-center text-ink/50">אין הגשות עדיין</td></tr>
                     )}
                     {submissions.map((s) => (
-                      <tr key={s.id} className="hover:bg-[#F8F7FC] transition">
+                      <tr key={s.id} className="hover:bg-cream/60 transition">
                         <td className="px-5 py-3">
-                          <p className="font-medium text-[#1A1830]">{s.studentName}</p>
-                          <p className="text-xs text-[#9CA3AF]">{s.studentEmail}</p>
+                          <p className="font-medium text-ink">{s.studentName}</p>
+                          <p className="text-xs text-ink/50">{s.studentEmail}</p>
                         </td>
                         <td className="px-3 py-3">
                           {s.fileUrl ? (
@@ -353,16 +353,16 @@ export default function LessonDetailPage() {
                             <a href={s.githubUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline flex items-center gap-1">
                               <Github size={12} /> GitHub
                             </a>
-                          ) : <span className="text-[#9CA3AF]">לא הוגש</span>}
+                          ) : <span className="text-ink/50">לא הוגש</span>}
                         </td>
-                        <td className="px-3 py-3 text-[#6B7280] text-xs">
+                        <td className="px-3 py-3 text-ink/70 text-xs">
                           {formatDateTime(s.submittedAt)}
                           {s.isLate && <Badge variant="warning" className="mr-1">איחור</Badge>}
                         </td>
                         <td className="px-3 py-3">
                           {s.grade?.submissionScore != null
-                            ? <span className="font-semibold text-[#1A1830]">{s.grade.submissionScore}</span>
-                            : <span className="text-[#9CA3AF]">—</span>}
+                            ? <span className="font-semibold text-ink">{s.grade.submissionScore}</span>
+                            : <span className="text-ink/50">—</span>}
                         </td>
                         <td className="px-3 py-3">
                           <Button size="sm" variant={s.grade ? 'outline' : 'default'} onClick={() => openGradeModal(s)}>
@@ -384,7 +384,7 @@ export default function LessonDetailPage() {
           <h2 className="font-semibold text-sm">הרשאת גישה חריגה לשיעור זה</h2>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-xs text-[#9CA3AF]">מתן גישה לתלמידה שאינה בקבוצה הרגילה של הקורס</p>
+          <p className="text-xs text-ink/50">מתן גישה לתלמידה שאינה בקבוצה הרגילה של הקורס</p>
           <div className="flex gap-2">
             <Input
               placeholder="אימייל תלמידה"
@@ -403,14 +403,14 @@ export default function LessonDetailPage() {
               <UserPlus size={13} /> הענק גישה
             </Button>
           </div>
-          {accessError && <p className="text-red-500 text-xs">{accessError}</p>}
+          {accessError && <p className="text-tomato text-xs">{accessError}</p>}
           {accessStudents.length > 0 && (
-            <div className="divide-y divide-[#EEEBF5] border border-[#EEEBF5] rounded-card">
+            <div className="divide-y divide-ink/20 border border-ink/20 rounded-card">
               {accessStudents.map((s) => (
                 <div key={s.id} className="flex items-center justify-between px-4 py-2">
                   <div>
                     <p className="text-sm font-medium">{s.name}</p>
-                    <p className="text-xs text-[#9CA3AF]">{s.email}</p>
+                    <p className="text-xs text-ink/50">{s.email}</p>
                   </div>
                   <Button size="sm" variant="destructive" onClick={() => revokeAccessMutation.mutate(s.id)}>
                     <Trash2 size={12} />
@@ -532,28 +532,28 @@ export default function LessonDetailPage() {
             {/* Submission link */}
             {gradeModal.fileUrl && (
               <a href={gradeModal.fileUrl} target="_blank" rel="noreferrer"
-                className="flex items-center gap-2 text-sm text-primary border border-[#EEEBF5] rounded-input px-3 py-2 hover:bg-[#F8F7FC]">
+                className="flex items-center gap-2 text-sm text-primary border border-ink/20 rounded-input px-3 py-2 hover:bg-cream/60">
                 <ExternalLink size={13} /> פתח קובץ שהוגש
               </a>
             )}
             {gradeModal.githubUrl && (
               <a href={gradeModal.githubUrl} target="_blank" rel="noreferrer"
-                className="flex items-center gap-2 text-sm text-primary border border-[#EEEBF5] rounded-input px-3 py-2 hover:bg-[#F8F7FC]">
+                className="flex items-center gap-2 text-sm text-primary border border-ink/20 rounded-input px-3 py-2 hover:bg-cream/60">
                 <Github size={13} /> פתח GitHub
               </a>
             )}
             {gradeModal.notes && (
-              <div className="bg-[#F8F7FC] border border-[#EEEBF5] rounded-input px-3 py-2 text-sm">
-                <span className="font-medium text-xs text-[#9CA3AF]">הערת תלמידה: </span>
+              <div className="bg-cream/60 border border-ink/20 rounded-input px-3 py-2 text-sm">
+                <span className="font-medium text-xs text-ink/50">הערת תלמידה: </span>
                 {gradeModal.notes}
               </div>
             )}
 
             {/* AI review info for the teacher */}
             {gradeModal.aiStatus === 'done' && (
-              <div className="bg-[#EDE9FE]/40 border border-[#EEEBF5] rounded-input px-3 py-2 text-sm space-y-1.5">
+              <div className="bg-lilac/30/40 border border-ink/20 rounded-input px-3 py-2 text-sm space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <p className="flex items-center gap-1.5 font-medium text-[#5B21B6]">
+                  <p className="flex items-center gap-1.5 font-medium text-plum">
                     <Bot size={14} /> בדיקת AI — ציון: {gradeModal.aiScore ?? '—'}
                   </p>
                   <div className="flex items-center gap-2">
@@ -579,7 +579,7 @@ export default function LessonDetailPage() {
                   </div>
                 </div>
                 {gradeModal.aiVerbalReview && (
-                  <p className="text-xs text-[#6B7280] whitespace-pre-wrap">{gradeModal.aiVerbalReview}</p>
+                  <p className="text-xs text-ink/70 whitespace-pre-wrap">{gradeModal.aiVerbalReview}</p>
                 )}
               </div>
             )}
@@ -607,7 +607,7 @@ export default function LessonDetailPage() {
             <div>
               <Input label="ציון הגשה (0–100)" type="number" min={0} max={100} value={submissionScore} onChange={(e) => setSubmissionScore(e.target.value)} placeholder="85" />
               {gradeModal.grade?.submissionScore == null && (
-                <p className="text-xs text-[#9CA3AF] mt-1">הצעה אוטומטית: 100 − איחור (10) − דרישות חסרות (5 כ״א)</p>
+                <p className="text-xs text-ink/50 mt-1">הצעה אוטומטית: 100 − איחור (10) − דרישות חסרות (5 כ״א)</p>
               )}
             </div>
 

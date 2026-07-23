@@ -51,7 +51,7 @@ export default function ReportsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">דוחות ציונים</h1>
         <div className="flex items-center gap-2">
-          {exportError && <span className="text-red-500 text-xs">{exportError}</span>}
+          {exportError && <span className="text-tomato text-xs">{exportError}</span>}
           <Button variant="outline" size="sm" loading={exportMutation.isPending} onClick={() => exportMutation.mutate()}>
             <Download size={13} /> ייצוא Excel
           </Button>
@@ -96,43 +96,43 @@ export default function ReportsPage() {
         </CardHeader>
         <div className="overflow-x-auto">
           {isLoading ? (
-            <div className="p-6 text-center text-[#9CA3AF]">טוען...</div>
+            <div className="p-6 text-center text-ink/50">טוען...</div>
           ) : report.length === 0 ? (
-            <div className="p-6 text-center text-[#9CA3AF]">אין נתונים לפי הפילטרים הנבחרים</div>
+            <div className="p-6 text-center text-ink/50">אין נתונים לפי הפילטרים הנבחרים</div>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#EEEBF5] bg-[#F8F7FC]">
+                <tr className="border-b border-ink/20 bg-cream/60">
                   {['תלמידה', 'קבוצה', 'קורס', 'שיעור', 'מטלה', 'מועד אחרון', 'הגשה', 'ציון הגשה', 'ציון תוכן'].map((h) => (
-                    <th key={h} className="px-4 py-2.5 text-right text-xs text-[#9CA3AF] font-medium">{h}</th>
+                    <th key={h} className="px-4 py-2.5 text-right text-xs text-ink/50 font-medium">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#EEEBF5]">
+              <tbody className="divide-y divide-ink/20">
                 {report.map((r, i) => (
-                  <tr key={i} className="hover:bg-[#F8F7FC] transition">
+                  <tr key={i} className="hover:bg-cream/60 transition">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-[#1A1830]">{r.studentName}</p>
-                      <p className="text-xs text-[#9CA3AF]">{r.studentEmail}</p>
+                      <p className="font-medium text-ink">{r.studentName}</p>
+                      <p className="text-xs text-ink/50">{r.studentEmail}</p>
                     </td>
-                    <td className="px-4 py-3 text-[#6B7280]">{r.groupName}</td>
-                    <td className="px-4 py-3 text-[#6B7280]">{r.courseName}</td>
-                    <td className="px-4 py-3 text-[#6B7280]">{r.lessonTopic}</td>
-                    <td className="px-4 py-3 text-[#1A1830]">{r.assignmentTitle}</td>
-                    <td className="px-4 py-3 text-[#6B7280] text-xs">{formatDate(r.deadline)}</td>
+                    <td className="px-4 py-3 text-ink/70">{r.groupName}</td>
+                    <td className="px-4 py-3 text-ink/70">{r.courseName}</td>
+                    <td className="px-4 py-3 text-ink/70">{r.lessonTopic}</td>
+                    <td className="px-4 py-3 text-ink">{r.assignmentTitle}</td>
+                    <td className="px-4 py-3 text-ink/70 text-xs">{formatDate(r.deadline)}</td>
                     <td className="px-4 py-3">
-                      <p className="text-xs text-[#6B7280]">{formatDateTime(r.submittedAt)}</p>
+                      <p className="text-xs text-ink/70">{formatDateTime(r.submittedAt)}</p>
                       {r.isLate && <Badge variant="warning">איחור</Badge>}
                     </td>
                     <td className="px-4 py-3">
                       {r.submissionScore != null
-                        ? <span className="font-semibold text-[#1A1830]">{r.submissionScore}</span>
-                        : <span className="text-[#9CA3AF]">—</span>}
+                        ? <span className="font-semibold text-ink">{r.submissionScore}</span>
+                        : <span className="text-ink/50">—</span>}
                     </td>
                     <td className="px-4 py-3">
                       {r.contentScore != null
-                        ? <span className="font-semibold text-[#1A1830]">{r.contentScore}</span>
-                        : <span className="text-[#9CA3AF]">—</span>}
+                        ? <span className="font-semibold text-ink">{r.contentScore}</span>
+                        : <span className="text-ink/50">—</span>}
                     </td>
                   </tr>
                 ))}

@@ -1,14 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Clock } from 'lucide-react';
+import { Clock, Flame } from 'lucide-react';
 import useAuthStore from '@/store/authStore';
 import { coursesApi } from '@/api/courses.api';
 import { submissionsApi } from '@/api/submissions.api';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { formatDate, isOverdue } from '@/lib/utils';
+import { Tape, Paperclip, Stamp } from '@/components/decor';
+import { cn, formatDate, isOverdue } from '@/lib/utils';
 
-const COURSE_EMOJIS = ['📚', '💻', '🎯', '🔧', '⚡', '🌟', '🧩', '🚀'];
+/** Tape color by quest progress — re-colors as the notebook page fills up. */
+function progressTape(pct: number): 'tomato' | 'mustard' | 'lilac' | 'cobalt' {
+  if (pct >= 100) return 'cobalt';
+  if (pct >= 60) return 'mustard';
+  if (pct > 0) return 'lilac';
+  return 'tomato';
+}
 
 export default function StudentHomePage() {
   const user = useAuthStore((s) => s.user);
@@ -21,80 +26,133 @@ export default function StudentHomePage() {
   const mine = (mineData?.data as any)?.data;
   const pending: any[] = mine?.pending ?? [];
 
+  const doneTotal = courses.reduce((s, c) => s + (c.completedLessons ?? 0), 0);
+  // Sticker streak: one sticker per completed lesson (max 7 shown); 7 unlocks the stamp.
+  const streak = Math.min(doneTotal, 7);
+
   return (
     <div className="space-y-6" dir="rtl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold">הקורסים שלי ✦</h1>
-          <p className="text-[#6B7280] text-sm mt-0.5">{user?.name}</p>
+      {/* Greeting + streak */}
+      <section className="border-b-2 border-ink pb-4">
+        <div className="mb-1 font-mono text-[11px] uppercase tracking-wider text-ink/55">
+          המחברת שלי · {new Intl.DateTimeFormat('he-IL', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}
         </div>
-        {pending.length > 0 && (
-          <Badge variant="default">{pending.length} מטלות ממתינות</Badge>
-        )}
-      </div>
+        <h1 className="font-display text-3xl font-black text-ink md:text-4xl">
+          שלום, <span className="scribble-underline">{user?.name ?? 'תלמידה'}</span>.
+        </h1>
 
-      {/* Course grid */}
+        {/* Sticker streak (feature #2) */}
+        <div className="mt-3 flex items-center gap-2">
+          <span className="flex items-center gap-1 font-mono text-[11px] uppercase text-ink/60">
+            <Flame size={13} className="text-tomato" /> רצף
+          </span>
+          <div className="flex items-center gap-1">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <span
+                key={i}
+                className={cn(
+                  'grid size-6 place-items-center rounded-full border-2 border-ink text-[11px]',
+                  i < streak ? 'bg-mustard text-ink' : 'bg-paper text-ink/25',
+                )}
+                style={{ transform: `rotate(${(i % 2 ? 1 : -1) * 4}deg)` }}
+              >
+                ★
+              </span>
+            ))}
+          </div>
+          {streak >= 7 && <Stamp>צוין לשבח</Stamp>}
+        </div>
+      </section>
+
+      {/* Quest cards (feature #1) */}
       {courses.length === 0 ? (
-        <Card><CardContent><p className="text-[#9CA3AF] text-sm text-center py-6">לא שויכת לאף קורס עדיין</p></CardContent></Card>
+        <div className="border-2 border-ink bg-paper p-8 text-center font-mono text-sm text-ink/50 shadow-brutal-sm">
+          לא שויכת לאף קורס עדיין
+        </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {courses.map((c, i) => {
             const done = c.completedLessons ?? 0;
             const total = c.lessonCount || 0;
             const pct = total > 0 ? Math.round((done / total) * 100) : 0;
             return (
-              <Card
+              <button
                 key={c.id}
-                accent="cobalt"
-                className="cursor-pointer hover:shadow-md transition"
                 onClick={() => navigate(`/student/courses/${c.id}`)}
+                className="relative border-2 border-ink bg-ruled p-5 text-right shadow-brutal hover-lift"
+                style={{ transform: `rotate(${i % 2 ? 0.6 : -0.6}deg)` }}
               >
-                <CardContent>
-                  <div className="text-3xl mb-2">{COURSE_EMOJIS[i % COURSE_EMOJIS.length]}</div>
-                  <h2 className="font-semibold text-[#1A1830] text-sm leading-snug mb-1">{c.name}</h2>
-                  <p className="text-xs text-[#9CA3AF] mb-3">{c.lessonCount} שיעורים</p>
-                  {/* Progress bar */}
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[11px] font-medium text-[#6B7280]">
-                      {done}/{total} הושלמו {pct === 100 && total > 0 && '🎉'}
-                    </span>
-                    <span className="text-[11px] font-bold text-primary">{pct}%</span>
+                <Tape color={progressTape(pct)} rotate={i % 2 ? 5 : -5} className="-top-3 right-6 h-5 w-20" />
+                <div className="font-mono text-[10px] text-ink/50">קווסט {String(i + 1).padStart(2, '0')}</div>
+                <h2 className="mt-1 font-display text-lg font-bold leading-snug text-ink">{c.name}</h2>
+                <p className="mt-0.5 font-mono text-[11px] text-ink/55">{total} שיעורים</p>
+
+                {/* Measuring-tape progress (feature #7) */}
+                <div className="mt-4">
+                  <div className="mb-1 flex items-center justify-between font-mono text-[11px]">
+                    <span className="text-ink/60">{done}/{total} הושלמו</span>
+                    <span className="font-bold text-tomato tabular">{pct}%</span>
                   </div>
-                  <div className="h-1.5 bg-[#EEEBF5] rounded-full overflow-hidden">
-                    <div className="h-full gradient-progress rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                  <div className="relative h-4 border-2 border-ink bg-paper">
+                    <div className="h-full bg-forest" style={{ width: `${pct}%` }} />
+                    {/* tick marks */}
+                    <div className="pointer-events-none absolute inset-0 flex justify-between px-0.5">
+                      {Array.from({ length: 9 }).map((_, t) => (
+                        <span key={t} className="w-px bg-ink/30" />
+                      ))}
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+                {pct === 100 && total > 0 && (
+                  <div className="mt-3"><Stamp rotate={-4}>הושלם</Stamp></div>
+                )}
+              </button>
             );
           })}
         </div>
       )}
 
-      {/* Pending assignments */}
+      {/* Pending assignments as red sticky notes */}
       {pending.length > 0 && (
-        <Card>
-          <div className="px-5 py-3 border-b border-[#EEEBF5]">
-            <h2 className="font-semibold text-sm flex items-center gap-2">
-              <Clock size={14} className="text-[#C2185B]" /> מטלות ממתינות
-            </h2>
+        <section>
+          <div className="mb-3 flex items-center gap-2">
+            <Clock size={15} className="text-tomato" />
+            <h2 className="font-display text-lg font-bold text-ink">מטלות ממתינות</h2>
+            <span className="border-2 border-ink bg-tomato px-2 py-0.5 font-mono text-[11px] font-bold text-paper">
+              {pending.length}
+            </span>
           </div>
-          <div className="divide-y divide-[#EEEBF5]">
-            {pending.map((p) => (
-              <div key={p.assignmentId} className="px-5 py-3 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">{p.assignmentTitle}</p>
-                  <p className="text-xs text-[#9CA3AF]">{p.courseName} · {p.lessonTopic}</p>
-                </div>
-                {p.deadline && (
-                  <Badge variant={isOverdue(p.deadline) ? 'default' : 'warning'}>
-                    {isOverdue(p.deadline) ? 'פג תוקף' : formatDate(p.deadline)}
-                  </Badge>
-                )}
-              </div>
-            ))}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {pending.map((p, i) => {
+              const overdue = p.deadline && isOverdue(p.deadline);
+              return (
+                <button
+                  key={p.assignmentId}
+                  onClick={() => navigate(p.lessonId ? `/student/lessons/${p.lessonId}` : '/student/assignments')}
+                  className={cn(
+                    'relative border-2 border-ink p-4 text-right shadow-brutal hover-lift',
+                    overdue ? 'bg-tomato/20' : 'bg-mustard/30',
+                  )}
+                  style={{ transform: `rotate(${i % 2 ? 1 : -1}deg)` }}
+                >
+                  <Paperclip rotate={i % 2 ? 8 : -8} className="-top-4 left-6" />
+                  <p className="text-sm font-bold text-ink">{p.assignmentTitle}</p>
+                  <p className="mt-0.5 font-mono text-[11px] text-ink/60">{p.courseName} · {p.lessonTopic}</p>
+                  {p.deadline && (
+                    <span
+                      className={cn(
+                        'mt-3 inline-block border-2 border-ink px-2 py-0.5 font-mono text-[11px] font-bold',
+                        overdue ? 'bg-tomato text-paper' : 'bg-paper text-ink',
+                      )}
+                    >
+                      {overdue ? 'פג תוקף' : `עד ${formatDate(p.deadline)}`}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
-        </Card>
+        </section>
       )}
     </div>
   );

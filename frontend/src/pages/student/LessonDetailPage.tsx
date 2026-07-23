@@ -42,23 +42,23 @@ export default function StudentLessonDetailPage() {
     },
   });
 
-  if (isLoading) return <div className="p-6 text-[#9CA3AF]">טוען...</div>;
-  if (!lesson) return <div className="p-6 text-red-500">שיעור לא נמצא</div>;
+  if (isLoading) return <div className="p-6 text-ink/50">טוען...</div>;
+  if (!lesson) return <div className="p-6 text-tomato">שיעור לא נמצא</div>;
 
   return (
     <div className="max-w-2xl space-y-5" dir="rtl">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">{lesson.topic}</h1>
-          {lesson.lessonDate && <p className="text-[#6B7280] text-sm mt-0.5">{formatDate(lesson.lessonDate)}</p>}
+          {lesson.lessonDate && <p className="text-ink/70 text-sm mt-0.5">{formatDate(lesson.lessonDate)}</p>}
         </div>
         <button
           onClick={() => progressMutation.mutate(!lesson.completed)}
           disabled={progressMutation.isPending}
           className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition shrink-0 ${
             lesson.completed
-              ? 'bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] hover:bg-[#D1FAE5]'
-              : 'gradient-primary text-white hover:opacity-90'
+              ? 'bg-forest/10 text-forest border border-forest/40 hover:bg-forest/20'
+              : 'bg-mustard text-white hover:opacity-90'
           }`}
         >
           <Check size={15} strokeWidth={3} />
@@ -78,7 +78,7 @@ export default function StudentLessonDetailPage() {
       {/* GitHub */}
       {lesson.githubUrl && (
         <a href={toExternalUrl(lesson.githubUrl)} target="_blank" rel="noreferrer"
-          className="inline-flex items-center gap-2 text-sm border border-[#EEEBF5] rounded-input px-4 py-2 text-[#1A1830] hover:bg-[#F8F7FC] transition">
+          className="inline-flex items-center gap-2 text-sm border border-ink/20 rounded-input px-4 py-2 text-ink hover:bg-cream/60 transition">
           <Github size={14} /> קוד השיעור ב-GitHub
         </a>
       )}
@@ -101,7 +101,7 @@ export default function StudentLessonDetailPage() {
       {/* Quiz button */}
       <button
         onClick={() => navigate(`/student/quiz/${lesson.id}`)}
-        className="w-full py-3 gradient-primary text-white rounded-card text-sm font-medium hover:opacity-90 transition"
+        className="w-full py-3 bg-mustard text-white rounded-card text-sm font-medium hover:opacity-90 transition"
       >
         ✦ פתחי חידון לשיעור זה
       </button>
@@ -170,26 +170,26 @@ function AssignmentCard({ assignment: a, submission: sub }: {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {a.description && <p className="text-sm text-[#6B7280]">{a.description}</p>}
+        {a.description && <p className="text-sm text-ink/70">{a.description}</p>}
         {a.deadline && (
-          <p className="text-xs text-[#9CA3AF]">מועד אחרון: <span className="font-medium">{formatDate(a.deadline)}</span></p>
+          <p className="text-xs text-ink/50">מועד אחרון: <span className="font-medium">{formatDate(a.deadline)}</span></p>
         )}
 
         {/* Already submitted */}
         {sub ? (
           <div className="space-y-3">
-            <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-input p-3 text-sm space-y-1">
-              <p className="text-[#065F46] font-medium">הגשתך התקבלה בהצלחה ✓</p>
-              <p className="text-[#6B7280] text-xs">הוגש: {formatDateTime(sub.submittedAt)}</p>
+            <div className="bg-forest/10 border border-forest/30 rounded-input p-3 text-sm space-y-1">
+              <p className="text-forest font-medium">הגשתך התקבלה בהצלחה ✓</p>
+              <p className="text-ink/70 text-xs">הוגש: {formatDateTime(sub.submittedAt)}</p>
               {sub.isLate && <Badge variant="warning">הוגש באיחור</Badge>}
-              {sub.notes && <p className="text-xs text-[#6B7280]">הערה: {sub.notes}</p>}
+              {sub.notes && <p className="text-xs text-ink/70">הערה: {sub.notes}</p>}
               {sub.grade && (
                 <div className="mt-2 space-y-1">
                   {sub.grade.submissionScore != null && <p className="font-semibold">ציון הגשה: {sub.grade.submissionScore}</p>}
                   {sub.grade.contentScore != null && <p className="font-semibold">ציון תוכן: {sub.grade.contentScore}</p>}
                   {sub.grade.feedback && <MarkdownRenderer content={sub.grade.feedback} className="text-xs" />}
                   {sub.grade.checklist?.map((c: any) => (
-                    <div key={c.id} className={`text-xs flex items-center gap-1 ${c.checked ? 'text-[#059669]' : 'text-[#9CA3AF]'}`}>
+                    <div key={c.id} className={`text-xs flex items-center gap-1 ${c.checked ? 'text-forest' : 'text-ink/50'}`}>
                       {c.checked ? '✓' : '✗'} {c.text}
                     </div>
                   ))}
@@ -199,9 +199,9 @@ function AssignmentCard({ assignment: a, submission: sub }: {
 
             {/* AI Review section */}
             {sub.githubUrl && (
-              <div className="border border-[#E5E1F5] rounded-input p-3 text-sm space-y-2">
+              <div className="border border-ink/15 rounded-input p-3 text-sm space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1 font-medium text-[#1A1830]"><Bot size={14} /> בדיקת AI</span>
+                  <span className="flex items-center gap-1 font-medium text-ink"><Bot size={14} /> בדיקת AI</span>
                   {sub.aiStatus === 'none' && (
                     <Button size="sm" variant="outline" loading={aiReviewMutation.isPending}
                       onClick={() => aiReviewMutation.mutate()}>
@@ -214,17 +214,17 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                 </div>
                 {sub.aiStatus === 'done' && sub.aiApproved && (
                   <div className="space-y-2 pt-1">
-                    <p className="font-semibold text-[#1A1830]">ציון: {sub.aiScore}</p>
-                    <p className="text-[#6B7280] text-xs">{sub.aiVerbalReview}</p>
+                    <p className="font-semibold text-ink">ציון: {sub.aiScore}</p>
+                    <p className="text-ink/70 text-xs">{sub.aiVerbalReview}</p>
                     <button className="text-xs text-primary underline" onClick={() => setShowAiReview(!showAiReview)}>
                       {showAiReview ? 'הסתירי הערות קוד' : 'הצגי הערות קוד'}
                     </button>
                     {showAiReview && (
-                      <pre className="text-xs bg-[#F8F7FC] rounded p-2 whitespace-pre-wrap">{sub.aiCodeReview}</pre>
+                      <pre className="text-xs bg-cream/60 rounded p-2 whitespace-pre-wrap">{sub.aiCodeReview}</pre>
                     )}
                   </div>
                 )}
-                {error && <p className="text-red-500 text-xs">{error}</p>}
+                {error && <p className="text-tomato text-xs">{error}</p>}
               </div>
             )}
           </div>
@@ -233,7 +233,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
             {a.deadline && isOverdue(a.deadline) && (
               <div className="space-y-2">
                 {lateRequestSent ? (
-                  <p className="text-xs text-[#059669] font-medium">הבקשה נשלחה למורה ✓</p>
+                  <p className="text-xs text-forest font-medium">הבקשה נשלחה למורה ✓</p>
                 ) : (
                   <Button
                     size="sm"
@@ -296,7 +296,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                   </Button>
                 </div>
                 {githubPreview && (
-                  <p className="text-xs text-[#9CA3AF] flex items-center gap-1">
+                  <p className="text-xs text-ink/50 flex items-center gap-1">
                     <Github size={11} /> {githubPreview}
                   </p>
                 )}
@@ -309,7 +309,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
-            {error && <p className="text-red-500 text-xs">{error}</p>}
+            {error && <p className="text-tomato text-xs">{error}</p>}
           </>
         )}
       </CardContent>

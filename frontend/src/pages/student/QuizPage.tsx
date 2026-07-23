@@ -37,14 +37,14 @@ export default function QuizPage() {
     },
   });
 
-  if (isLoading) return <div className="p-6 text-[#9CA3AF]">טוען...</div>;
+  if (isLoading) return <div className="p-6 text-ink/50">טוען...</div>;
 
   if (status === 'generating') {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20" dir="rtl">
         <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        <p className="text-[#6B7280] text-sm">החידון נוצר, אנא המתיני...</p>
-        <p className="text-xs text-[#9CA3AF]">Claude AI מכין שאלות בעברית על תוכן השיעור</p>
+        <p className="text-ink/70 text-sm">החידון נוצר, אנא המתיני...</p>
+        <p className="text-xs text-ink/50">Claude AI מכין שאלות בעברית על תוכן השיעור</p>
       </div>
     );
   }
@@ -55,7 +55,7 @@ export default function QuizPage() {
         <Card accent="cobalt">
           <CardContent className="text-center space-y-2">
             <p className="text-5xl font-bold text-primary">{Math.round(result.score)}%</p>
-            <p className="text-[#6B7280]">{result.correct} מתוך {result.total} תשובות נכונות</p>
+            <p className="text-ink/70">{result.correct} מתוך {result.total} תשובות נכונות</p>
             <Badge variant={result.score >= 80 ? 'success' : result.score >= 60 ? 'warning' : 'default'}>
               {result.score >= 80 ? 'מצוין!' : result.score >= 60 ? 'טוב' : 'נסי שוב'}
             </Badge>
@@ -71,9 +71,9 @@ export default function QuizPage() {
                 const isSelected = answers[i] === j;
                 return (
                   <div key={j} className={`px-3 py-2 rounded-input text-sm flex items-center gap-2
-                    ${isCorrect ? 'bg-[#D1FAE5] text-[#065F46] border border-[#BBF7D0]' :
-                      isSelected && !isCorrect ? 'bg-[#FEE2E2] text-[#991B1B] border border-[#FECACA]' :
-                      'bg-[#F8F7FC] text-[#6B7280]'}`}>
+                    ${isCorrect ? 'bg-forest/20 text-forest border border-forest/30' :
+                      isSelected && !isCorrect ? 'bg-tomato/15 text-tomato border border-tomato/30' :
+                      'bg-cream/60 text-ink/70'}`}>
                     <span>{isCorrect ? '✓' : isSelected ? '✗' : '○'}</span>
                     {opt}
                   </div>
@@ -100,8 +100,8 @@ export default function QuizPage() {
             {q.options.map((opt: string, j: number) => (
               <label key={j} className={`flex items-center gap-3 px-3 py-2 rounded-input cursor-pointer transition border
                 ${answers[i] === j
-                  ? 'border-primary bg-[rgba(194,24,91,0.05)] text-[#1A1830]'
-                  : 'border-[#EEEBF5] hover:border-primary/30 text-[#6B7280]'}`}>
+                  ? 'border-primary bg-[rgba(194,24,91,0.05)] text-ink'
+                  : 'border-ink/20 hover:border-primary/30 text-ink/70'}`}>
                 <input
                   type="radio"
                   name={`q-${i}`}

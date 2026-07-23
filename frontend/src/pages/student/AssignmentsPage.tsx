@@ -29,15 +29,15 @@ export default function AssignmentsPage() {
         <CardHeader>
           <h2 className="font-semibold text-sm">לא הוגשו ({sortedPending.length})</h2>
         </CardHeader>
-        <div className="divide-y divide-[#EEEBF5]">
+        <div className="divide-y divide-ink/20">
           {sortedPending.length === 0 && (
-            <p className="px-5 py-4 text-sm text-[#9CA3AF]">אין מטלות פתוחות 🎉</p>
+            <p className="px-5 py-4 text-sm text-ink/50">אין מטלות פתוחות 🎉</p>
           )}
           {sortedPending.map((p) => (
             <div key={p.assignmentId} className="px-5 py-3 flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium">{p.assignmentTitle}</p>
-                <p className="text-xs text-[#9CA3AF]">{p.courseName} · {p.lessonTopic}</p>
+                <p className="text-xs text-ink/50">{p.courseName} · {p.lessonTopic}</p>
               </div>
               {p.deadline && (
                 <Badge variant={isOverdue(p.deadline) ? 'default' : 'warning'}>
@@ -54,24 +54,24 @@ export default function AssignmentsPage() {
         <CardHeader>
           <h2 className="font-semibold text-sm">הוגשו ({submitted.length})</h2>
         </CardHeader>
-        <div className="divide-y divide-[#EEEBF5]">
+        <div className="divide-y divide-ink/20">
           {submitted.length === 0 && (
-            <p className="px-5 py-4 text-sm text-[#9CA3AF]">לא הוגשו מטלות עדיין</p>
+            <p className="px-5 py-4 text-sm text-ink/50">לא הוגשו מטלות עדיין</p>
           )}
           {submitted.map((s) => (
             <div key={s.submissionId}>
               <button
-                className="w-full px-5 py-3 flex items-center justify-between hover:bg-[#F8F7FC] transition text-right"
+                className="w-full px-5 py-3 flex items-center justify-between hover:bg-cream/60 transition text-right"
                 onClick={() => setExpanded(expanded === s.submissionId ? null : s.submissionId)}
               >
                 <div>
                   <p className="text-sm font-medium">{s.assignmentTitle}</p>
-                  <p className="text-xs text-[#9CA3AF]">{s.courseName} · {formatDateTime(s.submittedAt)}</p>
+                  <p className="text-xs text-ink/50">{s.courseName} · {formatDateTime(s.submittedAt)}</p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {s.isLate && <Badge variant="warning">איחור</Badge>}
                   {s.grade?.submissionScore != null && (
-                    <span className="font-semibold text-sm text-[#1A1830]">{s.grade.submissionScore}</span>
+                    <span className="font-semibold text-sm text-ink">{s.grade.submissionScore}</span>
                   )}
                   {s.grade ? (
                     expanded === s.submissionId ? <ChevronUp size={14} /> : <ChevronDown size={14} />
@@ -82,17 +82,17 @@ export default function AssignmentsPage() {
               </button>
 
               {expanded === s.submissionId && s.grade && (
-                <div className="px-5 pb-4 space-y-3 bg-[#F8F7FC]">
+                <div className="px-5 pb-4 space-y-3 bg-cream/60">
                   <div className="flex flex-wrap gap-4 pt-3 text-sm">
                     {s.grade.submissionScore != null && (
-                      <p><span className="text-[#9CA3AF]">ציון הגשה: </span><span className="font-semibold text-[#1A1830]">{s.grade.submissionScore}</span></p>
+                      <p><span className="text-ink/50">ציון הגשה: </span><span className="font-semibold text-ink">{s.grade.submissionScore}</span></p>
                     )}
                     {s.grade.contentScore != null && (
-                      <p><span className="text-[#9CA3AF]">ציון תוכן: </span><span className="font-semibold text-[#1A1830]">{s.grade.contentScore}</span></p>
+                      <p><span className="text-ink/50">ציון תוכן: </span><span className="font-semibold text-ink">{s.grade.contentScore}</span></p>
                     )}
                   </div>
                   {s.grade.checklist?.map((c: any) => (
-                    <div key={c.id} className={`text-xs flex items-center gap-1.5 ${c.checked ? 'text-[#059669]' : 'text-[#9CA3AF]'}`}>
+                    <div key={c.id} className={`text-xs flex items-center gap-1.5 ${c.checked ? 'text-forest' : 'text-ink/50'}`}>
                       <span>{c.checked ? '✓' : '✗'}</span> {c.text}
                     </div>
                   ))}

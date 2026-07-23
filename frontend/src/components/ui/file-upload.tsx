@@ -24,7 +24,7 @@ function FileUpload({ onFile, accept, label = 'גרור קובץ לכאן או �
     <div
       className={cn(
         'border-2 border-dashed rounded-input p-6 text-center cursor-pointer transition',
-        dragOver ? 'border-primary bg-[#FCE7F3]/30' : 'border-[#EEEBF5] hover:border-primary/50',
+        dragOver ? 'border-primary bg-lilac/25/30' : 'border-ink/20 hover:border-primary/50',
         className
       )}
       onClick={() => inputRef.current?.click()}
@@ -32,8 +32,8 @@ function FileUpload({ onFile, accept, label = 'גרור קובץ לכאן או �
       onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
     >
-      <Upload className="mx-auto mb-2 text-[#9CA3AF]" size={24} />
-      <p className="text-sm text-[#6B7280]">{label}</p>
+      <Upload className="mx-auto mb-2 text-ink/50" size={24} />
+      <p className="text-sm text-ink/70">{label}</p>
       <input
         ref={inputRef}
         type="file"

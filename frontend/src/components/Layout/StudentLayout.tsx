@@ -1,13 +1,14 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Home, BookOpen, ClipboardList, MessageSquare, LogOut } from 'lucide-react';
+import { Home, ClipboardList, MessageSquare, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import useAuthStore from '@/store/authStore';
 import { authApi } from '@/api/auth.api';
+import { BrandMark } from '@/components/decor';
 
 const nav = [
-  { to: '/student', label: 'בית', icon: Home, end: true },
-  { to: '/student/assignments', label: 'מטלות', icon: ClipboardList },
-  { to: '/student/messages', label: 'הודעה למורה', icon: MessageSquare },
+  { to: '/student', label: 'בית', icon: Home, tag: '01', end: true },
+  { to: '/student/assignments', label: 'מטלות', icon: ClipboardList, tag: '02' },
+  { to: '/student/messages', label: 'הודעה למורה', icon: MessageSquare, tag: '03' },
 ];
 
 export default function StudentLayout() {
@@ -21,58 +22,86 @@ export default function StudentLayout() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden" dir="rtl">
-      {/* Slim sidebar */}
-      <aside className="w-[180px] flex-shrink-0 bg-[#1A1830] flex flex-col border-l border-[rgba(255,255,255,0.06)]">
-        <div className="px-4 py-5 border-b border-[rgba(255,255,255,0.06)]">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/student')}>
-            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center text-white font-bold text-lg">✦</div>
-            <div>
-              <p className="text-[#F0EAF8] text-xs font-semibold leading-tight">שיעורי בית</p>
-              <p className="text-[#A89BC2] text-[10px]">תלמידה</p>
+    <div className="flex min-h-screen flex-col bg-grid-paper" dir="rtl">
+      {/* Header */}
+      <header className="sticky top-0 z-30 border-b-4 border-ink bg-paper/85 backdrop-blur-sm">
+        <div className="mx-auto flex h-16 max-w-[1100px] items-center gap-4 px-4">
+          <button className="flex items-center gap-3" onClick={() => navigate('/student')}>
+            <BrandMark className="size-10" />
+            <div className="text-right leading-none">
+              <div className="font-display text-xl font-black text-ink">המחברת שלי</div>
+              <div className="mt-1 font-mono text-[10px] text-ink/60">Student · OS</div>
             </div>
+          </button>
+
+          {/* Nav (center) */}
+          <nav className="mx-auto hidden items-center gap-2 md:flex">
+            {nav.map(({ to, label, icon: Icon, tag, end }) => (
+              <NavLink key={to} to={to} end={end}>
+                {({ isActive }) => (
+                  <span
+                    className={cn(
+                      'flex items-center gap-2 border-2 border-ink px-3 py-1.5 text-sm font-bold transition-all duration-150 ease-linear',
+                      isActive
+                        ? 'bg-ink text-paper shadow-brutal-mustard'
+                        : 'bg-paper text-ink shadow-brutal-sm hover:-translate-x-0.5 hover:-translate-y-0.5',
+                    )}
+                  >
+                    <Icon size={15} className={isActive ? 'text-mustard' : 'text-ink/70'} />
+                    {label}
+                    <span className={cn('font-mono text-[10px]', isActive ? 'text-mustard' : 'text-ink/40')}>{tag}</span>
+                  </span>
+                )}
+              </NavLink>
+            ))}
+          </nav>
+
+          {/* Avatar (left) */}
+          <div
+            className="mr-auto flex items-center gap-2 border-2 border-ink bg-lilac px-2 py-1 shadow-brutal-sm md:mr-0"
+            style={{ transform: 'rotate(-2deg)' }}
+          >
+            <span className="grid size-7 place-items-center border-2 border-ink bg-paper font-display font-black">
+              {user?.name?.[0] ?? 'ת'}
+            </span>
+            <span className="hidden text-xs font-bold text-ink sm:block">{user?.name ?? 'תלמידה'}</span>
+            <button onClick={handleLogout} title="יציאה" className="text-ink/70 hover:text-tomato">
+              <LogOut size={14} />
+            </button>
           </div>
         </div>
 
-        <nav className="flex-1 py-3">
+        {/* Mobile nav */}
+        <nav className="flex items-center justify-center gap-2 border-t-2 border-ink/20 px-4 py-2 md:hidden">
           {nav.map(({ to, label, icon: Icon, end }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              className={({ isActive }) => cn(
-                'flex items-center gap-2.5 px-4 py-2 text-sm transition-all',
-                isActive ? 'sidebar-active' : 'text-[#A89BC2] hover:text-[#F0EAF8] hover:bg-white/5'
+            <NavLink key={to} to={to} end={end}>
+              {({ isActive }) => (
+                <span
+                  className={cn(
+                    'flex items-center gap-1.5 border-2 border-ink px-2.5 py-1 text-xs font-bold',
+                    isActive ? 'bg-ink text-paper' : 'bg-paper text-ink',
+                  )}
+                >
+                  <Icon size={13} /> {label}
+                </span>
               )}
-            >
-              <Icon size={15} />
-              {label}
             </NavLink>
           ))}
         </nav>
+      </header>
 
-        <div className="border-t border-[rgba(255,255,255,0.06)] px-4 py-3 flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full gradient-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-            {user?.name?.[0] ?? 'ת'}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[#F0EAF8] text-xs font-medium truncate">{user?.name}</p>
-          </div>
-          <button onClick={handleLogout} className="text-[#A89BC2] hover:text-[#F0EAF8]">
-            <LogOut size={14} />
-          </button>
+      <main className="mx-auto w-full max-w-[1100px] flex-1 px-4 py-6">
+        <Outlet />
+      </main>
+
+      <footer className="border-t-4 border-double border-ink bg-paper/70">
+        <div className="mx-auto flex max-w-[1100px] items-center justify-between px-4 py-3 font-mono text-[11px] text-ink/60">
+          <span className="border-2 border-ink bg-mustard px-1.5 py-0.5 font-bold text-ink">מסד</span>
+          <span className="flex items-center gap-2">
+            <span className="size-1.5 rounded-full bg-forest blink" /> ONLINE
+          </span>
         </div>
-      </aside>
-
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-[52px] bg-white border-b border-[#EEEBF5] flex items-center px-5">
-          <BookOpen size={16} className="text-primary ml-2" />
-          <p className="text-sm font-medium text-[#1A1830]">מערכת הגשת שיעורי בית</p>
-        </header>
-        <main className="flex-1 overflow-y-auto bg-[#F8F7FC] p-5">
-          <Outlet />
-        </main>
-      </div>
+      </footer>
     </div>
   );
 }

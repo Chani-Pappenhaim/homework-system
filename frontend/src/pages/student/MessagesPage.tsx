@@ -36,7 +36,7 @@ export default function StudentMessagesPage() {
         <CardHeader><h2 className="text-sm font-semibold">שלחי הודעה</h2></CardHeader>
         <CardContent className="space-y-3">
           {sent && (
-            <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-input p-3 text-sm text-[#065F46]">
+            <div className="bg-forest/10 border border-forest/30 rounded-input p-3 text-sm text-forest">
               ההודעה נשלחה בהצלחה ✓
             </div>
           )}
@@ -47,7 +47,7 @@ export default function StudentMessagesPage() {
             value={content}
             onChange={(e) => { setContent(e.target.value); setSent(false); }}
           />
-          {error && <p className="text-red-500 text-xs">{error}</p>}
+          {error && <p className="text-tomato text-xs">{error}</p>}
           <Button loading={mutation.isPending} onClick={() => mutation.mutate()} disabled={!content.trim()}>
             שלחי
           </Button>
@@ -57,20 +57,20 @@ export default function StudentMessagesPage() {
       {/* Message history with teacher replies */}
       {messages.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-[#6B7280]">ההודעות שלי</h2>
+          <h2 className="text-sm font-semibold text-ink/70">ההודעות שלי</h2>
           {messages.map((msg) => (
             <Card key={msg.id}>
               <CardContent className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-[#9CA3AF]">{formatDateTime(msg.createdAt)}</span>
+                  <span className="text-xs text-ink/50">{formatDateTime(msg.createdAt)}</span>
                   {msg.replyContent
                     ? <Badge variant="success">נענתה</Badge>
                     : <Badge variant="warning">ממתינה</Badge>}
                 </div>
                 <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                 {msg.replyContent && (
-                  <div className="mt-1 bg-[#F8F7FC] border-r-2 border-[#7C3AED] rounded-input px-3 py-2">
-                    <p className="text-xs text-[#9CA3AF] mb-0.5">תגובת המורה · {formatDateTime(msg.repliedAt)}</p>
+                  <div className="mt-1 bg-cream/60 border-r-2 border-cobalt rounded-input px-3 py-2">
+                    <p className="text-xs text-ink/50 mb-0.5">תגובת המורה · {formatDateTime(msg.repliedAt)}</p>
                     <p className="text-sm whitespace-pre-wrap">{msg.replyContent}</p>
                   </div>
                 )}

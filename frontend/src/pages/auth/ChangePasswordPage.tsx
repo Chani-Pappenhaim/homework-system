@@ -35,18 +35,18 @@ export default function ChangePasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F7FC] flex items-center justify-center p-4" dir="rtl">
+    <div className="min-h-screen bg-cream/60 flex items-center justify-center p-4" dir="rtl">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center text-white text-xl font-bold mb-4">✦</div>
-          <h1 className="text-[#1A1830] text-xl font-bold">שינוי סיסמא</h1>
-          <p className="text-[#6B7280] text-sm mt-1 text-center">
+          <div className="w-12 h-12 rounded-xl bg-mustard flex items-center justify-center text-white text-xl font-bold mb-4">✦</div>
+          <h1 className="text-ink text-xl font-bold">שינוי סיסמא</h1>
+          <p className="text-ink/70 text-sm mt-1 text-center">
             ברוכה הבאה, {user?.name}!<br />
             נא להגדיר סיסמא אישית לפני הכניסה למערכת.
           </p>
         </div>
 
-        <div className="bg-white rounded-card p-6 border border-[#EEEBF5] shadow-sm">
+        <div className="bg-white rounded-card p-6 border border-ink/20 shadow-sm">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <Input
               label="סיסמא נוכחית"
@@ -75,7 +75,7 @@ export default function ChangePasswordPage() {
             />
 
             {error && (
-              <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-input px-3 py-2">
+              <p className="text-tomato text-sm bg-tomato/10 border border-tomato/40 rounded-input px-3 py-2">
                 {error}
               </p>
             )}

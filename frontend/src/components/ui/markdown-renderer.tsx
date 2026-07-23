@@ -23,7 +23,7 @@ function MarkdownRenderer({ content, className }: Props) {
     <div className={className}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        className="prose prose-sm max-w-none text-[#1A1830] prose-headings:text-[#1A1830] prose-code:bg-[#F3F4F6] prose-code:px-1 prose-code:rounded"
+        className="prose prose-sm max-w-none text-ink prose-headings:text-ink prose-code:bg-cream prose-code:px-1 prose-code:rounded"
       >
         {content}
       </ReactMarkdown>
