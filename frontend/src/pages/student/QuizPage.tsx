@@ -13,18 +13,29 @@ export default function QuizPage() {
   const [answers, setAnswers] = useState<number[]>([]);
   const [result, setResult] = useState<{ score: number; correct: number; total: number } | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const [timedOut, setTimedOut] = useState(false);
+
+  const { data, isLoading, refetch } = useQuery({
     queryKey: ['quiz', lessonId],
     queryFn: () => quizzesApi.get(lessonId!),
     refetchInterval: (query) => {
       const status = (query.state.data?.data as any)?.data?.status;
-      return status === 'generating' ? 3000 : false;
+      // Stop polling once ready, or after we've given up (see the timeout below).
+      return status === 'generating' && !timedOut ? 3000 : false;
     },
   });
 
   const quizData = (data?.data as any)?.data;
   const status: 'generating' | 'ready' = quizData?.status ?? 'generating';
   const quiz = quizData?.quiz;
+
+  // Don't spin forever: if generation hasn't finished within 90s (e.g. the AI
+  // provider isn't reachable), stop and let the student retry.
+  useEffect(() => {
+    if (status !== 'generating') { setTimedOut(false); return; }
+    const t = setTimeout(() => setTimedOut(true), 90_000);
+    return () => clearTimeout(t);
+  }, [status]);
 
   useEffect(() => {
     if (quiz?.questions) {
@@ -41,12 +52,31 @@ export default function QuizPage() {
 
   if (isLoading) return <div className="p-6 font-mono text-ink/50">טוען…</div>;
 
+  if (status === 'generating' && timedOut) {
+    return (
+      <div className="mx-auto max-w-md py-16 text-center" dir="rtl">
+        <div className="border-2 border-ink bg-paper p-6 shadow-brutal">
+          <p className="font-display text-xl font-black text-ink">יצירת החידון נמשכת יותר מדי</p>
+          <p className="mt-2 font-mono text-xs text-ink/60">
+            ייתכן שיש תקלה זמנית ביצירת השאלות. אפשר לנסות שוב.
+          </p>
+          <button
+            onClick={() => { setTimedOut(false); refetch(); }}
+            className="mt-4 border-2 border-ink bg-mustard px-4 py-2 font-bold text-ink shadow-brutal-sm hover-lift"
+          >
+            נסי שוב
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (status === 'generating') {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20" dir="rtl">
         <div className="size-10 animate-spin border-2 border-ink border-t-transparent" />
         <p className="text-sm font-bold text-ink">החידון נוצר, אנא המתיני…</p>
-        <p className="font-mono text-xs text-ink/50">Claude AI מכין שאלות בעברית על תוכן השיעור</p>
+        <p className="font-mono text-xs text-ink/50">מכינים שאלות בעברית על תוכן השיעור</p>
       </div>
     );
   }
