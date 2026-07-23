@@ -1,35 +1,40 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, Users, BookOpen, BarChart2, MessageSquare, Sparkles, LogOut } from 'lucide-react';
+import {
+  LayoutDashboard, BookOpen, Users, BarChart2, Sparkles, MessageSquare,
+  Bell, Plus, LogOut, Search, Zap,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import useAuthStore from '@/store/authStore';
 import { authApi } from '@/api/auth.api';
 import { messagesApi } from '@/api/messages.api';
+import { BrandMark, Tape, Paperclip, Stamp } from '@/components/decor';
 
+/** Notebook table-of-contents. `tag` is the mono 01–06 index-card number. */
 const nav = [
-  { section: 'ניהול', items: [
-    { to: '/teacher', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
-    { to: '/teacher/courses', label: 'קורסים', icon: BookOpen },
-    { to: '/teacher/groups', label: 'קבוצות', icon: Users },
-  ]},
-  { section: 'דוחות', items: [
-    // "ייצוא Excel" used to live here pointing at ?export=1, which ReportsPage
-    // never read — it silently did nothing and lit up alongside "ציונים".
-    // The working export button lives on the reports page itself.
-    { to: '/teacher/reports', label: 'ציונים', icon: BarChart2 },
-    { to: '/teacher/ai-usage', label: 'שימוש AI', icon: Sparkles },
-  ]},
+  { to: '/teacher', label: 'לוח בקרה', icon: LayoutDashboard, tag: '01', end: true },
+  { to: '/teacher/courses', label: 'קורסים', icon: BookOpen, tag: '02' },
+  { to: '/teacher/groups', label: 'קבוצות', icon: Users, tag: '03' },
+  { to: '/teacher/reports', label: 'ציונים', icon: BarChart2, tag: '04' },
+  { to: '/teacher/ai-usage', label: 'שימוש AI', icon: Sparkles, tag: '05' },
+  { to: '/teacher/messages', label: 'הודעות', icon: MessageSquare, tag: '06' },
+];
+
+const shortcuts = [
+  { label: 'חיפוש', keys: '⌘K' },
+  { label: 'מטלה חדשה', keys: '⌘N' },
+  { label: 'הבא בתור', keys: 'J' },
 ];
 
 export default function TeacherLayout() {
   const { user, clearAuth } = useAuthStore();
+  const navigate = useNavigate();
   const { data: unreadData } = useQuery({
     queryKey: ['unread-messages'],
     queryFn: () => messagesApi.getUnreadCount(),
     refetchInterval: 60_000,
   });
   const unreadCount: number = (unreadData?.data as any)?.data?.count ?? 0;
-  const navigate = useNavigate();
 
   async function handleLogout() {
     await authApi.logout().catch(() => {});
@@ -38,90 +43,167 @@ export default function TeacherLayout() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden" dir="rtl">
-      {/* Sidebar */}
-      <aside className="w-[200px] flex-shrink-0 bg-[#1A1830] flex flex-col border-l border-[rgba(255,255,255,0.06)]">
-        {/* Logo */}
-        <div className="px-4 py-5 border-b border-[rgba(255,255,255,0.06)]">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/teacher')}>
-            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center text-white font-bold text-lg">✦</div>
-            <div>
-              <p className="text-[#F0EAF8] text-sm font-semibold leading-tight">מערכת שיעורי בית</p>
-              <p className="text-[#A89BC2] text-xs">מורה</p>
+    <div className="flex min-h-screen flex-col bg-grid-paper" dir="rtl">
+      {/* Header */}
+      <header className="sticky top-0 z-30 border-b-4 border-ink bg-paper/85 backdrop-blur-sm">
+        <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-4 px-4">
+          {/* Brand (right in RTL) */}
+          <button className="flex items-center gap-3" onClick={() => navigate('/teacher')}>
+            <BrandMark />
+            <div className="text-right leading-none">
+              <div className="font-display text-2xl font-black text-ink">מסד</div>
+              <div className="mt-1 flex items-center gap-1.5 font-mono text-[10px] text-ink/60">
+                <span className="size-1.5 rounded-full bg-forest blink" />
+                Homework · OS
+              </div>
             </div>
+          </button>
+
+          {/* Search (center) */}
+          <div className="mx-auto hidden w-full max-w-md items-center gap-2 border-2 border-ink bg-paper px-3 py-2 shadow-brutal-sm transition-all focus-within:shadow-brutal md:flex">
+            <Search size={16} className="text-ink/50" />
+            <input
+              className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink/40"
+              placeholder="חיפוש תלמידה, מטלה, קורס…"
+            />
+            <kbd className="border-2 border-ink bg-mustard px-1.5 py-0.5 font-mono text-[10px] font-bold text-ink">⌘K</kbd>
           </div>
-        </div>
 
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-3">
-          {nav.map(({ section, items }) => (
-            <div key={section} className="mb-4">
-              <p className="px-4 text-[10px] font-semibold uppercase tracking-widest text-[#A89BC2]/60 mb-1">{section}</p>
-              {items.map(({ to, label, icon: Icon }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  end={to === '/teacher'}
-                  className={({ isActive }) => cn(
-                    'flex items-center gap-2.5 px-4 py-2 text-sm transition-all',
-                    isActive ? 'sidebar-active' : 'text-[#A89BC2] hover:text-[#F0EAF8] hover:bg-white/5'
-                  )}
-                >
-                  <Icon size={15} />
-                  {label}
-                </NavLink>
-              ))}
-            </div>
-          ))}
-
-          <div className="px-4 mt-2">
-            <NavLink
-              to="/teacher/messages"
-              className={({ isActive }) => cn(
-                'flex items-center gap-2.5 px-0 py-2 text-sm transition-all',
-                isActive ? 'text-[#F0EAF8]' : 'text-[#A89BC2] hover:text-[#F0EAF8]'
-              )}
-            >
-              <MessageSquare size={15} />
-              הודעות
+          {/* Actions (left) */}
+          <div className="mr-auto flex items-center gap-2 md:mr-0">
+            <button className="relative grid size-9 place-items-center border-2 border-ink bg-paper shadow-brutal-sm hover-lift">
+              <Bell size={16} />
               {unreadCount > 0 && (
-                <span className="mr-auto bg-primary text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+                <span className="absolute -left-2 -top-2 grid size-5 place-items-center rounded-full border-2 border-ink bg-tomato font-mono text-[10px] font-bold text-paper">
                   {unreadCount}
                 </span>
               )}
-            </NavLink>
+            </button>
+            <button
+              onClick={() => navigate('/teacher/courses')}
+              className="hidden items-center gap-2 border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm hover-lift sm:flex"
+            >
+              <span className="grid size-4 place-items-center bg-mustard"><Plus size={12} /></span>
+              מטלה חדשה
+            </button>
+            <div
+              className="flex items-center gap-2 border-2 border-ink bg-lilac px-2 py-1 shadow-brutal-sm"
+              style={{ transform: 'rotate(-2deg)' }}
+            >
+              <span className="grid size-7 place-items-center border-2 border-ink bg-paper font-display font-black">
+                {user?.name?.[0] ?? 'מ'}
+              </span>
+              <div className="hidden text-right leading-tight lg:block">
+                <div className="text-xs font-bold text-ink">{user?.name ?? 'מורה'}</div>
+                <div className="font-mono text-[10px] text-ink/70">מנהלת</div>
+              </div>
+              <button onClick={handleLogout} title="יציאה" className="text-ink/70 hover:text-tomato">
+                <LogOut size={14} />
+              </button>
+            </div>
           </div>
-        </nav>
-
-        {/* Footer */}
-        <div className="border-t border-[rgba(255,255,255,0.06)] px-4 py-3 flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full gradient-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-            {user?.name?.[0] ?? 'מ'}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[#F0EAF8] text-xs font-medium truncate">{user?.name}</p>
-            <p className="text-[#A89BC2] text-[10px]">מנהל</p>
-          </div>
-          <button onClick={handleLogout} className="text-[#A89BC2] hover:text-[#F0EAF8] transition">
-            <LogOut size={14} />
-          </button>
         </div>
-      </aside>
+      </header>
 
-      {/* Main */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Topbar */}
-        <header className="h-[52px] bg-white border-b border-[#EEEBF5] flex items-center px-5 flex-shrink-0">
-          <p className="text-sm text-[#6B7280]">
-            {new Intl.DateTimeFormat('he-IL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())}
-          </p>
-        </header>
+      {/* Body: sidebar (right) + main */}
+      <div className="mx-auto flex w-full max-w-[1400px] flex-1 gap-6 px-4 py-6">
+        <aside className="hidden w-[240px] shrink-0 flex-col gap-5 lg:flex">
+          {/* Table of contents */}
+          <nav>
+            <div className="mb-2 flex items-baseline justify-between">
+              <span className="font-display text-sm font-bold text-ink">תוכן עניינים</span>
+              <span className="font-mono text-[11px] text-ink/45">A/06</span>
+            </div>
+            <div className="flex flex-col gap-2">
+              {nav.map(({ to, label, icon: Icon, tag, end }) => (
+                <NavLink key={to} to={to} end={end}>
+                  {({ isActive }) => (
+                    <div
+                      className={cn(
+                        'flex items-center gap-2.5 border-2 border-ink px-3 py-2.5 text-sm font-bold transition-all duration-150 ease-linear',
+                        isActive
+                          ? 'bg-ink text-paper shadow-brutal-mustard'
+                          : 'bg-paper text-ink shadow-brutal-sm hover:-translate-x-0.5 hover:-translate-y-0.5',
+                      )}
+                    >
+                      <Icon size={16} className={isActive ? 'text-mustard' : 'text-ink/70'} />
+                      <span className="flex-1">{label}</span>
+                      {to === '/teacher/messages' && unreadCount > 0 && (
+                        <span className="grid size-4 place-items-center rounded-full bg-tomato font-mono text-[10px] text-paper">
+                          {unreadCount}
+                        </span>
+                      )}
+                      {isActive ? (
+                        <span className="text-mustard">←</span>
+                      ) : (
+                        <span className="font-mono text-[11px] text-ink/40">{tag}</span>
+                      )}
+                    </div>
+                  )}
+                </NavLink>
+              ))}
+            </div>
+          </nav>
 
-        {/* Content */}
-        <main className="flex-1 overflow-y-auto bg-[#F8F7FC] p-5">
+          {/* Sticky-note hot alert */}
+          <div
+            className="relative border-2 border-ink bg-mustard p-3 shadow-brutal"
+            style={{ transform: 'rotate(-2deg)' }}
+          >
+            <Tape color="lilac" rotate={4} className="-top-3 right-6 h-5 w-16" />
+            <div className="mb-1 flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-wide text-ink">
+              <Zap size={13} /> התראה חמה
+            </div>
+            <p className="text-sm leading-snug text-ink">
+              <span className="scribble-underline font-bold">נעמה</span> הגישה מטלה באיחור — ממתינה לבדיקה.
+            </p>
+            <div className="mt-2 flex items-center justify-between">
+              <button
+                onClick={() => navigate('/teacher/messages')}
+                className="border-2 border-ink bg-paper px-2 py-1 text-xs font-bold shadow-brutal-sm hover-lift"
+              >
+                פתחי לבדיקה →
+              </button>
+              <Stamp>URGENT</Stamp>
+            </div>
+          </div>
+
+          {/* Shortcuts */}
+          <div className="relative border-2 border-ink bg-ruled p-3 shadow-brutal-sm">
+            <Paperclip rotate={-10} className="-top-4 left-6" />
+            <div className="mb-2 font-mono text-[11px] font-bold uppercase tracking-wide text-ink/70">קיצורים</div>
+            <div className="flex flex-col gap-1.5">
+              {shortcuts.map((s) => (
+                <div key={s.label} className="flex items-center justify-between text-sm">
+                  <span className="text-ink">{s.label}</span>
+                  <kbd className="border-2 border-ink bg-mustard px-1.5 py-0.5 font-mono text-[10px] font-bold text-ink">
+                    {s.keys}
+                  </kbd>
+                </div>
+              ))}
+            </div>
+          </div>
+        </aside>
+
+        {/* Main */}
+        <main className="min-w-0 flex-1">
           <Outlet />
         </main>
       </div>
+
+      {/* Footer */}
+      <footer className="border-t-4 border-double border-ink bg-paper/70">
+        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-2 px-4 py-3 font-mono text-[11px] text-ink/60">
+          <div className="flex items-center gap-2">
+            <span className="border-2 border-ink bg-mustard px-1.5 py-0.5 font-bold text-ink">מסד</span>
+            <span>Homework OS · v3</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="size-1.5 rounded-full bg-forest blink" />
+            <span>ONLINE · build 2026.07</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

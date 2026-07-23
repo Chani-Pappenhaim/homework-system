@@ -29,17 +29,17 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
           className={cn(
-            'w-full rounded-input border bg-card px-3 py-2 text-sm text-foreground',
-            'placeholder:text-muted-foreground/70 transition',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary',
+            'w-full border-2 border-ink bg-paper px-3 py-2 text-sm text-ink shadow-brutal-sm',
+            'placeholder:text-ink/45 transition-all duration-150 ease-linear',
+            'focus-visible:outline-none focus-visible:shadow-brutal focus-visible:-translate-x-0.5 focus-visible:-translate-y-0.5',
             'disabled:cursor-not-allowed disabled:opacity-50',
-            error ? 'border-destructive' : 'border-input',
+            error && 'border-tomato',
             className
           )}
           {...props}
         />
         {error && (
-          <span id={errorId} className="text-xs text-destructive">
+          <span id={errorId} className="font-mono text-xs text-tomato">
             {error}
           </span>
         )}

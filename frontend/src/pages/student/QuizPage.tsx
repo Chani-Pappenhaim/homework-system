@@ -52,7 +52,7 @@ export default function QuizPage() {
   if (result) {
     return (
       <div className="max-w-lg mx-auto space-y-5" dir="rtl">
-        <Card accent="primary">
+        <Card accent="cobalt">
           <CardContent className="text-center space-y-2">
             <p className="text-5xl font-bold text-primary">{Math.round(result.score)}%</p>
             <p className="text-[#6B7280]">{result.correct} מתוך {result.total} תשובות נכונות</p>

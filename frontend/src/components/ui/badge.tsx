@@ -2,21 +2,23 @@ import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
+/* Hard-cornered, ink-bordered chips — colored fills from the riso palette. */
 const badgeVariants = cva(
-  'inline-flex items-center rounded-badge border px-2.5 py-0.5 text-xs font-medium',
+  'inline-flex items-center gap-1 border-2 border-ink px-2 py-0.5 text-xs font-bold uppercase tracking-wide',
   {
     variants: {
       variant: {
-        default: 'border-primary/30 bg-primary/15 text-primary',
-        secondary: 'border-secondary/30 bg-secondary/15 text-secondary',
-        success: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-600',
-        warning: 'border-amber-500/30 bg-amber-500/15 text-amber-600',
-        destructive: 'border-destructive/30 bg-destructive/15 text-destructive',
-        muted: 'border-transparent bg-muted text-muted-foreground',
+        default: 'bg-mustard text-ink',
+        secondary: 'bg-lilac text-ink',
+        success: 'bg-forest text-paper',
+        warning: 'bg-mustard text-ink',
+        destructive: 'bg-tomato text-paper',
+        ai: 'bg-plum text-paper',
+        muted: 'bg-cream text-ink',
       },
     },
     defaultVariants: { variant: 'muted' },
-  }
+  },
 );
 
 interface BadgeProps

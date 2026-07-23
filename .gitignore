@@ -47,3 +47,6 @@ CLAUDE.md
 AGENT_SPEC.md
         
 ##
+
+# dev server logs
+frontend/vite.log

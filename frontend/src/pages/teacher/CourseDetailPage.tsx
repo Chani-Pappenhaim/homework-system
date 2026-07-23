@@ -63,7 +63,7 @@ export default function CourseDetailPage() {
       </div>
 
       {/* Lesson bubbles */}
-      <Card accent="primary">
+      <Card accent="cobalt">
         <CardHeader>
           <h2 className="font-semibold text-sm">שיעורים ({course.lessons.length})</h2>
         </CardHeader>

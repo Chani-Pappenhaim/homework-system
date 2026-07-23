@@ -3,46 +3,52 @@ import { Slot } from '@radix-ui/react-slot';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
+/*
+  Buttons are taped labels / stamped tickets — never generic filled buttons.
+  Every solid variant carries a 2px ink border + hard shadow and lifts on hover
+  (hover-lift = translate -2,-2 & shadow grows). No fades, no scales.
+*/
 const buttonVariants = cva(
   cn(
-    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-input font-medium transition-all',
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-ring',
-    'disabled:pointer-events-none disabled:opacity-50'
+    'inline-flex items-center justify-center gap-2 whitespace-nowrap font-sans font-bold',
+    'border-2 border-ink transition-all duration-150 ease-linear select-none',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper',
+    'disabled:pointer-events-none disabled:opacity-50',
   ),
   {
     variants: {
       variant: {
-        // The brand gradient is the primary action, so `default` keeps it
-        // rather than the flat `bg-primary` shadcn ships with.
-        default: 'gradient-primary text-primary-foreground shadow-sm hover:opacity-90',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/90',
-        destructive:
-          'bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive',
-        outline:
-          'border border-border bg-card text-muted-foreground hover:bg-accent/40 focus-visible:ring-muted-foreground/40',
-        ghost: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-        link: 'text-primary underline-offset-4 hover:underline',
+        // White taped button — the standard primary action ("מטלה חדשה +").
+        default: 'bg-paper text-ink shadow-brutal-sm hover-lift',
+        // Mustard ticket — high-emphasis submit.
+        mustard: 'bg-mustard text-ink shadow-brutal-sm hover-lift',
+        // Solid ink — active/selected emphasis.
+        ink: 'bg-ink text-paper shadow-brutal-sm hover-lift',
+        secondary: 'bg-cream text-ink shadow-brutal-sm hover-lift',
+        destructive: 'bg-tomato text-paper shadow-brutal-sm hover-lift',
+        // Bordered, no fill — presses in on hover instead of lifting.
+        outline: 'bg-transparent text-ink hover-press',
+        // No border/shadow — a quiet inline control.
+        ghost: 'border-transparent text-ink hover:bg-mustard/25',
+        // Text link with a mustard highlighter swipe on hover.
+        link: 'border-transparent text-ink underline-offset-4 hover:underline',
       },
       size: {
         sm: 'px-3 py-1.5 text-xs',
         default: 'px-4 py-2 text-sm',
         lg: 'px-6 py-2.5 text-base',
-        icon: 'h-9 w-9',
+        icon: 'size-9 p-0',
       },
     },
     defaultVariants: { variant: 'default', size: 'default' },
-  }
+  },
 );
 
 interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean;
-  /**
-   * Not part of upstream shadcn. Kept because nearly every action here is a
-   * react-query mutation, and `loading={m.isPending}` is what disables the
-   * button and shows the spinner in one prop.
-   */
+  /** `loading={m.isPending}` disables the button and shows the spinner. */
   loading?: boolean;
 }
 
@@ -56,22 +62,13 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         className={cn(buttonVariants({ variant, size }), className)}
         {...props}
       >
-        {/* Slot renders into the child element, which must stay a single node,
-            so the spinner is only ever added when we own the <button>. */}
         {asChild ? (
           children
         ) : (
           <>
             {loading && (
-              <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
+              <svg className="size-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
               </svg>
             )}
@@ -80,7 +77,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         )}
       </Comp>
     );
-  }
+  },
 );
 Button.displayName = 'Button';
 

@@ -46,7 +46,7 @@ export default function StudentCourseDetailPage() {
       </Card>
 
       {/* Lesson bubbles */}
-      <Card accent="primary">
+      <Card accent="cobalt">
         <CardHeader><h2 className="font-semibold text-sm">שיעורים</h2></CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-3">

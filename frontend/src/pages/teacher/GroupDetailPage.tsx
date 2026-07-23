@@ -41,7 +41,7 @@ export default function GroupDetailPage() {
       </div>
 
       {/* Courses of this group */}
-      <Card accent="primary">
+      <Card accent="cobalt">
         <CardHeader>
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-sm flex items-center gap-1.5">

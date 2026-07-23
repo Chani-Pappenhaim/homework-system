@@ -46,7 +46,7 @@ export default function StudentHomePage() {
             return (
               <Card
                 key={c.id}
-                accent="primary"
+                accent="cobalt"
                 className="cursor-pointer hover:shadow-md transition"
                 onClick={() => navigate(`/student/courses/${c.id}`)}
               >
