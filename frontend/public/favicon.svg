@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- מסד brand mark: mustard square, ink border, "מ", tomato corner dot -->
+  <g transform="rotate(-3 32 32)">
+    <rect x="8" y="8" width="48" height="48" fill="#e6b422" stroke="#1c1a2e" stroke-width="4"/>
+    <text x="32" y="46" font-family="Georgia, 'Frank Ruhl Libre', serif" font-size="40" font-weight="900"
+          text-anchor="middle" fill="#1c1a2e">מ</text>
+    <circle cx="12" cy="12" r="5" fill="#e0451f" stroke="#1c1a2e" stroke-width="3"/>
+  </g>
+</svg>

@@ -159,7 +159,7 @@ export default function GroupFormPage() {
         <div className="flex gap-2 mb-4">
           {(['manual', 'excel'] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-3 py-1.5 text-sm rounded-input transition ${tab === t ? 'bg-mustard text-white' : 'border border-ink/20 text-ink/70'}`}>
+              className={`border-2 px-3 py-1.5 text-sm font-bold transition ${tab === t ? 'border-ink bg-ink text-paper' : 'border-ink/30 text-ink/70 hover:border-ink'}`}>
               {t === 'manual' ? 'הוספה ידנית' : 'ייבוא מ-Excel'}
             </button>
           ))}

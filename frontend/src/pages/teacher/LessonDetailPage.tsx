@@ -283,7 +283,7 @@ export default function LessonDetailPage() {
               <div className="flex gap-2 flex-wrap">
                 {lesson.assignments.map((a, i) => (
                   <button key={a.id} onClick={() => setSelectedAssignment(i)}
-                    className={`px-3 py-1.5 text-sm rounded-input transition ${i === selectedAssignment ? 'bg-mustard text-white' : 'border border-ink/20 text-ink/70 hover:bg-cream/60'}`}>
+                    className={`border-2 px-3 py-1.5 text-sm font-bold transition ${i === selectedAssignment ? 'border-ink bg-ink text-paper' : 'border-ink/30 text-ink/70 hover:border-ink hover:bg-cream/60'}`}>
                     {a.title}
                   </button>
                 ))}
@@ -553,7 +553,7 @@ export default function LessonDetailPage() {
 
             {/* AI review info for the teacher */}
             {gradeModal.aiStatus === 'done' && (
-              <div className="bg-lilac/30/40 border border-ink/20 rounded-input px-3 py-2 text-sm space-y-1.5">
+              <div className="border-2 border-ink bg-lilac/30 px-3 py-2 text-sm space-y-1.5">
                 <div className="flex items-center justify-between">
                   <p className="flex items-center gap-1.5 font-medium text-plum">
                     <Bot size={14} /> בדיקת AI — ציון: {gradeModal.aiScore ?? '—'}

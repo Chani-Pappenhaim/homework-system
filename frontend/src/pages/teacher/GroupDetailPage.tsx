@@ -65,9 +65,9 @@ export default function GroupDetailPage() {
                 <button
                   key={c.id}
                   onClick={() => navigate(`/teacher/courses/${c.id}`)}
-                  className="flex items-center gap-2 px-4 py-3 rounded-xl border border-ink/20 text-right hover:border-primary/40 hover:bg-[rgba(194,24,91,0.03)] transition"
+                  className="flex items-center gap-2 border-2 border-ink bg-paper px-4 py-3 text-right shadow-brutal-sm transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5"
                 >
-                  <BookOpen size={16} className="text-primary flex-shrink-0" />
+                  <BookOpen size={16} className="shrink-0 text-ink" />
                   <span className="text-sm font-medium text-ink">{c.name}</span>
                 </button>
               ))}

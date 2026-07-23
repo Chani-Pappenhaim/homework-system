@@ -75,11 +75,8 @@ export default function CourseDetailPage() {
               <button
                 key={l.id}
                 onClick={() => navigate(`/teacher/lessons/${l.id}`)}
-                className={`relative flex flex-col items-center justify-center w-16 h-16 rounded-xl border-2 transition text-sm font-semibold
-                  ${l.hidden
-                    ? 'border-ink/20 bg-cream/60 text-ink/50'
-                    : 'border-primary/20 bg-[rgba(194,24,91,0.05)] text-primary hover:bg-[rgba(194,24,91,0.1)]'
-                  }`}
+                className={`relative grid size-16 place-items-center border-2 border-ink font-display text-lg font-black shadow-brutal-sm transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5
+                  ${l.hidden ? 'bg-cream/60 text-ink/40' : 'bg-paper text-ink'}`}
               >
                 <span>{i + 1}</span>
                 {l.hidden && <Lock size={10} className="absolute top-1 left-1 text-ink/50" />}
