@@ -5,7 +5,7 @@ import useAuthStore from '@/store/authStore';
 import { API_URL } from '@/lib/config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { BrandMark, Tape } from '@/components/decor';
+import { Brand, Tape } from '@/components/decor';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -51,19 +51,17 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-grid-paper p-4" dir="rtl">
+    <div className="flex min-h-screen items-center justify-center bg-graph p-4" dir="rtl">
       <div className="relative w-full max-w-sm">
-        {/* Logo */}
-        <div className="mb-6 flex flex-col items-center">
-          <BrandMark className="size-14" />
-          <h1 className="mt-4 font-display text-3xl font-black text-ink">ברוכה הבאה</h1>
-          <p className="mt-1 font-mono text-xs uppercase tracking-wider text-ink/60">מסד · Homework OS</p>
+        {/* Brand */}
+        <div className="mb-6">
+          <Brand variant="hero" teacher />
         </div>
 
         {/* Card */}
-        <div className="relative border-2 border-ink bg-paper p-6 shadow-brutal-lg">
-          <Tape color="mustard" rotate={-5} className="-top-3.5 right-10 h-6 w-24" />
-          <Tape color="lilac" rotate={4} className="-top-3.5 left-10 h-6 w-20" />
+        <div className="relative rounded-xl border border-rule bg-sheet p-6 shadow-lift">
+          <Tape color="clay" rotate={-4} className="-top-2.5 right-10 w-20" />
+          <Tape color="indigo" rotate={4} className="-top-2.5 left-10 w-16" />
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <Input
               label="כתובת אימייל"
@@ -84,21 +82,21 @@ export default function LoginPage() {
             />
 
             {error && (
-              <p className="border-2 border-tomato bg-tomato/10 px-3 py-2 font-mono text-sm text-tomato">
+              <p className="border border-coral bg-coral/10 px-3 py-2 font-sans text-sm text-coral">
                 {error}
               </p>
             )}
 
-            <Button type="submit" variant="mustard" loading={loading} className="mt-1 w-full" size="lg">
+            <Button type="submit" variant="clay" loading={loading} className="mt-1 w-full" size="lg">
               כניסה למערכת
             </Button>
           </form>
 
           {/* Divider */}
           <div className="my-5 flex items-center gap-3">
-            <div className="h-0.5 flex-1 border-t-2 border-dashed border-ink/30" />
-            <span className="font-mono text-[11px] uppercase text-ink/50">או המשיכי עם</span>
-            <div className="h-0.5 flex-1 border-t-2 border-dashed border-ink/30" />
+            <div className="h-0.5 flex-1 border-t border-dashed border-rule/30" />
+            <span className="font-sans text-[11px] uppercase text-ink/50">או המשיכי עם</span>
+            <div className="h-0.5 flex-1 border-t border-dashed border-rule/30" />
           </div>
 
           {/* OAuth */}
@@ -106,7 +104,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => handleOAuth('google')}
-              className="flex w-full items-center justify-center gap-2 border-2 border-ink bg-paper py-2 text-sm font-bold text-ink shadow-brutal-sm hover-lift"
+              className="flex w-full items-center justify-center gap-2 border border-rule bg-sheet py-2 text-sm font-bold text-ink shadow-soft lift"
             >
               <svg width="18" height="18" viewBox="0 0 48 48">
                 <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.2l6.8-6.8C35.8 2.5 30.3 0 24 0 14.8 0 6.9 5.4 3 13.3l7.9 6.1C12.9 13.2 17.9 9.5 24 9.5z"/>
@@ -120,7 +118,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => handleOAuth('github')}
-              className="flex w-full items-center justify-center gap-2 border-2 border-ink bg-paper py-2 text-sm font-bold text-ink shadow-brutal-sm hover-lift"
+              className="flex w-full items-center justify-center gap-2 border border-rule bg-sheet py-2 text-sm font-bold text-ink shadow-soft lift"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.2 11.4.6.1.82-.26.82-.57v-2c-3.34.73-4.04-1.6-4.04-1.6-.54-1.4-1.33-1.77-1.33-1.77-1.08-.74.08-.72.08-.72 1.2.08 1.83 1.23 1.83 1.23 1.06 1.82 2.78 1.3 3.46.99.1-.77.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.1-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 016 0c2.28-1.55 3.29-1.23 3.29-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.68.83.57C20.57 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z"/>

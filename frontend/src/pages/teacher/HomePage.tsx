@@ -1,22 +1,20 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Pencil, Sparkles, CheckSquare, Square } from 'lucide-react';
+import { Pencil, Sparkles } from 'lucide-react';
 import useAuthStore from '@/store/authStore';
 import useUiStore from '@/store/uiStore';
 import { groupsApi } from '@/api/groups.api';
 import { coursesApi } from '@/api/courses.api';
 import { gradesApi } from '@/api/grades.api';
 import { aiUsageApi } from '@/api/aiUsage.api';
-import { Ticker, Tape, Paperclip, StatusPill, type PillVariant } from '@/components/decor';
-import { cn, formatDateTime } from '@/lib/utils';
+import { Tape, StatusPill, type PillVariant } from '@/components/decor';
+import { cn } from '@/lib/utils';
 import type { ReportRow } from '@/types';
 
-/** Relative "לפני X" from an ISO timestamp — mono meta on each queue row. */
 function relTime(iso?: string): string {
   if (!iso) return '—';
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60000);
+  const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
   if (m < 1) return 'עכשיו';
   if (m < 60) return `לפני ${m}′`;
   const h = Math.floor(m / 60);
@@ -24,14 +22,11 @@ function relTime(iso?: string): string {
   return `לפני ${Math.floor(h / 24)}י׳`;
 }
 
-function greetingWord(): string {
+function greeting(): string {
   const h = new Date().getHours();
-  if (h < 12) return 'בוקר טוב';
-  if (h < 18) return 'צהריים טובים';
-  return 'ערב טוב';
+  return h < 12 ? 'בוקר טוב' : h < 18 ? 'צהריים טובים' : 'ערב טוב';
 }
 
-/** Row state → StatusPill. graded = approved, submitted-not-graded = pending AI. */
 function rowStatus(r: ReportRow): { variant: PillVariant; label: string } {
   if (r.contentScore != null) return { variant: 'approved', label: 'אושר' };
   if (r.submissionScore != null) return { variant: 'ai', label: 'נבדק AI' };
@@ -58,294 +53,105 @@ export default function TeacherHomePage() {
 
   const q = search.trim().toLowerCase();
   const matches = (r: ReportRow) =>
-    !q ||
-    [r.studentName, r.courseName, r.assignmentTitle, r.groupName]
-      .some((f) => f?.toLowerCase().includes(q));
+    !q || [r.studentName, r.courseName, r.assignmentTitle, r.groupName].some((f) => f?.toLowerCase().includes(q));
 
   const queue = report.filter((r) => r.contentScore == null && matches(r));
   const graded = report.filter((r) => r.contentScore != null);
-  const visibleQueue = showAll ? queue : queue.slice(0, 8);
-  const avg =
-    graded.length > 0
-      ? (graded.reduce((s, r) => s + (r.contentScore ?? 0), 0) / graded.length).toFixed(1)
-      : '—';
-  const spotlight = queue[0]; // the "live" student in the mirror panel
-  const lastGraded = graded[0];
+  const visible = showAll ? queue : queue.slice(0, 8);
+  const avg = graded.length
+    ? (graded.reduce((s, r) => s + (r.contentScore ?? 0), 0) / graded.length).toFixed(1)
+    : '—';
 
-  const dateMeta = new Intl.DateTimeFormat('he-IL', {
-    weekday: 'long', day: 'numeric', month: 'long',
-  }).format(new Date());
-  const clock = new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit' }).format(new Date());
+  const dateMeta = new Intl.DateTimeFormat('he-IL', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
 
   const kpis = [
-    { tag: '01', accent: 'cobalt' as const, value: groups.length, label: 'קבוצות', hint: 'פעילות', trend: 'יציב', to: '/teacher/groups' },
-    { tag: '02', accent: 'plum' as const, value: courses.length, label: 'קורסים', hint: 'במערכת', trend: 'עדכני', to: '/teacher/courses' },
-    { tag: '03', accent: 'tomato' as const, value: pending, label: 'ממתינות לבדיקה', hint: 'תור פתוח', trend: pending > 0 ? 'דורש טיפול' : 'ריק', to: '/teacher/reports' },
-    { tag: '04', accent: 'forest' as const, value: aiCost != null ? `$${Number(aiCost).toFixed(2)}` : '—', label: 'עלות AI', hint: 'החודש', trend: 'במסגרת', to: '/teacher/ai-usage' },
+    { value: groups.length, label: 'קבוצות', accent: 'indigo' as const, to: '/teacher/groups' },
+    { value: courses.length, label: 'קורסים', accent: 'clay' as const, to: '/teacher/courses' },
+    { value: pending, label: 'ממתינות לבדיקה', accent: 'coral' as const, to: '/teacher/reports' },
+    { value: aiCost != null ? `$${Number(aiCost).toFixed(2)}` : '—', label: 'עלות AI', accent: 'sage' as const, to: '/teacher/ai-usage' },
   ];
 
   return (
-    <div className="space-y-6" dir="rtl">
-      {/* Ticker */}
-      <Ticker
-        items={[
-          'שמונה מטלות ממתינות לבדיקה',
-          'נעמה הגישה באיחור — לבדיקה',
-          `ממוצע השבוע ${avg}`,
-          'סבב חדש נפתח ביום ראשון',
-        ]}
-        className="border-2 border-ink"
-      />
-
-      {/* Greeting */}
-      <section className="relative">
-        <div className="mb-2 flex items-center gap-3 border-b-2 border-ink pb-2">
-          <span className="font-mono text-[11px] uppercase tracking-wider text-ink/60">
-            {dateMeta} · {clock}
-          </span>
-          <span className="ms-auto font-mono text-[11px] text-ink/40">DASHBOARD /01</span>
-        </div>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="font-display text-4xl font-black leading-tight text-ink md:text-5xl">
-              {greetingWord()}, <span className="scribble-underline">{user?.name ?? 'מורה'}</span>.
-            </h1>
-            <p className="mt-2 font-display text-xl text-ink/70">
-              {pending > 0 ? (
-                <>
-                  <span className="tabular">{pending}</span> תלמידות{' '}
-                  <span className="font-bold text-tomato">ממתינות לך.</span>
-                </>
-              ) : (
-                <span className="font-bold text-forest">התור ריק — כל הכבוד.</span>
-              )}
-            </p>
-            <p className="mt-2 max-w-lg text-sm leading-relaxed text-ink/60">
-              יום עמוס אבל שגרתי. עברי על יומן הבדיקה מימין, אשרי את מה שה-AI כבר בדק,
-              והשאירי הערה למי שצריכה חיזוק.
-            </p>
-          </div>
-
-          {/* Grade stamp */}
-          <div className="shrink-0 text-center">
-            <span className="pen-circle font-mono text-4xl font-bold tabular text-tomato">{avg}</span>
-            <div className="mt-2 font-mono text-[10px] uppercase tracking-wider text-ink/55">
-              avg · week
-            </div>
-          </div>
+    <div className="mx-auto max-w-5xl space-y-5" dir="rtl">
+      {/* Greeting sheet */}
+      <section className="sheet relative p-5">
+        <Tape color="indigo" rotate={2.5} className="-top-2.5 left-8 w-20" />
+        <div className="label mb-1">{dateMeta} · {pending > 0 ? `${pending} הגשות ממתינות` : 'אין ממתינות'}</div>
+        <h1 className="font-display text-2xl font-bold text-ink">{greeting()}, {user?.name ?? 'עדי'}</h1>
+        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {kpis.map((k) => (
+            <button key={k.label} onClick={() => navigate(k.to)} className="text-right">
+              <div className="label mb-1">{k.label}</div>
+              <div className={cn('font-display text-2xl font-bold tabular', `text-${k.accent}`)}>{k.value}</div>
+            </button>
+          ))}
         </div>
       </section>
 
-      {/* KPI row */}
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {kpis.map((k, i) => (
-          <button
-            key={k.tag}
-            onClick={() => navigate(k.to)}
-            className="group relative border-2 border-ink bg-paper p-4 text-right shadow-brutal transition-transform duration-150 ease-linear hover:!rotate-0 hover:-translate-x-0.5 hover:-translate-y-0.5"
-            style={{ transform: `rotate(${i % 2 === 0 ? -0.7 : 0.7}deg)` }}
-          >
-            <span className={cn('absolute inset-x-0 top-0 h-[3px]', `bg-${k.accent}`)} />
-            <Tape color={i % 2 === 0 ? 'mustard' : 'lilac'} rotate={i % 2 === 0 ? -5 : 5} className="-top-3 right-5 h-5 w-14" />
-            <div className="font-mono text-[11px] text-ink/45">{k.tag}</div>
-            <div className="mt-1 font-display text-5xl font-black tabular leading-none text-ink">{k.value}</div>
-            <div className="mt-2 text-sm font-bold text-ink">{k.label}</div>
-            <div className="mt-3 flex items-center justify-between border-t-2 border-dashed border-ink/30 pt-2">
-              <span className="font-mono text-[10px] uppercase text-ink/50">{k.hint}</span>
-              <span className="flex items-center gap-1 font-mono text-[10px] text-ink/70">
-                <span className={cn('size-2', `bg-${k.accent}`)} /> {k.trend}
-              </span>
+      {/* Review queue */}
+      <section className="sheet">
+        <div className="flex items-center gap-2 border-b border-rule px-4 py-3">
+          <Pencil size={15} className="text-clay" />
+          <h2 className="font-display text-base font-bold">יומן בדיקה</h2>
+          <span className="label mr-auto">{queue.length} ממתינות</span>
+        </div>
+
+        <div className="bg-margin">
+          {queue.length === 0 ? (
+            <div className="py-12 text-center text-sm text-ink-soft">
+              {search ? `אין תוצאות ל"${search}"` : 'התור ריק — כל הכבוד'}
             </div>
-          </button>
-        ))}
-      </section>
-
-      {/* Two-column: review queue + student mirror */}
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.6fr_1fr]">
-        {/* Review queue */}
-        <div className="relative border-2 border-ink bg-notebook shadow-brutal">
-          <Paperclip rotate={-8} className="-top-4 right-10" />
-          <Paperclip rotate={9} className="-top-4 left-12" />
-          <div className="flex items-center gap-3 border-b-2 border-ink bg-cream/70 px-4 py-3">
-            <Pencil size={16} className="text-tomato" />
-            <h2 className="font-display text-lg font-bold uppercase text-ink">יומן בדיקה</h2>
-            <span className="hidden font-mono text-[10px] text-ink/50 sm:inline">SLA · 24ש׳</span>
-            <span className="ms-auto border-2 border-ink bg-ink px-2 py-0.5 font-mono text-[11px] font-bold text-mustard">
-              {queue.length} ממתינות
-            </span>
-          </div>
-
-          <div className="ps-3">
-            {queue.length === 0 ? (
-              <div className="py-12 text-center font-mono text-sm text-ink/50">
-                {search ? `אין תוצאות ל"${search}"` : 'התור ריק ✓'}
-              </div>
-            ) : (
-              visibleQueue.map((r, i) => {
-                const st = rowStatus(r);
-                return (
-                  <div
-                    key={i}
-                    className="flex items-center gap-3 border-b border-dashed border-ink/30 py-3 pe-4 transition-colors hover:bg-mustard/20"
-                  >
-                    <span className="w-7 font-mono text-xs text-tomato/80">
-                      {String(i + 1).padStart(2, '0')}.
-                    </span>
-                    <span
-                      className="relative grid size-11 shrink-0 place-items-center border-2 border-ink bg-lilac font-display font-black text-ink"
-                      style={{ transform: 'rotate(-2deg)' }}
-                    >
-                      {r.studentName?.[0] ?? '?'}
-                      {r.isLate && (
-                        <span className="absolute -bottom-2 -left-2 border border-ink bg-tomato px-1 font-mono text-[8px] font-bold text-paper">
-                          איחור
-                        </span>
-                      )}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-bold text-ink">{r.studentName}</div>
-                      <div className="truncate font-mono text-[11px] text-ink/55">
-                        {r.courseName} / {r.assignmentTitle}
-                      </div>
-                    </div>
-                    <StatusPill variant={st.variant} className="hidden sm:inline-flex">{st.label}</StatusPill>
-                    <span className="hidden w-16 text-left font-mono text-[11px] text-ink/50 md:inline">
-                      {relTime(r.submittedAt)}
-                    </span>
-                    {r.submissionScore != null && (
-                      <span className="pen-circle font-mono text-lg font-bold tabular text-tomato">
-                        {r.submissionScore}
-                      </span>
-                    )}
-                    <button
-                      onClick={() => navigate('/teacher/reports')}
-                      className="border-2 border-ink bg-paper px-2.5 py-1 text-xs font-bold shadow-brutal-sm hover-lift"
-                    >
-                      סקירה →
-                    </button>
+          ) : (
+            visible.map((r, i) => {
+              const st = rowStatus(r);
+              return (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 border-b border-rule/60 px-4 py-2.5 pr-12 transition-colors hover:bg-butter/10"
+                >
+                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-indigo/12 text-xs font-semibold text-indigo">
+                    {r.studentName?.[0] ?? '?'}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold text-ink">{r.studentName}</div>
+                    <div className="truncate text-[11px] text-ink-soft">{r.courseName} · {r.assignmentTitle}</div>
                   </div>
-                );
-              })
-            )}
-          </div>
-
-          <div className="flex items-center justify-between border-t-2 border-ink px-4 py-2.5">
-            <span className="font-mono text-[11px] text-ink/50">
-              {visibleQueue.length}/{queue.length}
-            </span>
-            <button
-              onClick={() => (queue.length > 8 ? setShowAll((v) => !v) : navigate('/teacher/reports'))}
-              className="ink-underline text-sm font-bold text-ink"
-            >
-              {queue.length > 8 ? (showAll ? 'הצג פחות ↑' : 'טעני הבא ↓') : 'לכל הדוחות ↓'}
-            </button>
-          </div>
-        </div>
-
-        {/* Student mirror */}
-        <div className="space-y-5">
-          <div className="flex items-center gap-2">
-            <span className="size-2 rounded-full bg-forest blink" />
-            <span className="font-mono text-[11px] uppercase tracking-wider text-ink/60">
-              תצוגת תלמידה · חי — MIRROR /02
-            </span>
-          </div>
-
-          {/* Submission brief — chalkboard preview of the spotlight student */}
-          <div className="relative border-2 border-ink bg-ink p-5 text-paper shadow-brutal">
-            <Tape color="tomato" rotate={6} className="-top-3 right-6 h-5 w-16" />
-            <Tape color="mustard" rotate={-6} className="-top-3 left-6 h-5 w-16" />
-            {spotlight?.deadline && (
-              <div className="absolute left-4 top-4 border-2 border-mustard bg-mustard px-2 py-0.5 font-mono text-[10px] font-bold text-ink">
-                {new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'numeric' }).format(new Date(spotlight.deadline))}
-              </div>
-            )}
-            <div className="font-mono text-[11px] uppercase tracking-wider text-mustard">
-              {spotlight?.courseName ?? 'קורס'}
-            </div>
-            <h3 className="mt-1 font-display text-2xl font-bold text-paper">
-              {spotlight?.assignmentTitle ?? 'אין מטלה פעילה'}
-            </h3>
-            <div className="mt-1 font-mono text-xs text-paper/60">
-              {spotlight?.studentName ?? '—'} · {spotlight ? formatDateTime(spotlight.submittedAt) : ''}
-            </div>
-
-            {/* Checklist derived from the real submission */}
-            <ul className="mt-4 space-y-2">
-              {[
-                { label: 'התקבלה הגשה', done: !!spotlight },
-                { label: 'ציון הגשה חושב', done: spotlight?.submissionScore != null },
-                { label: 'הוגש בזמן', done: !!spotlight && !spotlight.isLate },
-              ].map((req) => (
-                <li key={req.label} className="flex items-center gap-2 text-sm text-paper/90">
-                  <span className="grid size-4 place-items-center border-2 border-paper/70">
-                    {req.done ? <CheckSquare size={12} className="text-forest" /> : <Square size={12} />}
-                  </span>
-                  {req.label}
-                </li>
-              ))}
-            </ul>
-
-            <div className="mt-4 border-2 border-dashed border-paper/30 py-3 text-center font-mono text-[10px] uppercase tracking-wider text-paper/45">
-              תצוגה מקדימה · מה שהתלמידה רואה
-            </div>
-
-            <button
-              disabled={!spotlight}
-              onClick={() => navigate('/teacher/reports')}
-              className="mt-4 w-full border-2 border-ink bg-mustard py-2.5 font-bold text-ink transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5 disabled:opacity-50"
-              style={{ boxShadow: '5px 5px 0 0 oklch(var(--tomato))' }}
-            >
-              פתחי לבדיקה מלאה →
-            </button>
-          </div>
-
-          {/* Grade feedback */}
-          <div className="relative border-2 border-ink bg-notebook p-5 shadow-brutal">
-            <Tape color="lilac" rotate={-5} className="-top-3 right-8 h-5 w-16" />
-            <Paperclip rotate={8} className="-top-4 left-8" />
-            <div className="font-mono text-[11px] uppercase tracking-wider text-ink/55">משוב אחרון</div>
-            <h3 className="mt-1 font-display text-xl font-bold text-ink">
-              <span className="scribble-underline">{lastGraded?.assignmentTitle ?? 'משוב לדוגמה'}</span>
-            </h3>
-
-            <span
-              className="pen-circle my-3 inline-flex font-mono text-3xl font-bold tabular text-tomato"
-              style={{ transform: 'rotate(-6deg)' }}
-            >
-              {lastGraded?.contentScore ?? avg}
-            </span>
-
-            <div className="space-y-2.5">
-              {[
-                { label: 'תוכן', pct: lastGraded?.contentScore ?? 0, accent: 'cobalt' },
-                { label: 'הגשה', pct: lastGraded?.submissionScore ?? 0, accent: 'plum' },
-                { label: 'בזמן', pct: lastGraded ? (lastGraded.isLate ? 0 : 100) : 0, accent: 'forest' },
-              ].map((row) => (
-                <div key={row.label} className="flex items-center gap-2">
-                  <span className="w-14 text-xs font-bold text-ink">{row.label}</span>
-                  <span className="w-10 font-mono text-[11px] text-ink/60 tabular">{Math.round(row.pct)}</span>
-                  <span className="h-3 flex-1 border-2 border-ink bg-white">
-                    <span
-                      className={cn('block h-full', `bg-${row.accent}`)}
-                      style={{ width: `${Math.max(0, Math.min(100, row.pct))}%` }}
-                    />
-                  </span>
+                  {r.isLate && <span className="hidden text-[10px] font-semibold text-coral sm:inline">איחור</span>}
+                  <StatusPill variant={st.variant} className="hidden sm:inline-flex">{st.label}</StatusPill>
+                  <span className="hidden w-16 text-left text-[11px] text-ink-soft md:inline">{relTime(r.submittedAt)}</span>
+                  {r.submissionScore != null && (
+                    <span className="w-8 text-left font-display text-base font-bold tabular text-clay">{r.submissionScore}</span>
+                  )}
+                  <button
+                    onClick={() => navigate('/teacher/reports')}
+                    className="rounded-input border border-rule px-2.5 py-1 text-xs font-semibold text-ink transition-colors hover:bg-ground"
+                  >
+                    סקירה
+                  </button>
                 </div>
-              ))}
-            </div>
-
-            <div className="mt-4 border-2 border-ink bg-mustard/25 p-3">
-              <div className="mb-1 flex items-center gap-1.5 font-mono text-[10px] uppercase text-ink/60">
-                <Sparkles size={12} /> הערת שוליים · AI
-              </div>
-              <p className="font-display text-sm italic leading-relaxed text-ink">
-                "{lastGraded?.feedback ?? 'עבודה יסודית. שימי לב לחלוקה לפונקציות קטנות יותר בפעם הבאה.'}"
-              </p>
-            </div>
-          </div>
+              );
+            })
+          )}
         </div>
+
+        {queue.length > 8 && (
+          <div className="flex items-center justify-between px-4 py-2.5">
+            <span className="label">{visible.length}/{queue.length}</span>
+            <button onClick={() => setShowAll((v) => !v)} className="text-sm font-semibold text-clay hover:underline">
+              {showAll ? 'הצג פחות' : 'טעני הבא'}
+            </button>
+          </div>
+        )}
       </section>
+
+      {/* Last feedback */}
+      {graded[0]?.feedback && (
+        <section className="sheet relative p-5">
+          <div className="label mb-1 flex items-center gap-1.5"><Sparkles size={13} className="text-clay" /> משוב אחרון · {graded[0].assignmentTitle}</div>
+          <p className="text-sm leading-relaxed text-ink">"{graded[0].feedback}"</p>
+          <div className="mt-2 text-xs text-ink-soft">ממוצע השבוע: <span className="font-semibold text-clay tabular">{avg}</span></div>
+        </section>
+      )}
     </div>
   );
 }

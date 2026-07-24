@@ -44,25 +44,25 @@ export default function StudentLessonDetailPage() {
   });
 
   if (isLoading) return <div className="p-6 text-ink/50">טוען...</div>;
-  if (!lesson) return <div className="p-6 text-tomato">שיעור לא נמצא</div>;
+  if (!lesson) return <div className="p-6 text-coral">שיעור לא נמצא</div>;
 
   return (
     <div className="max-w-2xl space-y-5" dir="rtl">
-      <div className="border-b-2 border-ink pb-3">
+      <div className="border-b border-rule pb-3">
         <BackLink to={`/student/courses/${lesson.courseId}`} label="חזרה לקורס" className="mb-2" />
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{lesson.topic}</h1>
             {lesson.lessonDate && (
-              <p className="mt-1 font-mono text-xs text-ink/60">{formatDate(lesson.lessonDate)}</p>
+              <p className="mt-1 font-sans text-xs text-ink/60">{formatDate(lesson.lessonDate)}</p>
             )}
           </div>
           <button
             onClick={() => progressMutation.mutate(!lesson.completed)}
             disabled={progressMutation.isPending}
             className={cn(
-              'flex shrink-0 items-center gap-1.5 border-2 border-ink px-3 py-2 text-sm font-bold shadow-brutal-sm transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5 disabled:opacity-50',
-              lesson.completed ? 'bg-forest text-paper' : 'bg-mustard text-ink',
+              'flex shrink-0 items-center gap-1.5 border border-rule px-3 py-2 text-sm font-bold shadow-soft transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5 disabled:opacity-50',
+              lesson.completed ? 'bg-sage text-sheet' : 'bg-butter text-ink',
             )}
           >
             <Check size={15} strokeWidth={3} />
@@ -83,7 +83,7 @@ export default function StudentLessonDetailPage() {
       {/* GitHub */}
       {lesson.githubUrl && (
         <a href={toExternalUrl(lesson.githubUrl)} target="_blank" rel="noreferrer"
-          className="inline-flex items-center gap-2 text-sm border border-ink/20 rounded-input px-4 py-2 text-ink hover:bg-cream/60 transition">
+          className="inline-flex items-center gap-2 text-sm border border-rule/20 rounded-input px-4 py-2 text-ink hover:bg-ground/60 transition">
           <Github size={14} /> קוד השיעור ב-GitHub
         </a>
       )}
@@ -106,7 +106,7 @@ export default function StudentLessonDetailPage() {
       {/* Quiz button */}
       <button
         onClick={() => navigate(`/student/quiz/${lesson.id}`)}
-        className="w-full border-2 border-ink bg-mustard py-3 text-sm font-bold text-ink shadow-brutal transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5"
+        className="w-full border border-rule bg-butter py-3 text-sm font-bold text-ink shadow-sheet transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5"
       >
         פתחי חידון לשיעור זה ←
       </button>
@@ -183,8 +183,8 @@ function AssignmentCard({ assignment: a, submission: sub }: {
         {/* Already submitted */}
         {sub ? (
           <div className="space-y-3">
-            <div className="bg-forest/10 border border-forest/30 rounded-input p-3 text-sm space-y-1">
-              <p className="text-forest font-medium">הגשתך התקבלה בהצלחה ✓</p>
+            <div className="bg-sage/10 border border-sage/30 rounded-input p-3 text-sm space-y-1">
+              <p className="text-sage font-medium">הגשתך התקבלה בהצלחה ✓</p>
               <p className="text-ink/70 text-xs">הוגש: {formatDateTime(sub.submittedAt)}</p>
               {sub.isLate && <Badge variant="warning">הוגש באיחור</Badge>}
               {sub.notes && <p className="text-xs text-ink/70">הערה: {sub.notes}</p>}
@@ -194,7 +194,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                   {sub.grade.contentScore != null && <p className="font-semibold">ציון תוכן: {sub.grade.contentScore}</p>}
                   {sub.grade.feedback && <MarkdownRenderer content={sub.grade.feedback} className="text-xs" />}
                   {sub.grade.checklist?.map((c: any) => (
-                    <div key={c.id} className={`text-xs flex items-center gap-1 ${c.checked ? 'text-forest' : 'text-ink/50'}`}>
+                    <div key={c.id} className={`text-xs flex items-center gap-1 ${c.checked ? 'text-sage' : 'text-ink/50'}`}>
                       {c.checked ? '✓' : '✗'} {c.text}
                     </div>
                   ))}
@@ -204,7 +204,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
 
             {/* AI Review section */}
             {sub.githubUrl && (
-              <div className="border border-ink/15 rounded-input p-3 text-sm space-y-2">
+              <div className="border border-rule/15 rounded-input p-3 text-sm space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1 font-medium text-ink"><Bot size={14} /> בדיקת AI</span>
                   {sub.aiStatus === 'none' && (
@@ -225,11 +225,11 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                       {showAiReview ? 'הסתירי הערות קוד' : 'הצגי הערות קוד'}
                     </button>
                     {showAiReview && (
-                      <pre className="text-xs bg-cream/60 rounded p-2 whitespace-pre-wrap">{sub.aiCodeReview}</pre>
+                      <pre className="text-xs bg-ground/60 rounded p-2 whitespace-pre-wrap">{sub.aiCodeReview}</pre>
                     )}
                   </div>
                 )}
-                {error && <p className="text-tomato text-xs">{error}</p>}
+                {error && <p className="text-coral text-xs">{error}</p>}
               </div>
             )}
           </div>
@@ -238,7 +238,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
             {a.deadline && isOverdue(a.deadline) && (
               <div className="space-y-2">
                 {lateRequestSent ? (
-                  <p className="text-xs text-forest font-medium">הבקשה נשלחה למורה ✓</p>
+                  <p className="text-xs text-sage font-medium">הבקשה נשלחה למורה ✓</p>
                 ) : (
                   <Button
                     size="sm"
@@ -314,7 +314,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
-            {error && <p className="text-tomato text-xs">{error}</p>}
+            {error && <p className="text-coral text-xs">{error}</p>}
           </>
         )}
       </CardContent>

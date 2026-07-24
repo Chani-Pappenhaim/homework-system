@@ -36,7 +36,7 @@ export default function ChangePasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-grid-paper p-4" dir="rtl">
+    <div className="flex min-h-screen items-center justify-center bg-graph p-4" dir="rtl">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center">
           <BrandMark className="size-14" />
@@ -47,7 +47,7 @@ export default function ChangePasswordPage() {
           </p>
         </div>
 
-        <div className="relative border-2 border-ink bg-paper p-6 shadow-brutal-lg">
+        <div className="relative border border-rule bg-sheet p-6 shadow-lift">
           <Tape color="mustard" rotate={-5} className="-top-3.5 right-10 h-6 w-24" />
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <Input
@@ -77,12 +77,12 @@ export default function ChangePasswordPage() {
             />
 
             {error && (
-              <p className="border-2 border-tomato bg-tomato/10 px-3 py-2 font-mono text-sm text-tomato">
+              <p className="border border-coral bg-coral/10 px-3 py-2 font-sans text-sm text-coral">
                 {error}
               </p>
             )}
 
-            <Button type="submit" variant="mustard" loading={loading} className="mt-1 w-full">
+            <Button type="submit" variant="clay" loading={loading} className="mt-1 w-full">
               שמור סיסמא חדשה
             </Button>
           </form>

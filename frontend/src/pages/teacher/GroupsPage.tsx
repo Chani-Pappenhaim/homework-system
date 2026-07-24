@@ -18,7 +18,7 @@ export default function GroupsPage() {
 
   const groups: GroupDTO[] = (data?.data as any)?.data?.groups ?? [];
 
-  if (isLoading) return <div className="p-6 font-mono text-ink/50">טוען…</div>;
+  if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
 
   return (
     <div className="max-w-4xl space-y-5" dir="rtl">
@@ -26,7 +26,7 @@ export default function GroupsPage() {
         title="קבוצות"
         meta="ניהול · קבוצות"
         actions={
-          <Button variant="mustard" onClick={() => navigate('/teacher/groups/new')}>
+          <Button variant="clay" onClick={() => navigate('/teacher/groups/new')}>
             <Plus size={15} /> קבוצה חדשה
           </Button>
         }
@@ -37,22 +37,22 @@ export default function GroupsPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {groups.map((g, i) => (
-            <Card key={g.id} accent={i % 2 ? 'plum' : 'lilac'} className="hover-lift">
+            <Card key={g.id} accent={i % 2 ? 'indigo' : 'sage'} className="lift">
               <CardContent className="space-y-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="grid size-10 shrink-0 place-items-center border-2 border-ink bg-lilac">
+                    <div className="grid size-10 shrink-0 place-items-center border border-rule bg-indigo/15">
                       <Users size={18} className="text-ink" />
                     </div>
                     <div>
                       <p className="font-display text-base font-bold text-ink">{g.name}</p>
-                      {g.seminar && <p className="font-mono text-[11px] text-ink/55">{g.seminar}</p>}
+                      {g.seminar && <p className="font-sans text-[11px] text-ink/55">{g.seminar}</p>}
                     </div>
                   </div>
-                  <span className="font-mono text-[11px] text-ink/50">{g.year}</span>
+                  <span className="font-sans text-[11px] text-ink/50">{g.year}</span>
                 </div>
-                <div className="flex items-center justify-between border-t-2 border-dashed border-ink/25 pt-2">
-                  <p className="font-mono text-[11px] text-ink/70">{g.studentCount} תלמידות</p>
+                <div className="flex items-center justify-between border-t border-dashed border-rule/25 pt-2">
+                  <p className="font-sans text-[11px] text-ink/70">{g.studentCount} תלמידות</p>
                   <Button size="sm" variant="outline" onClick={() => navigate(`/teacher/groups/${g.id}`)}>
                     <Eye size={12} /> צפייה
                   </Button>

@@ -1,9 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <!-- מסד brand mark: mustard square, ink border, "מ", tomato corner dot -->
-  <g transform="rotate(-3 32 32)">
-    <rect x="8" y="8" width="48" height="48" fill="#e6b422" stroke="#1c1a2e" stroke-width="4"/>
-    <text x="32" y="46" font-family="Georgia, 'Frank Ruhl Libre', serif" font-size="40" font-weight="900"
-          text-anchor="middle" fill="#1c1a2e">מ</text>
-    <circle cx="12" cy="12" r="5" fill="#e0451f" stroke="#1c1a2e" stroke-width="3"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 48" width="40" height="48">
+  <!-- קליק כיתה: ruled index card with folded corner + sage check -->
+  <rect x="1" y="1" width="38" height="46" rx="3" fill="#FCFAF6" stroke="#2E2C29" stroke-width="1.5"/>
+  <path d="M1 14 L14 1 L14 14 Z" fill="#E4DED2"/>
+  <path d="M14 1 L14 14 L1 14" stroke="#2E2C29" stroke-width="1.2" stroke-linejoin="round" fill="none" opacity="0.55"/>
+  <line x1="7" y1="20" x2="33" y2="20" stroke="#B57A4E" stroke-width="2" stroke-linecap="round"/>
+  <line x1="12" y1="28" x2="33" y2="28" stroke="#E4DED2" stroke-width="2" stroke-linecap="round"/>
+  <line x1="9" y1="36" x2="33" y2="36" stroke="#E4DED2" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="7" cy="42" r="7" fill="#7C9078" stroke="#FCFAF6" stroke-width="2"/>
+  <path d="M4 42 L6.2 44 L10 39.5" stroke="#FCFAF6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 </svg>

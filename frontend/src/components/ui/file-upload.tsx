@@ -23,8 +23,8 @@ function FileUpload({ onFile, accept, label = 'גרור קובץ לכאן או �
   return (
     <div
       className={cn(
-        'cursor-pointer border-2 border-dashed p-6 text-center transition-colors duration-150 ease-linear',
-        dragOver ? 'border-ink bg-mustard/25' : 'border-ink/40 hover:border-ink hover:bg-mustard/10',
+        'cursor-pointer border border-dashed p-6 text-center transition-colors duration-150 ease-linear',
+        dragOver ? 'border-rule bg-butter/25' : 'border-rule/40 hover:border-rule hover:bg-butter/10',
         className
       )}
       onClick={() => inputRef.current?.click()}

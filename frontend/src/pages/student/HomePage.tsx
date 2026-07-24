@@ -33,8 +33,8 @@ export default function StudentHomePage() {
   return (
     <div className="space-y-6" dir="rtl">
       {/* Greeting + streak */}
-      <section className="border-b-2 border-ink pb-4">
-        <div className="mb-1 font-mono text-[11px] uppercase tracking-wider text-ink/55">
+      <section className="border-b border-rule pb-4">
+        <div className="mb-1 font-sans text-[11px] uppercase tracking-wider text-ink/55">
           המחברת שלי · {new Intl.DateTimeFormat('he-IL', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}
         </div>
         <h1 className="font-display text-3xl font-black text-ink md:text-4xl">
@@ -43,16 +43,16 @@ export default function StudentHomePage() {
 
         {/* Sticker streak (feature #2) */}
         <div className="mt-3 flex items-center gap-2">
-          <span className="flex items-center gap-1 font-mono text-[11px] uppercase text-ink/60">
-            <Flame size={13} className="text-tomato" /> רצף
+          <span className="flex items-center gap-1 font-sans text-[11px] uppercase text-ink/60">
+            <Flame size={13} className="text-coral" /> רצף
           </span>
           <div className="flex items-center gap-1">
             {Array.from({ length: 7 }).map((_, i) => (
               <span
                 key={i}
                 className={cn(
-                  'grid size-6 place-items-center rounded-full border-2 border-ink text-[11px]',
-                  i < streak ? 'bg-mustard text-ink' : 'bg-paper text-ink/25',
+                  'grid size-6 place-items-center rounded-full border border-rule text-[11px]',
+                  i < streak ? 'bg-butter text-ink' : 'bg-sheet text-ink/25',
                 )}
                 style={{ transform: `rotate(${(i % 2 ? 1 : -1) * 4}deg)` }}
               >
@@ -66,7 +66,7 @@ export default function StudentHomePage() {
 
       {/* Quest cards (feature #1) */}
       {courses.length === 0 ? (
-        <div className="border-2 border-ink bg-paper p-8 text-center font-mono text-sm text-ink/50 shadow-brutal-sm">
+        <div className="border border-rule bg-sheet p-8 text-center font-sans text-sm text-ink/50 shadow-soft">
           לא שויכת לאף קורס עדיין
         </div>
       ) : (
@@ -79,22 +79,22 @@ export default function StudentHomePage() {
               <button
                 key={c.id}
                 onClick={() => navigate(`/student/courses/${c.id}`)}
-                className="relative border-2 border-ink bg-ruled p-5 text-right shadow-brutal hover-lift"
+                className="relative border border-rule bg-ruled p-5 text-right shadow-sheet lift"
                 style={{ transform: `rotate(${i % 2 ? 0.6 : -0.6}deg)` }}
               >
                 <Tape color={progressTape(pct)} rotate={i % 2 ? 5 : -5} className="-top-3 right-6 h-5 w-20" />
-                <div className="font-mono text-[10px] text-ink/50">קווסט {String(i + 1).padStart(2, '0')}</div>
+                <div className="font-sans text-[10px] text-ink/50">קווסט {String(i + 1).padStart(2, '0')}</div>
                 <h2 className="mt-1 font-display text-lg font-bold leading-snug text-ink">{c.name}</h2>
-                <p className="mt-0.5 font-mono text-[11px] text-ink/55">{total} שיעורים</p>
+                <p className="mt-0.5 font-sans text-[11px] text-ink/55">{total} שיעורים</p>
 
                 {/* Measuring-tape progress (feature #7) */}
                 <div className="mt-4">
-                  <div className="mb-1 flex items-center justify-between font-mono text-[11px]">
+                  <div className="mb-1 flex items-center justify-between font-sans text-[11px]">
                     <span className="text-ink/60">{done}/{total} הושלמו</span>
-                    <span className="font-bold text-tomato tabular">{pct}%</span>
+                    <span className="font-bold text-coral tabular">{pct}%</span>
                   </div>
-                  <div className="relative h-4 border-2 border-ink bg-paper">
-                    <div className="h-full bg-forest" style={{ width: `${pct}%` }} />
+                  <div className="relative h-4 border border-rule bg-sheet">
+                    <div className="h-full bg-sage" style={{ width: `${pct}%` }} />
                     {/* tick marks */}
                     <div className="pointer-events-none absolute inset-0 flex justify-between px-0.5">
                       {Array.from({ length: 9 }).map((_, t) => (
@@ -116,9 +116,9 @@ export default function StudentHomePage() {
       {pending.length > 0 && (
         <section>
           <div className="mb-3 flex items-center gap-2">
-            <Clock size={15} className="text-tomato" />
+            <Clock size={15} className="text-coral" />
             <h2 className="font-display text-lg font-bold text-ink">מטלות ממתינות</h2>
-            <span className="border-2 border-ink bg-tomato px-2 py-0.5 font-mono text-[11px] font-bold text-paper">
+            <span className="border border-rule bg-coral px-2 py-0.5 font-sans text-[11px] font-bold text-sheet">
               {pending.length}
             </span>
           </div>
@@ -130,19 +130,19 @@ export default function StudentHomePage() {
                   key={p.assignmentId}
                   onClick={() => navigate(p.lessonId ? `/student/lessons/${p.lessonId}` : '/student/assignments')}
                   className={cn(
-                    'relative border-2 border-ink p-4 text-right shadow-brutal hover-lift',
-                    overdue ? 'bg-tomato/20' : 'bg-mustard/30',
+                    'relative border border-rule p-4 text-right shadow-sheet lift',
+                    overdue ? 'bg-coral/20' : 'bg-butter/30',
                   )}
                   style={{ transform: `rotate(${i % 2 ? 1 : -1}deg)` }}
                 >
                   <Paperclip rotate={i % 2 ? 8 : -8} className="-top-4 left-6" />
                   <p className="text-sm font-bold text-ink">{p.assignmentTitle}</p>
-                  <p className="mt-0.5 font-mono text-[11px] text-ink/60">{p.courseName} · {p.lessonTopic}</p>
+                  <p className="mt-0.5 font-sans text-[11px] text-ink/60">{p.courseName} · {p.lessonTopic}</p>
                   {p.deadline && (
                     <span
                       className={cn(
-                        'mt-3 inline-block border-2 border-ink px-2 py-0.5 font-mono text-[11px] font-bold',
-                        overdue ? 'bg-tomato text-paper' : 'bg-paper text-ink',
+                        'mt-3 inline-block border border-rule px-2 py-0.5 font-sans text-[11px] font-bold',
+                        overdue ? 'bg-coral text-sheet' : 'bg-sheet text-ink',
                       )}
                     >
                       {overdue ? 'פג תוקף' : `עד ${formatDate(p.deadline)}`}

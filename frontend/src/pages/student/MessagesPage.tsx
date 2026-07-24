@@ -33,11 +33,11 @@ export default function StudentMessagesPage() {
   return (
     <div className="max-w-lg space-y-4" dir="rtl">
       <PageHeader title="הודעה למורה" meta="חדר מורה · צ׳אט" />
-      <Card accent="cobalt">
+      <Card accent="indigo">
         <CardHeader><h2 className="font-display text-base font-bold">שלחי הודעה</h2></CardHeader>
         <CardContent className="space-y-3">
           {sent && (
-            <div className="border-2 border-forest bg-forest/15 p-3 text-sm font-bold text-forest">
+            <div className="border border-sage bg-sage/15 p-3 text-sm font-bold text-sage">
               ההודעה נשלחה בהצלחה ✓
             </div>
           )}
@@ -48,7 +48,7 @@ export default function StudentMessagesPage() {
             value={content}
             onChange={(e) => { setContent(e.target.value); setSent(false); }}
           />
-          {error && <p className="text-tomato text-xs">{error}</p>}
+          {error && <p className="text-coral text-xs">{error}</p>}
           <Button loading={mutation.isPending} onClick={() => mutation.mutate()} disabled={!content.trim()}>
             שלחי
           </Button>
@@ -70,7 +70,7 @@ export default function StudentMessagesPage() {
                 </div>
                 <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                 {msg.replyContent && (
-                  <div className="mt-1 bg-cream/60 border-r-2 border-cobalt rounded-input px-3 py-2">
+                  <div className="mt-1 bg-ground/60 border-r border-indigo rounded-input px-3 py-2">
                     <p className="text-xs text-ink/50 mb-0.5">תגובת המורה · {formatDateTime(msg.repliedAt)}</p>
                     <p className="text-sm whitespace-pre-wrap">{msg.replyContent}</p>
                   </div>

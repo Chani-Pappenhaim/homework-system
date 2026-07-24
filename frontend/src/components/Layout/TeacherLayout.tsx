@@ -3,29 +3,22 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard, BookOpen, Users, BarChart2, Sparkles, MessageSquare,
-  Bell, Plus, LogOut, Search, Zap,
+  Bell, LogOut, Search,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import useAuthStore from '@/store/authStore';
 import useUiStore from '@/store/uiStore';
 import { authApi } from '@/api/auth.api';
 import { messagesApi } from '@/api/messages.api';
-import { BrandMark, Tape, Paperclip, Stamp } from '@/components/decor';
+import { Brand } from '@/components/decor';
 
-/** Notebook table-of-contents. `tag` is the mono 01–06 index-card number. */
 const nav = [
-  { to: '/teacher', label: 'לוח בקרה', icon: LayoutDashboard, tag: '01', end: true },
-  { to: '/teacher/courses', label: 'קורסים', icon: BookOpen, tag: '02' },
-  { to: '/teacher/groups', label: 'קבוצות', icon: Users, tag: '03' },
-  { to: '/teacher/reports', label: 'ציונים', icon: BarChart2, tag: '04' },
-  { to: '/teacher/ai-usage', label: 'שימוש AI', icon: Sparkles, tag: '05' },
-  { to: '/teacher/messages', label: 'הודעות', icon: MessageSquare, tag: '06' },
-];
-
-const shortcuts = [
-  { label: 'חיפוש', keys: '⌘K' },
-  { label: 'מטלה חדשה', keys: '⌘N' },
-  { label: 'הבא בתור', keys: 'J' },
+  { to: '/teacher', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
+  { to: '/teacher/courses', label: 'קורסים', icon: BookOpen },
+  { to: '/teacher/groups', label: 'קבוצות', icon: Users },
+  { to: '/teacher/reports', label: 'ציונים', icon: BarChart2 },
+  { to: '/teacher/ai-usage', label: 'שימוש AI', icon: Sparkles },
+  { to: '/teacher/messages', label: 'הודעות', icon: MessageSquare },
 ];
 
 export default function TeacherLayout() {
@@ -33,6 +26,7 @@ export default function TeacherLayout() {
   const { search, setSearch } = useUiStore();
   const searchRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
   const { data: unreadData } = useQuery({
     queryKey: ['unread-messages'],
     queryFn: () => messagesApi.getUnreadCount(),
@@ -40,17 +34,6 @@ export default function TeacherLayout() {
   });
   const unreadCount: number = (unreadData?.data as any)?.data?.count ?? 0;
 
-  // Newest unread message drives the sidebar "hot alert" — real subject, not a
-  // hardcoded "handed in late" line (a message isn't always about a late submission).
-  const { data: msgData } = useQuery({
-    queryKey: ['teacher-messages'],
-    queryFn: () => messagesApi.getAll(),
-    refetchInterval: 60_000,
-  });
-  const messages: any[] = (msgData?.data as any)?.data?.messages ?? [];
-  const latestUnread = messages.find((m) => !m.isRead) ?? messages[0];
-
-  // ⌘K / Ctrl+K focuses the search box from anywhere.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -62,7 +45,6 @@ export default function TeacherLayout() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Typing in the header search jumps to the dashboard, where the queue filters.
   function onSearchChange(value: string) {
     setSearch(value);
     if (value && window.location.pathname !== '/teacher') navigate('/teacher');
@@ -74,210 +56,110 @@ export default function TeacherLayout() {
     navigate('/login');
   }
 
+  const initials = (user?.name ?? 'עדי שלום').split(' ').map((w) => w[0]).slice(0, 2).join('');
+
   return (
-    <div className="flex min-h-screen flex-col bg-grid-paper" dir="rtl">
-      {/* Header */}
-      <header className="sticky top-0 z-30 border-b-4 border-ink bg-paper/85 backdrop-blur-sm">
-        <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-4 px-4">
-          {/* Brand (right in RTL) */}
-          <button className="flex items-center gap-3" onClick={() => navigate('/teacher')}>
-            <BrandMark />
-            <div className="text-right leading-none">
-              <div className="font-display text-2xl font-black text-ink">מסד</div>
-              <div className="mt-1 flex items-center gap-1.5 font-mono text-[10px] text-ink/60">
-                <span className="size-1.5 rounded-full bg-forest blink" />
-                Homework · OS
-              </div>
-            </div>
+    <div className="flex min-h-screen flex-col bg-graph" dir="rtl">
+      {/* Top bar */}
+      <header className="sticky top-0 z-30 border-b border-rule bg-sheet/80 backdrop-blur-sm">
+        <div className="mx-auto flex h-14 max-w-[1240px] items-center gap-4 px-4">
+          <button onClick={() => navigate('/teacher')}>
+            <Brand teacher />
           </button>
 
-          {/* Search (center) */}
-          <div className="mx-auto hidden w-full max-w-md items-center gap-2 border-2 border-ink bg-paper px-3 py-2 shadow-brutal-sm transition-all focus-within:shadow-brutal md:flex">
-            <Search size={16} className="text-ink/50" />
+          <div className="mx-auto hidden w-full max-w-sm items-center gap-2 rounded-input border border-rule bg-sheet px-3 py-1.5 transition-colors focus-within:border-clay md:flex">
+            <Search size={15} className="text-ink-soft" />
             <input
               ref={searchRef}
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink/40"
-              placeholder="חיפוש תלמידה, מטלה, קורס…"
+              className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink-soft"
+              placeholder="חיפוש תלמידה או מטלה"
             />
             {search ? (
-              <button onClick={() => setSearch('')} className="font-mono text-xs text-ink/50 hover:text-tomato">✕</button>
+              <button onClick={() => setSearch('')} className="text-xs text-ink-soft hover:text-coral">✕</button>
             ) : (
-              <kbd className="border-2 border-ink bg-mustard px-1.5 py-0.5 font-mono text-[10px] font-bold text-ink">⌘K</kbd>
+              <kbd className="rounded border border-rule px-1.5 text-[10px] text-ink-soft">⌘K</kbd>
             )}
           </div>
 
-          {/* Actions (left) */}
-          <div className="mr-auto flex items-center gap-2 md:mr-0">
+          <div className="mr-auto flex items-center gap-3 md:mr-0">
             <button
               onClick={() => navigate('/teacher/messages')}
               title="הודעות"
-              className="relative grid size-9 place-items-center border-2 border-ink bg-paper shadow-brutal-sm hover-lift"
+              className="relative grid size-9 place-items-center rounded-input text-ink-soft transition-colors hover:bg-ground hover:text-ink"
             >
-              <Bell size={16} />
+              <Bell size={17} />
               {unreadCount > 0 && (
-                <span className="absolute -left-2 -top-2 grid size-5 place-items-center rounded-full border-2 border-ink bg-tomato font-mono text-[10px] font-bold text-paper">
+                <span className="absolute -left-0.5 -top-0.5 grid size-4 place-items-center rounded-full bg-coral text-[9px] font-bold text-sheet">
                   {unreadCount}
                 </span>
               )}
             </button>
-            <button
-              onClick={() => navigate('/teacher/courses/new')}
-              className="hidden items-center gap-2 border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm hover-lift sm:flex"
-            >
-              <span className="grid size-4 place-items-center bg-mustard"><Plus size={12} /></span>
-              מטלה חדשה
-            </button>
-            <div
-              className="flex items-center gap-2 border-2 border-ink bg-lilac px-2 py-1 shadow-brutal-sm"
-              style={{ transform: 'rotate(-2deg)' }}
-            >
-              <span className="grid size-7 place-items-center border-2 border-ink bg-paper font-display font-black">
-                {user?.name?.[0] ?? 'מ'}
+            <div className="flex items-center gap-2 border-r border-rule pr-3">
+              <span className="grid size-8 place-items-center rounded-full bg-clay text-xs font-semibold text-sheet">
+                {initials}
               </span>
-              <div className="hidden text-right leading-tight lg:block">
-                <div className="text-xs font-bold text-ink">{user?.name ?? 'מורה'}</div>
-                <div className="font-mono text-[10px] text-ink/70">מנהלת</div>
+              <div className="hidden text-right leading-tight sm:block">
+                <div className="text-xs font-semibold text-ink">{user?.name ?? 'עדי שלום'}</div>
+                <div className="text-[10px] text-ink-soft">מורה</div>
               </div>
-              <button onClick={handleLogout} title="יציאה" className="text-ink/70 hover:text-tomato">
-                <LogOut size={14} />
+              <button onClick={handleLogout} title="יציאה" className="text-ink-soft hover:text-coral">
+                <LogOut size={15} />
               </button>
             </div>
           </div>
         </div>
+      </header>
 
-        {/* Mobile/tablet nav — the sidebar table-of-contents is lg-only, so without
-            this the teacher had no navigation at all below 1024px. */}
-        <nav className="flex gap-2 overflow-x-auto border-t-2 border-ink/20 px-4 py-2 lg:hidden">
+      {/* Body: icon rail (right) + content */}
+      <div className="mx-auto flex w-full max-w-[1240px] flex-1">
+        <nav className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-14 shrink-0 flex-col items-center gap-1.5 border-l border-rule bg-sheet/60 py-4 md:flex">
           {nav.map(({ to, label, icon: Icon, end }) => (
-            <NavLink key={to} to={to} end={end} className="shrink-0">
+            <NavLink key={to} to={to} end={end} className="group relative">
               {({ isActive }) => (
                 <span
                   className={cn(
-                    'flex items-center gap-1.5 border-2 border-ink px-2.5 py-1 text-xs font-bold',
-                    isActive ? 'bg-ink text-paper' : 'bg-paper text-ink',
+                    'relative grid size-10 place-items-center rounded-md transition-colors',
+                    isActive ? 'bg-ink text-sheet' : 'text-ink-soft hover:bg-ground hover:text-ink',
                   )}
                 >
-                  <Icon size={13} />
-                  {label}
+                  <Icon size={18} />
                   {to === '/teacher/messages' && unreadCount > 0 && (
-                    <span className="grid size-4 place-items-center rounded-full bg-tomato font-mono text-[9px] text-paper">
-                      {unreadCount}
-                    </span>
+                    <span className="absolute -left-1 -top-1 size-2 rounded-full bg-coral" />
                   )}
+                  <span className="pointer-events-none absolute right-12 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-sheet opacity-0 transition-opacity group-hover:opacity-100">
+                    {label}
+                  </span>
                 </span>
               )}
             </NavLink>
           ))}
         </nav>
-      </header>
 
-      {/* Body: sidebar (right) + main */}
-      <div className="mx-auto flex w-full max-w-[1400px] flex-1 gap-6 px-4 py-6">
-        {/* self-start + sticky: a stretched flex item can't stick, so the sidebar
-            pins under the 4rem header instead of scrolling away with the page. */}
-        <aside className="hidden w-[240px] shrink-0 flex-col gap-5 lg:flex lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
-          {/* Table of contents */}
-          <nav>
-            <div className="mb-2 flex items-baseline justify-between">
-              <span className="font-display text-sm font-bold text-ink">תוכן עניינים</span>
-              <span className="font-mono text-[11px] text-ink/45">A/06</span>
-            </div>
-            <div className="flex flex-col gap-2">
-              {nav.map(({ to, label, icon: Icon, tag, end }) => (
-                <NavLink key={to} to={to} end={end}>
-                  {({ isActive }) => (
-                    <div
-                      className={cn(
-                        'flex items-center gap-2.5 border-2 border-ink px-3 py-2.5 text-sm font-bold transition-all duration-150 ease-linear',
-                        isActive
-                          ? 'bg-ink text-paper shadow-brutal-mustard'
-                          : 'bg-paper text-ink shadow-brutal-sm hover:-translate-x-0.5 hover:-translate-y-0.5',
-                      )}
-                    >
-                      <Icon size={16} className={isActive ? 'text-mustard' : 'text-ink/70'} />
-                      <span className="flex-1">{label}</span>
-                      {to === '/teacher/messages' && unreadCount > 0 && (
-                        <span className="grid size-4 place-items-center rounded-full bg-tomato font-mono text-[10px] text-paper">
-                          {unreadCount}
-                        </span>
-                      )}
-                      {isActive ? (
-                        <span className="text-mustard">←</span>
-                      ) : (
-                        <span className="font-mono text-[11px] text-ink/40">{tag}</span>
-                      )}
-                    </div>
-                  )}
-                </NavLink>
-              ))}
-            </div>
-          </nav>
-
-          {/* Sticky-note hot alert — driven by the newest real message */}
-          <div
-            className="relative border-2 border-ink bg-mustard p-3 shadow-brutal"
-            style={{ transform: 'rotate(-2deg)' }}
-          >
-            <Tape color="lilac" rotate={4} className="-top-3 right-6 h-5 w-16" />
-            <div className="mb-1 flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-wide text-ink">
-              <Zap size={13} /> {latestUnread && !latestUnread.isRead ? 'הודעה חדשה' : 'תיבת הודעות'}
-            </div>
-            {latestUnread ? (
-              <p className="text-sm leading-snug text-ink">
-                <span className="scribble-underline font-bold">{latestUnread.student?.name ?? 'תלמידה'}</span>{' '}
-                {latestUnread.assignmentId ? 'כתבה לגבי מטלה: ' : 'כתבה: '}
-                <span className="line-clamp-2">"{(latestUnread.content ?? '').slice(0, 80)}"</span>
-              </p>
-            ) : (
-              <p className="text-sm leading-snug text-ink">אין הודעות חדשות כרגע.</p>
-            )}
-            <div className="mt-2 flex items-center justify-between">
-              <button
-                onClick={() => navigate('/teacher/messages')}
-                className="border-2 border-ink bg-paper px-2 py-1 text-xs font-bold shadow-brutal-sm hover-lift"
-              >
-                פתחי הודעות →
-              </button>
-              {latestUnread && !latestUnread.isRead && <Stamp>חדש</Stamp>}
-            </div>
-          </div>
-
-          {/* Shortcuts */}
-          <div className="relative border-2 border-ink bg-ruled p-3 shadow-brutal-sm">
-            <Paperclip rotate={-10} className="-top-4 left-6" />
-            <div className="mb-2 font-mono text-[11px] font-bold uppercase tracking-wide text-ink/70">קיצורים</div>
-            <div className="flex flex-col gap-1.5">
-              {shortcuts.map((s) => (
-                <div key={s.label} className="flex items-center justify-between text-sm">
-                  <span className="text-ink">{s.label}</span>
-                  <kbd className="border-2 border-ink bg-mustard px-1.5 py-0.5 font-mono text-[10px] font-bold text-ink">
-                    {s.keys}
-                  </kbd>
-                </div>
-              ))}
-            </div>
-          </div>
-        </aside>
-
-        {/* Main */}
-        <main className="min-w-0 flex-1">
+        <main className="min-w-0 flex-1 px-4 py-6 md:px-6">
           <Outlet />
         </main>
       </div>
 
-      {/* Footer */}
-      <footer className="border-t-4 border-double border-ink bg-paper/70">
-        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-2 px-4 py-3 font-mono text-[11px] text-ink/60">
-          <div className="flex items-center gap-2">
-            <span className="border-2 border-ink bg-mustard px-1.5 py-0.5 font-bold text-ink">מסד</span>
-            <span>Homework OS · v3</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="size-1.5 rounded-full bg-forest blink" />
-            <span>ONLINE · build 2026.07</span>
-          </div>
+      {/* Mobile nav */}
+      <nav className="sticky bottom-0 z-30 flex items-center justify-around border-t border-rule bg-sheet/90 px-2 py-1.5 backdrop-blur-sm md:hidden">
+        {nav.map(({ to, label, icon: Icon, end }) => (
+          <NavLink key={to} to={to} end={end}>
+            {({ isActive }) => (
+              <span className={cn('flex flex-col items-center gap-0.5 px-2 py-1 text-[10px]', isActive ? 'text-ink' : 'text-ink-soft')}>
+                <Icon size={18} />
+                {label}
+              </span>
+            )}
+          </NavLink>
+        ))}
+      </nav>
+
+      <footer className="hidden border-t border-rule bg-sheet/50 md:block">
+        <div className="mx-auto flex max-w-[1240px] items-center justify-between px-6 py-3 text-[11px] text-ink-soft">
+          <span>קליק כיתה · המורה עדי שלום</span>
+          <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-sage" /> מחובר</span>
         </div>
       </footer>
     </div>

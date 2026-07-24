@@ -4,252 +4,201 @@
 
 @layer base {
   /*
-    Notebook / riso-classroom design tokens.
+    "קליק כיתה" — refined classroom stationery.
 
-    Palette colors are stored as BARE oklch channels ("L C H", no wrapping
-    function) so Tailwind can inject opacity via `oklch(var(--x) / <alpha-value>)`
-    — that is what makes `bg-mustard/20`, `border-ink/25`, `text-tomato/80`
-    resolve. A full oklch() string in the var breaks every opacity modifier.
+    Palette colors are stored as space-separated RGB channels so Tailwind can
+    inject opacity via `rgb(var(--x) / <alpha-value>)` — that is what makes
+    `bg-clay/20`, `border-ink/10`, `text-ink-soft/70` resolve. A hex in the var
+    would break every opacity modifier.
   */
   :root {
-    --paper: 0.965 0.018 85; /* warm cream page */
-    --cream: 0.94 0.03 82; /* darker cream — card headers/footers */
-    --ink: 0.16 0.015 265; /* near-black — every border & shadow */
-    --mustard: 0.83 0.17 82; /* primary highlight — washi tape, kbd */
-    --cobalt: 0.5 0.22 262; /* printer's blue — accent bars */
-    --tomato: 0.62 0.22 28; /* teacher's red pen — underlines, alerts, grades */
-    --forest: 0.52 0.13 155; /* approved / online */
-    --lilac: 0.76 0.09 305; /* secondary chips / avatars */
-    --plum: 0.38 0.14 340; /* AI reviewed */
+    --ground: 244 240 232; /* #F4F0E8 warm paper page */
+    --sheet: 252 250 246; /* #FCFAF6 cards / sheets */
+    --ink: 46 44 41; /* #2E2C29 text, borders, primary buttons */
+    --ink-soft: 140 135 124; /* #8C877C labels, meta */
+    --rule: 228 222 210; /* #E4DED2 hairlines, dividers */
+    --clay: 181 122 78; /* #B57A4E warm accent — brand, grades, active */
+    --indigo: 76 92 122; /* #4C5C7A secondary — AI, links */
+    --sage: 124 144 120; /* #7C9078 approved / success */
+    --butter: 228 201 126; /* #E4C97E pending / warning */
+    --coral: 168 91 82; /* #A85B52 late / needs-fix / error */
 
-    --radius: 0px;
+    --radius: 7px;
+    --grid-line: rgb(var(--ink) / 0.05);
+    --ruled-line: rgb(var(--indigo) / 0.09);
+    --margin-line: rgb(var(--clay) / 0.3);
 
-    /* Background-utility helpers, kept here so dark mode flips them once. */
-    --grid-line: oklch(var(--ink) / 0.07);
-    --ruled-line: oklch(var(--cobalt) / 0.28);
-    --margin-line: oklch(var(--tomato) / 0.55);
-    --ruled-paper: #fffdf5;
+    --shadow-soft: 0 1px 2px rgb(46 44 40 / 0.06);
+    --shadow-sheet: 0 1px 2px rgb(46 44 40 / 0.05), 0 9px 22px -12px rgb(46 44 40 / 0.2);
+    --shadow-lift: 0 2px 4px rgb(46 44 40 / 0.07), 0 14px 28px -14px rgb(46 44 40 / 0.26);
   }
 
-  /*
-    מצב לילה = דף פחם. Dark mode is a black chalkboard with chalk text, NOT an
-    inverted UI: paper→deep ink, ink→paper, --mustard stays the accent.
-  */
+  /* מצב לילה — a chalkboard-dark register, tokens flipped (not inverted). */
   .dark {
-    --paper: 0.19 0.012 265;
-    --cream: 0.25 0.014 265;
-    --ink: 0.93 0.008 85;
-    --mustard: 0.83 0.17 82;
-    --cobalt: 0.64 0.16 262;
-    --tomato: 0.68 0.19 28;
-    --forest: 0.64 0.12 155;
-    --lilac: 0.74 0.09 305;
-    --plum: 0.62 0.13 340;
+    --ground: 22 23 26; /* #16171A */
+    --sheet: 30 32 36; /* #1E2024 */
+    --ink: 232 228 220; /* #E8E4DC */
+    --ink-soft: 149 144 138; /* #95908A */
+    --rule: 44 49 56; /* #2C3138 */
+    --clay: 214 143 94; /* #D68F5E */
+    --indigo: 143 163 196; /* #8FA3C4 */
+    --sage: 157 179 153; /* #9DB399 */
+    --butter: 183 154 80; /* #B79A50 */
+    --coral: 201 127 116; /* #C97F74 */
 
-    --grid-line: oklch(var(--ink) / 0.1);
-    --ruled-line: oklch(var(--cobalt) / 0.35);
-    --margin-line: oklch(var(--tomato) / 0.6);
-    --ruled-paper: oklch(0.22 0.012 265);
+    --grid-line: rgb(var(--ink) / 0.06);
+    --ruled-line: rgb(var(--indigo) / 0.12);
+    --margin-line: rgb(var(--clay) / 0.28);
+
+    --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.3);
+    --shadow-sheet: 0 1px 2px rgb(0 0 0 / 0.3), 0 9px 22px -12px rgb(0 0 0 / 0.5);
+    --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.35), 0 14px 28px -14px rgb(0 0 0 / 0.55);
   }
 
   * {
     box-sizing: border-box;
-    border-color: oklch(var(--ink));
+    border-color: rgb(var(--rule));
   }
 
   html {
-    font-size: 15px;
-    line-height: 1.55;
+    font-size: 13px;
+    line-height: 1.6;
   }
 
   body {
-    font-family: 'Rubik', 'Heebo', sans-serif;
-    font-feature-settings: 'ss01', 'cv01';
-    background-color: oklch(var(--paper));
-    color: oklch(var(--ink));
+    font-family: 'Heebo', sans-serif;
+    background-color: rgb(var(--ground));
+    color: rgb(var(--ink));
     margin: 0;
     -webkit-font-smoothing: antialiased;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Frank Ruhl Libre', Georgia, serif;
+    font-family: 'Heebo', sans-serif;
     font-weight: 700;
-    color: oklch(var(--ink));
+    color: rgb(var(--ink));
   }
 
-  /* Numbers must always be tabular where they line up (grades, KPIs, counters). */
   .tabular { font-variant-numeric: tabular-nums; }
 }
 
 /* ------------------------------------------------------------------ */
-/*  Signature page backgrounds                                         */
+/*  Paper grounds                                                      */
 /* ------------------------------------------------------------------ */
 @layer utilities {
-  /* App default page background: cream + faint 28px graph-paper grid. */
-  .bg-grid-paper {
-    background-color: oklch(var(--paper));
+  /* Default app background: warm paper + a gentle 26px graph grid. */
+  .bg-graph {
+    background-color: rgb(var(--ground));
     background-image:
       linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
       linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
-    background-size: 28px 28px;
+    background-size: 26px 26px;
   }
 
-  /* Loose-leaf: off-white + horizontal cobalt rule every 1.75rem. */
+  /* Ruled sheet — horizontal indigo lines every 26px (used inside list sheets). */
   .bg-ruled {
-    background-color: var(--ruled-paper);
     background-image: repeating-linear-gradient(
       to bottom,
       transparent 0,
-      transparent calc(1.75rem - 1px),
-      var(--ruled-line) calc(1.75rem - 1px),
-      var(--ruled-line) 1.75rem
+      transparent 25px,
+      var(--ruled-line) 25px,
+      var(--ruled-line) 26px
     );
   }
 
-  /* Notebook: ruled sheet + a vertical tomato margin line 2.75rem from the
-     RIGHT edge (RTL notebook margin). Used for the review queue & feedback. */
-  .bg-notebook {
-    background-color: var(--ruled-paper);
+  /* The clay margin line 44px from the RTL (right) edge, over ruled lines. */
+  .bg-margin {
     background-image:
-      linear-gradient(
-        to left,
-        transparent calc(2.75rem - 2px),
-        var(--margin-line) calc(2.75rem - 2px),
-        var(--margin-line) 2.75rem,
-        transparent 2.75rem
-      ),
-      repeating-linear-gradient(
-        to bottom,
-        transparent 0,
-        transparent calc(1.75rem - 1px),
-        var(--ruled-line) calc(1.75rem - 1px),
-        var(--ruled-line) 1.75rem
-      );
-  }
-
-  /* Riso dot grid. */
-  .bg-dots {
-    background-color: oklch(var(--paper));
-    background-image: radial-gradient(oklch(var(--ink) / 0.14) 1.4px, transparent 1.6px);
-    background-size: 14px 14px;
-  }
-
-  /* 45° caution stripes in ink + mustard. */
-  .bg-stripes {
-    background-image: repeating-linear-gradient(
-      45deg,
-      oklch(var(--ink)) 0 8px,
-      oklch(var(--mustard)) 8px 16px
-    );
+      linear-gradient(to left, transparent calc(44px - 1px), var(--margin-line) calc(44px - 1px), var(--margin-line) 44px, transparent 44px),
+      repeating-linear-gradient(to bottom, transparent 0, transparent 25px, var(--ruled-line) 25px, var(--ruled-line) 26px);
   }
 }
 
 /* ------------------------------------------------------------------ */
-/*  Interactions — paper physics only (no fades, no scales)            */
+/*  Interactions — soft lift, no hard offsets                          */
 /* ------------------------------------------------------------------ */
 @layer utilities {
-  .hover-lift {
-    transition: transform 150ms linear, box-shadow 150ms linear;
+  .lift {
+    transition: transform 160ms ease, box-shadow 160ms ease;
   }
-  .hover-lift:hover {
-    transform: translate(-2px, -2px);
-    box-shadow: 7px 7px 0 0 oklch(var(--ink));
-  }
-
-  .hover-press {
-    transition: transform 150ms linear, box-shadow 150ms linear;
-  }
-  .hover-press:hover {
-    transform: translate(2px, 2px);
-    box-shadow: 1px 1px 0 0 oklch(var(--ink));
+  .lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lift);
   }
 }
 
 /* ------------------------------------------------------------------ */
-/*  Decorative primitives (CSS half — SVG half lives in components)    */
+/*  Signature devices                                                  */
 /* ------------------------------------------------------------------ */
 @layer components {
-  /* Hand-drawn wavy tomato underline (teacher's pen). */
-  .scribble-underline {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='8' viewBox='0 0 44 8'%3E%3Cpath d='M1 5 Q6 1 11 5 T21 5 T31 5 T43 5' stroke='%23d8451f' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-repeat: repeat-x;
-    background-position: 0 100%;
-    background-size: 44px 0.5em;
-    padding-bottom: 0.18em;
+  /* Sheet — a white page laid on the paper ground with a soft shadow. */
+  .sheet {
+    background-color: rgb(var(--sheet));
+    border: 1px solid rgb(var(--rule));
+    border-radius: 3px;
+    box-shadow: var(--shadow-sheet);
   }
 
-  /* Dashed elliptical red-pen circle around a number/badge. The one place a
-     rounded shape is allowed — it reads as a teacher circling with a pen. */
-  .pen-circle {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.1em 0.4em;
-  }
-  .pen-circle::before {
-    content: '';
+  /* Washi tape strip — translucent, faintly tilted; parent positions it. */
+  .tape {
     position: absolute;
-    inset: -0.18em -0.05em;
-    border: 2px dashed oklch(var(--tomato));
-    border-radius: 50%;
-    transform: rotate(-4deg);
+    height: 18px;
+    border-radius: 1px;
+    opacity: 0.5;
     pointer-events: none;
   }
 
-  /* Rotated rubber stamp ("URGENT" etc.). */
-  .stamp {
-    display: inline-block;
-    transform: rotate(-6deg);
-    border: 2px solid oklch(var(--tomato));
-    color: oklch(var(--tomato));
-    font-family: 'Frank Ruhl Libre', serif;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.16em;
-    padding: 0.08em 0.5em;
-    font-size: 0.68rem;
-    line-height: 1.3;
-    opacity: 0.92;
+  /* Uppercase-equivalent label: tracked, small, muted. */
+  .label {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: rgb(var(--ink-soft));
   }
 
-  /* Mustard highlighter swipe behind inline text. */
-  .ink-underline {
-    background-image: linear-gradient(oklch(var(--mustard) / 0.55), oklch(var(--mustard) / 0.55));
-    background-repeat: no-repeat;
-    background-position: 0 86%;
-    background-size: 100% 0.42em;
-    padding: 0 0.06em;
-  }
-
-  /* 45° hatch overlay used inside the <Tape> component. */
-  .tape-hatch {
-    background-image: repeating-linear-gradient(
-      45deg,
-      transparent 0 5px,
-      rgba(0, 0, 0, 0.08) 5px 6px
-    );
-  }
-
-  /* Perforated tear line for torn-off quest pages (מחברת קווסטים). */
-  .torn-top {
-    -webkit-mask-image: radial-gradient(circle 6px at 12px -2px, transparent 6px, #000 6.5px);
-    mask-image: radial-gradient(circle 6px at 12px -2px, transparent 6px, #000 6.5px);
-    -webkit-mask-size: 24px 100%;
-    mask-size: 24px 100%;
-    -webkit-mask-repeat: repeat-x;
-    mask-repeat: repeat-x;
+  /* Spiral-binding holes down an edge (added via ::before on a rail). */
+  .punch {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgb(var(--ground));
+    box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.14);
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Motion — ticker & blinking status dot                              */
-/* ------------------------------------------------------------------ */
-@keyframes np-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.25; } }
-@keyframes np-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) {
+  .lift, .lift:hover { transition: none; transform: none; }
+}
 
-@layer utilities {
-  .blink { animation: np-blink 1.2s steps(1, end) infinite; }
-  /* Track duplicates its content in markup; -50% is exactly one loop. */
-  .marquee-track { display: inline-flex; white-space: nowrap; animation: np-marquee 40s linear infinite; }
+/* ------------------------------------------------------------------ */
+/*  Compatibility shims — soft stand-ins for retired brutalist devices */
+/*  so pages authored on the previous design still render coherently.  */
+/* ------------------------------------------------------------------ */
+@layer components {
+  .pen-circle { display: inline-flex; align-items: center; justify-content: center; color: rgb(var(--clay)); }
+  .scribble-underline {
+    background-image: linear-gradient(rgb(var(--clay) / 0.5), rgb(var(--clay) / 0.5));
+    background-repeat: no-repeat;
+    background-position: 0 100%;
+    background-size: 100% 2px;
+    padding-bottom: 1px;
+  }
+  .ink-underline {
+    background-image: linear-gradient(rgb(var(--butter) / 0.45), rgb(var(--butter) / 0.45));
+    background-repeat: no-repeat;
+    background-position: 0 90%;
+    background-size: 100% 0.4em;
+  }
+  .stamp {
+    display: inline-block;
+    border: 1px solid rgb(var(--clay) / 0.55);
+    color: rgb(var(--clay));
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+  .blink { animation: none; }
+  .marquee-track { display: inline-flex; white-space: nowrap; }
+  .tape-hatch, .torn-top, .torn-edge { background-image: none; -webkit-mask-image: none; mask-image: none; }
 }

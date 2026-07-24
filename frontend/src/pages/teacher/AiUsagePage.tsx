@@ -34,7 +34,7 @@ export default function AiUsagePage() {
     | { usedBytes: number; limitBytes: number; percent: number }
     | undefined;
 
-  if (isLoading) return <div className="p-6 font-mono text-ink/50">טוען…</div>;
+  if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
 
   const totalTokens = (summary?.totalTokensInput ?? 0) + (summary?.totalTokensOutput ?? 0);
   const byMonth: any[] = summary?.byMonth ?? [];
@@ -59,8 +59,8 @@ export default function AiUsagePage() {
               <h2 className="font-display text-base font-bold">אחסון קבצים · Cloudinary</h2>
               <span
                 className={cn(
-                  'font-mono text-sm font-bold tabular',
-                  storage.percent >= 80 ? 'text-tomato' : storage.percent >= 60 ? 'text-mustard' : 'text-forest',
+                  'font-sans text-sm font-bold tabular',
+                  storage.percent >= 80 ? 'text-coral' : storage.percent >= 60 ? 'text-clay' : 'text-sage',
                 )}
               >
                 {Math.round(storage.percent)}%
@@ -68,21 +68,21 @@ export default function AiUsagePage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
-            <div className="h-4 w-full border-2 border-ink bg-paper">
+            <div className="h-4 w-full border border-rule bg-sheet">
               <div
                 className={cn(
                   'h-full',
-                  storage.percent >= 80 ? 'bg-tomato' : storage.percent >= 60 ? 'bg-mustard' : 'bg-forest',
+                  storage.percent >= 80 ? 'bg-coral' : storage.percent >= 60 ? 'bg-butter' : 'bg-sage',
                 )}
                 style={{ width: `${Math.max(2, Math.min(100, storage.percent))}%` }}
               />
             </div>
-            <div className="flex items-center justify-between font-mono text-[11px] text-ink/60">
+            <div className="flex items-center justify-between font-sans text-[11px] text-ink/60">
               <span>{formatBytes(storage.usedBytes)} בשימוש</span>
               <span>מתוך {formatBytes(storage.limitBytes)}</span>
             </div>
             {storage.percent >= 80 && (
-              <p className="border-2 border-tomato bg-tomato/10 px-3 py-2 text-sm text-tomato">
+              <p className="border border-coral bg-coral/10 px-3 py-2 text-sm text-coral">
                 האחסון עבר 80% — כדאי למחוק קבצים ישנים כדי שהגשות חדשות לא ייכשלו.
               </p>
             )}
@@ -98,23 +98,23 @@ export default function AiUsagePage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b-2 border-ink bg-cream/70 font-mono text-[11px] uppercase text-ink/60">
+              <tr className="border-b border-rule bg-ground/70 font-sans text-[11px] uppercase text-ink/60">
                 <th className="px-5 py-2.5 text-right font-bold">חודש</th>
                 <th className="px-3 py-2.5 text-right font-bold">בדיקות</th>
                 <th className="px-3 py-2.5 text-right font-bold">חידונים</th>
                 <th className="px-3 py-2.5 text-right font-bold">עלות</th>
               </tr>
             </thead>
-            <tbody className="divide-y-2 divide-dashed divide-ink/20">
+            <tbody className="divide-y divide-dashed divide-rule/20">
               {byMonth.length === 0 && (
                 <tr><td colSpan={4} className="px-5 py-4 text-center text-ink/50">אין נתוני שימוש עדיין</td></tr>
               )}
               {byMonth.map((m) => (
-                <tr key={m.month} className="transition-colors hover:bg-mustard/15">
+                <tr key={m.month} className="transition-colors hover:bg-butter/15">
                   <td className="px-5 py-3 font-bold text-ink">{formatMonth(m.month)}</td>
-                  <td className="px-3 py-3 font-mono text-ink/70 tabular">{m.reviews}</td>
-                  <td className="px-3 py-3 font-mono text-ink/70 tabular">{m.quizzes}</td>
-                  <td className="px-3 py-3 font-mono text-ink/70 tabular">${(m.costUsd ?? 0).toFixed(2)}</td>
+                  <td className="px-3 py-3 font-sans text-ink/70 tabular">{m.reviews}</td>
+                  <td className="px-3 py-3 font-sans text-ink/70 tabular">{m.quizzes}</td>
+                  <td className="px-3 py-3 font-sans text-ink/70 tabular">${(m.costUsd ?? 0).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -126,24 +126,24 @@ export default function AiUsagePage() {
 }
 
 const tiles: Record<string, string> = {
-  cobalt: 'bg-cobalt text-paper',
-  tomato: 'bg-tomato text-paper',
-  forest: 'bg-forest text-paper',
-  mustard: 'bg-mustard text-ink',
+  cobalt: 'bg-indigo text-sheet',
+  tomato: 'bg-coral text-sheet',
+  forest: 'bg-sage text-sheet',
+  mustard: 'bg-butter text-ink',
 };
 
 function StatCard({ icon, label, value, tile }: {
   icon: React.ReactNode; label: string; value: number | string; tile: keyof typeof tiles | string;
 }) {
   return (
-    <Card className="hover-lift">
+    <Card className="lift">
       <CardContent className="flex items-center gap-3">
-        <div className={cn('grid size-10 shrink-0 place-items-center border-2 border-ink', tiles[tile])}>
+        <div className={cn('grid size-10 shrink-0 place-items-center border border-rule', tiles[tile])}>
           {icon}
         </div>
         <div>
           <p className="font-display text-2xl font-black tabular text-ink">{value}</p>
-          <p className="font-mono text-[11px] text-ink/60">{label}</p>
+          <p className="font-sans text-[11px] text-ink/60">{label}</p>
         </div>
       </CardContent>
     </Card>

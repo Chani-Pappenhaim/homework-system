@@ -112,7 +112,7 @@ export default function CourseFormPage() {
 
   return (
     <div className="max-w-3xl space-y-5" dir="rtl">
-      <div className="border-b-2 border-ink pb-3">
+      <div className="border-b border-rule pb-3">
         <BackLink className="mb-2" />
         <div className="flex items-center justify-between">
           <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{isEdit ? 'עריכת קורס' : 'קורס חדש'}</h1>
@@ -150,7 +150,7 @@ export default function CourseFormPage() {
               placeholder="תיאור קצר של הקורס..."
             />
           </div>
-          {error && <p className="text-tomato text-sm">{error}</p>}
+          {error && <p className="text-coral text-sm">{error}</p>}
           <Button loading={saveMutation.isPending} onClick={() => saveMutation.mutate()} disabled={!name || !groupId}>
             {isEdit ? 'שמור שינויים' : 'צור קורס'}
           </Button>
@@ -163,7 +163,7 @@ export default function CourseFormPage() {
           <CardHeader>
             <h2 className="font-semibold text-sm">שיעורים ({course.lessons.length})</h2>
           </CardHeader>
-          <div className="divide-y divide-ink/20">
+          <div className="divide-y divide-rule/20">
             {course.lessons.map((l, i) => (
               <div key={l.id} className="px-5 py-3 flex items-center gap-3">
                 <GripVertical size={14} className="text-ink/50 cursor-grab flex-shrink-0" />

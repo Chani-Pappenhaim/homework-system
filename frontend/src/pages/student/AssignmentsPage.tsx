@@ -26,11 +26,11 @@ export default function AssignmentsPage() {
       <PageHeader title="המטלות שלי" meta="מחברת · מטלות" />
 
       {/* Pending */}
-      <Card accent="tomato">
+      <Card accent="coral">
         <CardHeader>
           <h2 className="font-display text-base font-bold">לא הוגשו ({sortedPending.length})</h2>
         </CardHeader>
-        <div className="divide-y divide-ink/20">
+        <div className="divide-y divide-rule/20">
           {sortedPending.length === 0 && (
             <p className="px-5 py-4 text-sm text-ink/50">אין מטלות פתוחות 🎉</p>
           )}
@@ -51,18 +51,18 @@ export default function AssignmentsPage() {
       </Card>
 
       {/* Submitted */}
-      <Card accent="forest">
+      <Card accent="sage">
         <CardHeader>
           <h2 className="font-display text-base font-bold">הוגשו ({submitted.length})</h2>
         </CardHeader>
-        <div className="divide-y divide-ink/20">
+        <div className="divide-y divide-rule/20">
           {submitted.length === 0 && (
             <p className="px-5 py-4 text-sm text-ink/50">לא הוגשו מטלות עדיין</p>
           )}
           {submitted.map((s) => (
             <div key={s.submissionId}>
               <button
-                className="w-full px-5 py-3 flex items-center justify-between hover:bg-cream/60 transition text-right"
+                className="w-full px-5 py-3 flex items-center justify-between hover:bg-ground/60 transition text-right"
                 onClick={() => setExpanded(expanded === s.submissionId ? null : s.submissionId)}
               >
                 <div>
@@ -83,7 +83,7 @@ export default function AssignmentsPage() {
               </button>
 
               {expanded === s.submissionId && s.grade && (
-                <div className="px-5 pb-4 space-y-3 bg-cream/60">
+                <div className="px-5 pb-4 space-y-3 bg-ground/60">
                   <div className="flex flex-wrap gap-4 pt-3 text-sm">
                     {s.grade.submissionScore != null && (
                       <p><span className="text-ink/50">ציון הגשה: </span><span className="font-semibold text-ink">{s.grade.submissionScore}</span></p>
@@ -93,7 +93,7 @@ export default function AssignmentsPage() {
                     )}
                   </div>
                   {s.grade.checklist?.map((c: any) => (
-                    <div key={c.id} className={`text-xs flex items-center gap-1.5 ${c.checked ? 'text-forest' : 'text-ink/50'}`}>
+                    <div key={c.id} className={`text-xs flex items-center gap-1.5 ${c.checked ? 'text-sage' : 'text-ink/50'}`}>
                       <span>{c.checked ? '✓' : '✗'}</span> {c.text}
                     </div>
                   ))}

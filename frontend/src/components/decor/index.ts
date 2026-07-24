@@ -1,7 +1,10 @@
-/** Notebook decorative primitives — the taped, clipped, stamped vocabulary. */
+/** קליק כיתה decorative primitives. */
+export { Logo } from './Logo';
+export { Brand } from './Brand';
 export { Tape } from './Tape';
-export { Paperclip } from './Paperclip';
-export { BrandMark } from './BrandMark';
 export { StatusPill, type PillVariant } from './StatusPill';
 export { Stamp } from './Stamp';
 export { Ticker } from './Ticker';
+// Back-compat shims (retired devices, kept so older pages compile):
+export { BrandMark } from './BrandMark';
+export { Paperclip } from './Paperclip';
