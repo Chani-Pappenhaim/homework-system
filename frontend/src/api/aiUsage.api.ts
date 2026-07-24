@@ -16,7 +16,15 @@ export interface AiUsageSummary {
   byMonth: AiUsageMonth[];
 }
 
+export interface StorageUsage {
+  usedBytes: number;
+  limitBytes: number;
+  percent: number;
+}
+
 export const aiUsageApi = {
   summary: () =>
     api.get<{ success: true; data: AiUsageSummary }>('/ai-usage/summary'),
+  storage: () =>
+    api.get<{ success: true; data: StorageUsage }>('/ai-usage/storage'),
 };

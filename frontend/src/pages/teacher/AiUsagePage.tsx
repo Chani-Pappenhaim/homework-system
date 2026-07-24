@@ -12,13 +12,27 @@ function formatMonth(month: string) {
     .format(new Date(Number(year), Number(m) - 1, 1));
 }
 
+function formatBytes(bytes: number): string {
+  if (!bytes) return '0 MB';
+  const gb = bytes / 1e9;
+  if (gb >= 1) return `${gb.toFixed(2)} GB`;
+  return `${(bytes / 1e6).toFixed(0)} MB`;
+}
+
 export default function AiUsagePage() {
   const { data, isLoading } = useQuery({
     queryKey: ['ai-usage-summary'],
     queryFn: () => aiUsageApi.summary(),
   });
+  const { data: storageData } = useQuery({
+    queryKey: ['storage-usage'],
+    queryFn: () => aiUsageApi.storage(),
+  });
 
   const summary = (data?.data as any)?.data;
+  const storage = (storageData?.data as any)?.data as
+    | { usedBytes: number; limitBytes: number; percent: number }
+    | undefined;
 
   if (isLoading) return <div className="p-6 font-mono text-ink/50">טוען…</div>;
 
@@ -36,6 +50,45 @@ export default function AiUsagePage() {
         <StatCard icon={<Cpu size={18} />} tile="forest" label='סה"כ טוקנים' value={totalTokens.toLocaleString()} />
         <StatCard icon={<DollarSign size={18} />} tile="mustard" label="עלות מצטברת $" value={`$${(summary?.totalCostUsd ?? 0).toFixed(2)}`} />
       </div>
+
+      {/* Cloudinary storage */}
+      {storage && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-base font-bold">אחסון קבצים · Cloudinary</h2>
+              <span
+                className={cn(
+                  'font-mono text-sm font-bold tabular',
+                  storage.percent >= 80 ? 'text-tomato' : storage.percent >= 60 ? 'text-mustard' : 'text-forest',
+                )}
+              >
+                {Math.round(storage.percent)}%
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="h-4 w-full border-2 border-ink bg-paper">
+              <div
+                className={cn(
+                  'h-full',
+                  storage.percent >= 80 ? 'bg-tomato' : storage.percent >= 60 ? 'bg-mustard' : 'bg-forest',
+                )}
+                style={{ width: `${Math.max(2, Math.min(100, storage.percent))}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between font-mono text-[11px] text-ink/60">
+              <span>{formatBytes(storage.usedBytes)} בשימוש</span>
+              <span>מתוך {formatBytes(storage.limitBytes)}</span>
+            </div>
+            {storage.percent >= 80 && (
+              <p className="border-2 border-tomato bg-tomato/10 px-3 py-2 text-sm text-tomato">
+                האחסון עבר 80% — כדאי למחוק קבצים ישנים כדי שהגשות חדשות לא ייכשלו.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Monthly breakdown */}
       <Card>
