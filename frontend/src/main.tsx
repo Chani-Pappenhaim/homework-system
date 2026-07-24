@@ -5,10 +5,16 @@ import App from './App';
 import './globals.css';
 import { useBootstrapAuth } from './hooks/useAuth';
 import { ToastProvider } from './components/ui/toast';
+import { ServerWakingBanner } from './components/ui/server-waking-banner';
 
 function Root() {
   useBootstrapAuth();
-  return <App />;
+  return (
+    <>
+      <ServerWakingBanner />
+      <App />
+    </>
+  );
 }
 
 const queryClient = new QueryClient({
