@@ -82,7 +82,7 @@
   - `api/axios.ts` שוכתב: timeout 60s; ספירת בקשות in-flight (פעם אחת לכל בקשה לוגית דרך `_counted`) → אם משהו תקוע מעל 4s מדליק באנר; **retry אוטומטי** עד 4 פעמים עם backoff (2/4/6/8s) על שגיאות cold-start (timeout / אין response / 502/503/504). זרימת ה-401 refresh הקיימת נשמרה ומשולבת עם ה-bookkeeping.
   - `components/ui/server-waking-banner.tsx` — באנר עליון "השרת מתעורר..." מונע מ-`serverStatus`. הורכב ב-`main.tsx` בתוך `Root` (רץ עם ה-bootstrap שהוא הבקשה הראשונה/הקרה).
 - **בדיקות:** health test ב-`app.test.ts`, `ServerWakingBanner.test.tsx` (3). backend 217, frontend 232, tsc+build נקיים.
-- **דורש פעולת המשתמשת (חיצוני, לא בקוד):** להקים keep-alive pinger שמכה ב-`https://<backend>/api/health` כל ~10–14 דק' (cron-job.org / UptimeRobot / Render Cron) כדי שהשרת לא יירדם בכלל. בלי זה — הקוד רק מרכך את החוויה (באנר+retry), לא מונע את ההרדמה.
+- **keep-alive בקוד:** נוסף `.github/workflows/keep-alive.yml` — GitHub Actions cron כל 10 דק' שמפינג `https://homework-system-3haq.onrender.com/api/health` (הכתובת הציבורית מ-`.env`; frontend+backend על אותו Render service). **רץ רק אחרי מיזוג ל-main** (scheduled workflows רצים רק מה-default branch). **אזהרת עלות:** אם הריפו פרטי — 10 דק' חורג מ-2000 דקות Actions החינמיות בחודש; אז עדיף UptimeRobot/cron-job.org על אותו URL. הכתובת `homework-system-3haq.onrender.com` מקודדת בworkflow — לעדכן אם השרת עובר כתובת.
 - **גיט:** המשתמשת מבצעת בעצמה. השינויים בבראנץ' `feat/handle-server-sleep`, לא מוזגו ולא נדחפו.
 
 ## הערות טכניות חשובות
