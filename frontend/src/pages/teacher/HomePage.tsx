@@ -63,6 +63,8 @@ export default function TeacherHomePage() {
     : '—';
 
   const dateMeta = new Intl.DateTimeFormat('he-IL', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
+  // "שלום, עדי!" — a hello that is also the teacher's name (עדי שלום).
+  const firstName = (user?.name ?? 'עדי שלום').split(' ')[0];
 
   const kpis = [
     { value: groups.length, label: 'קבוצות', accent: 'indigo' as const, to: '/teacher/groups' },
@@ -76,8 +78,8 @@ export default function TeacherHomePage() {
       {/* Greeting sheet */}
       <section className="sheet relative p-5">
         <Tape color="indigo" rotate={2.5} className="-top-2.5 left-8 w-20" />
-        <div className="label mb-1">{dateMeta} · {pending > 0 ? `${pending} הגשות ממתינות` : 'אין ממתינות'}</div>
-        <h1 className="font-display text-2xl font-bold text-ink">{greeting()}, {user?.name ?? 'עדי'}</h1>
+        <div className="label mb-1">{greeting()} · {dateMeta} · {pending > 0 ? `${pending} הגשות ממתינות` : 'אין ממתינות'}</div>
+        <h1 className="font-display text-2xl font-bold text-ink">שלום, {firstName}!</h1>
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
           {kpis.map((k) => (
             <button key={k.label} onClick={() => navigate(k.to)} className="text-right">
