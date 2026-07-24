@@ -146,11 +146,38 @@ export default function TeacherLayout() {
             </div>
           </div>
         </div>
+
+        {/* Mobile/tablet nav — the sidebar table-of-contents is lg-only, so without
+            this the teacher had no navigation at all below 1024px. */}
+        <nav className="flex gap-2 overflow-x-auto border-t-2 border-ink/20 px-4 py-2 lg:hidden">
+          {nav.map(({ to, label, icon: Icon, end }) => (
+            <NavLink key={to} to={to} end={end} className="shrink-0">
+              {({ isActive }) => (
+                <span
+                  className={cn(
+                    'flex items-center gap-1.5 border-2 border-ink px-2.5 py-1 text-xs font-bold',
+                    isActive ? 'bg-ink text-paper' : 'bg-paper text-ink',
+                  )}
+                >
+                  <Icon size={13} />
+                  {label}
+                  {to === '/teacher/messages' && unreadCount > 0 && (
+                    <span className="grid size-4 place-items-center rounded-full bg-tomato font-mono text-[9px] text-paper">
+                      {unreadCount}
+                    </span>
+                  )}
+                </span>
+              )}
+            </NavLink>
+          ))}
+        </nav>
       </header>
 
       {/* Body: sidebar (right) + main */}
       <div className="mx-auto flex w-full max-w-[1400px] flex-1 gap-6 px-4 py-6">
-        <aside className="hidden w-[240px] shrink-0 flex-col gap-5 lg:flex">
+        {/* self-start + sticky: a stretched flex item can't stick, so the sidebar
+            pins under the 4rem header instead of scrolling away with the page. */}
+        <aside className="hidden w-[240px] shrink-0 flex-col gap-5 lg:flex lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
           {/* Table of contents */}
           <nav>
             <div className="mb-2 flex items-baseline justify-between">

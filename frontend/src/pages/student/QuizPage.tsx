@@ -76,7 +76,7 @@ export default function QuizPage() {
       <div className="flex flex-col items-center justify-center gap-4 py-20" dir="rtl">
         <div className="size-10 animate-spin border-2 border-ink border-t-transparent" />
         <p className="text-sm font-bold text-ink">החידון נוצר, אנא המתיני…</p>
-        <p className="font-mono text-xs text-ink/50">מכינים שאלות בעברית על תוכן השיעור</p>
+        <p className="font-mono text-xs text-ink/50">ה-AI מכין שאלות בעברית על תוכן השיעור</p>
       </div>
     );
   }
