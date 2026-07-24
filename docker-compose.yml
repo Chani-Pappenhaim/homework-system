@@ -21,6 +21,10 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    # Split-services topology: the api service runs the API-only entry while the
+    # worker service (below) runs the workers, so jobs are processed once. The
+    # image default CMD (combined) is used by the single-service Render Free deploy.
+    command: node dist/src/entrypoints/api.js
     env_file: .env
     environment:
       # Runs prisma migrate deploy + seed on startup (api only, not the worker)
@@ -38,7 +42,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: node dist/src/workers/index.js
+    command: node dist/src/entrypoints/worker.js
     env_file: .env
     depends_on:
       postgres:

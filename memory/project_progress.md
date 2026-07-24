@@ -37,6 +37,17 @@
 - **דרוש בפרודקשן (env של המשתמשת):** `VITE_API_URL` (build-time), `NODE_ENV=production`, `FRONTEND_URL`, callback URLs עם https + דומיין.
 - **פתוח:** 3 הבאגים המקוריים (קבוצה/קורסים/חסימת OAuth) עוד לא נבדקו על הקוד החדש. OAuth auto-create של משתמש לא רשום — עדיין קיים (business logic, לא נגעתי).
 
+## Refactor מבנה הפעלה — entry points נפרדים (2026-07-24, branch refactor/startup-entrypoints)
+
+- **מבנה חדש `src/entrypoints/`:** `api.ts` (API בלבד; מייצא `startApiServer()`), `worker.ts` (workers בלבד), `combined.ts` (API + כל ה-workers בתהליך אחד — עבור Render Free).
+- **נמחקו:** `src/index.ts` ו-`src/workers/index.ts` (הוחלפו ע"י ה-entrypoints).
+- **Render Free:** ה-CMD בברירת מחדל = `dist/src/entrypoints/combined.js` → שירות בודד מריץ API + workers יחד. אין יותר צורך ב-`RUN_WORKERS_INLINE` (בחירת ה-entry היא האות). ה-workers עולים פעם אחת דרך `startWorkers()`.
+- **docker-compose (split):** שירות api → `entrypoints/api.js`, שירות worker → `entrypoints/worker.js`.
+- **הפרדה עתידית לשני שירותי Render:** להצביע web→`entrypoints/api`, worker→`entrypoints/worker` — בלי שינוי קוד.
+- **package.json scripts:** `start`(combined), `start:api`, `start:worker`, `dev`(combined), `dev:api`, `dev:worker`. `main`→combined.
+- **Graceful shutdown** ללא שינוי לוגי: server.close → stopWorkers → closeQueues → closeSharedConnection → prisma.$disconnect.
+- **אימות:** `npx tsc` 0 errors.
+
 ## Refactor ארכיטקטוני Redis/BullMQ/Workers (2026-07-21, branch refactor/redis-workers-architecture → מוזג ל-main)
 
 - **מבנה חדש:** `infrastructure/redis/connection.ts` (factory `createRedisConnection()` + `sharedConnection`, זורק אם אין REDIS_URL, listeners, בלי סודות בלוג), `infrastructure/queues/{queues.ts,job-types.ts}` (Queues מטופסים + defaultJobOptions), `infrastructure/shutdown.ts`, `emails/{types,templates,service}.ts` (פוצל מה-worker), `workers/worker-events.ts`, `workers/start-workers.ts`.
