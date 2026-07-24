@@ -1,4 +1,3 @@
-import { Fragment } from 'react';
 import { cn } from '@/lib/utils';
 
 interface TickerProps {
@@ -6,30 +5,21 @@ interface TickerProps {
   className?: string;
 }
 
-/**
- * <Ticker /> — full-width black announcement strip. Items separated by a mustard
- * ◆ and scrolled RTL. Content is duplicated so the marquee loops seamlessly at
- * -50% (see .marquee-track / np-marquee in globals.css).
- */
+/** <Ticker /> — a quiet announcements strip (the scrolling marquee was retired). */
 export function Ticker({ items, className }: TickerProps) {
-  const Row = () => (
-    <>
-      {items.map((item, i) => (
-        <Fragment key={i}>
-          <span className="px-4">{item}</span>
-          <span className="text-mustard" aria-hidden>◆</span>
-        </Fragment>
-      ))}
-    </>
-  );
-
   return (
-    <div className={cn('overflow-hidden bg-ink py-1.5', className)}>
-      <div className="marquee-track font-sans text-[11px] font-black uppercase tracking-[0.25em] text-paper">
-        {/* two copies = one seamless loop */}
-        <span className="flex shrink-0"><Row /></span>
-        <span className="flex shrink-0" aria-hidden><Row /></span>
-      </div>
+    <div
+      className={cn(
+        'flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-rule bg-sheet px-4 py-2 text-xs text-ink-soft',
+        className,
+      )}
+    >
+      {items.map((item, i) => (
+        <span key={i} className="flex items-center gap-2">
+          {i > 0 && <span className="text-clay" aria-hidden>·</span>}
+          {item}
+        </span>
+      ))}
     </div>
   );
 }

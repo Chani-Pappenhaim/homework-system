@@ -19,7 +19,7 @@ export default function CoursesPage() {
 
   const courses: CourseDTO[] = (data?.data as any)?.data?.courses ?? [];
 
-  if (isLoading) return <div className="p-6 font-mono text-ink/50">טוען…</div>;
+  if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
 
   return (
     <div className="max-w-4xl space-y-5" dir="rtl">
@@ -27,7 +27,7 @@ export default function CoursesPage() {
         title="קורסים"
         meta="ניהול · קורסים"
         actions={
-          <Button variant="mustard" onClick={() => navigate('/teacher/courses/new')}>
+          <Button variant="clay" onClick={() => navigate('/teacher/courses/new')}>
             <Plus size={15} /> קורס חדש
           </Button>
         }
@@ -38,22 +38,22 @@ export default function CoursesPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {courses.map((c, i) => (
-            <Card key={c.id} accent={i % 2 ? 'cobalt' : 'tomato'} className="hover-lift">
+            <Card key={c.id} accent={i % 2 ? 'indigo' : 'coral'} className="lift">
               <CardContent className="space-y-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="grid size-10 shrink-0 place-items-center border-2 border-ink bg-mustard">
+                    <div className="grid size-10 shrink-0 place-items-center border border-rule bg-butter">
                       <BookOpen size={18} className="text-ink" />
                     </div>
                     <div>
                       <p className="font-display text-base font-bold text-ink">{c.name}</p>
-                      {c.groupName && <p className="font-mono text-[11px] text-ink/55">{c.groupName}</p>}
+                      {c.groupName && <p className="font-sans text-[11px] text-ink/55">{c.groupName}</p>}
                     </div>
                   </div>
                   {c.hidden && <Badge variant="warning"><Lock size={10} className="ml-1" /> מוסתר</Badge>}
                 </div>
-                <div className="flex items-center justify-between border-t-2 border-dashed border-ink/25 pt-2">
-                  <p className="font-mono text-[11px] text-ink/70">{c.lessonCount} שיעורים</p>
+                <div className="flex items-center justify-between border-t border-dashed border-rule/25 pt-2">
+                  <p className="font-sans text-[11px] text-ink/70">{c.lessonCount} שיעורים</p>
                   <Button size="sm" variant="outline" onClick={() => navigate(`/teacher/courses/${c.id}`)}>
                     פתח קורס →
                   </Button>

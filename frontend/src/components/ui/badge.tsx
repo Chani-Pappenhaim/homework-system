@@ -2,19 +2,19 @@ import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
-/* Hard-cornered, ink-bordered chips — colored fills from the riso palette. */
+/* Soft tinted chips — a subtle fill with same-family text, rounded pill. */
 const badgeVariants = cva(
-  'inline-flex items-center gap-1 border-2 border-ink px-2 py-0.5 text-xs font-bold uppercase tracking-wide',
+  'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold',
   {
     variants: {
       variant: {
-        default: 'bg-mustard text-ink',
-        secondary: 'bg-lilac text-ink',
-        success: 'bg-forest text-paper',
-        warning: 'bg-mustard text-ink',
-        destructive: 'bg-tomato text-paper',
-        ai: 'bg-plum text-paper',
-        muted: 'bg-cream text-ink',
+        default: 'bg-clay/12 text-clay',
+        secondary: 'bg-indigo/12 text-indigo',
+        success: 'bg-sage/15 text-sage',
+        warning: 'bg-butter/30 text-clay',
+        destructive: 'bg-coral/12 text-coral',
+        ai: 'bg-indigo/12 text-indigo',
+        muted: 'bg-ground text-ink-soft',
       },
     },
     defaultVariants: { variant: 'muted' },

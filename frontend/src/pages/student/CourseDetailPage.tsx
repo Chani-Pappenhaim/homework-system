@@ -17,8 +17,8 @@ export default function StudentCourseDetailPage() {
   });
 
   const course = data?.data.data.course;
-  if (isLoading) return <div className="p-6 font-mono text-ink/50">טוען…</div>;
-  if (!course) return <div className="p-6 font-mono text-tomato">קורס לא נמצא</div>;
+  if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
+  if (!course) return <div className="p-6 font-sans text-coral">קורס לא נמצא</div>;
 
   const total = course.lessons.length;
   const done = course.lessons.filter((l) => l.completed).length;
@@ -35,22 +35,22 @@ export default function StudentCourseDetailPage() {
       {course.description && <p className="text-sm text-ink/70">{course.description}</p>}
 
       {/* Progress — measuring tape */}
-      <Card accent="forest">
+      <Card accent="sage">
         <CardContent>
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-bold text-ink">
               ההתקדמות שלך {pct === 100 && total > 0 && '🎉 כל הכבוד!'}
             </span>
-            <span className="font-mono text-sm font-bold text-forest tabular">{done}/{total} · {pct}%</span>
+            <span className="font-sans text-sm font-bold text-sage tabular">{done}/{total} · {pct}%</span>
           </div>
-          <div className="h-4 border-2 border-ink bg-paper">
-            <div className="h-full bg-forest transition-all duration-500" style={{ width: `${pct}%` }} />
+          <div className="h-4 border border-rule bg-sheet">
+            <div className="h-full bg-sage transition-all duration-500" style={{ width: `${pct}%` }} />
           </div>
         </CardContent>
       </Card>
 
       {/* Lesson tiles */}
-      <Card accent="cobalt">
+      <Card accent="indigo">
         <CardHeader><h2 className="font-display text-base font-bold">שיעורים</h2></CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-3">
@@ -60,12 +60,12 @@ export default function StudentCourseDetailPage() {
                 onClick={() => navigate(`/student/lessons/${l.id}`)}
                 title={l.completed ? 'הושלם' : l.topic}
                 className={cn(
-                  'relative grid size-16 place-items-center border-2 border-ink font-display text-lg font-black shadow-brutal-sm transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5',
-                  l.completed ? 'bg-forest text-paper' : 'bg-paper text-ink',
+                  'relative grid size-16 place-items-center border border-rule font-display text-lg font-black shadow-soft transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5',
+                  l.completed ? 'bg-sage text-sheet' : 'bg-sheet text-ink',
                 )}
               >
                 {l.completed && (
-                  <span className="absolute -right-2 -top-2 grid size-5 place-items-center rounded-full border-2 border-ink bg-mustard text-ink">
+                  <span className="absolute -right-2 -top-2 grid size-5 place-items-center rounded-full border border-rule bg-butter text-ink">
                     <Check size={11} strokeWidth={3} />
                   </span>
                 )}

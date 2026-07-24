@@ -1,18 +1,13 @@
 import { cn } from '@/lib/utils';
 
-export type PillVariant =
-  | 'ai' // נבדק ע"י AI
-  | 'pending' // ממתין
-  | 'fix' // דורש תיקון
-  | 'approved' // אושר
-  | 'neutral';
+export type PillVariant = 'ai' | 'pending' | 'fix' | 'approved' | 'neutral';
 
 const styles: Record<PillVariant, string> = {
-  ai: 'bg-lilac text-ink',
-  pending: 'bg-mustard text-ink',
-  fix: 'bg-tomato text-paper',
-  approved: 'bg-forest text-paper',
-  neutral: 'bg-paper text-ink',
+  ai: 'bg-indigo/12 text-indigo',
+  pending: 'bg-butter/30 text-clay',
+  fix: 'bg-coral/12 text-coral',
+  approved: 'bg-sage/15 text-sage',
+  neutral: 'bg-ground text-ink-soft',
 };
 
 interface StatusPillProps {
@@ -21,16 +16,12 @@ interface StatusPillProps {
   className?: string;
 }
 
-/**
- * <StatusPill /> — a taped label, not a colored button: uppercase 11px mono,
- * 2px ink border, hard-cornered, colored fill by state.
- */
+/** <StatusPill /> — a soft tinted status chip. */
 export function StatusPill({ variant = 'neutral', children, className }: StatusPillProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 border-2 border-ink px-2 py-0.5',
-        'font-mono text-[11px] font-bold uppercase leading-none tracking-wider',
+        'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold',
         styles[variant],
         className,
       )}

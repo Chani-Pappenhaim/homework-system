@@ -36,7 +36,7 @@ export default function TeacherMessagesPage() {
 
   const messages: any[] = (data?.data as any)?.data?.messages ?? [];
 
-  if (isLoading) return <div className="p-6 font-mono text-ink/50">טוען…</div>;
+  if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
 
   return (
     <div className="max-w-2xl space-y-4" dir="rtl">
@@ -45,7 +45,7 @@ export default function TeacherMessagesPage() {
       {messages.map((msg, i) => (
         <Card
           key={msg.id}
-          accent={!msg.isRead ? 'tomato' : 'forest'}
+          accent={!msg.isRead ? 'coral' : 'sage'}
           className={msg.isRead && msg.replyContent ? 'opacity-70' : ''}
           style={{ transform: `rotate(${i % 2 ? 0.3 : -0.3}deg)` }}
         >
@@ -63,7 +63,7 @@ export default function TeacherMessagesPage() {
 
             {/* Existing reply */}
             {msg.replyContent && (
-              <div className="mt-2 bg-cream/60 border-r-2 border-cobalt rounded-input px-3 py-2">
+              <div className="mt-2 bg-ground/60 border-r border-indigo rounded-input px-3 py-2">
                 <p className="text-xs text-ink/50 mb-0.5">התגובה שלך · {formatDateTime(msg.repliedAt)}</p>
                 <p className="text-sm whitespace-pre-wrap">{msg.replyContent}</p>
               </div>

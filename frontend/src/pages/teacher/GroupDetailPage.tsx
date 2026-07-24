@@ -17,17 +17,17 @@ export default function GroupDetailPage() {
 
   const group = data?.data.data.group;
 
-  if (isLoading) return <div className="p-6 font-mono text-ink/50">טוען…</div>;
-  if (!group) return <div className="p-6 font-mono text-tomato">קבוצה לא נמצאה</div>;
+  if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
+  if (!group) return <div className="p-6 font-sans text-coral">קבוצה לא נמצאה</div>;
 
   return (
     <div className="max-w-3xl space-y-5" dir="rtl">
       {/* Header */}
-      <div className="border-b-2 border-ink pb-3">
+      <div className="border-b border-rule pb-3">
         <BackLink className="mb-2" />
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="grid size-11 shrink-0 place-items-center border-2 border-ink bg-lilac">
+            <div className="grid size-11 shrink-0 place-items-center border border-rule bg-indigo/15">
               <Users size={20} className="text-ink" />
             </div>
             <div>
@@ -45,7 +45,7 @@ export default function GroupDetailPage() {
       </div>
 
       {/* Courses of this group */}
-      <Card accent="cobalt">
+      <Card accent="indigo">
         <CardHeader>
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-sm flex items-center gap-1.5">
@@ -65,7 +65,7 @@ export default function GroupDetailPage() {
                 <button
                   key={c.id}
                   onClick={() => navigate(`/teacher/courses/${c.id}`)}
-                  className="flex items-center gap-2 border-2 border-ink bg-paper px-4 py-3 text-right shadow-brutal-sm transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5"
+                  className="flex items-center gap-2 border border-rule bg-sheet px-4 py-3 text-right shadow-soft transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5"
                 >
                   <BookOpen size={16} className="shrink-0 text-ink" />
                   <span className="text-sm font-medium text-ink">{c.name}</span>
@@ -81,7 +81,7 @@ export default function GroupDetailPage() {
         <CardHeader>
           <h2 className="font-semibold text-sm">תלמידות ({group.students.length})</h2>
         </CardHeader>
-        <div className="divide-y divide-ink/20">
+        <div className="divide-y divide-rule/20">
           {group.students.length === 0 && (
             <p className="px-5 py-4 text-sm text-ink/50">אין תלמידות עדיין</p>
           )}

@@ -87,7 +87,7 @@ export default function GroupFormPage() {
 
   return (
     <div className="max-w-2xl space-y-5" dir="rtl">
-      <div className="border-b-2 border-ink pb-3">
+      <div className="border-b border-rule pb-3">
         <BackLink className="mb-2" />
         <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{isEdit ? 'עריכת קבוצה' : 'קבוצה חדשה'}</h1>
       </div>
@@ -98,7 +98,7 @@ export default function GroupFormPage() {
           <Input label="שם סמינר (אופציונלי)" value={seminar} onChange={(e) => setSeminar(e.target.value)} placeholder='בית יעקב' />
           <Input label="שם קבוצה *" value={name} onChange={(e) => setName(e.target.value)} placeholder='קבוצה א' required />
           <Input label='שנה"ל *' value={year} onChange={(e) => setYear(e.target.value)} placeholder='תשפ"ו' required />
-          {error && <p className="text-tomato text-sm">{error}</p>}
+          {error && <p className="text-coral text-sm">{error}</p>}
           <Button loading={saveMutation.isPending} onClick={() => saveMutation.mutate()} disabled={!name || !year}>
             {isEdit ? 'שמור שינויים' : 'צור קבוצה'}
           </Button>
@@ -116,7 +116,7 @@ export default function GroupFormPage() {
               </Button>
             </div>
           </CardHeader>
-          <div className="divide-y divide-ink/20">
+          <div className="divide-y divide-rule/20">
             {group?.students.length === 0 && (
               <p className="px-5 py-4 text-sm text-ink/50">אין תלמידות עדיין</p>
             )}
@@ -159,7 +159,7 @@ export default function GroupFormPage() {
         <div className="flex gap-2 mb-4">
           {(['manual', 'excel'] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)}
-              className={`border-2 px-3 py-1.5 text-sm font-bold transition ${tab === t ? 'border-ink bg-ink text-paper' : 'border-ink/30 text-ink/70 hover:border-ink'}`}>
+              className={`border px-3 py-1.5 text-sm font-bold transition ${tab === t ? 'border-rule bg-ink text-sheet' : 'border-rule/30 text-ink/70 hover:border-rule'}`}>
               {t === 'manual' ? 'הוספה ידנית' : 'ייבוא מ-Excel'}
             </button>
           ))}
@@ -170,7 +170,7 @@ export default function GroupFormPage() {
             <Input label="שם מלא" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="ישראלה ישראלי" />
             <Input label="אימייל" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="student@example.com" />
             <Input label="שם משתמש GitHub (אופציונלי)" value={newGithub} onChange={(e) => setNewGithub(e.target.value)} placeholder="username" />
-            {addError && <p className="text-tomato text-sm">{addError}</p>}
+            {addError && <p className="text-coral text-sm">{addError}</p>}
             <Button loading={addStudentMutation.isPending} onClick={() => addStudentMutation.mutate()} disabled={!newName || !newEmail} className="w-full">
               הוסף תלמידה
             </Button>

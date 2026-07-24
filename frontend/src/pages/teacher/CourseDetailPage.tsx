@@ -47,12 +47,12 @@ export default function CourseDetailPage() {
 
   const course = data?.data.data.course;
   if (isLoading) return <div className="p-6 text-ink/50">טוען...</div>;
-  if (!course) return <div className="p-6 text-tomato">קורס לא נמצא</div>;
+  if (!course) return <div className="p-6 text-coral">קורס לא נמצא</div>;
 
   return (
     <div className="max-w-3xl space-y-5" dir="rtl">
       {/* Header */}
-      <div className="flex items-start justify-between border-b-2 border-ink pb-3">
+      <div className="flex items-start justify-between border-b border-rule pb-3">
         <div>
           <BackLink className="mb-2" />
           <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{course.name}</h1>
@@ -65,7 +65,7 @@ export default function CourseDetailPage() {
       </div>
 
       {/* Lesson bubbles */}
-      <Card accent="cobalt">
+      <Card accent="indigo">
         <CardHeader>
           <h2 className="font-semibold text-sm">שיעורים ({course.lessons.length})</h2>
         </CardHeader>
@@ -75,8 +75,8 @@ export default function CourseDetailPage() {
               <button
                 key={l.id}
                 onClick={() => navigate(`/teacher/lessons/${l.id}`)}
-                className={`relative grid size-16 place-items-center border-2 border-ink font-display text-lg font-black shadow-brutal-sm transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5
-                  ${l.hidden ? 'bg-cream/60 text-ink/40' : 'bg-paper text-ink'}`}
+                className={`relative grid size-16 place-items-center border border-rule font-display text-lg font-black shadow-soft transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5
+                  ${l.hidden ? 'bg-ground/60 text-ink/40' : 'bg-sheet text-ink'}`}
               >
                 <span>{i + 1}</span>
                 {l.hidden && <Lock size={10} className="absolute top-1 left-1 text-ink/50" />}
@@ -84,7 +84,7 @@ export default function CourseDetailPage() {
             ))}
             <button
               onClick={() => { setNewTopic(''); setNewDate(''); setNewContent(''); setNewGithub(''); setNewLessonModal(true); }}
-              className="flex items-center justify-center w-16 h-16 rounded-xl border-2 border-dashed border-ink/20 text-ink/50 hover:border-primary/40 hover:text-primary transition"
+              className="flex items-center justify-center w-16 h-16 rounded-xl border border-dashed border-rule/20 text-ink/50 hover:border-primary/40 hover:text-primary transition"
             >
               <Plus size={18} />
             </button>
@@ -138,7 +138,7 @@ export default function CourseDetailPage() {
               value={newContent}
               onChange={(e) => setNewContent(e.target.value)}
               rows={5}
-              className="resize-y font-mono"
+              className="resize-y font-sans"
               placeholder="# כותרת&#10;&#10;תוכן השיעור, הסברים, דוגמאות קוד..."
             />
           </div>

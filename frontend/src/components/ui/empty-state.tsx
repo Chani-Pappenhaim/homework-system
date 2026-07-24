@@ -16,12 +16,12 @@ export function EmptyState({ children, icon, className }: EmptyStateProps) {
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center gap-2 border-2 border-dashed border-ink/40 bg-paper px-6 py-12 text-center',
+        'flex flex-col items-center justify-center gap-2 border border-dashed border-rule/40 bg-sheet px-6 py-12 text-center',
         className,
       )}
     >
       {icon && <div className="text-ink/40">{icon}</div>}
-      <p className="font-mono text-sm text-ink/50">{children}</p>
+      <p className="font-sans text-sm text-ink/50">{children}</p>
     </div>
   );
 }

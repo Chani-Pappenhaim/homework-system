@@ -2,20 +2,18 @@ import { cn } from '@/lib/utils';
 
 interface StampProps {
   children: React.ReactNode;
-  /** Override rotation (default -6°). */
   rotate?: number;
   className?: string;
 }
 
-/**
- * <Stamp /> — a rotated rubber stamp (tomato border + text, wide tracking,
- * uppercase serif). Used for "URGENT", "אושר", collectible stamps, etc.
- */
-export function Stamp({ children, rotate, className }: StampProps) {
+/** <Stamp /> — a small clay-outlined chip (softened from the rubber stamp). */
+export function Stamp({ children, className }: StampProps) {
   return (
     <span
-      className={cn('stamp', className)}
-      style={rotate !== undefined ? { transform: `rotate(${rotate}deg)` } : undefined}
+      className={cn(
+        'inline-flex items-center rounded-md border border-clay/55 px-2 py-0.5 text-[11px] font-semibold text-clay',
+        className,
+      )}
     >
       {children}
     </span>

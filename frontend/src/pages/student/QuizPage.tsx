@@ -50,19 +50,19 @@ export default function QuizPage() {
     },
   });
 
-  if (isLoading) return <div className="p-6 font-mono text-ink/50">טוען…</div>;
+  if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
 
   if (status === 'generating' && timedOut) {
     return (
       <div className="mx-auto max-w-md py-16 text-center" dir="rtl">
-        <div className="border-2 border-ink bg-paper p-6 shadow-brutal">
+        <div className="border border-rule bg-sheet p-6 shadow-sheet">
           <p className="font-display text-xl font-black text-ink">יצירת החידון נמשכת יותר מדי</p>
-          <p className="mt-2 font-mono text-xs text-ink/60">
+          <p className="mt-2 font-sans text-xs text-ink/60">
             ייתכן שיש תקלה זמנית ביצירת השאלות. אפשר לנסות שוב.
           </p>
           <button
             onClick={() => { setTimedOut(false); refetch(); }}
-            className="mt-4 border-2 border-ink bg-mustard px-4 py-2 font-bold text-ink shadow-brutal-sm hover-lift"
+            className="mt-4 border border-rule bg-butter px-4 py-2 font-bold text-ink shadow-soft lift"
           >
             נסי שוב
           </button>
@@ -74,9 +74,9 @@ export default function QuizPage() {
   if (status === 'generating') {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20" dir="rtl">
-        <div className="size-10 animate-spin border-2 border-ink border-t-transparent" />
+        <div className="size-10 animate-spin border border-rule border-t-transparent" />
         <p className="text-sm font-bold text-ink">החידון נוצר, אנא המתיני…</p>
-        <p className="font-mono text-xs text-ink/50">ה-AI מכין שאלות בעברית על תוכן השיעור</p>
+        <p className="font-sans text-xs text-ink/50">ה-AI מכין שאלות בעברית על תוכן השיעור</p>
       </div>
     );
   }
@@ -84,12 +84,12 @@ export default function QuizPage() {
   if (result) {
     return (
       <div className="mx-auto max-w-lg space-y-5" dir="rtl">
-        <Card accent="cobalt">
+        <Card accent="indigo">
           <CardContent className="space-y-3 text-center">
-            <span className="pen-circle mx-auto inline-flex font-display text-5xl font-black tabular text-tomato">
+            <span className="pen-circle mx-auto inline-flex font-display text-5xl font-black tabular text-coral">
               {Math.round(result.score)}%
             </span>
-            <p className="font-mono text-sm text-ink/70">{result.correct} מתוך {result.total} תשובות נכונות</p>
+            <p className="font-sans text-sm text-ink/70">{result.correct} מתוך {result.total} תשובות נכונות</p>
             <div>
               <Badge variant={result.score >= 80 ? 'success' : result.score >= 60 ? 'warning' : 'destructive'}>
                 {result.score >= 80 ? 'מצוין!' : result.score >= 60 ? 'טוב' : 'נסי שוב'}
@@ -109,15 +109,15 @@ export default function QuizPage() {
                   <div
                     key={j}
                     className={cn(
-                      'flex items-center gap-2 border-2 px-3 py-2 text-sm',
+                      'flex items-center gap-2 border px-3 py-2 text-sm',
                       isCorrect
-                        ? 'border-forest bg-forest/20 text-forest'
+                        ? 'border-sage bg-sage/20 text-sage'
                         : isSelected
-                          ? 'border-tomato bg-tomato/15 text-tomato'
-                          : 'border-ink/15 bg-cream/50 text-ink/70',
+                          ? 'border-coral bg-coral/15 text-coral'
+                          : 'border-rule/15 bg-ground/50 text-ink/70',
                     )}
                   >
-                    <span className="font-mono">{isCorrect ? '✓' : isSelected ? '✗' : '○'}</span>
+                    <span className="font-sans">{isCorrect ? '✓' : isSelected ? '✗' : '○'}</span>
                     {opt}
                   </div>
                 );
@@ -147,8 +147,8 @@ export default function QuizPage() {
               <label
                 key={j}
                 className={cn(
-                  'flex cursor-pointer items-center gap-3 border-2 px-3 py-2 transition-colors',
-                  answers[i] === j ? 'border-ink bg-mustard/25 text-ink' : 'border-ink/20 text-ink/70 hover:border-ink/50',
+                  'flex cursor-pointer items-center gap-3 border px-3 py-2 transition-colors',
+                  answers[i] === j ? 'border-rule bg-butter/25 text-ink' : 'border-rule/20 text-ink/70 hover:border-rule/50',
                 )}
               >
                 <input
@@ -166,7 +166,7 @@ export default function QuizPage() {
       ))}
 
       <Button
-        variant="mustard"
+        variant="clay"
         className="w-full"
         size="lg"
         loading={attemptMutation.isPending}

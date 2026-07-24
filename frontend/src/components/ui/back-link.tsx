@@ -21,7 +21,7 @@ interface BackLinkProps {
 export function BackLink({ to, label = 'חזרה', className }: BackLinkProps) {
   const navigate = useNavigate();
   const cls = cn(
-    'inline-flex w-fit items-center gap-1.5 font-mono text-xs font-bold text-ink/70 transition-colors hover:text-ink',
+    'inline-flex w-fit items-center gap-1.5 font-sans text-xs font-bold text-ink/70 transition-colors hover:text-ink',
     className,
   );
   const inner = (
