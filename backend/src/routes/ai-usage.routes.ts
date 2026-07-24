@@ -7,5 +7,6 @@ const router = Router();
 router.use(verifyAccessTokenMiddleware);
 
 router.get('/summary', requireRole('ADMIN'), aiUsageController.getSummary);
+router.get('/storage', requireRole('ADMIN'), aiUsageController.getStorage);
 
 export default router;

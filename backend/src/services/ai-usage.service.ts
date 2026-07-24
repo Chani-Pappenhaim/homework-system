@@ -1,4 +1,23 @@
 import { prisma } from '../config/prisma';
+import { cloudinary } from '../config/cloudinary';
+
+export interface StorageUsage {
+  usedBytes: number;
+  limitBytes: number;
+  percent: number;
+}
+
+/**
+ * Current Cloudinary storage usage, so the teacher can see it on-screen instead
+ * of only being emailed at 80%. Same source the storage monitor reads.
+ */
+export async function getStorageUsage(): Promise<StorageUsage> {
+  const usage = await cloudinary.api.usage();
+  const usedBytes = usage.storage?.used_bytes ?? 0;
+  const limitBytes = usage.storage?.limit ?? 0;
+  const percent = limitBytes > 0 ? (usedBytes / limitBytes) * 100 : 0;
+  return { usedBytes, limitBytes, percent };
+}
 
 interface MonthBucket {
   month: string;

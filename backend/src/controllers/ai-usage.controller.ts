@@ -9,3 +9,12 @@ export async function getSummary(_req: Request, res: Response) {
     res.status(err.status || 500).json({ success: false, error: err.message });
   }
 }
+
+export async function getStorage(_req: Request, res: Response) {
+  try {
+    const storage = await aiUsageService.getStorageUsage();
+    res.json({ success: true, data: storage });
+  } catch (err: any) {
+    res.status(err.status || 500).json({ success: false, error: err.message });
+  }
+}
