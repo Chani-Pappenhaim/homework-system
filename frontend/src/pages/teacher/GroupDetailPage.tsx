@@ -27,11 +27,11 @@ export default function GroupDetailPage() {
         <BackLink className="mb-2" />
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="grid size-11 shrink-0 place-items-center border border-rule bg-indigo/15">
+            <div className="grid size-11 shrink-0 place-items-center rounded-lg border border-rule bg-indigo/15">
               <Users size={20} className="text-ink" />
             </div>
             <div>
-              <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{group.name}</h1>
+              <h1 className="font-display text-2xl font-bold text-ink md:text-3xl">{group.name}</h1>
             <p className="text-ink/70 text-sm mt-0.5">
               {group.seminar && <span>{group.seminar} · </span>}
               שנה"ל {group.year} · {group.students.length} תלמידות
@@ -49,7 +49,7 @@ export default function GroupDetailPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-sm flex items-center gap-1.5">
-              <BookOpen size={15} className="text-primary" /> קורסים ({group.courses.length})
+              <BookOpen size={15} className="text-clay" /> קורסים ({group.courses.length})
             </h2>
             <Button size="sm" variant="secondary" onClick={() => navigate(`/teacher/courses/new?groupId=${id}`)}>
               <Plus size={13} /> קורס לקבוצה
@@ -65,7 +65,7 @@ export default function GroupDetailPage() {
                 <button
                   key={c.id}
                   onClick={() => navigate(`/teacher/courses/${c.id}`)}
-                  className="flex items-center gap-2 border border-rule bg-sheet px-4 py-3 text-right shadow-soft transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5"
+                  className="lift flex items-center gap-2 rounded-lg border border-rule bg-sheet px-4 py-3 text-right shadow-soft"
                 >
                   <BookOpen size={16} className="shrink-0 text-ink" />
                   <span className="text-sm font-medium text-ink">{c.name}</span>

@@ -115,7 +115,7 @@ export default function CourseFormPage() {
       <div className="border-b border-rule pb-3">
         <BackLink className="mb-2" />
         <div className="flex items-center justify-between">
-          <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{isEdit ? 'עריכת קורס' : 'קורס חדש'}</h1>
+          <h1 className="font-display text-2xl font-bold text-ink md:text-3xl">{isEdit ? 'עריכת קורס' : 'קורס חדש'}</h1>
           {isEdit && (
             <Button variant="outline" size="sm" onClick={() => setCopyModal(true)}>
               <Copy size={13} /> העתק לקבוצה אחרת
@@ -169,7 +169,7 @@ export default function CourseFormPage() {
                 <GripVertical size={14} className="text-ink/50 cursor-grab flex-shrink-0" />
                 <span className="text-xs text-ink/50 w-5 flex-shrink-0">{i + 1}</span>
                 <span
-                  className="flex-1 text-sm cursor-pointer hover:text-primary transition"
+                  className="flex-1 text-sm cursor-pointer hover:text-clay transition"
                   onClick={() => navigate(`/teacher/lessons/${l.id}`)}
                 >
                   {l.topic}
@@ -191,7 +191,7 @@ export default function CourseFormPage() {
           <CardContent className="space-y-3">
             {course.links.map((l) => (
               <div key={l.id} className="flex items-center gap-2">
-                <a href={toExternalUrl(l.url)} target="_blank" rel="noreferrer" className="flex-1 text-sm text-primary hover:underline truncate">{l.label}</a>
+                <a href={toExternalUrl(l.url)} target="_blank" rel="noreferrer" className="flex-1 text-sm text-clay hover:underline truncate">{l.label}</a>
                 <Button size="sm" variant="destructive" onClick={() => deleteLinkMutation.mutate(l.id)}>
                   <Trash2 size={12} />
                 </Button>
@@ -215,7 +215,7 @@ export default function CourseFormPage() {
           <CardContent className="space-y-3">
             {course.files.map((f) => (
               <div key={f.id} className="flex items-center gap-2">
-                <a href={f.url} target="_blank" rel="noreferrer" className="flex-1 text-sm text-ink hover:text-primary truncate">{f.name}</a>
+                <a href={f.url} target="_blank" rel="noreferrer" className="flex-1 text-sm text-ink hover:text-clay truncate">{f.name}</a>
                 <Button size="sm" variant="destructive" onClick={() => deleteFileMutation.mutate(f.id)}>
                   <Trash2 size={12} />
                 </Button>

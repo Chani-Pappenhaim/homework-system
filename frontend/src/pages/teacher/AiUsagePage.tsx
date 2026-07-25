@@ -142,7 +142,7 @@ function StatCard({ icon, label, value, tile }: {
           {icon}
         </div>
         <div>
-          <p className="font-display text-2xl font-black tabular text-ink">{value}</p>
+          <p className="font-display text-2xl font-bold tabular text-ink">{value}</p>
           <p className="font-sans text-[11px] text-ink/60">{label}</p>
         </div>
       </CardContent>

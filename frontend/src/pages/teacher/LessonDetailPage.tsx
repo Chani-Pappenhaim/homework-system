@@ -227,7 +227,7 @@ export default function LessonDetailPage() {
         <CardHeader>
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="font-display text-2xl font-black text-ink">{lesson.topic}</h1>
+              <h1 className="font-display text-2xl font-bold text-ink">{lesson.topic}</h1>
               {lesson.lessonDate && <p className="text-sm text-ink/70 mt-0.5">{formatDate(lesson.lessonDate)}</p>}
             </div>
             <div className="flex items-center gap-2">
@@ -255,7 +255,7 @@ export default function LessonDetailPage() {
             {lesson.files.map((f) => (
               <div key={f.id} className="flex items-center justify-between">
                 <a href={f.url} target="_blank" rel="noreferrer"
-                  className="flex items-center gap-1.5 text-sm text-primary hover:underline">
+                  className="flex items-center gap-1.5 text-sm text-clay hover:underline">
                   <Paperclip size={12} /> {f.name}
                 </a>
                 <Button size="sm" variant="destructive"
@@ -348,11 +348,11 @@ export default function LessonDetailPage() {
                         </td>
                         <td className="px-3 py-3">
                           {s.fileUrl ? (
-                            <a href={s.fileUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline flex items-center gap-1">
+                            <a href={s.fileUrl} target="_blank" rel="noreferrer" className="text-clay hover:underline flex items-center gap-1">
                               <Paperclip size={12} /> {s.fileName ?? 'קובץ'}
                             </a>
                           ) : s.githubUrl ? (
-                            <a href={s.githubUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline flex items-center gap-1">
+                            <a href={s.githubUrl} target="_blank" rel="noreferrer" className="text-clay hover:underline flex items-center gap-1">
                               <Github size={12} /> GitHub
                             </a>
                           ) : <span className="text-ink/50">לא הוגש</span>}
@@ -534,13 +534,13 @@ export default function LessonDetailPage() {
             {/* Submission link */}
             {gradeModal.fileUrl && (
               <a href={gradeModal.fileUrl} target="_blank" rel="noreferrer"
-                className="flex items-center gap-2 text-sm text-primary border border-rule/20 rounded-input px-3 py-2 hover:bg-ground/60">
+                className="flex items-center gap-2 text-sm text-clay border border-rule/20 rounded-input px-3 py-2 hover:bg-ground/60">
                 <ExternalLink size={13} /> פתח קובץ שהוגש
               </a>
             )}
             {gradeModal.githubUrl && (
               <a href={gradeModal.githubUrl} target="_blank" rel="noreferrer"
-                className="flex items-center gap-2 text-sm text-primary border border-rule/20 rounded-input px-3 py-2 hover:bg-ground/60">
+                className="flex items-center gap-2 text-sm text-clay border border-rule/20 rounded-input px-3 py-2 hover:bg-ground/60">
                 <Github size={13} /> פתח GitHub
               </a>
             )}

@@ -97,7 +97,7 @@ export default function TeacherMessagesPage() {
             ) : (
               <div className="flex gap-3 mt-1">
                 <button
-                  className="text-xs text-primary underline flex items-center gap-1"
+                  className="text-xs text-clay underline flex items-center gap-1"
                   onClick={() => { setReplyingTo(msg.id); setReplyText(msg.replyContent ?? ''); }}
                 >
                   <Reply size={11} /> {msg.replyContent ? 'ערכי תגובה' : 'הגיבי'}

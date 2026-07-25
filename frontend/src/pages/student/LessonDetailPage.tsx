@@ -52,7 +52,7 @@ export default function StudentLessonDetailPage() {
         <BackLink to={`/student/courses/${lesson.courseId}`} label="חזרה לקורס" className="mb-2" />
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{lesson.topic}</h1>
+            <h1 className="font-display text-2xl font-bold text-ink md:text-3xl">{lesson.topic}</h1>
             {lesson.lessonDate && (
               <p className="mt-1 font-sans text-xs text-ink/60">{formatDate(lesson.lessonDate)}</p>
             )}
@@ -61,8 +61,8 @@ export default function StudentLessonDetailPage() {
             onClick={() => progressMutation.mutate(!lesson.completed)}
             disabled={progressMutation.isPending}
             className={cn(
-              'flex shrink-0 items-center gap-1.5 border border-rule px-3 py-2 text-sm font-bold shadow-soft transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5 disabled:opacity-50',
-              lesson.completed ? 'bg-sage text-sheet' : 'bg-butter text-ink',
+              'lift flex shrink-0 items-center gap-1.5 rounded-input border border-rule px-3 py-2 text-sm font-semibold shadow-soft disabled:opacity-50',
+              lesson.completed ? 'bg-sage text-sheet' : 'bg-butter/40 text-clay',
             )}
           >
             <Check size={15} strokeWidth={3} />
@@ -95,7 +95,7 @@ export default function StudentLessonDetailPage() {
           <CardContent className="space-y-2">
             {lesson.files.map((f) => (
               <a key={f.id} href={f.url} target="_blank" rel="noreferrer"
-                className="flex items-center gap-2 text-sm text-primary hover:underline">
+                className="flex items-center gap-2 text-sm text-clay hover:underline">
                 <Paperclip size={12} /> {f.name}
               </a>
             ))}
@@ -106,7 +106,7 @@ export default function StudentLessonDetailPage() {
       {/* Quiz button */}
       <button
         onClick={() => navigate(`/student/quiz/${lesson.id}`)}
-        className="w-full border border-rule bg-butter py-3 text-sm font-bold text-ink shadow-sheet transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5"
+        className="lift w-full rounded-input border border-rule bg-butter/40 py-3 text-sm font-semibold text-clay shadow-soft"
       >
         פתחי חידון לשיעור זה ←
       </button>
@@ -221,7 +221,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                   <div className="space-y-2 pt-1">
                     <p className="font-semibold text-ink">ציון: {sub.aiScore}</p>
                     <p className="text-ink/70 text-xs">{sub.aiVerbalReview}</p>
-                    <button className="text-xs text-primary underline" onClick={() => setShowAiReview(!showAiReview)}>
+                    <button className="text-xs text-clay underline" onClick={() => setShowAiReview(!showAiReview)}>
                       {showAiReview ? 'הסתירי הערות קוד' : 'הצגי הערות קוד'}
                     </button>
                     {showAiReview && (

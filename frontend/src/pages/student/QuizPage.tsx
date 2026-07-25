@@ -55,14 +55,14 @@ export default function QuizPage() {
   if (status === 'generating' && timedOut) {
     return (
       <div className="mx-auto max-w-md py-16 text-center" dir="rtl">
-        <div className="border border-rule bg-sheet p-6 shadow-sheet">
-          <p className="font-display text-xl font-black text-ink">יצירת החידון נמשכת יותר מדי</p>
+        <div className="rounded-card border border-rule bg-sheet p-6 shadow-sheet">
+          <p className="font-display text-xl font-bold text-ink">יצירת החידון נמשכת יותר מדי</p>
           <p className="mt-2 font-sans text-xs text-ink/60">
             ייתכן שיש תקלה זמנית ביצירת השאלות. אפשר לנסות שוב.
           </p>
           <button
             onClick={() => { setTimedOut(false); refetch(); }}
-            className="mt-4 border border-rule bg-butter px-4 py-2 font-bold text-ink shadow-soft lift"
+            className="lift mt-4 rounded-input border border-rule bg-butter/40 px-4 py-2 font-semibold text-clay shadow-soft"
           >
             נסי שוב
           </button>
@@ -74,7 +74,7 @@ export default function QuizPage() {
   if (status === 'generating') {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20" dir="rtl">
-        <div className="size-10 animate-spin border border-rule border-t-transparent" />
+        <div className="size-10 animate-spin rounded-full border-2 border-rule border-t-clay" />
         <p className="text-sm font-bold text-ink">החידון נוצר, אנא המתיני…</p>
         <p className="font-sans text-xs text-ink/50">ה-AI מכין שאלות בעברית על תוכן השיעור</p>
       </div>
@@ -86,7 +86,7 @@ export default function QuizPage() {
       <div className="mx-auto max-w-lg space-y-5" dir="rtl">
         <Card accent="indigo">
           <CardContent className="space-y-3 text-center">
-            <span className="pen-circle mx-auto inline-flex font-display text-5xl font-black tabular text-coral">
+            <span className="mx-auto grid size-24 place-items-center rounded-full bg-butter/25 font-display text-4xl font-bold tabular text-clay">
               {Math.round(result.score)}%
             </span>
             <p className="font-sans text-sm text-ink/70">{result.correct} מתוך {result.total} תשובות נכונות</p>
@@ -109,12 +109,12 @@ export default function QuizPage() {
                   <div
                     key={j}
                     className={cn(
-                      'flex items-center gap-2 border px-3 py-2 text-sm',
+                      'flex items-center gap-2 rounded-input border px-3 py-2 text-sm',
                       isCorrect
-                        ? 'border-sage bg-sage/20 text-sage'
+                        ? 'border-sage bg-sage/15 text-sage'
                         : isSelected
-                          ? 'border-coral bg-coral/15 text-coral'
-                          : 'border-rule/15 bg-ground/50 text-ink/70',
+                          ? 'border-coral bg-coral/12 text-coral'
+                          : 'border-rule bg-ground/50 text-ink/70',
                     )}
                   >
                     <span className="font-sans">{isCorrect ? '✓' : isSelected ? '✗' : '○'}</span>
@@ -147,8 +147,8 @@ export default function QuizPage() {
               <label
                 key={j}
                 className={cn(
-                  'flex cursor-pointer items-center gap-3 border px-3 py-2 transition-colors',
-                  answers[i] === j ? 'border-rule bg-butter/25 text-ink' : 'border-rule/20 text-ink/70 hover:border-rule/50',
+                  'flex cursor-pointer items-center gap-3 rounded-input border px-3 py-2 transition-colors',
+                  answers[i] === j ? 'border-clay bg-butter/25 text-ink' : 'border-rule text-ink/70 hover:border-clay/40',
                 )}
               >
                 <input
