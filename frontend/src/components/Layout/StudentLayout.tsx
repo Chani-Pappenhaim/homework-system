@@ -44,7 +44,7 @@ export default function StudentLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-graph" dir="rtl">
       <header className="sticky top-0 z-30 border-b border-rule bg-sheet/80 backdrop-blur-sm">
-        <div className="mx-auto flex h-14 max-w-[1100px] items-center gap-4 px-4">
+        <div className="mx-auto flex h-16 max-w-[1200px] items-center gap-4 px-5">
           <button onClick={() => navigate('/student')}>
             <Brand />
           </button>
@@ -65,7 +65,7 @@ export default function StudentLayout() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-[1100px] flex-1 px-4 py-6">
+      <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-8 md:px-6">
         <Outlet />
       </main>
 

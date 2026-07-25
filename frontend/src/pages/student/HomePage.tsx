@@ -4,7 +4,12 @@ import { Clock, Flame, ArrowLeft } from 'lucide-react';
 import useAuthStore from '@/store/authStore';
 import { coursesApi } from '@/api/courses.api';
 import { submissionsApi } from '@/api/submissions.api';
+import { Tape } from '@/components/decor';
 import { cn, formatDate, isOverdue } from '@/lib/utils';
+
+// A little rotation per course card so they read like sheets tacked to a board.
+const CARD_ACCENTS = ['clay', 'indigo', 'sage', 'butter', 'coral'] as const;
+const TAPES = ['clay', 'sage', 'indigo', 'butter'] as const;
 
 export default function StudentHomePage() {
   const user = useAuthStore((s) => s.user);
@@ -24,7 +29,9 @@ export default function StudentHomePage() {
   return (
     <div className="mx-auto max-w-4xl space-y-5" dir="rtl">
       {/* Greeting */}
-      <section className="sheet p-5">
+      <section className="sheet relative p-5">
+        <Tape color="clay" rotate={-4} className="-top-2.5 right-8 w-20" />
+        <Tape color="sage" rotate={3} className="-top-2 right-28 w-14" />
         <div className="label mb-1">המחברת שלי · {dateMeta}</div>
         <h1 className="font-display text-2xl font-bold text-ink">שלום, {(user?.name ?? 'תלמידה').split(' ')[0]}</h1>
         <div className="mt-3 flex items-center gap-2">
@@ -52,26 +59,33 @@ export default function StudentHomePage() {
       {courses.length === 0 ? (
         <div className="sheet p-8 text-center text-sm text-ink-soft">לא שויכת לאף קורס עדיין</div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {courses.map((c) => {
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {courses.map((c, i) => {
             const done = c.completedLessons ?? 0;
             const total = c.lessonCount || 0;
             const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+            const accent = CARD_ACCENTS[i % CARD_ACCENTS.length];
+            const tape = TAPES[i % TAPES.length];
             return (
               <button
                 key={c.id}
                 onClick={() => navigate(`/student/courses/${c.id}`)}
-                className="sheet lift p-4 text-right"
+                className={cn(
+                  'sheet lift relative p-4 pr-5 text-right',
+                  'before:absolute before:inset-y-3 before:right-0 before:w-1 before:rounded-full',
+                  `before:bg-${accent}`,
+                )}
               >
+                <Tape color={tape} rotate={i % 2 ? 4 : -4} className="-top-2 left-6 w-14" />
                 <h2 className="font-display text-base font-bold leading-snug text-ink">{c.name}</h2>
                 <p className="mt-0.5 text-[11px] text-ink-soft">{total} שיעורים</p>
                 <div className="mt-4">
                   <div className="mb-1 flex items-center justify-between text-[11px]">
                     <span className="text-ink-soft">{done}/{total} הושלמו</span>
-                    <span className="font-semibold text-clay tabular">{pct}%</span>
+                    <span className={cn('font-semibold tabular', `text-${accent}`)}>{pct}%</span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-ground">
-                    <div className="h-full rounded-full bg-sage transition-all" style={{ width: `${pct}%` }} />
+                    <div className={cn('h-full rounded-full transition-all', `bg-${accent}`)} style={{ width: `${pct}%` }} />
                   </div>
                 </div>
               </button>
