@@ -53,7 +53,7 @@ export default function AiUsagePage() {
 
       {/* Cloudinary storage */}
       {storage && (
-        <Card>
+        <Card accent="indigo">
           <CardHeader>
             <div className="flex items-center justify-between">
               <h2 className="font-display text-base font-bold">אחסון קבצים · Cloudinary</h2>
@@ -68,21 +68,21 @@ export default function AiUsagePage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
-            <div className="h-4 w-full border border-rule bg-sheet">
+            <div className="h-3 w-full overflow-hidden rounded-full bg-ground">
               <div
                 className={cn(
-                  'h-full',
+                  'h-full rounded-full transition-all duration-500',
                   storage.percent >= 80 ? 'bg-coral' : storage.percent >= 60 ? 'bg-butter' : 'bg-sage',
                 )}
                 style={{ width: `${Math.max(2, Math.min(100, storage.percent))}%` }}
               />
             </div>
-            <div className="flex items-center justify-between font-sans text-[11px] text-ink/60">
+            <div className="flex items-center justify-between font-sans text-[11px] text-ink-soft">
               <span>{formatBytes(storage.usedBytes)} בשימוש</span>
               <span>מתוך {formatBytes(storage.limitBytes)}</span>
             </div>
             {storage.percent >= 80 && (
-              <p className="border border-coral bg-coral/10 px-3 py-2 text-sm text-coral">
+              <p className="rounded-input border border-coral/40 bg-coral/10 px-3 py-2 text-sm text-coral">
                 האחסון עבר 80% — כדאי למחוק קבצים ישנים כדי שהגשות חדשות לא ייכשלו.
               </p>
             )}
@@ -138,7 +138,7 @@ function StatCard({ icon, label, value, tile }: {
   return (
     <Card className="lift">
       <CardContent className="flex items-center gap-3">
-        <div className={cn('grid size-10 shrink-0 place-items-center border border-rule', tiles[tile])}>
+        <div className={cn('grid size-10 shrink-0 place-items-center rounded-lg', tiles[tile])}>
           {icon}
         </div>
         <div>

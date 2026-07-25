@@ -14,6 +14,8 @@ export default {
   // Chip/meter colors are built dynamically per status, so JIT can't see them.
   safelist: [
     { pattern: /^(bg|text|border)-(ground|sheet|ink|ink-soft|rule|clay|indigo|sage|butter|coral)$/ },
+    // Per-card accent spines are built dynamically (before:bg-clay …).
+    { pattern: /^before:bg-(clay|indigo|sage|butter|coral)$/ },
   ],
   theme: {
     extend: {
