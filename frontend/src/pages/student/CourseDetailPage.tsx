@@ -34,17 +34,17 @@ export default function StudentCourseDetailPage() {
       />
       {course.description && <p className="text-sm text-ink/70">{course.description}</p>}
 
-      {/* Progress — measuring tape */}
+      {/* Progress */}
       <Card accent="sage">
         <CardContent>
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-bold text-ink">
+            <span className="text-sm font-semibold text-ink">
               ההתקדמות שלך {pct === 100 && total > 0 && '🎉 כל הכבוד!'}
             </span>
-            <span className="font-sans text-sm font-bold text-sage tabular">{done}/{total} · {pct}%</span>
+            <span className="text-sm font-semibold text-sage tabular">{done}/{total} · {pct}%</span>
           </div>
-          <div className="h-4 border border-rule bg-sheet">
-            <div className="h-full bg-sage transition-all duration-500" style={{ width: `${pct}%` }} />
+          <div className="h-2.5 overflow-hidden rounded-full bg-ground">
+            <div className="h-full rounded-full bg-sage transition-all duration-500" style={{ width: `${pct}%` }} />
           </div>
         </CardContent>
       </Card>
@@ -60,12 +60,12 @@ export default function StudentCourseDetailPage() {
                 onClick={() => navigate(`/student/lessons/${l.id}`)}
                 title={l.completed ? 'הושלם' : l.topic}
                 className={cn(
-                  'relative grid size-16 place-items-center border border-rule font-display text-lg font-black shadow-soft transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5',
+                  'lift relative grid size-14 place-items-center rounded-lg border border-rule font-display text-lg font-bold shadow-soft',
                   l.completed ? 'bg-sage text-sheet' : 'bg-sheet text-ink',
                 )}
               >
                 {l.completed && (
-                  <span className="absolute -right-2 -top-2 grid size-5 place-items-center rounded-full border border-rule bg-butter text-ink">
+                  <span className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-clay text-sheet">
                     <Check size={11} strokeWidth={3} />
                   </span>
                 )}
@@ -83,7 +83,7 @@ export default function StudentCourseDetailPage() {
           <CardContent className="space-y-2">
             {course.links.map((l) => (
               <a key={l.id} href={toExternalUrl(l.url)} target="_blank" rel="noreferrer"
-                className="flex items-center gap-2 text-sm text-primary hover:underline">
+                className="flex items-center gap-2 text-sm text-clay hover:underline">
                 <ExternalLink size={13} /> {l.label}
               </a>
             ))}
@@ -98,7 +98,7 @@ export default function StudentCourseDetailPage() {
           <CardContent className="space-y-2">
             {course.files.map((f) => (
               <a key={f.id} href={f.url} target="_blank" rel="noreferrer"
-                className="flex items-center gap-2 text-sm text-ink hover:text-primary">
+                className="flex items-center gap-2 text-sm text-ink hover:text-clay">
                 <Paperclip size={13} /> {f.name}
               </a>
             ))}

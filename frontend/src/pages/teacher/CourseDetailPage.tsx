@@ -55,7 +55,7 @@ export default function CourseDetailPage() {
       <div className="flex items-start justify-between border-b border-rule pb-3">
         <div>
           <BackLink className="mb-2" />
-          <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{course.name}</h1>
+          <h1 className="font-display text-2xl font-bold text-ink md:text-3xl">{course.name}</h1>
           <p className="text-ink/70 text-sm mt-0.5">{course.groupName} · {course.year}</p>
           {course.description && <p className="text-ink/70 text-sm mt-1">{course.description}</p>}
         </div>
@@ -75,7 +75,7 @@ export default function CourseDetailPage() {
               <button
                 key={l.id}
                 onClick={() => navigate(`/teacher/lessons/${l.id}`)}
-                className={`relative grid size-16 place-items-center border border-rule font-display text-lg font-black shadow-soft transition-all duration-150 ease-linear hover:-translate-x-0.5 hover:-translate-y-0.5
+                className={`lift relative grid size-16 place-items-center rounded-lg border border-rule font-display text-lg font-bold shadow-soft
                   ${l.hidden ? 'bg-ground/60 text-ink/40' : 'bg-sheet text-ink'}`}
               >
                 <span>{i + 1}</span>
@@ -84,7 +84,7 @@ export default function CourseDetailPage() {
             ))}
             <button
               onClick={() => { setNewTopic(''); setNewDate(''); setNewContent(''); setNewGithub(''); setNewLessonModal(true); }}
-              className="flex items-center justify-center w-16 h-16 rounded-xl border border-dashed border-rule/20 text-ink/50 hover:border-primary/40 hover:text-primary transition"
+              className="grid size-16 place-items-center rounded-lg border border-dashed border-rule text-ink-soft transition-colors hover:border-clay/50 hover:text-clay"
             >
               <Plus size={18} />
             </button>
@@ -99,7 +99,7 @@ export default function CourseDetailPage() {
           <CardContent className="space-y-2">
             {course.links.map((l) => (
               <a key={l.id} href={toExternalUrl(l.url)} target="_blank" rel="noreferrer"
-                className="flex items-center gap-2 text-sm text-primary hover:underline">
+                className="flex items-center gap-2 text-sm text-clay hover:underline">
                 <ExternalLink size={13} /> {l.label}
               </a>
             ))}
@@ -114,7 +114,7 @@ export default function CourseDetailPage() {
           <CardContent className="space-y-2">
             {course.files.map((f) => (
               <a key={f.id} href={f.url} target="_blank" rel="noreferrer"
-                className="flex items-center gap-2 text-sm text-ink hover:text-primary">
+                className="flex items-center gap-2 text-sm text-ink hover:text-clay">
                 <ExternalLink size={13} /> {f.name}
               </a>
             ))}
