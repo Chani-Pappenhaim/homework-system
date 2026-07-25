@@ -114,7 +114,7 @@ export default function TeacherLayout() {
 
       {/* Body: icon rail (right) + content */}
       <div className="mx-auto flex w-full max-w-[1240px] flex-1">
-        <nav className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-14 shrink-0 flex-col items-center gap-1.5 border-l border-rule bg-sheet/60 py-4 md:flex">
+        <nav className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-14 shrink-0 flex-col items-center gap-1.5 py-4 md:flex">
           {nav.map(({ to, label, icon: Icon, end }) => (
             <NavLink key={to} to={to} end={end} className="group relative">
               {({ isActive }) => (
