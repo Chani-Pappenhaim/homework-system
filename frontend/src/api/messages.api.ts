@@ -1,7 +1,7 @@
 import api from './axios';
 
 export const messagesApi = {
-  send: (content: string) => api.post('/messages', { content }),
+  send: (content: string, assignmentId?: string) => api.post('/messages', { content, assignmentId }),
   getAll: () => api.get('/messages'),
   getMine: () => api.get('/messages/mine'),
   getUnreadCount: () => api.get('/messages/unread-count'),
