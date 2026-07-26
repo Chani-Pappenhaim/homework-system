@@ -86,7 +86,7 @@ export default function GroupFormPage() {
   }
 
   return (
-    <div className="max-w-2xl space-y-5" dir="rtl">
+    <div className="mx-auto max-w-2xl space-y-5" dir="rtl">
       <div className="border-b border-rule pb-3">
         <BackLink className="mb-2" />
         <h1 className="font-display text-2xl font-bold text-ink md:text-3xl">{isEdit ? 'עריכת קבוצה' : 'קבוצה חדשה'}</h1>

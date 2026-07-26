@@ -50,7 +50,7 @@ export default function CourseDetailPage() {
   if (!course) return <div className="p-6 text-coral">קורס לא נמצא</div>;
 
   return (
-    <div className="max-w-3xl space-y-5" dir="rtl">
+    <div className="mx-auto max-w-3xl space-y-5" dir="rtl">
       {/* Header */}
       <div className="flex items-start justify-between border-b border-rule pb-3">
         <div>

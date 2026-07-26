@@ -31,7 +31,7 @@ export default function StudentMessagesPage() {
   const messages: any[] = (data?.data as any)?.data?.messages ?? [];
 
   return (
-    <div className="max-w-lg space-y-4" dir="rtl">
+    <div className="mx-auto max-w-lg space-y-4" dir="rtl">
       <PageHeader title="הודעה למורה" meta="חדר מורה · צ׳אט" />
       <Card accent="indigo">
         <CardHeader><h2 className="font-display text-base font-bold">שלחי הודעה</h2></CardHeader>

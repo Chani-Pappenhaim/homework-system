@@ -24,9 +24,14 @@ export default function AiUsagePage() {
     queryKey: ['ai-usage-summary'],
     queryFn: () => aiUsageApi.summary(),
   });
-  const { data: storageData } = useQuery({
+  const {
+    data: storageData,
+    isLoading: storageLoading,
+    isError: storageError,
+  } = useQuery({
     queryKey: ['storage-usage'],
     queryFn: () => aiUsageApi.storage(),
+    retry: 1,
   });
 
   const summary = (data?.data as any)?.data;
@@ -40,7 +45,7 @@ export default function AiUsagePage() {
   const byMonth: any[] = summary?.byMonth ?? [];
 
   return (
-    <div className="max-w-4xl space-y-5" dir="rtl">
+    <div className="mx-auto max-w-4xl space-y-5" dir="rtl">
       <PageHeader title="שימוש AI" meta="דוחות · צריכת AI" />
 
       {/* Stats */}
@@ -52,11 +57,11 @@ export default function AiUsagePage() {
       </div>
 
       {/* Cloudinary storage */}
-      {storage && (
-        <Card accent="indigo">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-base font-bold">אחסון קבצים · Cloudinary</h2>
+      <Card accent="indigo">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-base font-bold">אחסון קבצים · Cloudinary</h2>
+            {storage && (
               <span
                 className={cn(
                   'font-sans text-sm font-bold tabular',
@@ -65,30 +70,40 @@ export default function AiUsagePage() {
               >
                 {Math.round(storage.percent)}%
               </span>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="h-3 w-full overflow-hidden rounded-full bg-ground">
-              <div
-                className={cn(
-                  'h-full rounded-full transition-all duration-500',
-                  storage.percent >= 80 ? 'bg-coral' : storage.percent >= 60 ? 'bg-butter' : 'bg-sage',
-                )}
-                style={{ width: `${Math.max(2, Math.min(100, storage.percent))}%` }}
-              />
-            </div>
-            <div className="flex items-center justify-between font-sans text-[11px] text-ink-soft">
-              <span>{formatBytes(storage.usedBytes)} בשימוש</span>
-              <span>מתוך {formatBytes(storage.limitBytes)}</span>
-            </div>
-            {storage.percent >= 80 && (
-              <p className="rounded-input border border-coral/40 bg-coral/10 px-3 py-2 text-sm text-coral">
-                האחסון עבר 80% — כדאי למחוק קבצים ישנים כדי שהגשות חדשות לא ייכשלו.
-              </p>
             )}
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {storageLoading ? (
+            <div className="h-3 w-full animate-pulse rounded-full bg-ground" />
+          ) : storageError || !storage ? (
+            <p className="rounded-input bg-ground px-3 py-2 text-sm text-ink-soft">
+              לא ניתן לטעון כרגע את נתוני האחסון מ-Cloudinary. ודאי שמפתחות ה-API מוגדרים בשרת.
+            </p>
+          ) : (
+            <>
+              <div className="h-3 w-full overflow-hidden rounded-full bg-ground">
+                <div
+                  className={cn(
+                    'h-full rounded-full transition-all duration-500',
+                    storage.percent >= 80 ? 'bg-coral' : storage.percent >= 60 ? 'bg-butter' : 'bg-sage',
+                  )}
+                  style={{ width: `${Math.max(2, Math.min(100, storage.percent))}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between font-sans text-[11px] text-ink-soft">
+                <span>{formatBytes(storage.usedBytes)} בשימוש</span>
+                <span>מתוך {formatBytes(storage.limitBytes)}</span>
+              </div>
+              {storage.percent >= 80 && (
+                <p className="rounded-input border border-coral/40 bg-coral/10 px-3 py-2 text-sm text-coral">
+                  האחסון עבר 80% — כדאי למחוק קבצים ישנים כדי שהגשות חדשות לא ייכשלו.
+                </p>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Monthly breakdown */}
       <Card>

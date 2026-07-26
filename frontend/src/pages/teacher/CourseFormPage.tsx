@@ -111,7 +111,7 @@ export default function CourseFormPage() {
   });
 
   return (
-    <div className="max-w-3xl space-y-5" dir="rtl">
+    <div className="mx-auto max-w-3xl space-y-5" dir="rtl">
       <div className="border-b border-rule pb-3">
         <BackLink className="mb-2" />
         <div className="flex items-center justify-between">
