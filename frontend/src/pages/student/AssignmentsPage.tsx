@@ -22,7 +22,7 @@ export default function AssignmentsPage() {
   });
 
   return (
-    <div className="max-w-2xl space-y-5" dir="rtl">
+    <div className="mx-auto max-w-2xl space-y-5" dir="rtl">
       <PageHeader title="המטלות שלי" meta="מחברת · מטלות" />
 
       {/* Pending */}

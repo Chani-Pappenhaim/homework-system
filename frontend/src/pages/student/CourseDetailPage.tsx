@@ -25,7 +25,7 @@ export default function StudentCourseDetailPage() {
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
   return (
-    <div className="max-w-2xl space-y-5" dir="rtl">
+    <div className="mx-auto max-w-2xl space-y-5" dir="rtl">
       <PageHeader
         title={course.name}
         meta={`${course.groupName} · ${course.year}`}

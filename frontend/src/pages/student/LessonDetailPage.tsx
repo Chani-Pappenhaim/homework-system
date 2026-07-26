@@ -47,7 +47,7 @@ export default function StudentLessonDetailPage() {
   if (!lesson) return <div className="p-6 text-coral">שיעור לא נמצא</div>;
 
   return (
-    <div className="max-w-2xl space-y-5" dir="rtl">
+    <div className="mx-auto max-w-2xl space-y-5" dir="rtl">
       <div className="border-b border-rule pb-3">
         <BackLink to={`/student/courses/${lesson.courseId}`} label="חזרה לקורס" className="mb-2" />
         <div className="flex items-start justify-between gap-3">

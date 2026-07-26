@@ -39,7 +39,7 @@ export default function TeacherMessagesPage() {
   if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
 
   return (
-    <div className="max-w-2xl space-y-4" dir="rtl">
+    <div className="mx-auto max-w-2xl space-y-4" dir="rtl">
       <PageHeader title="הודעות מתלמידות" meta="תיבת דואר · נכנס" />
       {messages.length === 0 && <EmptyState icon={<Reply size={22} />}>אין הודעות</EmptyState>}
       {messages.map((msg, i) => (

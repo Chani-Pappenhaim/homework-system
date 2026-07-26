@@ -220,7 +220,7 @@ export default function LessonDetailPage() {
   const submissions: SubmissionDTO[] = (submissionsData?.data as any)?.data?.submissions ?? [];
 
   return (
-    <div className="max-w-4xl space-y-5" dir="rtl">
+    <div className="mx-auto max-w-4xl space-y-5" dir="rtl">
       <BackLink to={`/teacher/courses/${lesson.courseId}`} label="חזרה לקורס" />
       {/* Lesson content */}
       <Card>
