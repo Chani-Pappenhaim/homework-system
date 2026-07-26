@@ -134,7 +134,8 @@ function AssignmentCard({ assignment: a, submission: sub }: {
 
   const lateRequestMutation = useMutation({
     mutationFn: () => messagesApi.send(
-      `בקשת הגשה מאוחרת עבור "${a.title}"${lateReason.trim() ? `: ${lateReason.trim()}` : ''}`
+      `בקשת הגשה מאוחרת עבור "${a.title}"${lateReason.trim() ? `: ${lateReason.trim()}` : ''}`,
+      a.id,
     ),
     onSuccess: () => { setLateRequestSent(true); setLateFormOpen(false); setLateReason(''); setError(''); },
     onError: (e: any) => setError(e.response?.data?.error ?? 'שגיאה בשליחת הבקשה'),

@@ -1,18 +1,25 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Reply } from 'lucide-react';
+import { Reply, Mail, ChevronLeft, Clock } from 'lucide-react';
 import { messagesApi } from '@/api/messages.api';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
-import { formatDateTime } from '@/lib/utils';
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { cn, formatDateTime } from '@/lib/utils';
 
 export default function TeacherMessagesPage() {
   const qc = useQueryClient();
-  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
 
   const { data, isLoading } = useQuery({
@@ -29,92 +36,125 @@ export default function TeacherMessagesPage() {
     mutationFn: ({ id, reply }: { id: string; reply: string }) => messagesApi.reply(id, reply),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['teacher-messages'] });
-      setReplyingTo(null);
+      setOpenId(null);
       setReplyText('');
     },
   });
 
   const messages: any[] = (data?.data as any)?.data?.messages ?? [];
+  const openMsg = messages.find((m) => m.id === openId) ?? null;
 
-  if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
+  function openMessage(msg: any) {
+    setOpenId(msg.id);
+    setReplyText(msg.replyContent ?? '');
+    if (!msg.isRead) markReadMutation.mutate(msg.id);
+  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-4" dir="rtl">
       <PageHeader title="הודעות מתלמידות" meta="תיבת דואר · נכנס" />
-      {messages.length === 0 && <EmptyState icon={<Reply size={22} />}>אין הודעות</EmptyState>}
-      {messages.map((msg, i) => (
-        <Card
-          key={msg.id}
-          accent={!msg.isRead ? 'coral' : 'sage'}
-          className={msg.isRead && msg.replyContent ? 'opacity-70' : ''}
-          style={{ transform: `rotate(${i % 2 ? 0.3 : -0.3}deg)` }}
-        >
-          <CardContent className="space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="font-semibold text-sm">{msg.student.name}</span>
-              <div className="flex items-center gap-2">
-                {!msg.isRead && <Badge variant="warning">חדש</Badge>}
-                {msg.replyContent && <Badge variant="success">נענתה</Badge>}
-                <span className="text-xs text-ink/50">{formatDateTime(msg.createdAt)}</span>
-              </div>
-            </div>
-            <p className="text-xs text-ink/50">{msg.student.email}</p>
-            <p className="text-sm mt-1 whitespace-pre-wrap">{msg.content}</p>
 
-            {/* Existing reply */}
-            {msg.replyContent && (
-              <div className="mt-2 bg-ground/60 border-r border-indigo rounded-input px-3 py-2">
-                <p className="text-xs text-ink/50 mb-0.5">התגובה שלך · {formatDateTime(msg.repliedAt)}</p>
-                <p className="text-sm whitespace-pre-wrap">{msg.replyContent}</p>
-              </div>
-            )}
-
-            {/* Reply form */}
-            {replyingTo === msg.id ? (
-              <div className="mt-2 space-y-2">
-                <Textarea
-                  className="resize-none"
-                  rows={3}
-                  placeholder="כתבי תגובה לתלמידה..."
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  autoFocus
-                />
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    loading={replyMutation.isPending}
-                    disabled={!replyText.trim()}
-                    onClick={() => replyMutation.mutate({ id: msg.id, reply: replyText })}
-                  >
-                    שלחי תגובה
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => { setReplyingTo(null); setReplyText(''); }}>
-                    ביטול
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex gap-3 mt-1">
-                <button
-                  className="text-xs text-clay underline flex items-center gap-1"
-                  onClick={() => { setReplyingTo(msg.id); setReplyText(msg.replyContent ?? ''); }}
-                >
-                  <Reply size={11} /> {msg.replyContent ? 'ערכי תגובה' : 'הגיבי'}
-                </button>
-                {!msg.isRead && (
-                  <button
-                    className="text-xs text-ink/50 underline"
-                    onClick={() => markReadMutation.mutate(msg.id)}
-                  >
-                    סמני כנקראה
-                  </button>
+      {isLoading ? (
+        <div className="p-6 font-sans text-ink-soft">טוען…</div>
+      ) : messages.length === 0 ? (
+        <EmptyState icon={<Mail size={22} />}>אין הודעות</EmptyState>
+      ) : (
+        /* External list — sender + one-line preview + status. Full thread opens in an overlay. */
+        <div className="sheet divide-y divide-rule overflow-hidden">
+          {messages.map((msg) => (
+            <button
+              key={msg.id}
+              onClick={() => openMessage(msg)}
+              className="flex w-full items-center gap-3 px-4 py-3 text-right transition-colors hover:bg-butter/10"
+            >
+              <span
+                className={cn(
+                  'grid size-9 shrink-0 place-items-center rounded-full text-xs font-semibold',
+                  msg.isRead ? 'bg-ground text-ink-soft' : 'bg-clay text-sheet',
                 )}
+              >
+                {msg.student?.name?.[0] ?? '?'}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className={cn('truncate text-sm', msg.isRead ? 'font-medium text-ink' : 'font-bold text-ink')}>
+                    {msg.student?.name}
+                  </span>
+                  {!msg.isRead && <span className="size-2 shrink-0 rounded-full bg-coral" />}
+                  {msg.assignmentId && (
+                    <Badge variant="warning" className="shrink-0"><Clock size={9} className="ml-1" /> בקשת הגשה</Badge>
+                  )}
+                </div>
+                <p className="truncate text-[13px] text-ink-soft">{msg.content}</p>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      ))}
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <span className="text-[11px] text-ink-soft">{formatDateTime(msg.createdAt)}</span>
+                {msg.replyContent
+                  ? <Badge variant="success">נענתה</Badge>
+                  : <ChevronLeft size={16} className="text-ink-soft" />}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Overlay: full message + reply, blocking the list behind it */}
+      <Dialog open={Boolean(openId)} onOpenChange={(o) => { if (!o) { setOpenId(null); setReplyText(''); } }}>
+        <DialogContent size="lg">
+          {openMsg && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{openMsg.student?.name}</DialogTitle>
+                <p className="mt-0.5 text-xs text-ink-soft">
+                  {openMsg.student?.email} · {formatDateTime(openMsg.createdAt)}
+                </p>
+                {openMsg.assignmentId && (
+                  <span className="mt-2 inline-flex"><Badge variant="warning"><Clock size={10} className="ml-1" /> בקשת הגשה מאוחרת</Badge></span>
+                )}
+              </DialogHeader>
+
+              <DialogBody className="space-y-4">
+                <div>
+                  <div className="label mb-1">ההודעה</div>
+                  <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-ink">{openMsg.content}</p>
+                </div>
+
+                {openMsg.replyContent && (
+                  <div className="rounded-input border-r-2 border-indigo bg-ground/60 px-3 py-2">
+                    <div className="label mb-0.5">התגובה שלך · {formatDateTime(openMsg.repliedAt)}</div>
+                    <p className="whitespace-pre-wrap break-words text-sm text-ink">{openMsg.replyContent}</p>
+                  </div>
+                )}
+
+                <div>
+                  <div className="label mb-1">{openMsg.replyContent ? 'עריכת התגובה' : 'כתיבת תגובה'}</div>
+                  <Textarea
+                    rows={5}
+                    className="resize-y"
+                    placeholder="כתבי תגובה לתלמידה…"
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+              </DialogBody>
+
+              <DialogFooter>
+                <Button
+                  loading={replyMutation.isPending}
+                  disabled={!replyText.trim()}
+                  onClick={() => replyMutation.mutate({ id: openMsg.id, reply: replyText })}
+                >
+                  <Reply size={14} /> {openMsg.replyContent ? 'עדכני תגובה' : 'שלחי תגובה'}
+                </Button>
+                <Button variant="outline" onClick={() => { setOpenId(null); setReplyText(''); }}>
+                  סגירה
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
