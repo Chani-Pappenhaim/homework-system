@@ -42,8 +42,13 @@ export async function getLessonById(id: string, userId: string, role: string) {
   const progress = await prisma.lessonProgress.findUnique({
     where: { studentId_lessonId: { studentId: userId, lessonId: id } },
   });
+  // aiInstructions is the teacher's private prompt to the AI — never ship it to a student.
+  const assignments = role === 'ADMIN'
+    ? lesson.assignments
+    : lesson.assignments.map(({ aiInstructions, ...rest }) => rest);
   return {
     ...lesson,
+    assignments,
     completed: Boolean(progress),
     files: lesson.files.map(toFileDTO),
   };

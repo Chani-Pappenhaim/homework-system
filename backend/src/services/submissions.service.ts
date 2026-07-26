@@ -1,6 +1,7 @@
 import { prisma } from '../config/prisma';
 import { uploadBuffer } from '../utils/storage';
 import { assertLessonAccess } from '../utils/access';
+import { computeSubmissionScore } from '../utils/grading';
 import ExcelJS from 'exceljs';
 
 export async function submitAssignment(
@@ -8,6 +9,7 @@ export async function submitAssignment(
   payload: {
     repoName?: string;
     notes?: string;
+    checklist?: unknown;
     file?: { buffer: Buffer; originalName: string; mimeType: string };
   }
 ) {
@@ -45,21 +47,31 @@ export async function submitAssignment(
 
   const isLate = assignment.deadline ? new Date() > assignment.deadline : false;
   const notes = payload.notes ?? null;
+  // undefined leaves the stored checklist untouched on resubmit; a real array replaces it.
+  const checklist = payload.checklist === undefined ? undefined : (payload.checklist as any);
 
   const existing = await prisma.submission.findUnique({
     where: { assignmentId_studentId: { assignmentId, studentId } },
   });
 
-  if (existing) {
-    return prisma.submission.update({
-      where: { id: existing.id },
-      data: { fileUrl, fileName, githubUrl, notes, submittedAt: new Date(), isLate },
-    });
-  }
+  const submission = existing
+    ? await prisma.submission.update({
+        where: { id: existing.id },
+        data: { fileUrl, fileName, githubUrl, notes, checklist, submittedAt: new Date(), isLate },
+      })
+    : await prisma.submission.create({
+        data: { assignmentId, studentId, fileUrl, fileName, githubUrl, notes, checklist, isLate },
+      });
 
-  return prisma.submission.create({
-    data: { assignmentId, studentId, fileUrl, fileName, githubUrl, notes, isLate },
+  // ציון הגשה אוטומטי — נראה לתלמידה מיד. משאיר contentScore/feedback אם המורה כבר נתנה.
+  const submissionScore = computeSubmissionScore(isLate, submission.checklist);
+  await prisma.grade.upsert({
+    where: { submissionId: submission.id },
+    create: { submissionId: submission.id, submissionScore },
+    update: { submissionScore },
   });
+
+  return submission;
 }
 
 interface SubmissionAiFields {
@@ -135,6 +147,7 @@ export async function getMySubmissions(studentId: string) {
         assignmentId: assignment.id, assignmentTitle: assignment.title,
         lessonTopic: assignment.lesson.topic, courseName: assignment.lesson.course.name,
         submittedAt: sub.submittedAt, isLate: sub.isLate, notes: sub.notes,
+        checklist: sub.checklist,
         githubUrl: sub.githubUrl, fileUrl: sub.fileUrl, fileName: sub.fileName,
         ...toStudentAiView(sub),
         grade: grade ? { submissionScore: grade.submissionScore, contentScore: sub.aiApproved ? grade.contentScore : null, feedback: grade.feedback, checklist: grade.checklist } : null,
