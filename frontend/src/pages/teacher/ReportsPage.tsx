@@ -69,7 +69,7 @@ export default function ReportsPage() {
           <select
             value={groupId}
             onChange={(e) => setGroupId(e.target.value)}
-            className="border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft focus:outline-none"
+            className="rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
           >
             <option value="">כל הקבוצות</option>
             {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -78,7 +78,7 @@ export default function ReportsPage() {
           <select
             value={courseId}
             onChange={(e) => setCourseId(e.target.value)}
-            className="border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft focus:outline-none"
+            className="rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
           >
             <option value="">כל הקורסים</option>
             {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -97,7 +97,7 @@ export default function ReportsPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <h2 className="font-display text-base font-bold">תוצאות</h2>
-            <span className="border border-rule bg-ink px-2 py-0.5 font-sans text-[11px] font-bold text-clay">
+            <span className="rounded-full bg-clay/15 px-2.5 py-0.5 font-sans text-[11px] font-bold text-clay">
               {report.length}
             </span>
           </div>

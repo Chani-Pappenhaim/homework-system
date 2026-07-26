@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 
-type TapeColor = 'mustard' | 'lilac' | 'tomato' | 'cobalt' | 'clay' | 'indigo' | 'sage' | 'butter';
+type TapeColor = 'mustard' | 'lilac' | 'tomato' | 'cobalt' | 'clay' | 'indigo' | 'sage' | 'butter' | 'coral';
 
 // Old + new color names both map to translucent washi tints.
 const fills: Record<TapeColor, string> = {
@@ -12,6 +12,7 @@ const fills: Record<TapeColor, string> = {
   cobalt: 'rgb(var(--indigo) / 0.3)',
   clay: 'rgb(var(--clay) / 0.32)',
   sage: 'rgb(var(--sage) / 0.32)',
+  coral: 'rgb(var(--coral) / 0.3)',
 };
 
 interface TapeProps {

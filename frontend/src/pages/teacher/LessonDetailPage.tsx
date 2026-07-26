@@ -553,7 +553,7 @@ export default function LessonDetailPage() {
 
             {/* AI review info for the teacher */}
             {gradeModal.aiStatus === 'done' && (
-              <div className="border border-rule bg-indigo/15/30 px-3 py-2 text-sm space-y-1.5">
+              <div className="rounded-input border border-indigo/20 bg-indigo/10 px-3 py-2 text-sm space-y-1.5">
                 <div className="flex items-center justify-between">
                   <p className="flex items-center gap-1.5 font-medium text-indigo">
                     <Bot size={14} /> בדיקת AI — ציון: {gradeModal.aiScore ?? '—'}
