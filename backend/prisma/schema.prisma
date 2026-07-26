@@ -164,6 +164,7 @@ model Submission {
   fileName        String?
   githubUrl       String?
   notes           String?
+  checklist       Json?      // student's filled copy of the assignment requirements
   submittedAt     DateTime   @default(now())
   isLate          Boolean    @default(false)
   aiStatus        String     @default("none")
@@ -183,13 +184,13 @@ model Grade {
   id           String     @id @default(uuid())
   submissionId String     @unique
   submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  submissionScore Float?
-  contentScore    Float?
+  submissionScore Float?  @default(100)   // ציון הגשה — אוטומטי (100 − איחור − checklist)
+  contentScore    Float?                  // ציון תוכן — מ-AI/מורה, מוסתר עד aiApproved
   feedback     String?
   checklist    Json?
   gradedAt     DateTime   @default(now())
-  gradedById   String
-  gradedBy     User       @relation(fields: [gradedById], references: [id])
+  gradedById   String?                    // null = ציון הגשה אוטומטי שנוצר בזמן ההגשה
+  gradedBy     User?      @relation(fields: [gradedById], references: [id])
 }
 
 model AiUsageLog {
@@ -206,6 +207,7 @@ model TeacherMessage {
   studentId    String
   student      User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
   content      String
+  assignmentId String?   // אם קיים → בקשת הגשה מאוחרת למטלה ספציפית
   isRead       Boolean   @default(false)
   replyContent String?
   repliedAt    DateTime?

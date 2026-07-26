@@ -5,10 +5,20 @@ import { prisma } from '../config/prisma';
 
 export async function submit(req: Request, res: Response) {
   try {
+    // checklist arrives as a JSON string in multipart uploads, or as an array in a JSON body.
+    let checklist: unknown;
+    if (req.body.checklist != null) {
+      try {
+        checklist = typeof req.body.checklist === 'string' ? JSON.parse(req.body.checklist) : req.body.checklist;
+      } catch {
+        checklist = undefined;
+      }
+    }
+
     const payload = req.body.repoName
-      ? { repoName: req.body.repoName as string, notes: req.body.notes as string | undefined }
+      ? { repoName: req.body.repoName as string, notes: req.body.notes as string | undefined, checklist }
       : req.file
-        ? { file: { buffer: req.file.buffer, originalName: req.file.originalname, mimeType: req.file.mimetype }, notes: req.body.notes as string | undefined }
+        ? { file: { buffer: req.file.buffer, originalName: req.file.originalname, mimeType: req.file.mimetype }, notes: req.body.notes as string | undefined, checklist }
         : null;
 
     if (!payload) { res.status(400).json({ success: false, error: 'No file or repo name provided' }); return; }
