@@ -43,7 +43,7 @@ export default function TeacherHomePage() {
   const { data: coursesData } = useQuery({ queryKey: ['courses'], queryFn: () => coursesApi.list() });
   const { data: pendingData } = useQuery({ queryKey: ['pending'], queryFn: () => gradesApi.pending() });
   const { data: aiUsageData } = useQuery({ queryKey: ['ai-usage-summary'], queryFn: () => aiUsageApi.summary() });
-  const { data: reportData } = useQuery({ queryKey: ['report', {}], queryFn: () => gradesApi.report() });
+  const { data: reportData, isLoading: reportLoading } = useQuery({ queryKey: ['report', {}], queryFn: () => gradesApi.report() });
 
   const groups = groupsData?.data.data.groups ?? [];
   const courses = coursesData?.data.data.courses ?? [];
@@ -99,7 +99,9 @@ export default function TeacherHomePage() {
         </div>
 
         <div className="bg-margin">
-          {queue.length === 0 ? (
+          {reportLoading ? (
+            <div className="py-12 text-center text-sm text-ink-soft">טוען…</div>
+          ) : queue.length === 0 ? (
             <div className="py-12 text-center text-sm text-ink-soft">
               {search ? `אין תוצאות ל"${search}"` : 'התור ריק — כל הכבוד'}
             </div>

@@ -15,7 +15,7 @@ export default function StudentHomePage() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
 
-  const { data: coursesData } = useQuery({ queryKey: ['courses'], queryFn: () => coursesApi.list() });
+  const { data: coursesData, isLoading: coursesLoading } = useQuery({ queryKey: ['courses'], queryFn: () => coursesApi.list() });
   const { data: mineData } = useQuery({ queryKey: ['mine'], queryFn: () => submissionsApi.mine() });
 
   const courses = coursesData?.data.data.courses ?? [];
@@ -56,7 +56,9 @@ export default function StudentHomePage() {
       </section>
 
       {/* Courses */}
-      {courses.length === 0 ? (
+      {coursesLoading ? (
+        <div className="sheet p-8 text-center text-sm text-ink-soft">טוען…</div>
+      ) : courses.length === 0 ? (
         <div className="sheet p-8 text-center text-sm text-ink-soft">לא שויכת לאף קורס עדיין</div>
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
