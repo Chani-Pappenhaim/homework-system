@@ -4,10 +4,14 @@ import { emailQueue } from '../infrastructure/queues/queues';
 
 export async function sendMessage(req: Request, res: Response) {
   try {
-    const { content } = req.body;
+    const { content, assignmentId } = req.body;
     if (!content?.trim()) { res.status(400).json({ success: false, error: 'Content required' }); return; }
     const message = await prisma.teacherMessage.create({
-      data: { studentId: req.user!.userId, content: content.trim() },
+      data: {
+        studentId: req.user!.userId,
+        content: content.trim(),
+        assignmentId: typeof assignmentId === 'string' && assignmentId ? assignmentId : null,
+      },
       include: { student: { select: { id: true, name: true, email: true } } },
     });
     try {
