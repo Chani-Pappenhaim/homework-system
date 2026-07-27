@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import * as submissionsService from '../services/submissions.service';
 import { aiReviewQueue } from '../infrastructure/queues/queues';
 import { prisma } from '../config/prisma';
+import { sendError } from '../utils/http';
 
 export async function submit(req: Request, res: Response) {
   try {
@@ -26,7 +27,7 @@ export async function submit(req: Request, res: Response) {
     const submission = await submissionsService.submitAssignment(req.params.id as string, req.user!.userId, payload);
     res.json({ success: true, data: { submission } });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -40,7 +41,7 @@ export async function getSubmission(req: Request, res: Response) {
     const submission = await submissionsService.getSubmissionById(req.params.id as string, req.user!.userId, req.user!.role);
     res.json({ success: true, data: { submission } });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -50,7 +51,7 @@ export async function importSubmissions(req: Request, res: Response) {
     const result = await submissionsService.importSubmissions(req.file.buffer);
     res.json({ success: true, data: result });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -79,7 +80,7 @@ export async function requestAiReview(req: Request, res: Response) {
     );
     res.json({ success: true, data: null });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -91,7 +92,7 @@ export async function approveAiReview(req: Request, res: Response) {
     });
     res.json({ success: true, data: { submission } });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -115,7 +116,7 @@ export async function restoreAiScore(req: Request, res: Response) {
     });
     res.json({ success: true, data: { grade } });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -127,6 +128,6 @@ export async function allowExtraAiReview(req: Request, res: Response) {
     });
     res.json({ success: true, data: null });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }

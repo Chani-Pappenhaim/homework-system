@@ -6,6 +6,7 @@ export interface UserDTO {
   email: string;
   role: Role;
   mustChangePassword: boolean;
+  groups: { id: string; name: string }[];
 }
 
 export interface GroupDTO {

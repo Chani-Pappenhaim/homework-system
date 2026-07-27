@@ -73,6 +73,7 @@ vi.mock('../../src/services/ai-usage.service', () => ({
 import request from 'supertest';
 import { createApp } from '../../src/app';
 import { signAccessToken } from '../../src/utils/jwt';
+import { GENERIC_SERVER_ERROR } from '../../src/utils/http';
 import { prisma } from '../../src/config/prisma';
 import * as coursesService from '../../src/services/courses.service';
 import * as groupsService from '../../src/services/groups.service';
@@ -224,11 +225,14 @@ describe('ai-usage controller', () => {
     expect(res.body.data).toMatchObject({ totalUsd: 1.23 });
   });
 
-  it('maps a thrown service error to a 500 envelope', async () => {
+  it('maps a thrown service error to a 500 envelope without leaking the internal message', async () => {
     (aiUsageService.getSummary as any).mockRejectedValue(new Error('boom'));
     const res = await request(app).get('/api/ai-usage/summary').set(...bearer(admin));
     expect(res.status).toBe(500);
-    expect(res.body).toMatchObject({ success: false, error: 'boom' });
+    expect(res.body.success).toBe(false);
+    // The real cause (which could be a DB / secret detail) must never reach the client.
+    expect(res.body.error).not.toContain('boom');
+    expect(res.body.error).toBe(GENERIC_SERVER_ERROR);
   });
 });
 

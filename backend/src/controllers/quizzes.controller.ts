@@ -1,5 +1,6 @@
 ﻿import { Request, Response } from 'express';
 import * as quizzesService from '../services/quizzes.service';
+import { sendError } from '../utils/http';
 
 export async function getQuiz(req: Request, res: Response) {
   try {
@@ -8,7 +9,7 @@ export async function getQuiz(req: Request, res: Response) {
     );
     res.json({ success: true, data: result });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -19,7 +20,7 @@ export async function submitAttempt(req: Request, res: Response) {
     );
     res.json({ success: true, data: result });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -28,7 +29,7 @@ export async function getResults(req: Request, res: Response) {
     const data = await quizzesService.getQuizResults(req.params.id as string);
     res.json({ success: true, data });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 

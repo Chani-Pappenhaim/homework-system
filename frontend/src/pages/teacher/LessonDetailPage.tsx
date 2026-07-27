@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Github, Paperclip, Edit, ExternalLink, Trash2, UserPlus, Plus, Bot, RotateCcw, CheckCircle } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
@@ -23,12 +23,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { BackLink } from '@/components/ui/back-link';
 import { FileUpload } from '@/components/ui/file-upload';
+import { useToast } from '@/components/ui/toast';
+import { getApiErrorMessage } from '@/lib/errors';
 import { formatDate, formatDateTime, toExternalUrl } from '@/lib/utils';
 import type { AssignmentDTO, ChecklistResult, SubmissionDTO } from '@/types';
 
 export default function LessonDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const qc = useQueryClient();
+  const toast = useToast();
   const [selectedAssignment, setSelectedAssignment] = useState(0);
   const [gradeModal, setGradeModal] = useState<SubmissionDTO | null>(null);
   const [submissionScore, setSubmissionScore] = useState('');
@@ -82,7 +86,7 @@ export default function LessonDetailPage() {
       throw new Error('תלמידה לא נמצאה');
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['lesson-access', id] }); setAccessEmail(''); setAccessError(''); },
-    onError: (e: any) => setAccessError(e.response?.data?.error ?? e.message ?? 'שגיאה'),
+    onError: (e: any) => setAccessError(getApiErrorMessage(e, e.message ?? 'שגיאה')),
   });
 
   const revokeAccessMutation = useMutation({
@@ -117,12 +121,24 @@ export default function LessonDetailPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['lesson', id] });
       setLessonEditOpen(false);
+      toast.success('השיעור נשמר בהצלחה');
     },
   });
 
   const uploadFileMutation = useMutation({
-    mutationFn: (file: File) => lessonsApi.uploadFile(id!, file),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['lesson', id] }),
+    mutationFn: (vars: { file: File; name?: string }) => lessonsApi.uploadFile(id!, vars.file, vars.name),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lesson', id] }); toast.success('הקובץ הועלה'); },
+  });
+
+  const deleteLessonMutation = useMutation({
+    mutationFn: () => lessonsApi.delete(id!),
+    onSuccess: () => {
+      const courseId = lesson?.courseId;
+      qc.invalidateQueries({ queryKey: ['course', courseId] });
+      qc.invalidateQueries({ queryKey: ['courses'] });
+      toast.success('השיעור נמחק');
+      navigate(courseId ? `/teacher/courses/${courseId}` : '/teacher/courses');
+    },
   });
 
   const deleteFileMutation = useMutation({
@@ -154,13 +170,15 @@ export default function LessonDetailPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['lesson', id] });
+      const wasNew = assignmentModal === 'new';
       setAssignmentModal(null);
+      toast.success(wasNew ? 'המטלה נוצרה בהצלחה' : 'המטלה נשמרה בהצלחה');
     },
   });
 
   const deleteAssignmentMutation = useMutation({
     mutationFn: (aId: string) => assignmentsApi.delete(aId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['lesson', id] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lesson', id] }); toast.success('המטלה נמחקה'); },
   });
 
   const gradeMutation = useMutation({
@@ -173,6 +191,7 @@ export default function LessonDetailPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['submissions', assignment?.id] });
       setGradeModal(null);
+      toast.success('הציון נשמר בהצלחה');
     },
   });
 
@@ -235,6 +254,18 @@ export default function LessonDetailPage() {
               <Button size="sm" variant="outline" onClick={openLessonEdit}>
                 <Edit size={12} /> ערוך שיעור
               </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                loading={deleteLessonMutation.isPending}
+                onClick={() => {
+                  if (confirm(`למחוק את השיעור "${lesson.topic}"? כל המטלות, ההגשות והקבצים של השיעור יימחקו לצמיתות.`)) {
+                    deleteLessonMutation.mutate();
+                  }
+                }}
+              >
+                <Trash2 size={12} /> מחק שיעור
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -268,7 +299,8 @@ export default function LessonDetailPage() {
               <p className="text-xs text-ink/50">אין קבצים מצורפים</p>
             )}
             <FileUpload
-              onFile={(file) => uploadFileMutation.mutate(file)}
+              withName
+              onFile={(file, name) => uploadFileMutation.mutate({ file, name })}
               label={uploadFileMutation.isPending ? 'מעלה...' : 'גרור קובץ להעלאה או לחצי לבחירה'}
               className="mt-1"
             />

@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
 import { formatDateTime } from '@/lib/utils';
+import { getApiErrorMessage } from '@/lib/errors';
 
 export default function StudentMessagesPage() {
   const qc = useQueryClient();
@@ -25,7 +26,7 @@ export default function StudentMessagesPage() {
       setSent(true); setContent(''); setError('');
       qc.invalidateQueries({ queryKey: ['my-messages'] });
     },
-    onError: (e: any) => setError(e.response?.data?.error ?? 'שגיאה בשליחה'),
+    onError: (e: any) => setError(getApiErrorMessage(e, 'שגיאה בשליחה')),
   });
 
   const messages: any[] = (data?.data as any)?.data?.messages ?? [];

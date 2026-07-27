@@ -1,10 +1,11 @@
-import express from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import passport from 'passport';
 import { generalRateLimit } from './middleware/rateLimit';
 import { configurePassport } from './config/passport';
+import { GENERIC_SERVER_ERROR } from './utils/http';
 
 import authRoutes from './routes/auth.routes';
 import groupRoutes from './routes/groups.routes';
@@ -28,6 +29,15 @@ export function createApp() {
   }));
   app.use(express.json());
   app.use(cookieParser());
+
+  // Lightweight liveness probe — no auth, no DB — so an external keep-alive
+  // pinger (and the client's warm-up call) can wake a spun-down free-tier
+  // instance and confirm it's up without doing any real work. Kept before the
+  // rate limiter so frequent pings are never throttled.
+  app.get('/api/health', (_req, res) => {
+    res.json({ success: true, data: { status: 'ok', uptime: process.uptime() } });
+  });
+
   app.use(generalRateLimit);
 
   configurePassport(passport);
@@ -47,6 +57,16 @@ export function createApp() {
   app.use('/api/lessons', quizRoutes);
   app.use('/api/messages', messageRoutes);
   app.use('/api/ai-usage', aiUsageRoutes);
+
+  // Safety net: anything that escapes a controller's try/catch (or is thrown
+  // synchronously by a route) lands here. Log the real error, return a generic
+  // message so no internal detail (DB, keys, stack) ever reaches the client.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    console.error('[unhandled]', err);
+    if (res.headersSent) return;
+    res.status(500).json({ success: false, error: GENERIC_SERVER_ERROR });
+  });
 
   return app;
 }

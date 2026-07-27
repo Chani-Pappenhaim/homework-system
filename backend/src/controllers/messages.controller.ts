@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/prisma';
 import { emailQueue } from '../infrastructure/queues/queues';
+import { sendError } from '../utils/http';
 
 export async function sendMessage(req: Request, res: Response) {
   try {
@@ -24,7 +25,7 @@ export async function sendMessage(req: Request, res: Response) {
     }
     res.status(201).json({ success: true, data: { message } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -36,7 +37,7 @@ export async function getMessages(req: Request, res: Response) {
     });
     res.json({ success: true, data: { messages } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -49,7 +50,7 @@ export async function getMyMessages(req: Request, res: Response) {
     });
     res.json({ success: true, data: { messages } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -75,7 +76,7 @@ export async function replyMessage(req: Request, res: Response) {
     }
     res.json({ success: true, data: { message } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -84,7 +85,7 @@ export async function markRead(req: Request, res: Response) {
     await prisma.teacherMessage.update({ where: { id: req.params.id as string }, data: { isRead: true } });
     res.json({ success: true, data: null });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -93,6 +94,6 @@ export async function getUnreadCount(req: Request, res: Response) {
     const count = await prisma.teacherMessage.count({ where: { isRead: false } });
     res.json({ success: true, data: { count } });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }

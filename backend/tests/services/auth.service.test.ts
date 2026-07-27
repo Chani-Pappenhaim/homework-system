@@ -38,9 +38,11 @@ describe('auth.service', () => {
       const dto = toUserDTO({
         id: 'u1', name: 'Dina', email: 'd@x.com', role: 'STUDENT',
         mustChangePassword: true, password: 'secret-hash', githubUsername: 'gh',
+        studentGroups: [{ group: { id: 'g1', name: 'קבוצה א' } }],
       } as any);
       expect(dto).toEqual({
         id: 'u1', name: 'Dina', email: 'd@x.com', role: 'STUDENT', mustChangePassword: true,
+        groups: [{ id: 'g1', name: 'קבוצה א' }],
       });
       expect(dto).not.toHaveProperty('password');
     });
@@ -78,11 +80,14 @@ describe('auth.service', () => {
   });
 
   describe('getUserById', () => {
-    it('delegates to prisma.user.findUnique', async () => {
+    it('delegates to prisma.user.findUnique with the group include', async () => {
       p.user.findUnique.mockResolvedValue({ id: 'u9' });
       const r = await getUserById('u9');
       expect(r).toEqual({ id: 'u9' });
-      expect(p.user.findUnique).toHaveBeenCalledWith({ where: { id: 'u9' } });
+      expect(p.user.findUnique).toHaveBeenCalledWith({
+        where: { id: 'u9' },
+        include: { studentGroups: { include: { group: { select: { id: true, name: true } } } } },
+      });
     });
   });
 

@@ -1,5 +1,6 @@
 ﻿import { Request, Response } from 'express';
 import * as groupsService from '../services/groups.service';
+import { sendError } from '../utils/http';
 
 export async function getGroups(_req: Request, res: Response) {
   const groups = await groupsService.getGroups();
@@ -11,7 +12,7 @@ export async function createGroup(req: Request, res: Response) {
     const group = await groupsService.createGroup(req.body);
     res.status(201).json({ success: true, data: { group } });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -26,7 +27,16 @@ export async function updateGroup(req: Request, res: Response) {
     const group = await groupsService.updateGroup(req.params.id as string, req.body);
     res.json({ success: true, data: { group } });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
+  }
+}
+
+export async function deleteGroup(req: Request, res: Response) {
+  try {
+    await groupsService.deleteGroup(req.params.id as string);
+    res.json({ success: true, data: null });
+  } catch (err: any) {
+    sendError(res, err);
   }
 }
 
@@ -36,7 +46,7 @@ export async function addStudent(req: Request, res: Response) {
     const student = await groupsService.addStudent(req.params.id as string, name, email, githubUsername);
     res.status(201).json({ success: true, data: { student } });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -45,7 +55,7 @@ export async function removeStudent(req: Request, res: Response) {
     await groupsService.removeStudent(req.params.id as string, req.params.studentId as string);
     res.json({ success: true, data: null });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -55,7 +65,7 @@ export async function importStudents(req: Request, res: Response) {
     const result = await groupsService.importStudents(req.params.id as string, req.file.buffer);
     res.json({ success: true, data: result });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -64,7 +74,7 @@ export async function resetPassword(req: Request, res: Response) {
     await groupsService.resetStudentPassword(req.params.studentId as string);
     res.json({ success: true, data: null });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 

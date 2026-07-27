@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../src/config/prisma', () => ({
   prisma: {
-    course: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+    course: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
     user: { findUnique: vi.fn() },
     studentGroup: { findFirst: vi.fn() },
     lessonAccess: { findUnique: vi.fn() },
@@ -38,6 +38,7 @@ import {
   deleteCourseLink,
   uploadCourseFile,
   deleteCourseFile,
+  deleteCourse,
 } from '../../src/services/courses.service';
 
 const p = prisma as any;
@@ -186,7 +187,21 @@ describe('courses.service create/update + links + files', () => {
     uploadMock.mockResolvedValue({ url: 'https://cdn/x.pdf', bytes: 42, resourceType: 'image', publicId: 'p' });
     p.courseFile.create.mockImplementation(({ data }: any) => Promise.resolve(data));
     const r: any = await uploadCourseFile('c1', Buffer.from('x'), 'x.pdf', 'application/pdf');
-    expect(r).toMatchObject({ courseId: 'c1', url: 'https://cdn/x.pdf' });
+    expect(r).toMatchObject({ courseId: 'c1', url: 'https://cdn/x.pdf', name: 'x.pdf' });
+  });
+
+  it('uploadCourseFile uses the given display name over the original filename', async () => {
+    uploadMock.mockResolvedValue({ url: 'https://cdn/x.pdf', bytes: 42, resourceType: 'image', publicId: 'p' });
+    p.courseFile.create.mockImplementation(({ data }: any) => Promise.resolve(data));
+    const r: any = await uploadCourseFile('c1', Buffer.from('x'), 'x.pdf', 'application/pdf', '  מצגת שיעור 1  ');
+    expect(r.name).toBe('מצגת שיעור 1');
+  });
+
+  it('uploadCourseFile falls back to the original name when the display name is blank', async () => {
+    uploadMock.mockResolvedValue({ url: 'https://cdn/x.pdf', bytes: 42, resourceType: 'image', publicId: 'p' });
+    p.courseFile.create.mockImplementation(({ data }: any) => Promise.resolve(data));
+    const r: any = await uploadCourseFile('c1', Buffer.from('x'), 'x.pdf', 'application/pdf', '   ');
+    expect(r.name).toBe('x.pdf');
   });
 
   it('uploadCourseFile returns sizeBytes as a string so JSON.stringify cannot throw on BigInt', async () => {
@@ -208,5 +223,36 @@ describe('courses.service create/update + links + files', () => {
     await deleteCourseFile('c1', 'f1');
     expect(destroyMock).toHaveBeenCalled();
     expect(p.courseFile.delete).toHaveBeenCalledWith({ where: { id: 'f1' } });
+  });
+});
+
+describe('courses.service.deleteCourse', () => {
+  it('throws 404 when the course is missing', async () => {
+    p.course.findUnique.mockResolvedValue(null);
+    await expect(deleteCourse('c1')).rejects.toMatchObject({ status: 404 });
+    expect(p.course.delete).not.toHaveBeenCalled();
+  });
+
+  it('destroys course + lesson file assets, then deletes the course', async () => {
+    p.course.findUnique.mockResolvedValue({
+      id: 'c1',
+      files: [{ url: 'https://cdn/course-file.pdf' }],
+      lessons: [{ files: [{ url: 'https://cdn/lesson-a.pdf' }, { url: 'https://cdn/lesson-b.pdf' }] }],
+    });
+    destroyMock.mockResolvedValue({});
+    p.course.delete.mockResolvedValue({});
+    await deleteCourse('c1');
+    expect(destroyMock).toHaveBeenCalledTimes(3);
+    expect(destroyMock).toHaveBeenCalledWith('https://cdn/course-file.pdf');
+    expect(destroyMock).toHaveBeenCalledWith('https://cdn/lesson-a.pdf');
+    expect(p.course.delete).toHaveBeenCalledWith({ where: { id: 'c1' } });
+  });
+
+  it('still deletes the course when a storage destroy fails', async () => {
+    p.course.findUnique.mockResolvedValue({ id: 'c1', files: [{ url: 'https://cdn/x.pdf' }], lessons: [] });
+    destroyMock.mockRejectedValue(new Error('cloudinary down'));
+    p.course.delete.mockResolvedValue({});
+    await deleteCourse('c1');
+    expect(p.course.delete).toHaveBeenCalledWith({ where: { id: 'c1' } });
   });
 });
