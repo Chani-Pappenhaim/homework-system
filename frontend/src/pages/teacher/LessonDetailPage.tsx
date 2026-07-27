@@ -315,7 +315,7 @@ export default function LessonDetailPage() {
               <div className="flex gap-2 flex-wrap">
                 {lesson.assignments.map((a, i) => (
                   <button key={a.id} onClick={() => setSelectedAssignment(i)}
-                    className={`border px-3 py-1.5 text-sm font-bold transition ${i === selectedAssignment ? 'border-rule bg-ink text-sheet' : 'border-rule/30 text-ink/70 hover:border-rule hover:bg-ground/60'}`}>
+                    className={`rounded-input border px-3 py-1.5 text-sm font-bold transition-colors ${i === selectedAssignment ? 'border-rule bg-ink text-sheet' : 'border-rule/30 text-ink/70 hover:border-rule hover:bg-ground/60'}`}>
                     {a.title}
                   </button>
                 ))}
@@ -415,7 +415,7 @@ export default function LessonDetailPage() {
       {/* Lesson Access */}
       <Card>
         <CardHeader>
-          <h2 className="font-semibold text-sm">הרשאת גישה חריגה לשיעור זה</h2>
+          <h2 className="font-display text-base font-bold">הרשאת גישה חריגה לשיעור זה</h2>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-xs text-ink/50">מתן גישה לתלמידה שאינה בקבוצה הרגילה של הקורס</p>
@@ -475,14 +475,14 @@ export default function LessonDetailPage() {
                 className="resize-y font-sans"
                 placeholder="# כותרת&#10;&#10;תוכן השיעור, הסברים, דוגמאות קוד..."
               />
-              <p className="text-xs text-muted-foreground">אפשר לעצב עם Markdown: כותרות (#), רשימות, קוד (```), קישורים ועוד</p>
+              <p className="text-xs text-ink-soft">אפשר לעצב עם Markdown: כותרות (#), רשימות, קוד (```), קישורים ועוד</p>
             </div>
             <Input label="קישור לקוד ב-GitHub (אופציונלי)" value={lGithubUrl} onChange={(e) => setLGithubUrl(e.target.value)} placeholder="https://github.com/..." />
             <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input type="checkbox" checked={lHidden} onChange={(e) => setLHidden(e.target.checked)} className="accent-primary" />
+              <input type="checkbox" checked={lHidden} onChange={(e) => setLHidden(e.target.checked)} className="accent-ink" />
               הסתר שיעור מהתלמידות
             </label>
-            <p className="text-xs text-muted-foreground">קבצים מצורפים מנהלים ישירות בכרטיס השיעור (לא כאן).</p>
+            <p className="text-xs text-ink-soft">קבצים מצורפים מנהלים ישירות בכרטיס השיעור (לא כאן).</p>
             <Button
               className="w-full"
               loading={saveLessonMutation.isPending}
@@ -538,7 +538,7 @@ export default function LessonDetailPage() {
                 className="resize-none"
                 placeholder="למשל: בדקי שיש שימוש ב-async/await, שהקוד מחולק לפונקציות, ושיש טיפול בשגיאות..."
               />
-              <p className="text-xs text-muted-foreground">הנחיות אלו יישלחו ל-AI בעת בדיקת עבודות התלמידות</p>
+              <p className="text-xs text-ink-soft">הנחיות אלו יישלחו ל-AI בעת בדיקת עבודות התלמידות</p>
             </div>
             <Button
               className="w-full"
@@ -630,7 +630,7 @@ export default function LessonDetailPage() {
                       onChange={(e) => setChecklist((prev) =>
                         prev.map((c) => c.id === item.id ? { ...c, checked: e.target.checked } : c)
                       )}
-                      className="accent-primary"
+                      className="accent-ink"
                     />
                     {item.text}
                   </label>

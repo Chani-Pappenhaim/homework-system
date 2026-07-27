@@ -48,8 +48,8 @@ export default function ChangePasswordPage() {
           </p>
         </div>
 
-        <div className="relative border border-rule bg-sheet p-6 shadow-lift">
-          <Tape color="mustard" rotate={-5} className="-top-3.5 right-10 h-6 w-24" />
+        <div className="relative rounded-xl border border-rule bg-sheet p-6 shadow-lift">
+          <Tape color="butter" rotate={-5} className="-top-3.5 right-10 h-6 w-24" />
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <Input
               label="סיסמא נוכחית"

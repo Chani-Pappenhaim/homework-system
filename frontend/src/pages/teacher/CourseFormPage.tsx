@@ -138,7 +138,7 @@ export default function CourseFormPage() {
             <select
               value={groupId}
               onChange={(e) => setGroupId(e.target.value)}
-              className="w-full px-3 py-2 border border-input bg-card rounded-input text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="w-full rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
             >
               <option value="">בחרי קבוצה...</option>
               {groups.map((g) => <option key={g.id} value={g.id}>{g.name} — {g.year}</option>)}
@@ -165,7 +165,7 @@ export default function CourseFormPage() {
       {isEdit && course && (
         <Card>
           <CardHeader>
-            <h2 className="font-semibold text-sm">שיעורים ({course.lessons.length})</h2>
+            <h2 className="font-display text-base font-bold">שיעורים ({course.lessons.length})</h2>
           </CardHeader>
           <div className="divide-y divide-rule/20">
             {course.lessons.map((l, i) => (
@@ -191,7 +191,7 @@ export default function CourseFormPage() {
       {/* Links — edit only */}
       {isEdit && course && (
         <Card>
-          <CardHeader><h2 className="font-semibold text-sm">קישורים שימושיים</h2></CardHeader>
+          <CardHeader><h2 className="font-display text-base font-bold">קישורים שימושיים</h2></CardHeader>
           <CardContent className="space-y-3">
             {course.links.map((l) => (
               <div key={l.id} className="flex items-center gap-2">
@@ -215,7 +215,7 @@ export default function CourseFormPage() {
       {/* Files — edit only */}
       {isEdit && course && (
         <Card>
-          <CardHeader><h2 className="font-semibold text-sm">קבצים</h2></CardHeader>
+          <CardHeader><h2 className="font-display text-base font-bold">קבצים</h2></CardHeader>
           <CardContent className="space-y-3">
             {course.files.map((f) => (
               <div key={f.id} className="flex items-center gap-2">
@@ -241,7 +241,7 @@ export default function CourseFormPage() {
           <select
             value={copyGroupId}
             onChange={(e) => setCopyGroupId(e.target.value)}
-            className="w-full px-3 py-2 border border-input bg-card rounded-input text-sm text-foreground"
+            className="w-full rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
           >
             <option value="">בחרי קבוצה יעד...</option>
             {groups.filter((g) => g.id !== groupId).map((g) => (

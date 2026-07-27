@@ -116,7 +116,7 @@ export default function GroupFormPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-sm">תלמידות ({group?.students.length ?? 0})</h2>
+              <h2 className="font-display text-base font-bold">תלמידות ({group?.students.length ?? 0})</h2>
               <Button size="sm" variant="secondary" onClick={() => setAddModal(true)}>
                 <UserPlus size={13} /> הוספת תלמידה
               </Button>
@@ -165,7 +165,7 @@ export default function GroupFormPage() {
         <div className="flex gap-2 mb-4">
           {(['manual', 'excel'] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)}
-              className={`border px-3 py-1.5 text-sm font-bold transition ${tab === t ? 'border-rule bg-ink text-sheet' : 'border-rule/30 text-ink/70 hover:border-rule'}`}>
+              className={`rounded-input border px-3 py-1.5 text-sm font-bold transition-colors ${tab === t ? 'border-rule bg-ink text-sheet' : 'border-rule/30 text-ink/70 hover:border-rule'}`}>
               {t === 'manual' ? 'הוספה ידנית' : 'ייבוא מ-Excel'}
             </button>
           ))}
