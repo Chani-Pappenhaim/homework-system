@@ -1,5 +1,6 @@
 ﻿import { Request, Response } from 'express';
 import * as assignmentsService from '../services/assignments.service';
+import { sendError } from '../utils/http';
 
 export async function getAssignments(req: Request, res: Response) {
   try {
@@ -8,7 +9,7 @@ export async function getAssignments(req: Request, res: Response) {
     );
     res.json({ success: true, data: { assignments } });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -17,7 +18,7 @@ export async function createAssignment(req: Request, res: Response) {
     const assignment = await assignmentsService.createAssignment(req.params.lessonId as string, req.body);
     res.status(201).json({ success: true, data: { assignment } });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -26,7 +27,7 @@ export async function updateAssignment(req: Request, res: Response) {
     const assignment = await assignmentsService.updateAssignment(req.params.id as string, req.body);
     res.json({ success: true, data: { assignment } });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -35,7 +36,7 @@ export async function deleteAssignment(req: Request, res: Response) {
     await assignmentsService.deleteAssignment(req.params.id as string);
     res.json({ success: true, data: null });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -45,7 +46,7 @@ export async function importAssignments(req: Request, res: Response) {
     const result = await assignmentsService.importAssignments(req.file.buffer);
     res.json({ success: true, data: result });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -54,7 +55,7 @@ export async function getSubmissions(req: Request, res: Response) {
     const data = await assignmentsService.getAssignmentSubmissions(req.params.id as string);
     res.json({ success: true, data });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 

@@ -25,6 +25,7 @@ export default function StudentHomePage() {
   const doneTotal = courses.reduce((s, c) => s + (c.completedLessons ?? 0), 0);
   const streak = Math.min(doneTotal, 7);
   const dateMeta = new Intl.DateTimeFormat('he-IL', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
+  const groupNames = (user?.groups ?? []).map((g) => g.name);
 
   return (
     <div className="mx-auto max-w-4xl space-y-5" dir="rtl">
@@ -34,6 +35,11 @@ export default function StudentHomePage() {
         <Tape color="sage" rotate={3} className="-top-2 right-28 w-14" />
         <div className="label mb-1">המחברת שלי · {dateMeta}</div>
         <h1 className="font-display text-2xl font-bold text-ink">שלום, {(user?.name ?? 'תלמידה').split(' ')[0]}</h1>
+        {groupNames.length > 0 && (
+          <p className="mt-0.5 text-xs text-ink-soft">
+            {groupNames.length > 1 ? 'קבוצות: ' : 'קבוצה: '}{groupNames.join(', ')}
+          </p>
+        )}
         <div className="mt-3 flex items-center gap-2">
           <span className="label flex items-center gap-1"><Flame size={13} className="text-coral" /> רצף</span>
           <div className="flex items-center gap-1">

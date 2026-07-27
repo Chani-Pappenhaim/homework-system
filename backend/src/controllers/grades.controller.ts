@@ -1,12 +1,13 @@
 ﻿import { Request, Response } from 'express';
 import * as gradesService from '../services/grades.service';
+import { sendError } from '../utils/http';
 
 export async function gradeSubmission(req: Request, res: Response) {
   try {
     const grade = await gradesService.gradeSubmission(req.params.id as string, req.user!.userId, req.body);
     res.json({ success: true, data: { grade } });
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -28,7 +29,7 @@ export async function exportReport(req: Request, res: Response) {
     res.setHeader('Content-Disposition', 'attachment; filename=grades.xlsx');
     res.send(buffer);
   } catch (err: any) {
-    res.status(err.status || 500).json({ success: false, error: err.message });
+    sendError(res, err);
   }
 }
 

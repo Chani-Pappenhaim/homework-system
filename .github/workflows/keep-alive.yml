@@ -1,0 +1,40 @@
+name: Keep backend awake
+
+# Render's free web service spins the instance down after ~15 minutes of
+# inactivity, so the next real visitor pays a 30-60s cold start. This scheduled
+# job pings the lightweight /api/health endpoint (no auth, no DB) to keep the
+# instance warm.
+#
+# Notes:
+# - A scheduled workflow only runs once this file is on the repo's DEFAULT
+#   branch (main). It will not fire from a feature branch.
+# - GitHub's cron is best-effort and can be delayed a few minutes under load;
+#   a 10-minute interval leaves a safety margin under Render's ~15-minute idle
+#   window.
+# - For a PRIVATE repo, Actions minutes are capped (2,000/month on the free
+#   plan) and this schedule would exceed that. If the repo is private, either
+#   widen the interval or use an external monitor (UptimeRobot / cron-job.org)
+#   pointed at the same URL instead — it does the same job without spending
+#   Actions minutes.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # every 10 minutes
+  workflow_dispatch: {}        # allow a manual run from the Actions tab
+
+# A later run makes an earlier still-pending one pointless — keep only the newest.
+concurrency:
+  group: keep-alive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping /api/health
+        run: |
+          # --max-time is generous: if the service was asleep, this very request
+          # triggers the cold start and may take up to a minute to answer.
+          curl -fsSL --max-time 120 --retry 3 --retry-all-errors \
+            "https://homework-system-3haq.onrender.com/api/health"

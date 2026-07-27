@@ -1,20 +1,30 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authApi } from '@/api/auth.api';
 import useAuthStore from '@/store/authStore';
 import { API_URL } from '@/lib/config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Brand, Tape } from '@/components/decor';
+import { getApiErrorMessage } from '@/lib/errors';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const setAuth = useAuthStore((s) => s.setAuth);
   const user = useAuthStore((s) => s.user);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // The backend redirects here with ?error=oauth_unregistered when someone signs
+  // in with Google/GitHub whose email the teacher has not added.
+  useEffect(() => {
+    if (searchParams.get('error') === 'oauth_unregistered') {
+      setError('החשבון הזה אינו רשום במערכת. פני למורה כדי שתוסיף אותך.');
+    }
+  }, [searchParams]);
 
   // A restored session landing here (e.g. the old bootstrap race, or a manual
   // /login visit) should go straight in rather than ask for a password again.
@@ -38,7 +48,7 @@ export default function LoginPage() {
         navigate(user.role === 'ADMIN' ? '/teacher' : '/student');
       }
     } catch (err: any) {
-      setError(err.response?.data?.error ?? 'שגיאה בכניסה למערכת');
+      setError(getApiErrorMessage(err, 'שגיאה בכניסה למערכת. אנא בדקו את הפרטים ונסו שוב.'));
     } finally {
       setLoading(false);
     }

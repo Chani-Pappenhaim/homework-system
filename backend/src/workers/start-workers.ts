@@ -15,8 +15,9 @@ export interface WorkerHandles {
 
 /**
  * Create and start every worker. Called once — from the standalone worker entry
- * (workers/index.ts) or, on a single-service deploy, inline from the API process.
- * Each worker gets its own Redis connection because workers issue blocking reads.
+ * (entrypoints/worker.ts) or, on the free single-service deploy, inline from the
+ * combined entry (entrypoints/combined.ts). Each worker gets its own Redis
+ * connection because workers issue blocking reads.
  */
 export async function startWorkers(): Promise<WorkerHandles> {
   const connections: IORedis[] = [];

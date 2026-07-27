@@ -52,6 +52,15 @@ const adminToken = signAccessToken({ userId: 'admin1', role: 'ADMIN' });
 
 beforeEach(() => vi.clearAllMocks());
 
+describe('health check', () => {
+  it('GET /api/health returns 200 without auth', async () => {
+    const res = await request(app).get('/api/health');
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ success: true, data: { status: 'ok' } });
+    expect(typeof res.body.data.uptime).toBe('number');
+  });
+});
+
 describe('auth controller', () => {
   it('POST /api/auth/login returns { success, data:{ user, accessToken } }', async () => {
     (authService.loginWithPassword as any).mockResolvedValue({

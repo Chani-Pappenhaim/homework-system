@@ -14,6 +14,7 @@ import { FileUpload } from '@/components/ui/file-upload';
 import { Input } from '@/components/ui/input';
 import { BackLink } from '@/components/ui/back-link';
 import { cn, formatDate, formatDateTime, isOverdue, toExternalUrl } from '@/lib/utils';
+import { getApiErrorMessage } from '@/lib/errors';
 import type { AssignmentDTO } from '@/types';
 
 export default function StudentLessonDetailPage() {
@@ -138,25 +139,25 @@ function AssignmentCard({ assignment: a, submission: sub }: {
       a.id,
     ),
     onSuccess: () => { setLateRequestSent(true); setLateFormOpen(false); setLateReason(''); setError(''); },
-    onError: (e: any) => setError(e.response?.data?.error ?? 'שגיאה בשליחת הבקשה'),
+    onError: (e: any) => setError(getApiErrorMessage(e, 'שגיאה בשליחת הבקשה')),
   });
 
   const aiReviewMutation = useMutation({
     mutationFn: () => submissionsApi.requestAiReview(sub?.id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['mine'] }),
-    onError: (e: any) => setError(e.response?.data?.error ?? 'שגיאה בבקשת בדיקה'),
+    onError: (e: any) => setError(getApiErrorMessage(e, 'שגיאה בבקשת בדיקה')),
   });
 
   const fileMutation = useMutation({
     mutationFn: (file: File) => submissionsApi.submitFile(a.id, file, notes || undefined),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['mine'] }); setError(''); setNotes(''); },
-    onError: (e: any) => setError(e.response?.data?.error ?? 'שגיאה בהגשה'),
+    onError: (e: any) => setError(getApiErrorMessage(e, 'שגיאה בהגשה')),
   });
 
   const repoMutation = useMutation({
     mutationFn: () => submissionsApi.submitRepo(a.id, repoName, notes || undefined),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['mine'] }); setRepoName(''); setNotes(''); setError(''); },
-    onError: (e: any) => setError(e.response?.data?.error ?? 'שגיאה בהגשה'),
+    onError: (e: any) => setError(getApiErrorMessage(e, 'שגיאה בהגשה')),
   });
 
   const githubPreview = repoName ? `https://github.com/[username]/${repoName}` : '';
