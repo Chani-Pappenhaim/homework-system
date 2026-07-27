@@ -78,7 +78,7 @@ export default function GroupDetailPage() {
       <Card accent="indigo">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-sm flex items-center gap-1.5">
+            <h2 className="font-display text-base font-bold flex items-center gap-1.5">
               <BookOpen size={15} className="text-clay" /> קורסים ({group.courses.length})
             </h2>
             <Button size="sm" variant="secondary" onClick={() => navigate(`/teacher/courses/new?groupId=${id}`)}>
@@ -109,7 +109,7 @@ export default function GroupDetailPage() {
       {/* Students (read-only) */}
       <Card>
         <CardHeader>
-          <h2 className="font-semibold text-sm">תלמידות ({group.students.length})</h2>
+          <h2 className="font-display text-base font-bold">תלמידות ({group.students.length})</h2>
         </CardHeader>
         <div className="divide-y divide-rule/20">
           {group.students.length === 0 && (

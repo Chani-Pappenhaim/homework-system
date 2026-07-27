@@ -94,7 +94,7 @@ export default function CourseDetailPage() {
       {/* Lesson bubbles */}
       <Card accent="indigo">
         <CardHeader>
-          <h2 className="font-semibold text-sm">שיעורים ({course.lessons.length})</h2>
+          <h2 className="font-display text-base font-bold">שיעורים ({course.lessons.length})</h2>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-3">
@@ -122,7 +122,7 @@ export default function CourseDetailPage() {
       {/* Links */}
       {course.links.length > 0 && (
         <Card>
-          <CardHeader><h2 className="font-semibold text-sm">קישורים שימושיים</h2></CardHeader>
+          <CardHeader><h2 className="font-display text-base font-bold">קישורים שימושיים</h2></CardHeader>
           <CardContent className="space-y-2">
             {course.links.map((l) => (
               <a key={l.id} href={toExternalUrl(l.url)} target="_blank" rel="noreferrer"
@@ -137,7 +137,7 @@ export default function CourseDetailPage() {
       {/* Files */}
       {course.files.length > 0 && (
         <Card>
-          <CardHeader><h2 className="font-semibold text-sm">קבצים</h2></CardHeader>
+          <CardHeader><h2 className="font-display text-base font-bold">קבצים</h2></CardHeader>
           <CardContent className="space-y-2">
             {course.files.map((f) => (
               <a key={f.id} href={f.url} target="_blank" rel="noreferrer"

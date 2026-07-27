@@ -92,7 +92,7 @@ export default function StudentLessonDetailPage() {
       {/* Files */}
       {lesson.files.length > 0 && (
         <Card>
-          <CardHeader><h2 className="text-sm font-semibold">קבצים</h2></CardHeader>
+          <CardHeader><h2 className="font-display text-base font-bold">קבצים</h2></CardHeader>
           <CardContent className="space-y-2">
             {lesson.files.map((f) => (
               <a key={f.id} href={f.url} target="_blank" rel="noreferrer"
@@ -166,7 +166,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-sm">{a.title}</h3>
+          <h3 className="font-display text-base font-bold">{a.title}</h3>
           {sub ? (
             <Badge variant="success"><CheckCircle size={10} className="ml-1" /> הוגש</Badge>
           ) : a.deadline && isOverdue(a.deadline) ? (
