@@ -1,14 +1,24 @@
 FROM node:22-alpine AS builder
+# --- NETFREE CERT INSTALL (רשת עם SSL inspection) — מתקין את תעודת ה-root של
+# נטפרי כך ש-prisma/npm יעברו אימות TLS תקין במקום NODE_TLS_REJECT_UNAUTHORIZED=0 ---
+ADD https://netfree.link/cacert/united/x2/unix.sh /tmp/netfree-ca.sh
+RUN sh /tmp/netfree-ca.sh
+ENV NODE_EXTRA_CA_CERTS=/etc/ca-bundle.crt SSL_CERT_FILE=/etc/ca-bundle.crt
+# --- END NETFREE CERT INSTALL ---
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-RUN NODE_TLS_REJECT_UNAUTHORIZED=0 npx prisma generate
+RUN npx prisma generate
 RUN npx tsc
 
 FROM node:22-alpine
+# --- NETFREE CERT INSTALL ---
+ADD https://netfree.link/cacert/united/x2/unix.sh /tmp/netfree-ca.sh
+RUN sh /tmp/netfree-ca.sh
+ENV NODE_EXTRA_CA_CERTS=/etc/ca-bundle.crt SSL_CERT_FILE=/etc/ca-bundle.crt
+# --- END NETFREE CERT INSTALL ---
 WORKDIR /app
-ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 COPY package*.json ./
 RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
