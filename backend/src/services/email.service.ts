@@ -1,28 +1,38 @@
-import nodemailer, { Transporter } from 'nodemailer';
+// Transactional email via the Brevo HTTP API.
+//
+// We send over HTTP (not SMTP) because Render's free tier blocks outbound SMTP
+// connections. The `sendMail` signature is intentionally unchanged, so nothing
+// else in the project needs to change — only the delivery mechanism.
 
-let transporter: Transporter | null = null;
-
-// Lazy creation — importing this module never crashes even if SMTP is not configured
-function getTransporter(): Transporter {
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 587,
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    });
-  }
-  return transporter;
-}
+const BREVO_ENDPOINT = 'https://api.brevo.com/v3/smtp/email';
 
 export async function sendMail({ to, subject, html }: { to: string; subject: string; html: string }) {
-  if (!process.env.SMTP_HOST) {
-    console.warn(`[email] SMTP_HOST not set — skipping email "${subject}" to ${to}`);
+  const apiKey = process.env.BREVO_API_KEY;
+  const senderEmail = process.env.BREVO_SENDER_EMAIL;
+
+  // Lazy/safe: importing or calling this never crashes when email isn't configured.
+  if (!apiKey || !senderEmail) {
+    console.warn(`[email] BREVO_API_KEY/BREVO_SENDER_EMAIL not set — skipping email "${subject}" to ${to}`);
     return;
   }
-  await getTransporter().sendMail({
-    from: process.env.FROM_EMAIL,
-    to,
-    subject,
-    html,
+
+  const res = await fetch(BREVO_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'api-key': apiKey,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({
+      sender: { email: senderEmail, name: process.env.BREVO_SENDER_NAME || senderEmail },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+    }),
   });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Brevo email failed (${res.status}): ${detail}`);
+  }
 }
