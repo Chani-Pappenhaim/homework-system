@@ -158,7 +158,7 @@ export default function TeacherLayout() {
 
       <footer className="hidden border-t border-rule bg-sheet/50 md:block">
         <div className="flex items-center justify-between px-6 py-3 text-[11px] text-ink-soft">
-          <span>קליק כיתה · המורה עדי שלום</span>
+          <span>Teacher Feature · המורה עדי שלום</span>
           <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-sage" /> מחובר</span>
         </div>
       </footer>
