@@ -1,10 +1,11 @@
 import { toExternalUrl } from '@/lib/utils';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ExternalLink, Paperclip, Check } from 'lucide-react';
+import { ExternalLink, Check } from 'lucide-react';
 import { coursesApi } from '@/api/courses.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
+import { FileGallery } from '@/components/ui/file-gallery';
 import { cn } from '@/lib/utils';
 
 export default function StudentCourseDetailPage() {
@@ -58,7 +59,7 @@ export default function StudentCourseDetailPage() {
               <button
                 key={l.id}
                 onClick={() => navigate(`/student/lessons/${l.id}`)}
-                title={l.completed ? 'הושלם' : l.topic}
+                title={l.completed ? `${l.topic} (הושלם)` : l.topic}
                 className={cn(
                   'lift relative grid size-14 place-items-center rounded-lg border border-rule font-display text-lg font-bold shadow-soft',
                   l.completed ? 'bg-sage text-sheet' : 'bg-sheet text-ink',
@@ -94,14 +95,9 @@ export default function StudentCourseDetailPage() {
       {/* Files */}
       {course.files.length > 0 && (
         <Card>
-          <CardHeader><h2 className="font-display text-base font-bold">קבצים</h2></CardHeader>
-          <CardContent className="space-y-2">
-            {course.files.map((f) => (
-              <a key={f.id} href={f.url} target="_blank" rel="noreferrer"
-                className="flex items-center gap-2 text-sm text-ink hover:text-clay">
-                <Paperclip size={13} /> {f.name}
-              </a>
-            ))}
+          <CardHeader><h2 className="font-display text-base font-bold">חומרי עזר</h2></CardHeader>
+          <CardContent>
+            <FileGallery files={course.files} />
           </CardContent>
         </Card>
       )}

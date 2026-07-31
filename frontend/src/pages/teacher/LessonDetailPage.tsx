@@ -23,6 +23,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { BackLink } from '@/components/ui/back-link';
 import { FileUpload } from '@/components/ui/file-upload';
+import { FileGallery } from '@/components/ui/file-gallery';
+import { MultiUrlInput } from '@/components/ui/multi-url-input';
+import { DateField } from '@/components/ui/date-field';
+import { StudentAutocomplete } from '@/components/ui/student-autocomplete';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
 import { formatDate, formatDateTime, toExternalUrl } from '@/lib/utils';
@@ -39,14 +43,17 @@ export default function LessonDetailPage() {
   const [contentScore, setContentScore] = useState('');
   const [feedback, setFeedback] = useState('');
   const [checklist, setChecklist] = useState<ChecklistResult[]>([]);
-  const [accessEmail, setAccessEmail] = useState('');
   const [accessError, setAccessError] = useState('');
+  const [accessTab, setAccessTab] = useState<'student' | 'group' | 'file'>('student');
+  const [accessGroupId, setAccessGroupId] = useState('');
+  const [accessFileEmails, setAccessFileEmails] = useState<string[]>([]);
+  const [accessFileName, setAccessFileName] = useState('');
   const [assignmentModal, setAssignmentModal] = useState<AssignmentDTO | null | 'new'>(null);
   const [lessonEditOpen, setLessonEditOpen] = useState(false);
   const [lTopic, setLTopic] = useState('');
   const [lDate, setLDate] = useState('');
   const [lContentMd, setLContentMd] = useState('');
-  const [lGithubUrl, setLGithubUrl] = useState('');
+  const [lGithubUrls, setLGithubUrls] = useState<string[]>(['']);
   const [lHidden, setLHidden] = useState(false);
   const [aTitle, setATitle] = useState('');
   const [aDescription, setADescription] = useState('');
@@ -76,17 +83,27 @@ export default function LessonDetailPage() {
   const allGroups: any[] = (groupsData?.data as any)?.data?.groups ?? [];
 
   const grantAccessMutation = useMutation({
-    mutationFn: async (email: string) => {
-      // Find student across groups
-      for (const g of allGroups) {
-        const res = await groupsApi.get(g.id);
-        const found = res.data.data.group.students.find((s: any) => s.email === email);
-        if (found) return lessonsApi.grantAccess(id!, found.id);
+    mutationFn: (studentId: string) => lessonsApi.grantAccess(id!, studentId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lesson-access', id] }); setAccessError(''); },
+    onError: (e: any) => setAccessError(getApiErrorMessage(e, 'שגיאה במתן הרשאה')),
+  });
+
+  const grantAccessBulkMutation = useMutation({
+    mutationFn: (data: { groupId?: string; emails?: string[] }) => lessonsApi.grantAccessBulk(id!, data),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['lesson-access', id] });
+      const { granted, notFound } = res.data.data;
+      setAccessGroupId('');
+      setAccessFileEmails([]);
+      setAccessFileName('');
+      if (notFound && notFound.length > 0) {
+        setAccessError(`הוענקה גישה ל-${granted} תלמידות. לא נמצאו: ${notFound.join(', ')}`);
+      } else {
+        setAccessError('');
+        toast.success(`הוענקה גישה ל-${granted} תלמידות`);
       }
-      throw new Error('תלמידה לא נמצאה');
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lesson-access', id] }); setAccessEmail(''); setAccessError(''); },
-    onError: (e: any) => setAccessError(getApiErrorMessage(e, e.message ?? 'שגיאה')),
+    onError: (e: any) => setAccessError(getApiErrorMessage(e, 'שגיאה במתן הרשאה')),
   });
 
   const revokeAccessMutation = useMutation({
@@ -105,7 +122,7 @@ export default function LessonDetailPage() {
     setLTopic(lesson.topic);
     setLDate(lesson.lessonDate ? lesson.lessonDate.slice(0, 10) : '');
     setLContentMd(lesson.contentMd ?? '');
-    setLGithubUrl(lesson.githubUrl ?? '');
+    setLGithubUrls(lesson.githubUrls.length > 0 ? lesson.githubUrls : ['']);
     setLHidden(lesson.hidden);
     setLessonEditOpen(true);
   }
@@ -115,7 +132,7 @@ export default function LessonDetailPage() {
       topic: lTopic,
       lessonDate: lDate || undefined,
       contentMd: lContentMd,
-      githubUrl: lGithubUrl,
+      githubUrls: lGithubUrls.map((u) => u.trim()).filter(Boolean),
       hidden: lHidden,
     }),
     onSuccess: () => {
@@ -273,28 +290,21 @@ export default function LessonDetailPage() {
           {lesson.contentMd
             ? <MarkdownRenderer content={lesson.contentMd} />
             : <p className="text-sm text-ink/50">אין תוכן לשיעור עדיין — לחצי על "ערוך שיעור" כדי להוסיף חומר לימוד.</p>}
-          {lesson.githubUrl && (
-            <a href={toExternalUrl(lesson.githubUrl)} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-2 text-sm text-ink border border-rule/20 rounded-input px-3 py-1.5 hover:bg-ground/60 transition">
-              <Github size={14} /> קוד השיעור ב-GitHub
-            </a>
+          {lesson.githubUrls.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {lesson.githubUrls.map((url, i) => (
+                <a key={i} href={toExternalUrl(url)} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-2 text-sm text-ink border border-rule/20 rounded-input px-3 py-1.5 hover:bg-ground/60 transition">
+                  <Github size={14} /> {lesson.githubUrls.length > 1 ? `קוד השיעור #${i + 1}` : 'קוד השיעור ב-GitHub'}
+                </a>
+              ))}
+            </div>
           )}
 
           {/* Files management */}
           <div className="space-y-2 pt-2 border-t border-rule/20">
             <p className="text-xs text-ink/50 font-medium">קבצים מצורפים</p>
-            {lesson.files.map((f) => (
-              <div key={f.id} className="flex items-center justify-between">
-                <a href={f.url} target="_blank" rel="noreferrer"
-                  className="flex items-center gap-1.5 text-sm text-clay hover:underline">
-                  <Paperclip size={12} /> {f.name}
-                </a>
-                <Button size="sm" variant="destructive"
-                  onClick={() => { if (confirm(`למחוק את הקובץ ${f.name}?`)) deleteFileMutation.mutate(f.id); }}>
-                  <Trash2 size={12} />
-                </Button>
-              </div>
-            ))}
+            <FileGallery files={lesson.files} onDelete={(fileId) => deleteFileMutation.mutate(fileId)} />
             {lesson.files.length === 0 && (
               <p className="text-xs text-ink/50">אין קבצים מצורפים</p>
             )}
@@ -380,7 +390,7 @@ export default function LessonDetailPage() {
                         </td>
                         <td className="px-3 py-3">
                           {s.fileUrl ? (
-                            <a href={s.fileUrl} target="_blank" rel="noreferrer" className="text-clay hover:underline flex items-center gap-1">
+                            <a href={s.fileUrl} download={s.fileName ?? undefined} target="_blank" rel="noreferrer" className="text-clay hover:underline flex items-center gap-1">
                               <Paperclip size={12} /> {s.fileName ?? 'קובץ'}
                             </a>
                           ) : s.githubUrl ? (
@@ -418,25 +428,80 @@ export default function LessonDetailPage() {
           <h2 className="font-display text-base font-bold">הרשאת גישה חריגה לשיעור זה</h2>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-xs text-ink/50">מתן גישה לתלמידה שאינה בקבוצה הרגילה של הקורס</p>
+          <p className="text-xs text-ink/50">מתן גישה לתלמידה, לקבוצה שלמה, או לרשימת מיילים מקובץ — שאינן בקבוצה הרגילה של הקורס</p>
+
           <div className="flex gap-2">
-            <Input
-              placeholder="אימייל תלמידה"
-              type="email"
-              value={accessEmail}
-              onChange={(e) => setAccessEmail(e.target.value)}
-              className="flex-1"
-            />
-            <Button
-              size="sm"
-              variant="secondary"
-              loading={grantAccessMutation.isPending}
-              onClick={() => grantAccessMutation.mutate(accessEmail)}
-              disabled={!accessEmail}
-            >
-              <UserPlus size={13} /> הענק גישה
-            </Button>
+            {([
+              ['student', 'תלמידה בודדת'],
+              ['group', 'קבוצה שלמה'],
+              ['file', 'קובץ מיילים'],
+            ] as const).map(([t, label]) => (
+              <button key={t} onClick={() => { setAccessTab(t); setAccessError(''); }}
+                className={`rounded-input border px-3 py-1.5 text-xs font-bold transition-colors ${accessTab === t ? 'border-rule bg-ink text-sheet' : 'border-rule/30 text-ink/70 hover:border-rule'}`}>
+                {label}
+              </button>
+            ))}
           </div>
+
+          {accessTab === 'student' && (
+            <StudentAutocomplete onSelect={(s) => grantAccessMutation.mutate(s.id)} />
+          )}
+
+          {accessTab === 'group' && (
+            <div className="flex gap-2">
+              <select
+                value={accessGroupId}
+                onChange={(e) => setAccessGroupId(e.target.value)}
+                className="flex-1 rounded-input border border-rule bg-sheet px-3 py-2 text-sm"
+              >
+                <option value="">בחרי קבוצה...</option>
+                {allGroups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+              <Button
+                size="sm"
+                variant="secondary"
+                loading={grantAccessBulkMutation.isPending}
+                onClick={() => grantAccessBulkMutation.mutate({ groupId: accessGroupId })}
+                disabled={!accessGroupId}
+              >
+                <UserPlus size={13} /> הענק לכל הקבוצה
+              </Button>
+            </div>
+          )}
+
+          {accessTab === 'file' && (
+            <div className="space-y-2">
+              <input
+                type="file"
+                accept=".txt,.csv"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (!file) return;
+                  const text = await file.text();
+                  const emails = text.split(/[\n,;\r]+/).map((s) => s.trim()).filter((s) => /\S+@\S+\.\S+/.test(s));
+                  setAccessFileEmails(emails);
+                  setAccessFileName(file.name);
+                }}
+                className="text-sm"
+              />
+              {accessFileEmails.length > 0 && (
+                <>
+                  <p className="text-xs text-ink/50">{accessFileName}: נמצאו {accessFileEmails.length} כתובות מייל</p>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    loading={grantAccessBulkMutation.isPending}
+                    onClick={() => grantAccessBulkMutation.mutate({ emails: accessFileEmails })}
+                  >
+                    <UserPlus size={13} /> הענק גישה לכולן
+                  </Button>
+                </>
+              )}
+              <p className="text-xs text-ink/40">קובץ txt/csv עם כתובת מייל אחת בכל שורה (או מופרדות בפסיקים)</p>
+            </div>
+          )}
+
           {accessError && <p className="text-coral text-xs">{accessError}</p>}
           {accessStudents.length > 0 && (
             <div className="divide-y divide-rule/20 border border-rule/20 rounded-card">
@@ -464,7 +529,7 @@ export default function LessonDetailPage() {
           </DialogHeader>
           <DialogBody className="space-y-4">
             <Input label="נושא השיעור *" value={lTopic} onChange={(e) => setLTopic(e.target.value)} placeholder="React Hooks" />
-            <Input label="תאריך (אופציונלי)" type="date" value={lDate} onChange={(e) => setLDate(e.target.value)} />
+            <DateField label="תאריך" value={lDate} onChange={setLDate} />
             <div className="flex flex-col gap-1">
               <Label htmlFor="lesson-content">חומר הלימוד (Markdown)</Label>
               <Textarea
@@ -477,7 +542,7 @@ export default function LessonDetailPage() {
               />
               <p className="text-xs text-ink-soft">אפשר לעצב עם Markdown: כותרות (#), רשימות, קוד (```), קישורים ועוד</p>
             </div>
-            <Input label="קישור לקוד ב-GitHub (אופציונלי)" value={lGithubUrl} onChange={(e) => setLGithubUrl(e.target.value)} placeholder="https://github.com/..." />
+            <MultiUrlInput label="קישורים לקוד ב-GitHub (אופציונלי)" values={lGithubUrls} onChange={setLGithubUrls} placeholder="https://github.com/..." />
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input type="checkbox" checked={lHidden} onChange={(e) => setLHidden(e.target.checked)} className="accent-ink" />
               הסתר שיעור מהתלמידות
@@ -565,7 +630,7 @@ export default function LessonDetailPage() {
             <DialogBody className="space-y-4">
             {/* Submission link */}
             {gradeModal.fileUrl && (
-              <a href={gradeModal.fileUrl} target="_blank" rel="noreferrer"
+              <a href={gradeModal.fileUrl} download={gradeModal.fileName ?? undefined} target="_blank" rel="noreferrer"
                 className="flex items-center gap-2 text-sm text-clay border border-rule/20 rounded-input px-3 py-2 hover:bg-ground/60">
                 <ExternalLink size={13} /> פתח קובץ שהוגש
               </a>

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, Trash2 } from 'lucide-react';
 import { messagesApi } from '@/api/messages.api';
@@ -20,6 +21,7 @@ import { getApiErrorMessage } from '@/lib/errors';
 
 export default function StudentMessagesPage() {
   const qc = useQueryClient();
+  const [searchParams] = useSearchParams();
   const [content, setContent] = useState('');
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
@@ -49,6 +51,14 @@ export default function StudentMessagesPage() {
 
   const messages: any[] = (data?.data as any)?.data?.messages ?? [];
   const openMsg = messages.find((m) => m.id === openId) ?? null;
+
+  // The teacher-reply notification email links straight to this message.
+  useEffect(() => {
+    const highlight = searchParams.get('highlight');
+    if (!highlight || openId) return;
+    if (messages.some((m) => m.id === highlight)) setOpenId(highlight);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, messages]);
 
   return (
     <div className="mx-auto max-w-lg space-y-4" dir="rtl">

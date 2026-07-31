@@ -31,7 +31,34 @@ export function toExternalUrl(url: string | null | undefined): string {
   return `https://${trimmed.replace(/^\/+/, '')}`;
 }
 
-export function formatBytes(bytes: number | bigint | null | undefined): string {
+export function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// The Hebrew calendar is built into Intl (no library needed) — used as a small
+// helper caption next to date pickers so a teacher scheduling around a Hebrew
+// date (e.g. a Chag) can see both calendars at a glance.
+export function toHebrewDate(isoDate: string | null | undefined): string {
+  if (!isoDate) return '';
+  try {
+    return new Intl.DateTimeFormat('he-IL-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric' })
+      .format(new Date(`${isoDate}T00:00:00`));
+  } catch {
+    return '';
+  }
+}
+
+export function formatBytes(bytes: number | bigint | string | null | undefined): string {
   if (!bytes) return '0 B';
   const n = Number(bytes);
   if (n < 1024) return `${n} B`;

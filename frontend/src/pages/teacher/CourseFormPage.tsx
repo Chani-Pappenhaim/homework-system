@@ -1,4 +1,4 @@
-import { toExternalUrl } from '@/lib/utils';
+import { toExternalUrl, cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { FileUpload } from '@/components/ui/file-upload';
+import { FileGallery } from '@/components/ui/file-gallery';
 import { BackLink } from '@/components/ui/back-link';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
@@ -114,6 +115,22 @@ export default function CourseFormPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['course', id] }),
   });
 
+  const reorderMutation = useMutation({
+    mutationFn: (lessons: { id: string; order: number }[]) => lessonsApi.reorder(lessons),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['course', id] }),
+  });
+
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+
+  function handleLessonDrop(targetIndex: number) {
+    if (dragIndex === null || dragIndex === targetIndex || !course) { setDragIndex(null); return; }
+    const reordered = [...course.lessons];
+    const [moved] = reordered.splice(dragIndex, 1);
+    reordered.splice(targetIndex, 0, moved);
+    setDragIndex(null);
+    reorderMutation.mutate(reordered.map((l, i) => ({ id: l.id, order: i })));
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-5" dir="rtl">
       <div className="border-b border-rule pb-3">
@@ -169,7 +186,17 @@ export default function CourseFormPage() {
           </CardHeader>
           <div className="divide-y divide-rule/20">
             {course.lessons.map((l, i) => (
-              <div key={l.id} className="px-5 py-3 flex items-center gap-3">
+              <div
+                key={l.id}
+                draggable
+                onDragStart={() => setDragIndex(i)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => handleLessonDrop(i)}
+                className={cn(
+                  'px-5 py-3 flex items-center gap-3 transition-colors',
+                  dragIndex === i && 'opacity-40',
+                )}
+              >
                 <GripVertical size={14} className="text-ink/50 cursor-grab flex-shrink-0" />
                 <span className="text-xs text-ink/50 w-5 flex-shrink-0">{i + 1}</span>
                 <span
@@ -217,14 +244,7 @@ export default function CourseFormPage() {
         <Card>
           <CardHeader><h2 className="font-display text-base font-bold">קבצים</h2></CardHeader>
           <CardContent className="space-y-3">
-            {course.files.map((f) => (
-              <div key={f.id} className="flex items-center gap-2">
-                <a href={f.url} target="_blank" rel="noreferrer" className="flex-1 text-sm text-ink hover:text-clay truncate">{f.name}</a>
-                <Button size="sm" variant="destructive" onClick={() => deleteFileMutation.mutate(f.id)}>
-                  <Trash2 size={12} />
-                </Button>
-              </div>
-            ))}
+            <FileGallery files={course.files} onDelete={(fileId) => deleteFileMutation.mutate(fileId)} />
             <FileUpload withName onFile={(file, name) => uploadFileMutation.mutate({ file, name })} label="העלה קובץ לקורס" />
           </CardContent>
         </Card>

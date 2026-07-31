@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Reply, Mail, ChevronLeft, Clock, Trash2 } from 'lucide-react';
 import { messagesApi } from '@/api/messages.api';
@@ -19,6 +20,7 @@ import { cn, formatDateTime } from '@/lib/utils';
 
 export default function TeacherMessagesPage() {
   const qc = useQueryClient();
+  const [searchParams] = useSearchParams();
   const [openId, setOpenId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
 
@@ -66,6 +68,16 @@ export default function TeacherMessagesPage() {
     setReplyText(msg.replyContent ?? '');
     if (!msg.isRead) markReadMutation.mutate(msg.id);
   }
+
+  // The reply-notification email links straight to the relevant message
+  // (?highlight=<id>) instead of just the general inbox.
+  useEffect(() => {
+    const highlight = searchParams.get('highlight');
+    if (!highlight || openId) return;
+    const msg = messages.find((m) => m.id === highlight);
+    if (msg) openMessage(msg);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, messages]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-4" dir="rtl">

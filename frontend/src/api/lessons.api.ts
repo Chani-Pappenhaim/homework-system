@@ -8,10 +8,10 @@ export const lessonsApi = {
   get: (id: string) =>
     api.get<{ success: true; data: { lesson: LessonDetailDTO } }>(`/lessons/${id}`),
 
-  create: (courseId: string, data: { topic: string; lessonDate?: string; contentMd?: string; githubUrl?: string; hidden?: boolean; order?: number }) =>
+  create: (courseId: string, data: { topic: string; lessonDate?: string; contentMd?: string; githubUrls?: string[]; hidden?: boolean; order?: number }) =>
     api.post(`/courses/${courseId}/lessons`, data),
 
-  update: (id: string, data: Partial<{ topic: string; lessonDate: string; contentMd: string; githubUrl: string; hidden: boolean; order: number }>) =>
+  update: (id: string, data: Partial<{ topic: string; lessonDate: string; contentMd: string; githubUrls: string[]; hidden: boolean; order: number }>) =>
     api.put(`/lessons/${id}`, data),
 
   delete: (id: string) =>
@@ -44,6 +44,9 @@ export const lessonsApi = {
 
   grantAccess: (id: string, studentId: string) =>
     api.post(`/lessons/${id}/access`, { studentId }),
+
+  grantAccessBulk: (id: string, data: { groupId?: string; emails?: string[] }) =>
+    api.post<{ success: true; data: { granted: number; notFound?: string[] } }>(`/lessons/${id}/access/bulk`, data),
 
   revokeAccess: (id: string, studentId: string) =>
     api.delete(`/lessons/${id}/access/${studentId}`),

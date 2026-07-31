@@ -104,7 +104,7 @@ export interface LessonDetailDTO {
   topic: string;
   lessonDate?: string;
   contentMd?: string;
-  githubUrl?: string;
+  githubUrls: string[];
   hidden: boolean;
   order: number;
   courseId: string;

@@ -115,7 +115,7 @@ export default function GroupDetailPage() {
           {group.students.length === 0 && (
             <p className="px-5 py-4 text-sm text-ink/50">אין תלמידות עדיין</p>
           )}
-          {group.students.map((s) => (
+          {[...group.students].sort((a, b) => a.name.localeCompare(b.name, 'he')).map((s) => (
             <div key={s.id} className="px-5 py-3">
               <p className="text-sm font-medium text-ink">{s.name}</p>
               <p className="text-xs text-ink/50">{s.email}</p>

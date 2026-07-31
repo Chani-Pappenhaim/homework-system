@@ -1,7 +1,10 @@
-import { toExternalUrl } from '@/lib/utils';
+import { toExternalUrl, todayISO } from '@/lib/utils';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Edit, Lock, ExternalLink, Plus, Trash2 } from 'lucide-react';
+import { FileGallery } from '@/components/ui/file-gallery';
+import { MultiUrlInput } from '@/components/ui/multi-url-input';
+import { DateField } from '@/components/ui/date-field';
 import { coursesApi } from '@/api/courses.api';
 import { lessonsApi } from '@/api/lessons.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -26,19 +29,20 @@ export default function CourseDetailPage() {
   const toast = useToast();
   const [newLessonModal, setNewLessonModal] = useState(false);
   const [newTopic, setNewTopic] = useState('');
-  const [newDate, setNewDate] = useState('');
+  const [newDate, setNewDate] = useState(todayISO());
   const [newContent, setNewContent] = useState('');
-  const [newGithub, setNewGithub] = useState('');
+  const [newGithubUrls, setNewGithubUrls] = useState<string[]>(['']);
 
   const createLessonMutation = useMutation({
     mutationFn: () => lessonsApi.create(id!, {
       topic: newTopic,
       lessonDate: newDate || undefined,
       contentMd: newContent || undefined,
-      githubUrl: newGithub || undefined,
+      githubUrls: newGithubUrls.map((u) => u.trim()).filter(Boolean),
     }),
     onSuccess: (res) => {
       const lessonId = (res.data as any).data.lesson.id;
+      qc.invalidateQueries({ queryKey: ['course', id] });
       toast.success('השיעור נוצר בהצלחה');
       navigate(`/teacher/lessons/${lessonId}`);
     },
@@ -102,6 +106,7 @@ export default function CourseDetailPage() {
               <button
                 key={l.id}
                 onClick={() => navigate(`/teacher/lessons/${l.id}`)}
+                title={l.topic}
                 className={`lift relative grid size-16 place-items-center rounded-lg border border-rule font-display text-lg font-bold shadow-soft
                   ${l.hidden ? 'bg-ground/60 text-ink/40' : 'bg-sheet text-ink'}`}
               >
@@ -110,7 +115,7 @@ export default function CourseDetailPage() {
               </button>
             ))}
             <button
-              onClick={() => { setNewTopic(''); setNewDate(''); setNewContent(''); setNewGithub(''); setNewLessonModal(true); }}
+              onClick={() => { setNewTopic(''); setNewDate(todayISO()); setNewContent(''); setNewGithubUrls(['']); setNewLessonModal(true); }}
               className="grid size-16 place-items-center rounded-lg border border-dashed border-rule text-ink-soft transition-colors hover:border-clay/50 hover:text-clay"
             >
               <Plus size={18} />
@@ -137,14 +142,9 @@ export default function CourseDetailPage() {
       {/* Files */}
       {course.files.length > 0 && (
         <Card>
-          <CardHeader><h2 className="font-display text-base font-bold">קבצים</h2></CardHeader>
-          <CardContent className="space-y-2">
-            {course.files.map((f) => (
-              <a key={f.id} href={f.url} target="_blank" rel="noreferrer"
-                className="flex items-center gap-2 text-sm text-ink hover:text-clay">
-                <ExternalLink size={13} /> {f.name}
-              </a>
-            ))}
+          <CardHeader><h2 className="font-display text-base font-bold">חומרי עזר</h2></CardHeader>
+          <CardContent>
+            <FileGallery files={course.files} />
           </CardContent>
         </Card>
       )}
@@ -158,7 +158,7 @@ export default function CourseDetailPage() {
           <DialogBody>
         <div className="space-y-3">
           <Input label="נושא השיעור *" value={newTopic} onChange={(e) => setNewTopic(e.target.value)} placeholder="React Hooks" />
-          <Input label="תאריך (אופציונלי)" type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
+          <DateField label="תאריך" value={newDate} onChange={setNewDate} />
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium">חומר הלימוד (אופציונלי, Markdown)</label>
             <Textarea
@@ -169,7 +169,7 @@ export default function CourseDetailPage() {
               placeholder="# כותרת&#10;&#10;תוכן השיעור, הסברים, דוגמאות קוד..."
             />
           </div>
-          <Input label="קישור לקוד ב-GitHub (אופציונלי)" value={newGithub} onChange={(e) => setNewGithub(e.target.value)} placeholder="https://github.com/..." />
+          <MultiUrlInput label="קישורים לקוד ב-GitHub (אופציונלי)" values={newGithubUrls} onChange={setNewGithubUrls} placeholder="https://github.com/..." />
           <p className="text-xs text-ink/50">קבצים מצורפים אפשר להעלות אחרי היצירה, בתוך דף השיעור.</p>
           <Button
             loading={createLessonMutation.isPending}

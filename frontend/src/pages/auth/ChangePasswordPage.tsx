@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { authApi } from '@/api/auth.api';
 import useAuthStore from '@/store/authStore';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { BrandMark, Tape } from '@/components/decor';
 import { getApiErrorMessage } from '@/lib/errors';
 
@@ -51,26 +51,23 @@ export default function ChangePasswordPage() {
         <div className="relative rounded-xl border border-rule bg-sheet p-6 shadow-lift">
           <Tape color="butter" rotate={-5} className="-top-3.5 right-10 h-6 w-24" />
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <Input
+            <PasswordInput
               label="סיסמא נוכחית"
-              type="password"
               placeholder="••••••••"
               value={current}
               onChange={(e) => setCurrent(e.target.value)}
               required
               autoFocus
             />
-            <Input
+            <PasswordInput
               label="סיסמא חדשה"
-              type="password"
               placeholder="לפחות 6 תווים"
               value={next}
               onChange={(e) => setNext(e.target.value)}
               required
             />
-            <Input
+            <PasswordInput
               label="אימות סיסמא חדשה"
-              type="password"
               placeholder="••••••••"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
