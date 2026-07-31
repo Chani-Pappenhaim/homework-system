@@ -41,7 +41,3 @@ export interface QuizJobData {
 export interface AiReviewJobData {
   submissionId: string;
 }
-
-// ---- scheduled queues (no payload) ----------------------------------------
-export type DeadlineJobData = Record<string, never>;
-export type StorageJobData = Record<string, never>;
