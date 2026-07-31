@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Github, Paperclip, CheckCircle, Clock, Bot, Check } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
-import { submissionsApi } from '@/api/submissions.api';
+import { submissionsApi, isVideoFile } from '@/api/submissions.api';
 import { messagesApi } from '@/api/messages.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -149,7 +149,10 @@ function AssignmentCard({ assignment: a, submission: sub }: {
   });
 
   const fileMutation = useMutation({
-    mutationFn: (file: File) => submissionsApi.submitFile(a.id, file, notes || undefined),
+    mutationFn: (file: File) =>
+      isVideoFile(file)
+        ? submissionsApi.submitVideo(a.id, file, notes || undefined)
+        : submissionsApi.submitFile(a.id, file, notes || undefined),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['mine'] }); setError(''); setNotes(''); },
     onError: (e: any) => setError(getApiErrorMessage(e, 'שגיאה בהגשה')),
   });
