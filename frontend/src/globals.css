@@ -171,6 +171,36 @@
 }
 
 /* ------------------------------------------------------------------ */
+/*  Footer credit — a small typewriter reveal, light-register only     */
+/* ------------------------------------------------------------------ */
+@layer components {
+  .dev-signature-text {
+    display: inline-block;
+    overflow: hidden;
+    white-space: nowrap;
+    width: 0;
+    border-left: 1px solid transparent;
+    animation:
+      dev-signature-type 1.1s steps(20, end) forwards,
+      dev-signature-caret 700ms step-end 6;
+  }
+
+  @keyframes dev-signature-type {
+    from { width: 0; }
+    to { width: 100%; }
+  }
+
+  @keyframes dev-signature-caret {
+    0%, 100% { border-color: transparent; }
+    50% { border-color: rgb(var(--clay)); }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dev-signature-text { animation: none; width: auto; }
+}
+
+/* ------------------------------------------------------------------ */
 /*  Compatibility shims — soft stand-ins for retired brutalist devices */
 /*  so pages authored on the previous design still render coherently.  */
 /* ------------------------------------------------------------------ */
