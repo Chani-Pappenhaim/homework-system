@@ -5,6 +5,7 @@ import { prisma } from '../config/prisma';
 import { generateQuiz } from '../services/gemini.service';
 import type { QuizJobData } from '../infrastructure/queues/job-types';
 import { attachLifecycleLogging } from './worker-events';
+import { defaultWorkerOptions } from './worker-defaults';
 
 export function registerQuizWorker(connection: IORedis): Worker<QuizJobData> {
   const worker = new Worker<QuizJobData>(
@@ -23,7 +24,7 @@ export function registerQuizWorker(connection: IORedis): Worker<QuizJobData> {
         update: { questions: questionsJson },
       });
     },
-    { connection }
+    { connection, ...defaultWorkerOptions }
   );
   attachLifecycleLogging(worker, 'quiz');
   return worker;

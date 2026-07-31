@@ -4,6 +4,7 @@ import { prisma } from '../config/prisma';
 import { fetchGithubCode, extractZipCode, extractDocxText, reviewCode } from '../services/gemini.service';
 import type { AiReviewJobData } from '../infrastructure/queues/job-types';
 import { attachLifecycleLogging } from './worker-events';
+import { defaultWorkerOptions } from './worker-defaults';
 
 async function downloadFile(fileUrl: string): Promise<Buffer> {
   const res = await fetch(fileUrl);
@@ -71,7 +72,7 @@ export function registerAiReviewWorker(connection: IORedis): Worker<AiReviewJobD
         throw err;
       }
     },
-    { connection }
+    { connection, ...defaultWorkerOptions }
   );
   attachLifecycleLogging(worker, 'ai-review');
   return worker;
