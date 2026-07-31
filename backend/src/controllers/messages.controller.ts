@@ -97,3 +97,41 @@ export async function getUnreadCount(req: Request, res: Response) {
     sendError(res, err);
   }
 }
+
+// Teacher deletes an entire message thread from her inbox
+export async function deleteMessage(req: Request, res: Response) {
+  try {
+    await prisma.teacherMessage.delete({ where: { id: req.params.id as string } });
+    res.json({ success: true, data: null });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+// Teacher retracts her own reply, leaving the original message unanswered
+export async function deleteReply(req: Request, res: Response) {
+  try {
+    const message = await prisma.teacherMessage.update({
+      where: { id: req.params.id as string },
+      data: { replyContent: null, repliedAt: null },
+    });
+    res.json({ success: true, data: { message } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+// Student deletes a message she sent (only her own)
+export async function deleteMyMessage(req: Request, res: Response) {
+  try {
+    const message = await prisma.teacherMessage.findUnique({ where: { id: req.params.id as string } });
+    if (!message || message.studentId !== req.user!.userId) {
+      res.status(404).json({ success: false, error: 'הודעה לא נמצאה' });
+      return;
+    }
+    await prisma.teacherMessage.delete({ where: { id: req.params.id as string } });
+    res.json({ success: true, data: null });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}

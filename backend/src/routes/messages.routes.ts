@@ -12,5 +12,8 @@ router.get('/mine', requireRole('STUDENT'), messagesController.getMyMessages);
 router.get('/unread-count', requireRole('ADMIN'), messagesController.getUnreadCount);
 router.patch('/:id/read', requireRole('ADMIN'), messagesController.markRead);
 router.post('/:id/reply', requireRole('ADMIN'), messagesController.replyMessage);
+router.delete('/:id/reply', requireRole('ADMIN'), messagesController.deleteReply);
+router.delete('/:id/mine', requireRole('STUDENT'), messagesController.deleteMyMessage);
+router.delete('/:id', requireRole('ADMIN'), messagesController.deleteMessage);
 
 export default router;
