@@ -84,7 +84,10 @@ export default function StudentLayout() {
         </nav>
 
         <main className="min-w-0 flex-1 px-4 py-8 md:px-10">
-          <Outlet />
+          {/* Every page shares this exact width, so the canvas lines up consistently across the app. */}
+          <div className="mx-auto max-w-6xl">
+            <Outlet />
+          </div>
         </main>
       </div>
 

@@ -34,7 +34,7 @@ export default function GroupDetailPage() {
   if (!group) return <div className="p-6 font-sans text-coral">קבוצה לא נמצאה</div>;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5" dir="rtl">
+    <div className="space-y-5" dir="rtl">
       {/* Header */}
       <div className="border-b border-rule pb-3">
         <BackLink className="mb-2" />

@@ -30,7 +30,7 @@ export default function AssignmentsPage() {
   const filteredSubmitted = submitted.filter(matches);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5" dir="rtl">
+    <div className="space-y-5" dir="rtl">
       <PageHeader title="המטלות שלי" meta="מחברת · מטלות" />
 
       {/* Local search — filters both lists below by assignment title or course name */}

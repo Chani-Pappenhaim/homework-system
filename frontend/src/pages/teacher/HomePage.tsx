@@ -74,7 +74,7 @@ export default function TeacherHomePage() {
   ];
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5" dir="rtl">
+    <div className="space-y-5" dir="rtl">
       {/* Greeting sheet */}
       <section className="sheet relative p-5">
         <Tape color="indigo" rotate={2.5} className="-top-2.5 left-8 w-20" />

@@ -45,7 +45,7 @@ export default function AiUsagePage() {
   const byMonth: any[] = summary?.byMonth ?? [];
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5" dir="rtl">
+    <div className="space-y-5" dir="rtl">
       <PageHeader title="שימוש AI" meta="דוחות · צריכת AI" />
 
       {/* Stats */}
