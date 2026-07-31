@@ -83,8 +83,8 @@ export default function QuizPage() {
 
   if (result) {
     return (
-      <div className="mx-auto max-w-lg space-y-5" dir="rtl">
-        <Card accent="indigo">
+      <div className="mx-auto max-w-4xl space-y-5" dir="rtl">
+        <Card accent="indigo" className="mx-auto max-w-lg">
           <CardContent className="space-y-3 text-center">
             <span className="mx-auto grid size-24 place-items-center rounded-full bg-butter/25 font-display text-4xl font-bold tabular text-clay">
               {Math.round(result.score)}%
@@ -98,33 +98,36 @@ export default function QuizPage() {
           </CardContent>
         </Card>
 
-        {quiz?.questions.map((q: any, i: number) => (
-          <Card key={q.id}>
-            <CardContent className="space-y-2">
-              <p className="text-sm font-bold text-ink">{i + 1}. {q.question}</p>
-              {q.options.map((opt: string, j: number) => {
-                const isCorrect = q.correctIndex === j;
-                const isSelected = answers[i] === j;
-                return (
-                  <div
-                    key={j}
-                    className={cn(
-                      'flex items-center gap-2 rounded-input border px-3 py-2 text-sm',
-                      isCorrect
-                        ? 'border-sage bg-sage/15 text-sage'
-                        : isSelected
-                          ? 'border-coral bg-coral/12 text-coral'
-                          : 'border-rule bg-ground/50 text-ink/70',
-                    )}
-                  >
-                    <span className="font-sans">{isCorrect ? '✓' : isSelected ? '✗' : '○'}</span>
-                    {opt}
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        ))}
+        {/* Per-question review — independent cards, spread across a grid on wide screens */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {quiz?.questions.map((q: any, i: number) => (
+            <Card key={q.id}>
+              <CardContent className="space-y-2">
+                <p className="text-sm font-bold text-ink">{i + 1}. {q.question}</p>
+                {q.options.map((opt: string, j: number) => {
+                  const isCorrect = q.correctIndex === j;
+                  const isSelected = answers[i] === j;
+                  return (
+                    <div
+                      key={j}
+                      className={cn(
+                        'flex items-center gap-2 rounded-input border px-3 py-2 text-sm',
+                        isCorrect
+                          ? 'border-sage bg-sage/15 text-sage'
+                          : isSelected
+                            ? 'border-coral bg-coral/12 text-coral'
+                            : 'border-rule bg-ground/50 text-ink/70',
+                      )}
+                    >
+                      <span className="font-sans">{isCorrect ? '✓' : isSelected ? '✗' : '○'}</span>
+                      {opt}
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }

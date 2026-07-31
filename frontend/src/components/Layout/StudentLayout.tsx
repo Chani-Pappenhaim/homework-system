@@ -1,8 +1,10 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Home, ClipboardList, MessageSquare, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import useAuthStore from '@/store/authStore';
 import { authApi } from '@/api/auth.api';
+import { messagesApi } from '@/api/messages.api';
 import { Brand } from '@/components/decor';
 
 const nav = [
@@ -14,6 +16,13 @@ const nav = [
 export default function StudentLayout() {
   const { user, clearAuth } = useAuthStore();
   const navigate = useNavigate();
+
+  const { data: unreadReplyData } = useQuery({
+    queryKey: ['unread-reply-count'],
+    queryFn: () => messagesApi.getUnreadReplyCount(),
+    refetchInterval: 60_000,
+  });
+  const unreadReplyCount: number = (unreadReplyData?.data as any)?.data?.count ?? 0;
 
   async function handleLogout() {
     await authApi.logout().catch(() => {});
@@ -62,6 +71,9 @@ export default function StudentLayout() {
                   )}
                 >
                   <Icon size={20} />
+                  {to === '/student/messages' && unreadReplyCount > 0 && (
+                    <span className="absolute -left-1 -top-1 size-2 rounded-full bg-coral" />
+                  )}
                   <span className="pointer-events-none absolute right-12 top-1/2 z-50 -translate-y-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-sheet opacity-0 shadow-lift transition-opacity group-hover:opacity-100">
                     {label}
                   </span>

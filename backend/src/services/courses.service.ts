@@ -75,10 +75,24 @@ export async function getCourseById(id: string, userId: string, role: string) {
         })).map((p) => p.lessonId)
   );
 
+  // Teacher view: how many students in the course's group finished each lesson.
+  let completedCountByLesson: Record<string, number> = {};
+  let groupStudentCount = 0;
+  if (role === 'ADMIN') {
+    groupStudentCount = await prisma.studentGroup.count({ where: { groupId: course.groupId } });
+    const counts = await prisma.lessonProgress.groupBy({
+      by: ['lessonId'],
+      where: { lessonId: { in: visibleLessons.map((l) => l.id) } },
+      _count: { lessonId: true },
+    });
+    completedCountByLesson = Object.fromEntries(counts.map((c) => [c.lessonId, c._count.lessonId]));
+  }
+
   const lessons = visibleLessons.map((l) => ({
     id: l.id, topic: l.topic, lessonDate: l.lessonDate,
     hidden: l.hidden, order: l.order,
     completed: completedIds.has(l.id),
+    ...(role === 'ADMIN' ? { completedCount: completedCountByLesson[l.id] ?? 0, groupStudentCount } : {}),
   }));
 
   return {

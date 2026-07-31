@@ -63,7 +63,7 @@ export default function CourseDetailPage() {
   if (!course) return <div className="p-6 text-coral">קורס לא נמצא</div>;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5" dir="rtl">
+    <div className="mx-auto max-w-5xl space-y-5" dir="rtl">
       {/* Header */}
       <div className="flex items-start justify-between border-b border-rule pb-3">
         <div>
@@ -99,15 +99,21 @@ export default function CourseDetailPage() {
         <CardContent>
           <div className="flex flex-wrap gap-3">
             {course.lessons.map((l, i) => (
-              <button
-                key={l.id}
-                onClick={() => navigate(`/teacher/lessons/${l.id}`)}
-                className={`lift relative grid size-16 place-items-center rounded-lg border border-rule font-display text-lg font-bold shadow-soft
-                  ${l.hidden ? 'bg-ground/60 text-ink/40' : 'bg-sheet text-ink'}`}
-              >
-                <span>{i + 1}</span>
-                {l.hidden && <Lock size={10} className="absolute top-1 left-1 text-ink/50" />}
-              </button>
+              <div key={l.id} className="flex flex-col items-center gap-1">
+                <button
+                  onClick={() => navigate(`/teacher/lessons/${l.id}`)}
+                  className={`lift relative grid size-16 place-items-center rounded-lg border border-rule font-display text-lg font-bold shadow-soft
+                    ${l.hidden ? 'bg-ground/60 text-ink/40' : 'bg-sheet text-ink'}`}
+                >
+                  <span>{i + 1}</span>
+                  {l.hidden && <Lock size={10} className="absolute top-1 left-1 text-ink/50" />}
+                </button>
+                {Boolean(l.groupStudentCount) && (
+                  <span className="text-[10px] font-medium text-ink-soft tabular">
+                    {l.completedCount ?? 0}/{l.groupStudentCount} סיימו
+                  </span>
+                )}
+              </div>
             ))}
             <button
               onClick={() => { setNewTopic(''); setNewDate(''); setNewContent(''); setNewGithub(''); setNewLessonModal(true); }}
@@ -119,34 +125,37 @@ export default function CourseDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Links */}
-      {course.links.length > 0 && (
-        <Card>
-          <CardHeader><h2 className="font-display text-base font-bold">קישורים שימושיים</h2></CardHeader>
-          <CardContent className="space-y-2">
-            {course.links.map((l) => (
-              <a key={l.id} href={toExternalUrl(l.url)} target="_blank" rel="noreferrer"
-                className="flex items-center gap-2 text-sm text-clay hover:underline">
-                <ExternalLink size={13} /> {l.label}
-              </a>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+      {/* Links + Files — independent, equal-weight sections, side by side on wide screens */}
+      {(course.links.length > 0 || course.files.length > 0) && (
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          {course.links.length > 0 && (
+            <Card>
+              <CardHeader><h2 className="font-display text-base font-bold">קישורים שימושיים</h2></CardHeader>
+              <CardContent className="space-y-2">
+                {course.links.map((l) => (
+                  <a key={l.id} href={toExternalUrl(l.url)} target="_blank" rel="noreferrer"
+                    className="flex items-center gap-2 text-sm text-clay hover:underline">
+                    <ExternalLink size={13} /> {l.label}
+                  </a>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
-      {/* Files */}
-      {course.files.length > 0 && (
-        <Card>
-          <CardHeader><h2 className="font-display text-base font-bold">קבצים</h2></CardHeader>
-          <CardContent className="space-y-2">
-            {course.files.map((f) => (
-              <a key={f.id} href={f.url} target="_blank" rel="noreferrer"
-                className="flex items-center gap-2 text-sm text-ink hover:text-clay">
-                <ExternalLink size={13} /> {f.name}
-              </a>
-            ))}
-          </CardContent>
-        </Card>
+          {course.files.length > 0 && (
+            <Card>
+              <CardHeader><h2 className="font-display text-base font-bold">קבצים</h2></CardHeader>
+              <CardContent className="space-y-2">
+                {course.files.map((f) => (
+                  <a key={f.id} href={f.url} target="_blank" rel="noreferrer"
+                    className="flex items-center gap-2 text-sm text-ink hover:text-clay">
+                    <ExternalLink size={13} /> {f.name}
+                  </a>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
 
       {/* New lesson modal */}

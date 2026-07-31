@@ -61,7 +61,7 @@ export async function replyMessage(req: Request, res: Response) {
     if (!reply?.trim()) { res.status(400).json({ success: false, error: 'Reply required' }); return; }
     const message = await prisma.teacherMessage.update({
       where: { id: req.params.id as string },
-      data: { replyContent: reply.trim(), repliedAt: new Date(), isRead: true },
+      data: { replyContent: reply.trim(), repliedAt: new Date(), isRead: true, replySeen: false },
       include: { student: { select: { id: true, name: true, email: true } } },
     });
     try {
@@ -93,6 +93,69 @@ export async function getUnreadCount(req: Request, res: Response) {
   try {
     const count = await prisma.teacherMessage.count({ where: { isRead: false } });
     res.json({ success: true, data: { count } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+// Student sees how many of the teacher's replies she hasn't opened yet
+export async function getUnreadReplyCount(req: Request, res: Response) {
+  try {
+    const count = await prisma.teacherMessage.count({
+      where: { studentId: req.user!.userId, replyContent: { not: null }, replySeen: false },
+    });
+    res.json({ success: true, data: { count } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+// Opening a message overlay marks its reply as seen (student only, own message)
+export async function markReplySeen(req: Request, res: Response) {
+  try {
+    await prisma.teacherMessage.updateMany({
+      where: { id: req.params.id as string, studentId: req.user!.userId },
+      data: { replySeen: true },
+    });
+    res.json({ success: true, data: null });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+// Teacher deletes an entire message thread from her inbox
+export async function deleteMessage(req: Request, res: Response) {
+  try {
+    await prisma.teacherMessage.delete({ where: { id: req.params.id as string } });
+    res.json({ success: true, data: null });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+// Teacher retracts her own reply, leaving the original message unanswered
+export async function deleteReply(req: Request, res: Response) {
+  try {
+    const message = await prisma.teacherMessage.update({
+      where: { id: req.params.id as string },
+      data: { replyContent: null, repliedAt: null },
+    });
+    res.json({ success: true, data: { message } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+// Student deletes a message she sent (only her own)
+export async function deleteMyMessage(req: Request, res: Response) {
+  try {
+    const message = await prisma.teacherMessage.findUnique({ where: { id: req.params.id as string } });
+    if (!message || message.studentId !== req.user!.userId) {
+      res.status(404).json({ success: false, error: 'הודעה לא נמצאה' });
+      return;
+    }
+    await prisma.teacherMessage.delete({ where: { id: req.params.id as string } });
+    res.json({ success: true, data: null });
   } catch (err: any) {
     sendError(res, err);
   }

@@ -60,6 +60,9 @@ export interface LessonSummary {
   order: number;
   assignmentCount?: number;
   completed?: boolean;
+  /** Teacher view only: how many students in the course's group finished this lesson. */
+  completedCount?: number;
+  groupStudentCount?: number;
 }
 
 export interface CourseDetailDTO extends CourseDTO {
@@ -137,6 +140,7 @@ export interface SubmissionDTO {
   aiApproved?: boolean;
   aiCodeReview?: string | null;
   aiVerbalReview?: string | null;
+  aiExtraAllowed?: boolean;
   grade: GradeDTO | null;
 }
 

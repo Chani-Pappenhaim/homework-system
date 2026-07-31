@@ -87,7 +87,7 @@ export async function getAssignmentSubmissions(assignmentId: string) {
       notes: s.notes,
       submittedAt: s.submittedAt, isLate: s.isLate,
       aiStatus: s.aiStatus, aiScore: s.aiScore, aiApproved: s.aiApproved,
-      aiCodeReview: s.aiCodeReview, aiVerbalReview: s.aiVerbalReview,
+      aiCodeReview: s.aiCodeReview, aiVerbalReview: s.aiVerbalReview, aiExtraAllowed: s.aiExtraAllowed,
       grade: s.grade ? {
         submissionScore: s.grade.submissionScore, contentScore: s.grade.contentScore,
         feedback: s.grade.feedback,
