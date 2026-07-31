@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import useAuthStore from '@/store/authStore';
 import { authApi } from '@/api/auth.api';
 import { messagesApi } from '@/api/messages.api';
-import { Brand } from '@/components/decor';
+import { Brand, DevSignature } from '@/components/decor';
 
 const nav = [
   { to: '/student', label: 'בית', icon: Home, end: true },
@@ -102,10 +102,14 @@ export default function StudentLayout() {
         ))}
       </nav>
 
-      <footer className="hidden border-t border-rule bg-sheet/50 md:block">
-        <div className="flex items-center justify-between px-6 py-3 text-[11px] text-ink-soft">
+      <footer className="sticky bottom-0 z-30 hidden border-t border-rule bg-sheet/90 backdrop-blur-sm md:block">
+        <div className="flex items-center justify-between gap-4 px-6 py-3 text-[11px] text-ink-soft">
           <span>קליק כיתה · המורה עדי שלום</span>
-          <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-sage" /> מחובר</span>
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-sage" /> מחובר</span>
+            <span className="h-3 w-px bg-rule" />
+            <DevSignature />
+          </div>
         </div>
       </footer>
     </div>
