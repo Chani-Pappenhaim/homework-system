@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Clock, Flame, ArrowLeft } from 'lucide-react';
+import { Clock, Flame, ArrowLeft, Search } from 'lucide-react';
 import useAuthStore from '@/store/authStore';
 import { coursesApi } from '@/api/courses.api';
 import { submissionsApi } from '@/api/submissions.api';
@@ -21,6 +22,9 @@ export default function StudentHomePage() {
   const courses = coursesData?.data.data.courses ?? [];
   const mine = (mineData?.data as any)?.data;
   const pending: any[] = mine?.pending ?? [];
+  const [search, setSearch] = useState('');
+  const q = search.trim().toLowerCase();
+  const filteredCourses = q ? courses.filter((c) => c.name?.toLowerCase().includes(q)) : courses;
 
   const doneTotal = courses.reduce((s, c) => s + (c.completedLessons ?? 0), 0);
   const streak = Math.min(doneTotal, 7);
@@ -62,13 +66,29 @@ export default function StudentHomePage() {
       </section>
 
       {/* Courses */}
+      {courses.length > 0 && (
+        <div className="flex items-center gap-2 rounded-input border border-rule bg-sheet px-3 py-1.5 transition-colors focus-within:border-clay sm:max-w-sm">
+          <Search size={15} className="text-ink-soft" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink-soft"
+            placeholder="חיפוש קורס"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="text-xs text-ink-soft hover:text-coral">✕</button>
+          )}
+        </div>
+      )}
       {coursesLoading ? (
         <div className="sheet p-8 text-center text-sm text-ink-soft">טוען…</div>
       ) : courses.length === 0 ? (
         <div className="sheet p-8 text-center text-sm text-ink-soft">לא שויכת לאף קורס עדיין</div>
+      ) : filteredCourses.length === 0 ? (
+        <div className="sheet p-8 text-center text-sm text-ink-soft">{`אין תוצאות ל"${search.trim()}"`}</div>
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {courses.map((c, i) => {
+          {filteredCourses.map((c, i) => {
             const done = c.completedLessons ?? 0;
             const total = c.lessonCount || 0;
             const pct = total > 0 ? Math.round((done / total) * 100) : 0;

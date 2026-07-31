@@ -47,8 +47,10 @@ export default function StudentLessonDetailPage() {
   if (isLoading) return <div className="p-6 text-ink/50">טוען...</div>;
   if (!lesson) return <div className="p-6 text-coral">שיעור לא נמצא</div>;
 
+  const hasAssignments = lesson.assignments.length > 0;
+
   return (
-    <div className="mx-auto max-w-2xl space-y-5" dir="rtl">
+    <div className="mx-auto max-w-5xl space-y-5" dir="rtl">
       <div className="border-b border-rule pb-3">
         <BackLink to={`/student/courses/${lesson.courseId}`} label="חזרה לקורס" className="mb-2" />
         <div className="flex items-start justify-between gap-3">
@@ -72,51 +74,61 @@ export default function StudentLessonDetailPage() {
         </div>
       </div>
 
-      {/* Content */}
-      {lesson.contentMd && (
-        <Card>
-          <CardContent>
-            <MarkdownRenderer content={lesson.contentMd} />
-          </CardContent>
-        </Card>
-      )}
+      {/* Reading column (content/files) beside the assignments column on wide screens; a
+          plain single-column stack on narrow screens, preserving the original read order. */}
+      <div className={cn('grid grid-cols-1 gap-5', hasAssignments && 'lg:grid-cols-5')}>
+        <div className={cn('space-y-5', hasAssignments && 'lg:col-span-3')}>
+          {/* Content */}
+          {lesson.contentMd && (
+            <Card>
+              <CardContent>
+                <MarkdownRenderer content={lesson.contentMd} />
+              </CardContent>
+            </Card>
+          )}
 
-      {/* GitHub */}
-      {lesson.githubUrl && (
-        <a href={toExternalUrl(lesson.githubUrl)} target="_blank" rel="noreferrer"
-          className="inline-flex items-center gap-2 text-sm border border-rule/20 rounded-input px-4 py-2 text-ink hover:bg-ground/60 transition">
-          <Github size={14} /> קוד השיעור ב-GitHub
-        </a>
-      )}
+          {/* GitHub */}
+          {lesson.githubUrl && (
+            <a href={toExternalUrl(lesson.githubUrl)} target="_blank" rel="noreferrer"
+              className="inline-flex items-center gap-2 text-sm border border-rule/20 rounded-input px-4 py-2 text-ink hover:bg-ground/60 transition">
+              <Github size={14} /> קוד השיעור ב-GitHub
+            </a>
+          )}
 
-      {/* Files */}
-      {lesson.files.length > 0 && (
-        <Card>
-          <CardHeader><h2 className="font-display text-base font-bold">קבצים</h2></CardHeader>
-          <CardContent className="space-y-2">
-            {lesson.files.map((f) => (
-              <a key={f.id} href={f.url} target="_blank" rel="noreferrer"
-                className="flex items-center gap-2 text-sm text-clay hover:underline">
-                <Paperclip size={12} /> {f.name}
-              </a>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+          {/* Files */}
+          {lesson.files.length > 0 && (
+            <Card>
+              <CardHeader><h2 className="font-display text-base font-bold">קבצים</h2></CardHeader>
+              <CardContent className="space-y-2">
+                {lesson.files.map((f) => (
+                  <a key={f.id} href={f.url} target="_blank" rel="noreferrer"
+                    className="flex items-center gap-2 text-sm text-clay hover:underline">
+                    <Paperclip size={12} /> {f.name}
+                  </a>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
-      {/* Quiz button */}
-      <button
-        onClick={() => navigate(`/student/quiz/${lesson.id}`)}
-        className="lift w-full rounded-input border border-rule bg-butter/40 py-3 text-sm font-semibold text-clay shadow-soft"
-      >
-        פתחי חידון לשיעור זה ←
-      </button>
+          {/* Quiz button */}
+          <button
+            onClick={() => navigate(`/student/quiz/${lesson.id}`)}
+            className="lift w-full rounded-input border border-rule bg-butter/40 py-3 text-sm font-semibold text-clay shadow-soft"
+          >
+            פתחי חידון לשיעור זה ←
+          </button>
+        </div>
 
-      {/* Assignments */}
-      {lesson.assignments.map((a) => {
-        const sub = submitted.find((s) => s.assignmentId === a.id);
-        return <AssignmentCard key={a.id} assignment={a} submission={sub} />;
-      })}
+        {/* Assignments */}
+        {hasAssignments && (
+          <div className="space-y-5 lg:col-span-2">
+            {lesson.assignments.map((a) => {
+              const sub = submitted.find((s) => s.assignmentId === a.id);
+              return <AssignmentCard key={a.id} assignment={a} submission={sub} />;
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -132,6 +144,10 @@ function AssignmentCard({ assignment: a, submission: sub }: {
   const [lateFormOpen, setLateFormOpen] = useState(false);
   const [lateReason, setLateReason] = useState('');
   const [lateRequestSent, setLateRequestSent] = useState(false);
+  const [aiLimitReached, setAiLimitReached] = useState(false);
+  const [aiExtraFormOpen, setAiExtraFormOpen] = useState(false);
+  const [aiExtraReason, setAiExtraReason] = useState('');
+  const [aiExtraRequestSent, setAiExtraRequestSent] = useState(false);
 
   const lateRequestMutation = useMutation({
     mutationFn: () => messagesApi.send(
@@ -144,8 +160,24 @@ function AssignmentCard({ assignment: a, submission: sub }: {
 
   const aiReviewMutation = useMutation({
     mutationFn: () => submissionsApi.requestAiReview(sub?.id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['mine'] }),
-    onError: (e: any) => setError(getApiErrorMessage(e, 'שגיאה בבקשת בדיקה')),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['mine'] }); setAiLimitReached(false); setError(''); },
+    onError: (e: any) => {
+      if (e?.response?.data?.error === 'AI review limit reached') {
+        setAiLimitReached(true);
+        setError('');
+      } else {
+        setError(getApiErrorMessage(e, 'שגיאה בבקשת בדיקה'));
+      }
+    },
+  });
+
+  const aiExtraReviewRequestMutation = useMutation({
+    mutationFn: () => messagesApi.send(
+      `בקשה לבדיקת AI נוספת עבור "${a.title}"${aiExtraReason.trim() ? `: ${aiExtraReason.trim()}` : ''}`,
+      a.id,
+    ),
+    onSuccess: () => { setAiExtraRequestSent(true); setAiExtraFormOpen(false); setAiExtraReason(''); setError(''); },
+    onError: (e: any) => setError(getApiErrorMessage(e, 'שגיאה בשליחת הבקשה')),
   });
 
   const fileMutation = useMutation({
@@ -212,7 +244,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
               <div className="border border-rule/15 rounded-input p-3 text-sm space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1 font-medium text-ink"><Bot size={14} /> בדיקת AI</span>
-                  {sub.aiStatus === 'none' && (
+                  {sub.aiStatus === 'none' && !aiLimitReached && (
                     <Button size="sm" variant="outline" loading={aiReviewMutation.isPending}
                       onClick={() => aiReviewMutation.mutate()}>
                       בקשי בדיקה
@@ -222,6 +254,42 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                   {sub.aiStatus === 'done' && !sub.aiApproved && <Badge variant="success">נבדק ✓</Badge>}
                   {sub.aiStatus === 'error' && <Badge variant="default">שגיאה</Badge>}
                 </div>
+                {aiLimitReached && (
+                  <div className="space-y-2 pt-1">
+                    <p className="text-xs text-ink/70">נוצל מספר בדיקות ה-AI המותר להגשה זו.</p>
+                    {aiExtraRequestSent ? (
+                      <p className="text-xs text-sage font-medium">הבקשה נשלחה למורה ✓</p>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={() => setAiExtraFormOpen(!aiExtraFormOpen)}>
+                        בקשי בדיקה נוספת מהמורה
+                      </Button>
+                    )}
+                    {aiExtraFormOpen && !aiExtraRequestSent && (
+                      <div className="space-y-2">
+                        <Textarea
+                          className="resize-none"
+                          rows={2}
+                          placeholder="הסבר קצר לבקשה (אופציונלי)"
+                          value={aiExtraReason}
+                          onChange={(e) => setAiExtraReason(e.target.value)}
+                          autoFocus
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            loading={aiExtraReviewRequestMutation.isPending}
+                            onClick={() => aiExtraReviewRequestMutation.mutate()}
+                          >
+                            שלחי בקשה
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => { setAiExtraFormOpen(false); setAiExtraReason(''); }}>
+                            ביטול
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {sub.aiStatus === 'done' && sub.aiApproved && (
                   <div className="space-y-2 pt-1">
                     <p className="font-semibold text-ink">ציון: {sub.aiScore}</p>

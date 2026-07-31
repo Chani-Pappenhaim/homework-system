@@ -45,7 +45,7 @@
 |---|---|---|---|
 | GET | `/` | ✓ | ADMIN: כולם; STUDENT: רק של הקבוצה שלה. לתלמידה `lessonCount` סופר רק שיעורים גלויים + `completedLessons` (למד ההתקדמות) |
 | POST | `/` | ADMIN | `{ name, year?, description?, groupId }` |
-| GET | `/:id` | ✓ | פרטי קורס + lessons + links + files. כל שיעור כולל `completed` לתלמידה; **403 אם התלמידה לא בקבוצת הקורס** |
+| GET | `/:id` | ✓ | פרטי קורס + lessons + links + files. כל שיעור כולל `completed` לתלמידה; ל-ADMIN כל שיעור כולל גם `completedCount`/`groupStudentCount` (כמה תלמידות בקבוצה סיימו את השיעור). **403 אם התלמידה לא בקבוצת הקורס** |
 | PUT | `/:id` | ADMIN | עדכון |
 | POST | `/:id/copy` | ADMIN | `{ targetGroupId }` — מעתיק תוכן (לא submissions) |
 | POST | `/:id/links` | ADMIN | `{ label, url, order? }` |
@@ -112,8 +112,15 @@
 |---|---|---|---|
 | POST | `/` | STUDENT | `{ content, assignmentId? }` — הודעה כללית או בקשת הגשה מאוחרת |
 | GET | `/` | ADMIN | כל ההודעות, newest first |
-| GET | `/unread-count` | ADMIN | `{ count }` |
+| GET | `/mine` | STUDENT | ההודעות שהתלמידה שלחה + תגובות המורה |
+| GET | `/unread-count` | ADMIN | `{ count }` — הודעות תלמידות שלא נקראו |
+| GET | `/unread-replies-count` | STUDENT | `{ count }` — תגובות מורה שהתלמידה עוד לא פתחה (`replySeen=false`) |
 | PATCH | `/:id/read` | ADMIN | `isRead=true` |
+| PATCH | `/:id/reply-seen` | STUDENT | `replySeen=true` — נקרא כשהתלמידה פותחת את דיאלוג ההודעה שלה (רק הודעה שלה) |
+| POST | `/:id/reply` | ADMIN | `{ reply }` — שומר `replyContent`, מאפס `replySeen=false` |
+| DELETE | `/:id` | ADMIN | מוחקת שיחה שלמה |
+| DELETE | `/:id/reply` | ADMIN | מוחקת רק את התגובה, ההודעה המקורית חוזרת ל"ממתין" |
+| DELETE | `/:id/mine` | STUDENT | מוחקת הודעה שהיא שלחה (רק שלה) |
 
 ---
 

@@ -211,6 +211,7 @@ model TeacherMessage {
   isRead       Boolean   @default(false)
   replyContent String?
   repliedAt    DateTime?
+  replySeen    Boolean   @default(false) // has the student opened the teacher's reply?
   createdAt    DateTime  @default(now())
 }
 
