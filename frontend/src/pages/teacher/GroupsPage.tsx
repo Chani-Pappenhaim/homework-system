@@ -32,7 +32,7 @@ export default function GroupsPage() {
   if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5" dir="rtl">
+    <div className="space-y-5" dir="rtl">
       <PageHeader
         title="קבוצות"
         meta="ניהול · קבוצות"

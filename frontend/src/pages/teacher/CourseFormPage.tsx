@@ -115,7 +115,7 @@ export default function CourseFormPage() {
   });
 
   return (
-    <div className={`mx-auto space-y-5 ${isEdit ? 'max-w-5xl' : 'max-w-2xl'}`} dir="rtl">
+    <div className="space-y-5" dir="rtl">
       <div className="border-b border-rule pb-3">
         <BackLink className="mb-2" />
         <div className="flex items-center justify-between">
@@ -128,8 +128,8 @@ export default function CourseFormPage() {
         </div>
       </div>
 
-      {/* Basic info + Lessons — form beside the lesson order list on wide edit screens */}
-      <div className={isEdit && course ? 'grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start' : ''}>
+      {/* Basic info + Lessons — form beside the lesson order list on wide edit screens; a plain narrow form when creating */}
+      <div className={isEdit && course ? 'grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start' : 'mx-auto max-w-2xl'}>
         <Card>
           <CardContent className="space-y-4">
             <Input label="שם הקורס *" value={name} onChange={(e) => setName(e.target.value)} placeholder="React מתקדם" />

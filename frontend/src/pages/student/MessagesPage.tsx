@@ -61,8 +61,9 @@ export default function StudentMessagesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg space-y-4" dir="rtl">
+    <div className="space-y-4" dir="rtl">
       <PageHeader title="הודעה למורה" meta="חדר מורה · צ׳אט" />
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
       <Card accent="indigo">
         <CardHeader><h2 className="font-display text-base font-bold">שלחי הודעה</h2></CardHeader>
         <CardContent className="space-y-3">
@@ -117,6 +118,7 @@ export default function StudentMessagesPage() {
           </div>
         </div>
       )}
+      </div>
 
       {/* Overlay: full message + teacher's reply, floating above everything — mirrors the teacher's message overlay */}
       <Dialog open={Boolean(openId)} onOpenChange={(o) => { if (!o) setOpenId(null); }}>

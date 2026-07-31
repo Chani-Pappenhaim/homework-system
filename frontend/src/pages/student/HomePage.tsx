@@ -32,7 +32,7 @@ export default function StudentHomePage() {
   const groupNames = (user?.groups ?? []).map((g) => g.name);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5" dir="rtl">
+    <div className="space-y-5" dir="rtl">
       {/* Greeting */}
       <section className="sheet relative p-5">
         <Tape color="clay" rotate={-4} className="-top-2.5 right-8 w-20" />

@@ -49,7 +49,7 @@ export default function ReportsPage() {
   });
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5" dir="rtl">
+    <div className="space-y-5" dir="rtl">
       <PageHeader
         title="דוחות ציונים"
         meta="דוחות · ייצוא"

@@ -92,14 +92,14 @@ export default function GroupFormPage() {
   }
 
   return (
-    <div className={`mx-auto space-y-5 ${isEdit ? 'max-w-5xl' : 'max-w-2xl'}`} dir="rtl">
+    <div className="space-y-5" dir="rtl">
       <div className="border-b border-rule pb-3">
         <BackLink className="mb-2" />
         <h1 className="font-display text-2xl font-bold text-ink md:text-3xl">{isEdit ? 'עריכת קבוצה' : 'קבוצה חדשה'}</h1>
       </div>
 
-      {/* Form + Students — independent, equal-weight sections side by side on wide edit screens */}
-      <div className={isEdit ? 'grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start' : ''}>
+      {/* Form + Students — independent, equal-weight sections side by side on wide edit screens; a plain narrow form when creating */}
+      <div className={isEdit ? 'grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start' : 'mx-auto max-w-2xl'}>
         <Card>
           <CardContent className="space-y-4">
             <Input label="שם סמינר (אופציונלי)" value={seminar} onChange={(e) => setSeminar(e.target.value)} placeholder='בית יעקב' />
