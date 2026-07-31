@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Github, Paperclip, Edit, ExternalLink, Trash2, UserPlus, Plus, Bot, RotateCcw, CheckCircle } from 'lucide-react';
+import { Github, Paperclip, Edit, ExternalLink, Trash2, UserPlus, Plus, Bot, RotateCcw, CheckCircle, ListChecks, Sparkles } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
 import { assignmentsApi } from '@/api/assignments.api';
 import { submissionsApi } from '@/api/submissions.api';
 import { gradesApi } from '@/api/grades.api';
 import { groupsApi } from '@/api/groups.api';
+import { quizzesApi } from '@/api/quizzes.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -59,6 +60,7 @@ export default function LessonDetailPage() {
   const [aDescription, setADescription] = useState('');
   const [aDeadline, setADeadline] = useState('');
   const [aAiInstructions, setAAiInstructions] = useState('');
+  const [showAiCodeReview, setShowAiCodeReview] = useState(false);
 
   const { data: lessonData, isLoading } = useQuery({
     queryKey: ['lesson', id],
@@ -116,6 +118,17 @@ export default function LessonDetailPage() {
     queryFn: () => assignmentsApi.getSubmissions(assignment!.id),
     enabled: Boolean(assignment?.id),
   });
+
+  // Not every lesson has a quiz — a 404 here just means "no quiz section to show".
+  const { data: quizResultsData } = useQuery({
+    queryKey: ['quiz-results', id],
+    queryFn: () => quizzesApi.results(id!),
+    enabled: Boolean(id),
+    retry: false,
+  });
+  const quizResults = (quizResultsData?.data as any)?.data as
+    | { quiz: { questionCount: number }; results: { studentName: string; studentEmail: string; score: number; takenAt: string }[] }
+    | undefined;
 
   function openLessonEdit() {
     if (!lesson) return;
@@ -228,8 +241,17 @@ export default function LessonDetailPage() {
     },
   });
 
+  const allowExtraAiMutation = useMutation({
+    mutationFn: () => submissionsApi.allowExtraAi(gradeModal!.id),
+    onSuccess: () => {
+      setGradeModal((prev) => prev ? { ...prev, aiExtraAllowed: true } : prev);
+      toast.success('התלמידה תוכל לבקש בדיקת AI נוספת');
+    },
+  });
+
   function openGradeModal(sub: SubmissionDTO) {
     setGradeModal(sub);
+    setShowAiCodeReview(false);
     const nextChecklist = assignment?.requirements?.map((r) => ({
       id: r.id, text: r.text,
       checked: sub.grade?.checklist?.find((c) => c.id === r.id)?.checked ?? false,
@@ -256,8 +278,10 @@ export default function LessonDetailPage() {
   const submissions: SubmissionDTO[] = (submissionsData?.data as any)?.data?.submissions ?? [];
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5" dir="rtl">
+    <div className="space-y-5" dir="rtl">
       <BackLink to={`/teacher/courses/${lesson.courseId}`} label="חזרה לקורס" />
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:items-start">
+      <div className="space-y-5 lg:col-span-2">
       {/* Lesson content */}
       <Card>
         <CardHeader>
@@ -422,7 +446,47 @@ export default function LessonDetailPage() {
           )}
         </Card>
 
-      {/* Lesson Access */}
+        {/* Quiz results — only rendered when this lesson actually has a quiz */}
+        {quizResults && (
+          <Card accent="sage">
+            <CardHeader>
+              <h2 className="font-display text-base font-bold flex items-center gap-1.5">
+                <ListChecks size={15} className="text-sage" /> תוצאות חידון ({quizResults.results.length})
+              </h2>
+            </CardHeader>
+            {quizResults.results.length === 0 ? (
+              <CardContent><p className="text-sm text-ink/50">אף תלמידה עוד לא ענתה על החידון</p></CardContent>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-rule/20 text-xs text-ink/50">
+                      <th className="px-5 py-2.5 text-right font-medium">תלמידה</th>
+                      <th className="px-3 py-2.5 text-right font-medium">ציון</th>
+                      <th className="px-3 py-2.5 text-right font-medium">תאריך</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-rule/20">
+                    {quizResults.results.map((r, i) => (
+                      <tr key={i}>
+                        <td className="px-5 py-3">
+                          <p className="font-medium text-ink">{r.studentName}</p>
+                          <p className="text-xs text-ink/50">{r.studentEmail}</p>
+                        </td>
+                        <td className="px-3 py-3 font-semibold text-ink">{Math.round(r.score)}%</td>
+                        <td className="px-3 py-3 text-ink/70 text-xs">{formatDateTime(r.takenAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        )}
+      </div>
+
+      {/* Lesson Access — sits alongside the main lesson content as a sidebar on wide screens */}
+      <div className="lg:col-span-1">
       <Card>
         <CardHeader>
           <h2 className="font-display text-base font-bold">הרשאת גישה חריגה לשיעור זה</h2>
@@ -520,6 +584,8 @@ export default function LessonDetailPage() {
           )}
         </CardContent>
       </Card>
+      </div>
+      </div>
 
       {/* Lesson edit modal */}
       <Dialog open={lessonEditOpen} onOpenChange={setLessonEditOpen}>
@@ -675,10 +741,31 @@ export default function LessonDetailPage() {
                     >
                       <RotateCcw size={12} /> החזירי לציון AI
                     </Button>
+                    {gradeModal.aiExtraAllowed ? (
+                      <Badge variant="success"><Sparkles size={10} className="ml-1" /> בדיקה נוספת אושרה</Badge>
+                    ) : (
+                      <Button
+                        size="sm" variant="outline"
+                        loading={allowExtraAiMutation.isPending}
+                        onClick={() => allowExtraAiMutation.mutate()}
+                      >
+                        <Sparkles size={12} /> אפשרי בדיקת AI נוספת
+                      </Button>
+                    )}
                   </div>
                 </div>
                 {gradeModal.aiVerbalReview && (
                   <p className="text-xs text-ink/70 whitespace-pre-wrap">{gradeModal.aiVerbalReview}</p>
+                )}
+                {gradeModal.aiCodeReview && (
+                  <div className="pt-1">
+                    <button className="text-xs text-indigo underline" onClick={() => setShowAiCodeReview((v) => !v)}>
+                      {showAiCodeReview ? 'הסתירי הערות קוד' : 'הצגי הערות קוד'}
+                    </button>
+                    {showAiCodeReview && (
+                      <pre className="mt-1 text-xs bg-ground/60 rounded p-2 whitespace-pre-wrap">{gradeModal.aiCodeReview}</pre>
+                    )}
+                  </div>
                 )}
               </div>
             )}

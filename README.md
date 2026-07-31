@@ -1,171 +1,156 @@
-# מערכת הגשת שיעורי בית
+# Homework Submission System
 
-מערכת לניהול קורסים, שיעורים, מטלות והגשות, עם בדיקת AI אוטומטית, חידונים, ודוחות ציונים.
-המערכת מיועדת למורה אחת (ADMIN) ולתלמידות (STUDENT).
-
----
-
-## דרישות מקדימות
-
-- **Docker Desktop** מותקן ורץ (כולל Docker Compose)
-- **Node.js 22** — נדרש רק אם ה־migration האוטומטי נכשל וצריך להריץ אותו ידנית מהמחשב (ראה שלב 3)
-- קובץ `.env` בתיקיית השורש (מקבלים מבעלת הפרויקט, או מרכיבים מ־`.env.example`)
+A system for managing courses, lessons, assignments, and submissions, with automatic AI grading, quizzes, and grade reports. Built for a single teacher (ADMIN) and multiple students (STUDENT).
 
 ---
 
-## מבנה המערכת (Docker Compose)
+## Prerequisites
 
-| שירות | תפקיד | פורט |
+- **Docker Desktop** installed and running (includes Docker Compose)
+- **Node.js 22** — only needed if the automatic migration fails and you need to run it manually from your machine (see Step 3)
+- An `.env` file in the project root (obtained from the project owner, or assembled from `.env.example`)
+
+---
+
+## Architecture (Docker Compose)
+
+| Service | Role | Port |
 |---|---|---|
-| `nginx` | שער כניסה — מגיש את הפרונט ומעביר קריאות API | 80, 443 |
-| `frontend` | React (נבנה ל־static, מוגש דרך nginx) | פנימי |
-| `api` | שרת Node/Express | 4000 |
-| `worker` | עיבוד רקע (בדיקת AI, חידונים, מיילים, דוחות deadline) | פנימי |
-| `postgres` | מסד הנתונים הראשי | 5432 |
-| `redis` | תור משימות (BullMQ) ומטמון | פנימי |
+| `nginx` | Entry gateway — serves the frontend and proxies API calls | 80, 443 |
+| `frontend` | React (built to static files, served via nginx) | internal |
+| `api` | Node/Express server | 4000 |
+| `worker` | Background processing (AI grading, quizzes, emails, deadline reports) | internal |
+| `postgres` | Primary database | 5432 |
+| `redis` | Task queue (BullMQ) and cache | internal |
 
 ---
 
-## הרצה ראשונה — שלב אחר שלב
+## First run — step by step
 
-> כל הפקודות מורצות ב־**PowerShell** מתיקיית השורש של הפרויקט.
+> All commands run in **PowerShell** from the project root.
 
-### שלב 1 — קובץ סביבה `.env`
+### Step 1 — Environment file `.env`
 
-צריך קובץ `.env` בתיקיית השורש של הפרויקט. **הוא לא נמצא ב־Git** (הוא מכיל מפתחות סודיים).
+An `.env` file is required in the project root. **It is not committed to Git** (it contains secrets).
 
-- **אם קיבלת את הקובץ מבעלת הפרויקט** — פשוט שים אותו בתיקיית השורש (ליד `docker-compose.yml`). זהו, אין מה למלא.
-- **אם את מרכיבה אותו לבד** — העתק את התבנית ומלא ערכים:
+- **If you received the file from the project owner** — just place it in the root (next to `docker-compose.yml`). Nothing else to fill in.
+- **If you're assembling it yourself** — copy the template and fill in values:
 
   ```powershell
   Copy-Item .env.example .env
   ```
 
-  ערכים חשובים:
-  - `JWT_SECRET`, `JWT_REFRESH_SECRET` — מחרוזות אקראיות ארוכות (יש ערכי dev מוכנים ב־`.env.example`)
-  - `GEMINI_API_KEY` — לבדיקת AI (Google Gemini)
-  - `CLOUDINARY_*` — לאחסון קבצי הגשה
-  - `GITHUB_*` / `GOOGLE_*` — התחברות OAuth (אופציונלי)
-  - `SMTP_*` — שליחת מיילים (אם ריק — המערכת רצה, רק לא שולחת מיילים)
+  Key values:
+  - `JWT_SECRET`, `JWT_REFRESH_SECRET` — long random strings (dev defaults are provided in `.env.example`)
+  - `GEMINI_API_KEY` — for AI grading (Google Gemini)
+  - `CLOUDINARY_*` — for submission file storage
+  - `GITHUB_*` / `GOOGLE_*` — OAuth login (optional)
+  - `SMTP_*` — sending emails (if left empty, the system runs but doesn't send emails)
 
-> ⚠️ לעולם אל תעלה את `.env` ל־Git.
+> ⚠️ Never commit `.env` to Git.
 
-### שלב 2 — בנייה + הרמה
+### Step 2 — Build and start
 
 ```powershell
 docker compose -p homework-app up -d --build
 ```
 
-הבנייה הראשונה לוקחת כמה דקות (מוריד image-ים ומתקין חבילות).
-בדוק שכל הקונטיינרים עלו:
+The first build takes a few minutes (pulling images and installing packages). Check that all containers are up:
 
 ```powershell
 docker ps
 ```
 
-### שלב 3 — בסיס הנתונים (migrations + seed)
+### Step 3 — Database (migrations + seed)
 
-בפעם הראשונה שה־API עולה הוא **אמור להריץ אוטומטית** את ה־migrations
-(בניית טבלאות מסד הנתונים) ואת ה־seed (יצירת משתמש המורה). עקוב אחרי הלוגים:
+The first time the API starts, it **should automatically run** the migrations (building the database schema) and the seed (creating the teacher user). Watch the logs:
 
 ```powershell
 docker compose -p homework-app logs -f api
 ```
 
-אם רואים בלוגים `==> Applying database migrations...` ואחריו
-`==> Seeding initial data...` — הכל תקין, אפשר לדלג לשלב 4.
+If you see `==> Applying database migrations...` followed by `==> Seeding initial data...` in the logs, everything is fine — skip to Step 4.
 
-#### אם ההרצה האוטומטית נכשלה (למשל שגיאת SSL של רשת נטפרי)
+#### If the automatic run fails
 
-> כרגע, כל עוד נטפרי לא הוציאו את הדומיינים מפענוח SSL (ראה "בעיות ידועות"),
-> ייתכן שה־migration האוטומטי ייכשל. במקרה כזה מריצים אותו **ידנית מהמחשב** —
-> המחשב מכיר את אישורי נטפרי, אז זה עובד. Postgres כבר רץ בקונטיינר, אז זה בטוח.
+If migrations fail to run automatically (for example, due to a network-level SSL interception from a local firewall/proxy), you can run them manually from your machine instead:
 
 ```powershell
 cd backend
 npm install
 
-# בניית מבנה מסד הנתונים (localhost כי מריצים מהמחשב, לא מתוך Docker)
+# Build the database schema (localhost since we're running from the host, not inside Docker)
 $env:DATABASE_URL = "postgresql://user:pass@localhost:5432/homework_db"
 $env:NODE_TLS_REJECT_UNAUTHORIZED = "0"
 npx prisma migrate deploy --config prisma.config.ts
 
-# יצירת משתמש המורה הראשוני
+# Create the initial teacher user
 npm run db:seed
 
 cd ..
 ```
 
-לאחר מכן אתחל את ה־API כדי שיתפוס את הסכימה החדשה:
+Then restart the API so it picks up the new schema:
 
 ```powershell
 docker compose -p homework-app restart api worker
 ```
 
-### שלב 4 — כניסה למערכת
+### Step 4 — Log in
 
-פתח בדפדפן: **http://localhost**
+Open in your browser: **http://localhost**
 
-פרטי כניסה של המורה (נוצרים ב־seed):
+Teacher login (created by the seed):
 
-| שדה | ערך |
+| Field | Value |
 |---|---|
-| אימייל | `admin@school.com` |
-| סיסמה | `admin123` |
+| Email | `admin@school.com` |
+| Password | `admin123` |
 
-תלמידה שנוספת לקבוצה מקבלת סיסמת ברירת מחדל `12345678` ומתבקשת להחליף אותה בכניסה הראשונה.
+A student added to a group receives the default password `12345678` and is prompted to change it on first login.
 
 ---
 
-## פקודות שימושיות
+## Useful commands
 
-| פעולה | פקודה |
+| Action | Command |
 |---|---|
-| הרמה | `docker compose -p homework-app up -d` |
-| עצירה | `docker compose -p homework-app down` |
-| עצירה + מחיקת נתונים | `docker compose -p homework-app down -v` |
-| לוגים של ה־API | `docker compose -p homework-app logs -f api` |
-| לוגים של ה־worker | `docker compose -p homework-app logs -f worker` |
-| בנייה מחדש (אחרי שינוי קוד) | `docker compose -p homework-app build api frontend` ואז `up -d` |
-| בנייה נקייה (כששינויים לא נטענים) | `docker compose -p homework-app build --no-cache api frontend` |
+| Start | `docker compose -p homework-app up -d` |
+| Stop | `docker compose -p homework-app down` |
+| Stop + delete data | `docker compose -p homework-app down -v` |
+| API logs | `docker compose -p homework-app logs -f api` |
+| Worker logs | `docker compose -p homework-app logs -f worker` |
+| Rebuild (after code changes) | `docker compose -p homework-app build api frontend` then `up -d` |
+| Clean rebuild (when changes don't load) | `docker compose -p homework-app build --no-cache api frontend` |
 
 ---
 
-## פיתוח מקומי (בלי Docker, אופציונלי)
+## Local development (without Docker, optional)
 
-מריצים Postgres ו־Redis בלבד ב־Docker, ואת ה־API וה־frontend מקומית:
+Run only Postgres and Redis in Docker, and run the API and frontend locally:
 
 ```powershell
-# טרמינל 1 — Backend
+# Terminal 1 — Backend
 cd backend
 npm install
 npm run dev
 
-# טרמינל 2 — Frontend
+# Terminal 2 — Frontend
 cd frontend
 npm install
 npm run dev
 ```
 
-> בפיתוח מקומי ה־`DATABASE_URL` צריך להצביע על `localhost:5432` (ולא `postgres:5432`).
+> In local development, `DATABASE_URL` should point to `localhost:5432` (not `postgres:5432`).
 
 ---
 
-## בעיות ידועות
+## Known issues
 
-- **רשת נטפרי — יירוט SSL:** בזמן `docker build` עלולה להופיע השגיאה
-  `unable to get local issuer certificate` כש־Docker/Prisma/npm מורידים קבצים.
-  הפתרון הנקי הוא לבקש מנטפרי להוציא מפענוח SSL את הדומיינים:
-  `binaries.prisma.sh`, `registry.npmjs.org`, `registry-1.docker.io`,
-  `auth.docker.io`, `production.cloudflare.docker.com`.
-  כ־workaround, מוגדר כבר ב־Dockerfile `NODE_TLS_REJECT_UNAUTHORIZED=0`.
-  ה־migrations רצים אוטומטית בתוך הקונטיינר דרך ה־driver adapter (חיבור ישיר
-  ל־Postgres, בלי הורדות חיצוניות), כך שהם לא מושפעים מיירוט ה־SSL.
+- **SSL certificate errors during `docker build`:** if a local network filter or corporate proxy intercepts SSL traffic, you may see `unable to get local issuer certificate` when Docker/Prisma/npm try to download packages. `NODE_TLS_REJECT_UNAUTHORIZED=0` is already set in the Dockerfile as a workaround. Migrations run automatically inside the container through the driver adapter (a direct Postgres connection, no external downloads), so they aren't affected by this.
 
-- **"read-only file system" בזמן build:** הרץ `docker builder prune -f` ואז build מחדש.
+- **"read-only file system" during build:** run `docker builder prune -f` and rebuild.
 
-- **שינויים בקוד לא נטענים:** בנה עם `--no-cache` והרם עם `--force-recreate`.
+- **Code changes not taking effect:** rebuild with `--no-cache` and start with `--force-recreate`.
 
-- **`/bin/sh: bad interpreter: ...^M` בהרצת ה־api:** קרה אם ה־entrypoint נשמר עם
-  סופי־שורה של Windows (CRLF). ה־`.gitattributes` שבפרויקט מכריח LF, אז זה
-  לא אמור לקרות; אם כן — ודא ש־`git clone` נעשה אחרי שה־`.gitattributes` קיים.
+- **`/bin/sh: bad interpreter: ...^M` when running the api:** happens if the entrypoint was saved with Windows line endings (CRLF). The project's `.gitattributes` enforces LF, so this shouldn't happen; if it does, make sure `git clone` ran after `.gitattributes` was already in place.

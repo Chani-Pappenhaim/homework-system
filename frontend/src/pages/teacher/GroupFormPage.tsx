@@ -158,107 +158,109 @@ export default function GroupFormPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5" dir="rtl">
+    <div className="space-y-5" dir="rtl">
       <div className="border-b border-rule pb-3">
         <BackLink className="mb-2" />
         <h1 className="font-display text-2xl font-bold text-ink md:text-3xl">{isEdit ? 'עריכת קבוצה' : 'קבוצה חדשה'}</h1>
       </div>
 
-      {/* Form */}
-      <Card>
-        <CardContent className="space-y-4">
-          <Input label="שם סמינר (אופציונלי)" value={seminar} onChange={(e) => setSeminar(e.target.value)} placeholder='בית יעקב' />
-          <Input label="שם קבוצה *" value={name} onChange={(e) => setName(e.target.value)} placeholder='קבוצה א' required />
-          <Input label='שנה"ל *' value={year} onChange={(e) => setYear(e.target.value)} placeholder='תשפ"ו' required />
-          {error && <p className="text-coral text-sm">{error}</p>}
-          <Button loading={saveMutation.isPending} onClick={() => saveMutation.mutate()} disabled={!name || !year}>
-            {isEdit ? 'שמור שינויים' : 'צור קבוצה'}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Students table — only in edit mode */}
-      {isEdit && (
+      {/* Form + Students — independent, equal-weight sections side by side on wide edit screens; a plain narrow form when creating */}
+      <div className={isEdit ? 'grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start' : 'mx-auto max-w-2xl'}>
         <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-base font-bold">תלמידות ({group?.students.length ?? 0})</h2>
-              <div className="flex gap-2">
-                {selected.size > 0 && (
-                  <Button size="sm" variant="destructive" onClick={() => setRemoveBulkOpen(true)}>
-                    <Trash2 size={13} /> הסר נבחרות ({selected.size})
+          <CardContent className="space-y-4">
+            <Input label="שם סמינר (אופציונלי)" value={seminar} onChange={(e) => setSeminar(e.target.value)} placeholder='בית יעקב' />
+            <Input label="שם קבוצה *" value={name} onChange={(e) => setName(e.target.value)} placeholder='קבוצה א' required />
+            <Input label='שנה"ל *' value={year} onChange={(e) => setYear(e.target.value)} placeholder='תשפ"ו' required />
+            {error && <p className="text-coral text-sm">{error}</p>}
+            <Button loading={saveMutation.isPending} onClick={() => saveMutation.mutate()} disabled={!name || !year}>
+              {isEdit ? 'שמור שינויים' : 'צור קבוצה'}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Students table — only in edit mode */}
+        {isEdit && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <h2 className="font-display text-base font-bold">תלמידות ({group?.students.length ?? 0})</h2>
+                <div className="flex gap-2">
+                  {selected.size > 0 && (
+                    <Button size="sm" variant="destructive" onClick={() => setRemoveBulkOpen(true)}>
+                      <Trash2 size={13} /> הסר נבחרות ({selected.size})
+                    </Button>
+                  )}
+                  <Button size="sm" variant="secondary" onClick={() => setAddModal(true)}>
+                    <UserPlus size={13} /> הוספת תלמידה
                   </Button>
-                )}
-                <Button size="sm" variant="secondary" onClick={() => setAddModal(true)}>
-                  <UserPlus size={13} /> הוספת תלמידה
+                </div>
+              </div>
+            </CardHeader>
+            {(group?.students.length ?? 0) > 0 && (
+              <div className="flex items-center gap-2 px-5 py-3 border-b border-rule/20">
+                <Input
+                  placeholder="חיפוש לפי שם או מייל..."
+                  value={studentQuery}
+                  onChange={(e) => setStudentQuery(e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
+                >
+                  מיון לפי שם {sortDir === 'asc' ? '↓' : '↑'}
                 </Button>
               </div>
-            </div>
-          </CardHeader>
-          {(group?.students.length ?? 0) > 0 && (
-            <div className="flex items-center gap-2 px-5 py-3 border-b border-rule/20">
-              <Input
-                placeholder="חיפוש לפי שם או מייל..."
-                value={studentQuery}
-                onChange={(e) => setStudentQuery(e.target.value)}
-                className="flex-1"
-              />
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
-              >
-                מיון לפי שם {sortDir === 'asc' ? '↓' : '↑'}
-              </Button>
-            </div>
-          )}
-          <div className="divide-y divide-rule/20">
-            {group?.students.length === 0 && (
-              <p className="px-5 py-4 text-sm text-ink/50">אין תלמידות עדיין</p>
             )}
-            {(group?.students.length ?? 0) > 0 && visibleStudents.length === 0 && (
-              <p className="px-5 py-4 text-sm text-ink/50">לא נמצאו תלמידות התואמות לחיפוש</p>
-            )}
-            {visibleStudents.map((s) => (
-              <div key={s.id} className="px-5 py-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(s.id)}
-                    onChange={() => toggleSelected(s.id)}
-                    className="size-4 accent-ink"
-                    aria-label={`בחר את ${s.name}`}
-                  />
-                  <div>
-                    <p className="text-sm font-medium">{s.name}</p>
-                    <p className="text-xs text-ink/50">{s.email}</p>
-                    {s.githubUsername && <p className="text-xs text-ink/50">GitHub: {s.githubUsername}</p>}
+            <div className="divide-y divide-rule/20">
+              {group?.students.length === 0 && (
+                <p className="px-5 py-4 text-sm text-ink/50">אין תלמידות עדיין</p>
+              )}
+              {(group?.students.length ?? 0) > 0 && visibleStudents.length === 0 && (
+                <p className="px-5 py-4 text-sm text-ink/50">לא נמצאו תלמידות התואמות לחיפוש</p>
+              )}
+              {visibleStudents.map((s) => (
+                <div key={s.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(s.id)}
+                      onChange={() => toggleSelected(s.id)}
+                      className="size-4 accent-ink"
+                      aria-label={`בחר את ${s.name}`}
+                    />
+                    <div>
+                      <p className="text-sm font-medium">{s.name}</p>
+                      <p className="text-xs text-ink/50">{s.email}</p>
+                      {s.githubUsername && <p className="text-xs text-ink/50">GitHub: {s.githubUsername}</p>}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => openEdit(s)} title="עריכת פרטים">
+                      <Pencil size={13} />
+                    </Button>
+                    <Button
+                      size="sm" variant="outline"
+                      onClick={() => setResetTarget(s)}
+                      title="איפוס סיסמא"
+                    >
+                      <RotateCcw size={13} />
+                    </Button>
+                    <Button
+                      size="sm" variant="destructive"
+                      onClick={() => setRemoveOneTarget(s)}
+                      title="הסרה מהקבוצה"
+                    >
+                      <Trash2 size={13} />
+                    </Button>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => openEdit(s)} title="עריכת פרטים">
-                    <Pencil size={13} />
-                  </Button>
-                  <Button
-                    size="sm" variant="outline"
-                    onClick={() => setResetTarget(s)}
-                    title="איפוס סיסמא"
-                  >
-                    <RotateCcw size={13} />
-                  </Button>
-                  <Button
-                    size="sm" variant="destructive"
-                    onClick={() => setRemoveOneTarget(s)}
-                    title="הסרה מהקבוצה"
-                  >
-                    <Trash2 size={13} />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
+              ))}
+            </div>
+          </Card>
+        )}
+      </div>
 
       <ConfirmDialog
         open={!!removeOneTarget}

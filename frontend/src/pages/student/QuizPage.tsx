@@ -54,8 +54,8 @@ export default function QuizPage() {
 
   if (status === 'generating' && timedOut) {
     return (
-      <div className="mx-auto max-w-md py-16 text-center" dir="rtl">
-        <div className="rounded-card border border-rule bg-sheet p-6 shadow-sheet">
+      <div className="py-16 text-center" dir="rtl">
+        <div className="mx-auto max-w-md rounded-card border border-rule bg-sheet p-6 shadow-sheet">
           <p className="font-display text-xl font-bold text-ink">יצירת החידון נמשכת יותר מדי</p>
           <p className="mt-2 font-sans text-xs text-ink/60">
             ייתכן שיש תקלה זמנית ביצירת השאלות. אפשר לנסות שוב.
@@ -83,8 +83,8 @@ export default function QuizPage() {
 
   if (result) {
     return (
-      <div className="mx-auto max-w-lg space-y-5" dir="rtl">
-        <Card accent="indigo">
+      <div className="space-y-5" dir="rtl">
+        <Card accent="indigo" className="mx-auto max-w-lg">
           <CardContent className="space-y-3 text-center">
             <span className="mx-auto grid size-24 place-items-center rounded-full bg-butter/25 font-display text-4xl font-bold tabular text-clay">
               {Math.round(result.score)}%
@@ -98,39 +98,42 @@ export default function QuizPage() {
           </CardContent>
         </Card>
 
-        {quiz?.questions.map((q: any, i: number) => (
-          <Card key={q.id}>
-            <CardContent className="space-y-2">
-              <p className="text-sm font-bold text-ink">{i + 1}. {q.question}</p>
-              {q.options.map((opt: string, j: number) => {
-                const isCorrect = q.correctIndex === j;
-                const isSelected = answers[i] === j;
-                return (
-                  <div
-                    key={j}
-                    className={cn(
-                      'flex items-center gap-2 rounded-input border px-3 py-2 text-sm',
-                      isCorrect
-                        ? 'border-sage bg-sage/15 text-sage'
-                        : isSelected
-                          ? 'border-coral bg-coral/12 text-coral'
-                          : 'border-rule bg-ground/50 text-ink/70',
-                    )}
-                  >
-                    <span className="font-sans">{isCorrect ? '✓' : isSelected ? '✗' : '○'}</span>
-                    {opt}
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        ))}
+        {/* Per-question review — independent cards, spread across a grid on wide screens */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {quiz?.questions.map((q: any, i: number) => (
+            <Card key={q.id}>
+              <CardContent className="space-y-2">
+                <p className="text-sm font-bold text-ink">{i + 1}. {q.question}</p>
+                {q.options.map((opt: string, j: number) => {
+                  const isCorrect = q.correctIndex === j;
+                  const isSelected = answers[i] === j;
+                  return (
+                    <div
+                      key={j}
+                      className={cn(
+                        'flex items-center gap-2 rounded-input border px-3 py-2 text-sm',
+                        isCorrect
+                          ? 'border-sage bg-sage/15 text-sage'
+                          : isSelected
+                            ? 'border-coral bg-coral/12 text-coral'
+                            : 'border-rule bg-ground/50 text-ink/70',
+                      )}
+                    >
+                      <span className="font-sans">{isCorrect ? '✓' : isSelected ? '✗' : '○'}</span>
+                      {opt}
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-lg space-y-5" dir="rtl">
+    <div className="space-y-5" dir="rtl">
       <PageHeader
         title="חידון השיעור"
         meta="שיעור · חידון"
@@ -139,31 +142,33 @@ export default function QuizPage() {
         actions={<Badge variant="secondary">{quiz?.questions.length} שאלות</Badge>}
       />
 
-      {quiz?.questions.map((q: any, i: number) => (
-        <Card key={q.id}>
-          <CardContent className="space-y-3">
-            <p className="text-sm font-bold text-ink">{i + 1}. {q.question}</p>
-            {q.options.map((opt: string, j: number) => (
-              <label
-                key={j}
-                className={cn(
-                  'flex cursor-pointer items-center gap-3 rounded-input border px-3 py-2 transition-colors',
-                  answers[i] === j ? 'border-clay bg-butter/25 text-ink' : 'border-rule text-ink/70 hover:border-clay/40',
-                )}
-              >
-                <input
-                  type="radio"
-                  name={`q-${i}`}
-                  checked={answers[i] === j}
-                  onChange={() => setAnswers((prev) => { const n = [...prev]; n[i] = j; return n; })}
-                  className="accent-ink"
-                />
-                <span className="text-sm">{opt}</span>
-              </label>
-            ))}
-          </CardContent>
-        </Card>
-      ))}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {quiz?.questions.map((q: any, i: number) => (
+          <Card key={q.id}>
+            <CardContent className="space-y-3">
+              <p className="text-sm font-bold text-ink">{i + 1}. {q.question}</p>
+              {q.options.map((opt: string, j: number) => (
+                <label
+                  key={j}
+                  className={cn(
+                    'flex cursor-pointer items-center gap-3 rounded-input border px-3 py-2 transition-colors',
+                    answers[i] === j ? 'border-clay bg-butter/25 text-ink' : 'border-rule text-ink/70 hover:border-clay/40',
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name={`q-${i}`}
+                    checked={answers[i] === j}
+                    onChange={() => setAnswers((prev) => { const n = [...prev]; n[i] = j; return n; })}
+                    className="accent-ink"
+                  />
+                  <span className="text-sm">{opt}</span>
+                </label>
+              ))}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
       <Button
         variant="clay"

@@ -34,7 +34,7 @@ export default function GroupDetailPage() {
   if (!group) return <div className="p-6 font-sans text-coral">קבוצה לא נמצאה</div>;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5" dir="rtl">
+    <div className="space-y-5" dir="rtl">
       {/* Header */}
       <div className="border-b border-rule pb-3">
         <BackLink className="mb-2" />
@@ -74,60 +74,62 @@ export default function GroupDetailPage() {
         </div>
       </div>
 
-      {/* Courses of this group */}
-      <Card accent="indigo">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-base font-bold flex items-center gap-1.5">
-              <BookOpen size={15} className="text-clay" /> קורסים ({group.courses.length})
-            </h2>
-            <Button size="sm" variant="secondary" onClick={() => navigate(`/teacher/courses/new?groupId=${id}`)}>
-              <Plus size={13} /> קורס לקבוצה
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {group.courses.length === 0 ? (
-            <p className="text-sm text-ink/50">אין קורסים בקבוצה זו עדיין</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {group.courses.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => navigate(`/teacher/courses/${c.id}`)}
-                  className="lift flex items-center gap-2 rounded-lg border border-rule bg-sheet px-4 py-3 text-right shadow-soft"
-                >
-                  <BookOpen size={16} className="shrink-0 text-ink" />
-                  <span className="text-sm font-medium text-ink">{c.name}</span>
-                </button>
-              ))}
+      {/* Courses + Students — independent, equal-weight sections, side by side on wide screens */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
+        <Card accent="indigo">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-base font-bold flex items-center gap-1.5">
+                <BookOpen size={15} className="text-clay" /> קורסים ({group.courses.length})
+              </h2>
+              <Button size="sm" variant="secondary" onClick={() => navigate(`/teacher/courses/new?groupId=${id}`)}>
+                <Plus size={13} /> קורס לקבוצה
+              </Button>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent>
+            {group.courses.length === 0 ? (
+              <p className="text-sm text-ink/50">אין קורסים בקבוצה זו עדיין</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {group.courses.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => navigate(`/teacher/courses/${c.id}`)}
+                    className="lift flex items-center gap-2 rounded-lg border border-rule bg-sheet px-4 py-3 text-right shadow-soft"
+                  >
+                    <BookOpen size={16} className="shrink-0 text-ink" />
+                    <span className="text-sm font-medium text-ink">{c.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Students (read-only) */}
-      <Card>
-        <CardHeader>
-          <h2 className="font-display text-base font-bold">תלמידות ({group.students.length})</h2>
-        </CardHeader>
-        <div className="divide-y divide-rule/20">
-          {group.students.length === 0 && (
-            <p className="px-5 py-4 text-sm text-ink/50">אין תלמידות עדיין</p>
-          )}
-          {[...group.students].sort((a, b) => a.name.localeCompare(b.name, 'he')).map((s) => (
-            <div key={s.id} className="px-5 py-3">
-              <p className="text-sm font-medium text-ink">{s.name}</p>
-              <p className="text-xs text-ink/50">{s.email}</p>
-              {s.githubUsername && (
-                <p className="text-xs text-ink/50 flex items-center gap-1 mt-0.5">
-                  <Github size={11} /> {s.githubUsername}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
-      </Card>
+        {/* Students (read-only) */}
+        <Card>
+          <CardHeader>
+            <h2 className="font-display text-base font-bold">תלמידות ({group.students.length})</h2>
+          </CardHeader>
+          <div className="divide-y divide-rule/20">
+            {group.students.length === 0 && (
+              <p className="px-5 py-4 text-sm text-ink/50">אין תלמידות עדיין</p>
+            )}
+            {[...group.students].sort((a, b) => a.name.localeCompare(b.name, 'he')).map((s) => (
+              <div key={s.id} className="px-5 py-3">
+                <p className="text-sm font-medium text-ink">{s.name}</p>
+                <p className="text-xs text-ink/50">{s.email}</p>
+                {s.githubUsername && (
+                  <p className="text-xs text-ink/50 flex items-center gap-1 mt-0.5">
+                    <Github size={11} /> {s.githubUsername}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

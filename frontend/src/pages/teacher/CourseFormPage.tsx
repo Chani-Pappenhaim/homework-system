@@ -132,7 +132,7 @@ export default function CourseFormPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5" dir="rtl">
+    <div className="space-y-5" dir="rtl">
       <div className="border-b border-rule pb-3">
         <BackLink className="mb-2" />
         <div className="flex items-center justify-between">
@@ -145,109 +145,110 @@ export default function CourseFormPage() {
         </div>
       </div>
 
-      {/* Basic info */}
-      <Card>
-        <CardContent className="space-y-4">
-          <Input label="שם הקורס *" value={name} onChange={(e) => setName(e.target.value)} placeholder="React מתקדם" />
-          <Input label='שנה"ל' value={year} onChange={(e) => setYear(e.target.value)} placeholder='תשפ"ו' />
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium">קבוצה *</label>
-            <select
-              value={groupId}
-              onChange={(e) => setGroupId(e.target.value)}
-              className="w-full rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
-            >
-              <option value="">בחרי קבוצה...</option>
-              {groups.map((g) => <option key={g.id} value={g.id}>{g.name} — {g.year}</option>)}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium">תיאור</label>
-            <Textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              className="resize-none"
-              placeholder="תיאור קצר של הקורס..."
-            />
-          </div>
-          {error && <p className="text-coral text-sm">{error}</p>}
-          <Button loading={saveMutation.isPending} onClick={() => saveMutation.mutate()} disabled={!name || !groupId}>
-            {isEdit ? 'שמור שינויים' : 'צור קורס'}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Lessons table — edit only */}
-      {isEdit && course && (
+      {/* Basic info + Lessons — form beside the lesson order list on wide edit screens; a plain narrow form when creating */}
+      <div className={isEdit && course ? 'grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start' : 'mx-auto max-w-2xl'}>
         <Card>
-          <CardHeader>
-            <h2 className="font-display text-base font-bold">שיעורים ({course.lessons.length})</h2>
-          </CardHeader>
-          <div className="divide-y divide-rule/20">
-            {course.lessons.map((l, i) => (
-              <div
-                key={l.id}
-                draggable
-                onDragStart={() => setDragIndex(i)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => handleLessonDrop(i)}
-                className={cn(
-                  'px-5 py-3 flex items-center gap-3 transition-colors',
-                  dragIndex === i && 'opacity-40',
-                )}
+          <CardContent className="space-y-4">
+            <Input label="שם הקורס *" value={name} onChange={(e) => setName(e.target.value)} placeholder="React מתקדם" />
+            <Input label='שנה"ל' value={year} onChange={(e) => setYear(e.target.value)} placeholder='תשפ"ו' />
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium">קבוצה *</label>
+              <select
+                value={groupId}
+                onChange={(e) => setGroupId(e.target.value)}
+                className="w-full rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
               >
-                <GripVertical size={14} className="text-ink/50 cursor-grab flex-shrink-0" />
-                <span className="text-xs text-ink/50 w-5 flex-shrink-0">{i + 1}</span>
-                <span
-                  className="flex-1 text-sm cursor-pointer hover:text-clay transition"
-                  onClick={() => navigate(`/teacher/lessons/${l.id}`)}
-                >
-                  {l.topic}
-                </span>
-                {l.hidden && <EyeOff size={13} className="text-ink/50" />}
-                <Button size="sm" variant="outline" onClick={() => toggleHiddenMutation.mutate(l)}>
-                  {l.hidden ? 'הצג' : 'הסתר'}
-                </Button>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {/* Links — edit only */}
-      {isEdit && course && (
-        <Card>
-          <CardHeader><h2 className="font-display text-base font-bold">קישורים שימושיים</h2></CardHeader>
-          <CardContent className="space-y-3">
-            {course.links.map((l) => (
-              <div key={l.id} className="flex items-center gap-2">
-                <a href={toExternalUrl(l.url)} target="_blank" rel="noreferrer" className="flex-1 text-sm text-clay hover:underline truncate">{l.label}</a>
-                <Button size="sm" variant="destructive" onClick={() => deleteLinkMutation.mutate(l.id)}>
-                  <Trash2 size={12} />
-                </Button>
-              </div>
-            ))}
-            <div className="flex gap-2 pt-1">
-              <Input placeholder="תווית" value={newLink.label} onChange={(e) => setNewLink((p) => ({ ...p, label: e.target.value }))} className="flex-1" />
-              <Input placeholder="https://..." value={newLink.url} onChange={(e) => setNewLink((p) => ({ ...p, url: e.target.value }))} className="flex-1" />
-              <Button size="sm" onClick={() => addLinkMutation.mutate()} disabled={!newLink.label || !newLink.url}>
-                <Plus size={13} />
-              </Button>
+                <option value="">בחרי קבוצה...</option>
+                {groups.map((g) => <option key={g.id} value={g.id}>{g.name} — {g.year}</option>)}
+              </select>
             </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium">תיאור</label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                className="resize-none"
+                placeholder="תיאור קצר של הקורס..."
+              />
+            </div>
+            {error && <p className="text-coral text-sm">{error}</p>}
+            <Button loading={saveMutation.isPending} onClick={() => saveMutation.mutate()} disabled={!name || !groupId}>
+              {isEdit ? 'שמור שינויים' : 'צור קורס'}
+            </Button>
           </CardContent>
         </Card>
-      )}
 
-      {/* Files — edit only */}
+        {/* Lessons table — edit only */}
+        {isEdit && course && (
+          <Card>
+            <CardHeader>
+              <h2 className="font-display text-base font-bold">שיעורים ({course.lessons.length})</h2>
+            </CardHeader>
+            <div className="divide-y divide-rule/20">
+              {course.lessons.map((l, i) => (
+                <div
+                  key={l.id}
+                  draggable
+                  onDragStart={() => setDragIndex(i)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => handleLessonDrop(i)}
+                  className={cn(
+                    'px-5 py-3 flex items-center gap-3 transition-colors',
+                    dragIndex === i && 'opacity-40',
+                  )}
+                >
+                  <GripVertical size={14} className="text-ink/50 cursor-grab flex-shrink-0" />
+                  <span className="text-xs text-ink/50 w-5 flex-shrink-0">{i + 1}</span>
+                  <span
+                    className="flex-1 text-sm cursor-pointer hover:text-clay transition"
+                    onClick={() => navigate(`/teacher/lessons/${l.id}`)}
+                  >
+                    {l.topic}
+                  </span>
+                  {l.hidden && <EyeOff size={13} className="text-ink/50" />}
+                  <Button size="sm" variant="outline" onClick={() => toggleHiddenMutation.mutate(l)}>
+                    {l.hidden ? 'הצג' : 'הסתר'}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+      </div>
+
+      {/* Links + Files — edit only, independent equal-weight sections side by side */}
       {isEdit && course && (
-        <Card>
-          <CardHeader><h2 className="font-display text-base font-bold">קבצים</h2></CardHeader>
-          <CardContent className="space-y-3">
-            <FileGallery files={course.files} onDelete={(fileId) => deleteFileMutation.mutate(fileId)} />
-            <FileUpload withName onFile={(file, name) => uploadFileMutation.mutate({ file, name })} label="העלה קובץ לקורס" />
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <Card>
+            <CardHeader><h2 className="font-display text-base font-bold">קישורים שימושיים</h2></CardHeader>
+            <CardContent className="space-y-3">
+              {course.links.map((l) => (
+                <div key={l.id} className="flex items-center gap-2">
+                  <a href={toExternalUrl(l.url)} target="_blank" rel="noreferrer" className="flex-1 text-sm text-clay hover:underline truncate">{l.label}</a>
+                  <Button size="sm" variant="destructive" onClick={() => deleteLinkMutation.mutate(l.id)}>
+                    <Trash2 size={12} />
+                  </Button>
+                </div>
+              ))}
+              <div className="flex gap-2 pt-1">
+                <Input placeholder="תווית" value={newLink.label} onChange={(e) => setNewLink((p) => ({ ...p, label: e.target.value }))} className="flex-1" />
+                <Input placeholder="https://..." value={newLink.url} onChange={(e) => setNewLink((p) => ({ ...p, url: e.target.value }))} className="flex-1" />
+                <Button size="sm" onClick={() => addLinkMutation.mutate()} disabled={!newLink.label || !newLink.url}>
+                  <Plus size={13} />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><h2 className="font-display text-base font-bold">קבצים</h2></CardHeader>
+            <CardContent className="space-y-3">
+              <FileGallery files={course.files} onDelete={(fileId) => deleteFileMutation.mutate(fileId)} />
+              <FileUpload withName onFile={(file, name) => uploadFileMutation.mutate({ file, name })} label="העלה קובץ לקורס" />
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Copy modal */}

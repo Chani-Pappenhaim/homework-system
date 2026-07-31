@@ -51,12 +51,15 @@ Primary: #C2185B | Secondary: #7C3AED
 ## דפים חשובים — פרטים
 
 ### Teacher — LessonDetailPage `/teacher/lessons/:id`
+- Layout: grid רב-עמודות ברוחב `max-w-6xl` — עמודה ראשית (תוכן שיעור + מטלות/הגשות + תוצאות חידון) לצד עמודת גישה חריגה
 - פאנל עליון: תוכן שיעור + Markdown + קבצים
-- פאנל תחתון: טאבים לפי מטלה → טבלת הגשות
+- פאנל אמצעי: טאבים לפי מטלה → טבלת הגשות
 - כל שורה: שם תלמידה | סוג הגשה (📎/🔗/לא הוגש) | תאריך | איחור | ציון | כפתור "בדוק"
-- Modal בדיקה: קישור לקובץ/GitHub | checklist | שני שדות ציון (submissionScore + contentScore) | feedback Markdown | כפתור "אשר AI" | **כפתור "החזר לציון AI"** (contentScore=aiScore ללא בקשה חדשה)
+- **תוצאות חידון:** כרטיס נפרד (מוצג רק אם קיים חידון לשיעור) — טבלת תלמידה/ציון/תאריך, מ-`GET /lessons/:id/quiz/results`
+- Modal בדיקה: קישור לקובץ/GitHub | checklist | שני שדות ציון (submissionScore + contentScore) | feedback Markdown | כפתור "אשר AI" | **כפתור "החזר לציון AI"** (contentScore=aiScore ללא בקשה חדשה) | **כפתור "אפשרי בדיקת AI נוספת"** (`aiExtraAllowed=true`) | **טוגל "הצגי הערות קוד"** (aiCodeReview, מוסתר כברירת מחדל)
 
 ### Student — LessonDetailPage `/student/lessons/:id`
+- Layout: `max-w-5xl`, grid — עמודת קריאה (תוכן/GitHub/קבצים/חידון) לצד עמודת מטלות כשיש מטלות; שיעור בלי מטלות נשאר טור יחיד
 - תוכן שיעור + assignments
 - כל assignment: checklist לסימון | textarea הערות | הגשה (קובץ/repoName)
 - אחרי הגשה: **ציון הגשה** מיידי (submissionScore)
@@ -64,15 +67,20 @@ Primary: #C2185B | Secondary: #7C3AED
   - "בקשי בדיקת AI" → "בודק..." → "נבדק ✓"
   - aiCodeReview: מוצג מיד כשסיים
   - aiScore + aiVerbalReview: מוצגים **רק אחרי aiApproved=true**
+  - **הגיעה למגבלת בדיקות** (השרת מחזיר `'AI review limit reached'`) → UI מציע לשלוח הודעה למורה לבקש בדיקה נוספת (זהה בעיצוב לבקשת הגשה מאוחרת)
 - כפתור "בקשי אישור הגשה מאוחרת" → שולח TeacherMessage עם assignmentId
 
 ### Teacher — MessagesPage `/teacher/messages`
-- רשימה newest first: שם תלמידה | תוכן | תאריך | "סמני כנקראה"
-- אם יש assignmentId → קישור למטלה הרלוונטית
-- Badge ספירה ב-sidebar (polling כל דקה)
+- רשימה newest first: שם תלמידה | תוכן | תאריך | "סמני כנקראה" | כפתור מחיקה (מוחק שיחה שלמה, עם confirm)
+- אם יש assignmentId → Badge "בקשת הגשה"
+- לחיצה על שורה פותחת **Dialog overlay** (צף מעל הכל) עם ההודעה המלאה + תגובה קיימת + טופס תגובה; בתוך ה-Dialog: כפתור מחיקת תגובה בלבד, וכפתור מחיקת השיחה כולה
+- Badge ספירה ב-sidebar (polling כל דקה, `GET /messages/unread-count`)
 
 ### Student — MessagesPage `/student/messages`
 - textarea + "שלחי" — הודעה כללית למורה
+- רשימת ההודעות שהיא שלחה: לחיצה על שורה פותחת אותו **Dialog overlay** כמו אצל המורה (עקביות UX) — ההודעה + תגובת המורה (אם יש) + Badge "בקשת הגשה" אם רלוונטי + כפתור מחיקה (רק הודעה שלה)
+- נקודה אדומה על שורה עם תגובה שלא נפתחה עדיין (`replySeen=false`); נפתחת → `PATCH /messages/:id/reply-seen`
+- חיפוש מקומי בדפי Home/Assignments (state מקומי בעמוד, לא global store)
 
 ### Teacher — ReportsPage `/teacher/reports`
 - פילטרים: קבוצה + קורס
@@ -86,8 +94,8 @@ Primary: #C2185B | Secondary: #7C3AED
 - `AuthGuard` — redirect לlogin אם לא מחובר
 - `AdminGuard` — redirect אם לא ADMIN
 - `ChangePasswordGuard` — חסום כל routes אם mustChangePassword=true
-- `TeacherLayout` — sidebar עם nav + badge הודעות
-- `StudentLayout` — header + nav עם "הודעה למורה"
+- `TeacherLayout` — אותה מבנה בדיוק כמו `StudentLayout` (icon rail בצד ימין, אותו header גובה 16, mobile nav, footer): sidebar עם nav + badge הודעות לא-נקראות
+- `StudentLayout` — header + nav עם "הודעה למורה" + badge תגובות לא-נקראות (נקודה אדומה על האייקון, `GET /messages/unread-replies-count`)
 - `MarkdownRenderer` — react-markdown + DOMPurify
 - `FileUpload` — dropzone
 

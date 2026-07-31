@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, Trash2 } from 'lucide-react';
+import { ChevronLeft, Clock, Trash2 } from 'lucide-react';
 import { messagesApi } from '@/api/messages.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,20 +49,32 @@ export default function StudentMessagesPage() {
     },
   });
 
+  const markReplySeenMutation = useMutation({
+    mutationFn: (id: string) => messagesApi.markReplySeen(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['unread-reply-count'] }),
+  });
+
   const messages: any[] = (data?.data as any)?.data?.messages ?? [];
   const openMsg = messages.find((m) => m.id === openId) ?? null;
+
+  function openMessage(msg: any) {
+    setOpenId(msg.id);
+    if (msg.replyContent && !msg.replySeen) markReplySeenMutation.mutate(msg.id);
+  }
 
   // The teacher-reply notification email links straight to this message.
   useEffect(() => {
     const highlight = searchParams.get('highlight');
     if (!highlight || openId) return;
-    if (messages.some((m) => m.id === highlight)) setOpenId(highlight);
+    const msg = messages.find((m) => m.id === highlight);
+    if (msg) openMessage(msg);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, messages]);
 
   return (
-    <div className="mx-auto max-w-lg space-y-4" dir="rtl">
+    <div className="space-y-4" dir="rtl">
       <PageHeader title="הודעה למורה" meta="חדר מורה · צ׳אט" />
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
       <Card accent="indigo">
         <CardHeader><h2 className="font-display text-base font-bold">שלחי הודעה</h2></CardHeader>
         <CardContent className="space-y-3">
@@ -93,13 +105,21 @@ export default function StudentMessagesPage() {
             {messages.map((msg) => (
               <button
                 key={msg.id}
-                onClick={() => setOpenId(msg.id)}
+                onClick={() => openMessage(msg)}
                 className="flex w-full items-center gap-3 px-4 py-3 text-right transition-colors hover:bg-butter/10"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-ink">{msg.content}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-sm font-medium text-ink">{msg.content}</p>
+                    {msg.assignmentId && (
+                      <Badge variant="warning" className="shrink-0"><Clock size={9} className="ml-1" /> בקשת הגשה</Badge>
+                    )}
+                  </div>
                   <p className="text-[11px] text-ink-soft">{formatDateTime(msg.createdAt)}</p>
                 </div>
+                {msg.replyContent && !msg.replySeen && (
+                  <span className="size-2 shrink-0 rounded-full bg-coral" />
+                )}
                 {msg.replyContent
                   ? <Badge variant="success">נענתה</Badge>
                   : <Badge variant="warning">ממתינה</Badge>}
@@ -109,6 +129,7 @@ export default function StudentMessagesPage() {
           </div>
         </div>
       )}
+      </div>
 
       {/* Overlay: full message + teacher's reply, floating above everything — mirrors the teacher's message overlay */}
       <Dialog open={Boolean(openId)} onOpenChange={(o) => { if (!o) setOpenId(null); }}>
@@ -118,6 +139,9 @@ export default function StudentMessagesPage() {
               <DialogHeader>
                 <DialogTitle>ההודעה שלי</DialogTitle>
                 <p className="mt-0.5 text-xs text-ink-soft">{formatDateTime(openMsg.createdAt)}</p>
+                {openMsg.assignmentId && (
+                  <span className="mt-2 inline-flex"><Badge variant="warning"><Clock size={10} className="ml-1" /> בקשת הגשה מאוחרת</Badge></span>
+                )}
               </DialogHeader>
 
               <DialogBody className="space-y-4">

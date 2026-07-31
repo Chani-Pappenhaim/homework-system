@@ -45,7 +45,7 @@ export default function AiUsagePage() {
   const byMonth: any[] = summary?.byMonth ?? [];
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5" dir="rtl">
+    <div className="space-y-5" dir="rtl">
       <PageHeader title="שימוש AI" meta="דוחות · צריכת AI" />
 
       {/* Stats */}
@@ -56,86 +56,88 @@ export default function AiUsagePage() {
         <StatCard icon={<DollarSign size={18} />} tile="mustard" label="עלות מצטברת $" value={`$${(summary?.totalCostUsd ?? 0).toFixed(2)}`} />
       </div>
 
-      {/* Cloudinary storage */}
-      <Card accent="indigo">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-base font-bold">אחסון קבצים · Cloudinary</h2>
-            {storage && (
-              <span
-                className={cn(
-                  'font-sans text-sm font-bold tabular',
-                  storage.percent >= 80 ? 'text-coral' : storage.percent >= 60 ? 'text-clay' : 'text-sage',
-                )}
-              >
-                {Math.round(storage.percent)}%
-              </span>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {storageLoading ? (
-            <div className="h-3 w-full animate-pulse rounded-full bg-ground" />
-          ) : storageError || !storage ? (
-            <p className="rounded-input bg-ground px-3 py-2 text-sm text-ink-soft">
-              לא ניתן לטעון כרגע את נתוני האחסון מ-Cloudinary. ודאי שמפתחות ה-API מוגדרים בשרת.
-            </p>
-          ) : (
-            <>
-              <div className="h-3 w-full overflow-hidden rounded-full bg-ground">
-                <div
+      {/* Cloudinary storage + Monthly breakdown — independent, equal-weight sections side by side on wide screens */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
+        <Card accent="indigo">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-base font-bold">אחסון קבצים · Cloudinary</h2>
+              {storage && (
+                <span
                   className={cn(
-                    'h-full rounded-full transition-all duration-500',
-                    storage.percent >= 80 ? 'bg-coral' : storage.percent >= 60 ? 'bg-butter' : 'bg-sage',
+                    'font-sans text-sm font-bold tabular',
+                    storage.percent >= 80 ? 'text-coral' : storage.percent >= 60 ? 'text-clay' : 'text-sage',
                   )}
-                  style={{ width: `${Math.max(2, Math.min(100, storage.percent))}%` }}
-                />
-              </div>
-              <div className="flex items-center justify-between font-sans text-[11px] text-ink-soft">
-                <span>{formatBytes(storage.usedBytes)} בשימוש</span>
-                <span>מתוך {formatBytes(storage.limitBytes)}</span>
-              </div>
-              {storage.percent >= 80 && (
-                <p className="rounded-input border border-coral/40 bg-coral/10 px-3 py-2 text-sm text-coral">
-                  האחסון עבר 80% — כדאי למחוק קבצים ישנים כדי שהגשות חדשות לא ייכשלו.
-                </p>
+                >
+                  {Math.round(storage.percent)}%
+                </span>
               )}
-            </>
-          )}
-        </CardContent>
-      </Card>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {storageLoading ? (
+              <div className="h-3 w-full animate-pulse rounded-full bg-ground" />
+            ) : storageError || !storage ? (
+              <p className="rounded-input bg-ground px-3 py-2 text-sm text-ink-soft">
+                לא ניתן לטעון כרגע את נתוני האחסון מ-Cloudinary. ודאי שמפתחות ה-API מוגדרים בשרת.
+              </p>
+            ) : (
+              <>
+                <div className="h-3 w-full overflow-hidden rounded-full bg-ground">
+                  <div
+                    className={cn(
+                      'h-full rounded-full transition-all duration-500',
+                      storage.percent >= 80 ? 'bg-coral' : storage.percent >= 60 ? 'bg-butter' : 'bg-sage',
+                    )}
+                    style={{ width: `${Math.max(2, Math.min(100, storage.percent))}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between font-sans text-[11px] text-ink-soft">
+                  <span>{formatBytes(storage.usedBytes)} בשימוש</span>
+                  <span>מתוך {formatBytes(storage.limitBytes)}</span>
+                </div>
+                {storage.percent >= 80 && (
+                  <p className="rounded-input border border-coral/40 bg-coral/10 px-3 py-2 text-sm text-coral">
+                    האחסון עבר 80% — כדאי למחוק קבצים ישנים כדי שהגשות חדשות לא ייכשלו.
+                  </p>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Monthly breakdown */}
-      <Card>
-        <CardHeader>
-          <h2 className="font-display text-base font-bold">פירוט חודשי</h2>
-        </CardHeader>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-rule bg-ground/70 font-sans text-[11px] uppercase text-ink/60">
-                <th className="px-5 py-2.5 text-right font-bold">חודש</th>
-                <th className="px-3 py-2.5 text-right font-bold">בדיקות</th>
-                <th className="px-3 py-2.5 text-right font-bold">חידונים</th>
-                <th className="px-3 py-2.5 text-right font-bold">עלות</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-dashed divide-rule/20">
-              {byMonth.length === 0 && (
-                <tr><td colSpan={4} className="px-5 py-4 text-center text-ink/50">אין נתוני שימוש עדיין</td></tr>
-              )}
-              {byMonth.map((m) => (
-                <tr key={m.month} className="transition-colors hover:bg-butter/15">
-                  <td className="px-5 py-3 font-bold text-ink">{formatMonth(m.month)}</td>
-                  <td className="px-3 py-3 font-sans text-ink/70 tabular">{m.reviews}</td>
-                  <td className="px-3 py-3 font-sans text-ink/70 tabular">{m.quizzes}</td>
-                  <td className="px-3 py-3 font-sans text-ink/70 tabular">${(m.costUsd ?? 0).toFixed(2)}</td>
+        {/* Monthly breakdown */}
+        <Card>
+          <CardHeader>
+            <h2 className="font-display text-base font-bold">פירוט חודשי</h2>
+          </CardHeader>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-rule bg-ground/70 font-sans text-[11px] uppercase text-ink/60">
+                  <th className="px-5 py-2.5 text-right font-bold">חודש</th>
+                  <th className="px-3 py-2.5 text-right font-bold">בדיקות</th>
+                  <th className="px-3 py-2.5 text-right font-bold">חידונים</th>
+                  <th className="px-3 py-2.5 text-right font-bold">עלות</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+              </thead>
+              <tbody className="divide-y divide-dashed divide-rule/20">
+                {byMonth.length === 0 && (
+                  <tr><td colSpan={4} className="px-5 py-4 text-center text-ink/50">אין נתוני שימוש עדיין</td></tr>
+                )}
+                {byMonth.map((m) => (
+                  <tr key={m.month} className="transition-colors hover:bg-butter/15">
+                    <td className="px-5 py-3 font-bold text-ink">{formatMonth(m.month)}</td>
+                    <td className="px-3 py-3 font-sans text-ink/70 tabular">{m.reviews}</td>
+                    <td className="px-3 py-3 font-sans text-ink/70 tabular">{m.quizzes}</td>
+                    <td className="px-3 py-3 font-sans text-ink/70 tabular">${(m.costUsd ?? 0).toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -32,7 +32,7 @@ export default function GroupsPage() {
   if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5" dir="rtl">
+    <div className="space-y-5" dir="rtl">
       <PageHeader
         title="קבוצות"
         meta="ניהול · קבוצות"
@@ -46,7 +46,7 @@ export default function GroupsPage() {
       {groups.length === 0 ? (
         <EmptyState icon={<Users size={22} />}>אין קבוצות עדיין</EmptyState>
       ) : (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {groups.map((g, i) => {
             const accent = ACCENTS[i % ACCENTS.length];
             return (

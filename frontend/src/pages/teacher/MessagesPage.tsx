@@ -80,7 +80,7 @@ export default function TeacherMessagesPage() {
   }, [searchParams, messages]);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4" dir="rtl">
+    <div className="space-y-4" dir="rtl">
       <PageHeader title="הודעות מתלמידות" meta="תיבת דואר · נכנס" />
 
       {isLoading ? (

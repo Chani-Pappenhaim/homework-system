@@ -26,7 +26,7 @@ export default function StudentCourseDetailPage() {
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5" dir="rtl">
+    <div className="space-y-5" dir="rtl">
       <PageHeader
         title={course.name}
         meta={`${course.groupName} · ${course.year}`}
@@ -77,29 +77,32 @@ export default function StudentCourseDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Links */}
-      {course.links.length > 0 && (
-        <Card>
-          <CardHeader><h2 className="font-display text-base font-bold">קישורים שימושיים</h2></CardHeader>
-          <CardContent className="space-y-2">
-            {course.links.map((l) => (
-              <a key={l.id} href={toExternalUrl(l.url)} target="_blank" rel="noreferrer"
-                className="flex items-center gap-2 text-sm text-clay hover:underline">
-                <ExternalLink size={13} /> {l.label}
-              </a>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+      {/* Links + Files — two independent lists, side by side on wide screens */}
+      {(course.links.length > 0 || course.files.length > 0) && (
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          {course.links.length > 0 && (
+            <Card>
+              <CardHeader><h2 className="font-display text-base font-bold">קישורים שימושיים</h2></CardHeader>
+              <CardContent className="space-y-2">
+                {course.links.map((l) => (
+                  <a key={l.id} href={toExternalUrl(l.url)} target="_blank" rel="noreferrer"
+                    className="flex items-center gap-2 text-sm text-clay hover:underline">
+                    <ExternalLink size={13} /> {l.label}
+                  </a>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
-      {/* Files */}
-      {course.files.length > 0 && (
-        <Card>
-          <CardHeader><h2 className="font-display text-base font-bold">חומרי עזר</h2></CardHeader>
-          <CardContent>
-            <FileGallery files={course.files} />
-          </CardContent>
-        </Card>
+          {course.files.length > 0 && (
+            <Card>
+              <CardHeader><h2 className="font-display text-base font-bold">חומרי עזר</h2></CardHeader>
+              <CardContent>
+                <FileGallery files={course.files} />
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
     </div>
   );

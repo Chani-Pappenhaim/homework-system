@@ -40,7 +40,7 @@
 
 **AiUsageLog:** `type` ("homework_review" | "quiz_generation"), `tokensInput`, `tokensOutput`, `costUsd`
 
-**TeacherMessage:** `assignmentId String?` — אם קיים → בקשת הגשה מאוחרת למטלה ספציפית; `isRead Boolean`
+**TeacherMessage:** `assignmentId String?` — אם קיים → בקשת הגשה מאוחרת למטלה ספציפית; `isRead Boolean` (המורה קראה); `replyContent String?` + `repliedAt DateTime?` (תגובת המורה); `replySeen Boolean` (התלמידה פתחה את התגובה — מתאפס ל-false בכל תגובה חדשה)
 
 ## Schema (מלא)
 
@@ -203,6 +203,9 @@ model TeacherMessage {
   content String
   assignmentId String?
   isRead Boolean @default(false)
+  replyContent String?
+  repliedAt DateTime?
+  replySeen Boolean @default(false)
   createdAt DateTime @default(now())
 }
 

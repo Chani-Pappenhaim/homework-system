@@ -1,9 +1,11 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Home, ClipboardList, MessageSquare, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import useAuthStore from '@/store/authStore';
 import { authApi } from '@/api/auth.api';
-import { Brand } from '@/components/decor';
+import { messagesApi } from '@/api/messages.api';
+import { Brand, DevSignature } from '@/components/decor';
 
 const nav = [
   { to: '/student', label: 'בית', icon: Home, end: true },
@@ -14,6 +16,13 @@ const nav = [
 export default function StudentLayout() {
   const { user, clearAuth } = useAuthStore();
   const navigate = useNavigate();
+
+  const { data: unreadReplyData } = useQuery({
+    queryKey: ['unread-reply-count'],
+    queryFn: () => messagesApi.getUnreadReplyCount(),
+    refetchInterval: 60_000,
+  });
+  const unreadReplyCount: number = (unreadReplyData?.data as any)?.data?.count ?? 0;
 
   async function handleLogout() {
     await authApi.logout().catch(() => {});
@@ -62,6 +71,9 @@ export default function StudentLayout() {
                   )}
                 >
                   <Icon size={20} />
+                  {to === '/student/messages' && unreadReplyCount > 0 && (
+                    <span className="absolute -left-1 -top-1 size-2 rounded-full bg-coral" />
+                  )}
                   <span className="pointer-events-none absolute right-12 top-1/2 z-50 -translate-y-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-sheet opacity-0 shadow-lift transition-opacity group-hover:opacity-100">
                     {label}
                   </span>
@@ -72,7 +84,10 @@ export default function StudentLayout() {
         </nav>
 
         <main className="min-w-0 flex-1 px-4 py-8 md:px-10">
-          <Outlet />
+          {/* Every page shares this exact width, so the canvas lines up consistently across the app. */}
+          <div className="mx-auto max-w-6xl">
+            <Outlet />
+          </div>
         </main>
       </div>
 
@@ -90,10 +105,14 @@ export default function StudentLayout() {
         ))}
       </nav>
 
-      <footer className="hidden border-t border-rule bg-sheet/50 md:block">
-        <div className="flex items-center justify-between px-6 py-3 text-[11px] text-ink-soft">
+      <footer className="sticky bottom-0 z-30 hidden border-t border-rule bg-sheet/90 backdrop-blur-sm md:block">
+        <div className="flex items-center justify-between gap-4 px-6 py-3 text-[11px] text-ink-soft">
           <span>Teacher Feature · המורה עדי שלום</span>
-          <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-sage" /> מחובר</span>
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-sage" /> מחובר</span>
+            <span className="h-3 w-px bg-rule" />
+            <DevSignature />
+          </div>
         </div>
       </footer>
     </div>

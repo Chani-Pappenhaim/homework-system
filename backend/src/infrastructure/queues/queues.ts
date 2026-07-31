@@ -1,12 +1,6 @@
 import { Queue, DefaultJobOptions } from 'bullmq';
 import { sharedConnection } from '../redis/connection';
-import type {
-  EmailJobData,
-  QuizJobData,
-  AiReviewJobData,
-  DeadlineJobData,
-  StorageJobData,
-} from './job-types';
+import type { EmailJobData, QuizJobData, AiReviewJobData } from './job-types';
 
 // Shared, deliberately moderate defaults for every queue: a few retries with
 // exponential backoff for transient failures, and automatic cleanup so Redis
@@ -35,17 +29,13 @@ export const aiReviewQueue = new Queue<AiReviewJobData>('ai-review', {
   defaultJobOptions,
 });
 
-export const deadlineQueue = new Queue<DeadlineJobData>('deadline-check', {
-  connection: sharedConnection,
-  defaultJobOptions,
-});
-
-export const storageQueue = new Queue<StorageJobData>('storage-monitor', {
-  connection: sharedConnection,
-  defaultJobOptions,
-});
-
-export const allQueues = [emailQueue, quizQueue, aiReviewQueue, deadlineQueue, storageQueue];
+// deadline-check and storage-monitor are NOT BullMQ queues: nothing ever
+// enqueues an external job into them, they only ever ran their own
+// self-triggered repeatable job. Giving a purely self-scheduled periodic task
+// a full BullMQ Queue + Worker (its own blocking Redis connection, idle
+// long-polling, stalled-job checks) buys nothing over a plain in-process
+// setInterval — see workers/scheduled-tasks.ts.
+export const allQueues = [emailQueue, quizQueue, aiReviewQueue];
 
 export async function closeQueues(): Promise<void> {
   await Promise.all(allQueues.map((q) => q.close()));
