@@ -2,6 +2,7 @@ import { sendMail } from '../services/email.service';
 import type { EmailJobData, EmailJobMap, EmailJobName } from './email.types';
 import {
   resetPasswordHtml,
+  forgotPasswordLinkHtml,
   storageAlertHtml,
   studentMessageHtml,
   teacherReplyHtml,
@@ -19,6 +20,12 @@ export async function handleEmailJob(name: EmailJobName, data: EmailJobData): Pr
     case 'reset-password': {
       const d = data as EmailJobMap['reset-password'];
       await sendMail({ to: d.email, subject: 'איפוס סיסמא', html: resetPasswordHtml(d) });
+      return;
+    }
+
+    case 'forgot-password-link': {
+      const d = data as EmailJobMap['forgot-password-link'];
+      await sendMail({ to: d.email, subject: 'איפוס סיסמא', html: forgotPasswordLinkHtml(d) });
       return;
     }
 

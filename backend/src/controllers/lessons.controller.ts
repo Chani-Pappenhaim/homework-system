@@ -110,6 +110,18 @@ export async function grantLessonAccess(req: Request, res: Response) {
   }
 }
 
+export async function grantLessonAccessBulk(req: Request, res: Response) {
+  try {
+    const { groupId, emails } = req.body as { groupId?: string; emails?: string[] };
+    const result = groupId
+      ? await lessonsService.grantLessonAccessByGroup(req.params.id as string, groupId)
+      : await lessonsService.grantLessonAccessByEmails(req.params.id as string, emails ?? []);
+    res.status(201).json({ success: true, data: result });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
 export async function revokeLessonAccess(req: Request, res: Response) {
   try {
     await lessonsService.revokeLessonAccess(req.params.id as string, req.params.studentId as string);

@@ -140,7 +140,7 @@ export async function deleteCourseLink(courseId: string, linkId: string) {
 }
 
 export async function uploadCourseFile(courseId: string, buffer: Buffer, originalName: string, mimeType: string, displayName?: string) {
-  const uploaded = await uploadBuffer(buffer, mimeType, 'courses');
+  const uploaded = await uploadBuffer(buffer, mimeType, 'courses', originalName);
   const file = await prisma.courseFile.create({
     data: { courseId, name: displayName?.trim() || originalName, url: uploaded.url, sizeBytes: uploaded.bytes },
   });

@@ -3,6 +3,7 @@ import { prisma } from '../config/prisma';
 import ExcelJS from 'exceljs';
 import { emailQueue } from '../infrastructure/queues/queues';
 import { deleteCourse } from './courses.service';
+import { cellText, isValidEmail, normalizeGithubUsername, buildTemplateWorkbook } from '../utils/excel';
 
 export async function getGroups() {
   const groups = await prisma.group.findMany({
@@ -43,9 +44,35 @@ export async function updateGroup(id: string, data: { name?: string; seminar?: s
   return { ...group, studentCount: count };
 }
 
+/**
+ * Adding a student whose email already exists elsewhere (a different group)
+ * is a legitimate cross-group enrollment, not a collision — this used to
+ * throw "Email already exists" for that case too, which silently blocked a
+ * teacher from re-using the same student account in a second group.
+ * The one real collision is the same email already in *this* group.
+ * The existing account's name/GitHub username are never overwritten — a
+ * `warning` is returned instead so the caller can tell the teacher that the
+ * name they typed didn't change an existing record with a different name.
+ */
 export async function addStudent(groupId: string, name: string, email: string, githubUsername?: string) {
+  email = email.trim().toLowerCase();
+  if (!isValidEmail(email)) throw Object.assign(new Error('כתובת אימייל לא תקינה'), { status: 400 });
+  githubUsername = githubUsername ? normalizeGithubUsername(githubUsername) : undefined;
+
   const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) throw Object.assign(new Error('Email already exists'), { status: 409 });
+
+  if (existing) {
+    const alreadyInGroup = await prisma.studentGroup.findUnique({
+      where: { studentId_groupId: { studentId: existing.id, groupId } },
+    });
+    if (alreadyInGroup) throw Object.assign(new Error('תלמידה עם המייל הזה כבר נמצאת בקבוצה זו'), { status: 409 });
+
+    await prisma.studentGroup.create({ data: { studentId: existing.id, groupId } });
+    const warning = existing.name !== name
+      ? `קיימת כבר תלמידה עם המייל הזה בשם "${existing.name}" — היא נוספה לקבוצה, השם החדש לא נשמר`
+      : undefined;
+    return { id: existing.id, name: existing.name, email: existing.email, githubUsername: existing.githubUsername, warning };
+  }
 
   const hashed = await bcrypt.hash('12345678', 12);
   const student = await prisma.user.create({
@@ -57,6 +84,34 @@ export async function addStudent(groupId: string, name: string, email: string, g
 
 export async function removeStudent(groupId: string, studentId: string) {
   await prisma.studentGroup.delete({ where: { studentId_groupId: { studentId, groupId } } });
+}
+
+export async function removeStudents(groupId: string, studentIds: string[]) {
+  const result = await prisma.studentGroup.deleteMany({ where: { groupId, studentId: { in: studentIds } } });
+  return { removed: result.count };
+}
+
+export async function updateStudent(
+  groupId: string,
+  studentId: string,
+  data: { name?: string; email?: string; githubUsername?: string }
+) {
+  const inGroup = await prisma.studentGroup.findUnique({ where: { studentId_groupId: { studentId, groupId } } });
+  if (!inGroup) throw Object.assign(new Error('Student not found in this group'), { status: 404 });
+
+  const update: { name?: string; email?: string; githubUsername?: string | null } = {};
+  if (data.name !== undefined) update.name = data.name.trim();
+  if (data.githubUsername !== undefined) update.githubUsername = normalizeGithubUsername(data.githubUsername) || null;
+  if (data.email !== undefined) {
+    const email = data.email.trim().toLowerCase();
+    if (!isValidEmail(email)) throw Object.assign(new Error('כתובת אימייל לא תקינה'), { status: 400 });
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing && existing.id !== studentId) throw Object.assign(new Error('כתובת המייל הזו כבר בשימוש'), { status: 409 });
+    update.email = email;
+  }
+
+  const student = await prisma.user.update({ where: { id: studentId }, data: update });
+  return { id: student.id, name: student.name, email: student.email, githubUsername: student.githubUsername };
 }
 
 // Deletes a group. Student memberships (StudentGroup) cascade automatically, but
@@ -93,10 +148,11 @@ export async function importStudents(groupId: string, buffer: Buffer) {
 
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1) return; // skip header
-    const name = String(row.getCell(1).value ?? '').trim();
-    const email = String(row.getCell(2).value ?? '').trim();
-    const githubUsername = String(row.getCell(3).value ?? '').trim() || null;
-    if (!name || !email) { errors.push(`Row ${rowNumber}: missing name or email`); return; }
+    const name = cellText(row.getCell(1)).trim();
+    const email = cellText(row.getCell(2)).trim().toLowerCase();
+    const githubUsername = normalizeGithubUsername(cellText(row.getCell(3))) || null;
+    if (!name || !email) { errors.push(`שורה ${rowNumber}: חסר שם או אימייל`); return; }
+    if (!isValidEmail(email)) { errors.push(`שורה ${rowNumber}: כתובת אימייל לא תקינה (${email})`); return; }
     rows.push({ rowNumber, name, email, githubUsername });
   });
 
@@ -118,11 +174,15 @@ export async function importStudents(groupId: string, buffer: Buffer) {
         skipped++;
       }
     } catch {
-      errors.push(`Row ${rowNumber}: failed to process ${email}`);
+      errors.push(`שורה ${rowNumber}: שגיאה בעיבוד ${email}`);
     }
   }
 
   return { imported, skipped, errors };
+}
+
+export function buildStudentImportTemplate() {
+  return buildTemplateWorkbook(['name', 'email', 'githubUsername'], ['ישראלה ישראלי', 'student@example.com', 'israela-gh']);
 }
 
 export async function resetStudentPassword(studentId: string) {

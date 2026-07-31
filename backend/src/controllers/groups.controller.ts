@@ -59,6 +59,24 @@ export async function removeStudent(req: Request, res: Response) {
   }
 }
 
+export async function removeStudents(req: Request, res: Response) {
+  try {
+    const result = await groupsService.removeStudents(req.params.id as string, req.body.studentIds ?? []);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function updateStudent(req: Request, res: Response) {
+  try {
+    const student = await groupsService.updateStudent(req.params.id as string, req.params.studentId as string, req.body);
+    res.json({ success: true, data: { student } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
 export async function importStudents(req: Request, res: Response) {
   try {
     if (!req.file) { res.status(400).json({ success: false, error: 'No file uploaded' }); return; }
@@ -67,6 +85,13 @@ export async function importStudents(req: Request, res: Response) {
   } catch (err: any) {
     sendError(res, err);
   }
+}
+
+export async function downloadImportTemplate(_req: Request, res: Response) {
+  const buffer = await groupsService.buildStudentImportTemplate();
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename=students-import-template.xlsx');
+  res.send(buffer);
 }
 
 export async function resetPassword(req: Request, res: Response) {

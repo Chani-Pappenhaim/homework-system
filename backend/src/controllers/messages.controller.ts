@@ -17,7 +17,9 @@ export async function sendMessage(req: Request, res: Response) {
     });
     try {
       await emailQueue.add('student-message', {
+        messageId: message.id,
         studentName: message.student.name,
+        studentEmail: message.student.email,
         content: message.content,
       });
     } catch (err) {
@@ -66,6 +68,7 @@ export async function replyMessage(req: Request, res: Response) {
     });
     try {
       await emailQueue.add('teacher-reply', {
+        messageId: message.id,
         studentEmail: message.student.email,
         studentName: message.student.name,
         originalContent: message.content,

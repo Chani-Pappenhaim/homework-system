@@ -21,6 +21,7 @@ router.delete('/:id/files/:fileId', requireRole('ADMIN'), lessonsController.dele
 router.post('/:id/import-md', requireRole('ADMIN'), upload.single('file'), lessonsController.importMarkdown);
 router.get('/:id/access', requireRole('ADMIN'), lessonsController.getLessonAccess);
 router.post('/:id/access', requireRole('ADMIN'), lessonsController.grantLessonAccess);
+router.post('/:id/access/bulk', requireRole('ADMIN'), lessonsController.grantLessonAccessBulk);
 router.delete('/:id/access/:studentId', requireRole('ADMIN'), lessonsController.revokeLessonAccess);
 
 export default router;

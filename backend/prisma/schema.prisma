@@ -21,6 +21,8 @@ model User {
   githubUsername     String?
   oauthProvider      String?
   oauthId            String?
+  resetTokenHash        String?
+  resetTokenExpiresAt   DateTime?
   createdAt          DateTime @default(now())
 
   studentGroups    StudentGroup[]
@@ -95,6 +97,7 @@ model Lesson {
   lessonDate DateTime?
   contentMd  String?
   githubUrl  String?
+  githubUrls String[]  @default([])
   hidden     Boolean   @default(false)
   order      Int       @default(0)
   createdAt  DateTime  @default(now())

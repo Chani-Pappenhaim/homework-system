@@ -2,6 +2,36 @@
 
 > קובץ זה עוקב אחרי מה שהושלם ומה שנשאר. יש לעדכן אותו בסוף כל שיחה שבה נעשתה עבודה.
 
+## 20 תיקונים מ"תיקונים ותוספות.txt" (2026-07-31, branch `feature/homework-fixes-batch`, worktree נפרד — טרם מוזג ל-main)
+**⚠️ שוב התנגשות בין-סשנים (כמו למטה):** עבודה על branch נמשך נסחפה ל-stash כשעברו branch בתיקייה הראשית. שוחזר במלואו ב-worktree ייעודי (`homework-fixes-batch-worktree`), tsc נקי backend+frontend.
+**כל 20 הסעיפים מומשו:** ErrorBoundary גלובלי; `FileGallery` (רשת קבצים+preview בחלון צף, גם בהעלאה); הרשאה חריגה לשיעור לפי קבוצה/קובץ-מיילים + directory `/api/students` עם autocomplete; Google OAuth `prompt=select_account`; **forgot-password מלא** (token+email, `User.resetTokenHash/Expires` **שדה DB חדש**) + הצג-סיסמא בכל שדה; מחיקה מרובה+עריכת תלמידה+ConfirmDialog במקום `confirm()`; תוקן באג חסימת הוספת תלמידה שכבר בקבוצה אחרת; תוקן "[object Object]" בייבוא אקסל (hyperlink cells) + ולידציית מייל; קובץ-דוגמה להורדה בייבוא; קבצי Cloudinary נשמרים עם שם+סיומת אמיתיים; `Lesson.githubUrls String[]` **שדה DB חדש** (כמה קישורים) + גרירה לסידור שיעורים; טולטיפ נושא+רענון מיידי; תאריך דיפולטיבי+תאריך עברי (Intl, בלי ספרייה); מיון/סינון רשימת תלמידות; מיילים עם קישור ישיר להודעה (`?highlight=`) + mailto.
+**⚠️ 2 migrations לפני push:** `Lesson.githubUrls`, `User.resetTokenHash/resetTokenExpiresAt`. פירוט מלא + כל הקבצים שהשתנו בזיכרון האישי של הסוכן (`memory project-progress`).
+**נשאר:** migration → קומיט → **לתאם מיזוג ל-main** מול branch נוסף לא-מוזג (`design/unify-teacher-student-ui`, ראה למטה — יש לו גם migration משלו ל-`replySeen`!) ומול `fix/redis-bullmq-excessive-requests` (בעבודה פעילה, לא לגעת).
+
+## אחידות עיצוב + חפיפת פיצ'רים מורה/תלמידה (2026-07-31, branch `design/unify-teacher-student-ui` — טרם מוזג)
+
+**חשוב — ריצה מקבילה עם סשן Claude Code אחר באותה תיקייה:** באמצע העבודה התגלה שסשן אחר (worktrees תחת session id שונה, `076715d0-...`) עבד באותה תיקיית repo הראשית בו-זמנית, ועבר branch (`feature/backend-direct-video-upload`) שסחף איתו קומיט אחד שלי. תוקן ע"י cherry-pick לענף הנכון; הענף של הסשן האחר לא נגעתי בו לפי בקשת המשתמשת. **מכאן והלאה כל העבודה בוצעה ב-git worktree ייעודי** (לא בתיקייה הראשית!) תחת `%LOCALAPPDATA%\Temp\claude\...\scratchpad\wt-design`, כדי לא להתנגש שוב. **לתשומת לב שיחות עתידיות:** אם יש שני סשנים על אותו repo — לשקול worktree מההתחלה.
+
+**מה נעשה (הכל ב-branch `design/unify-teacher-student-ui`, 5 קומיטים, טרם מוזג ל-main):**
+1. **מחיקת הודעות** — `DELETE /messages/:id` (מורה, כל השיחה), `DELETE /messages/:id/reply` (מורה, רק התגובה), `DELETE /messages/:id/mine` (תלמידה, הודעה עצמית).
+2. **דיאלוג צף אצל התלמידה** — `student/MessagesPage.tsx` נבנה מחדש עם Dialog overlay לצפייה בהודעה+תגובה, בדיוק כמו `teacher/MessagesPage.tsx` (זו הייתה התלונה המקורית: "אצל המורה יש צף, אצל התלמידה לא").
+3. **פריסת דפים "מפוזרת" במקום עמודה צרה** — כל דפי הפירוט (קורס/קבוצה/שיעור אצל שניהם, טפסי קורס/קבוצה, AI usage, מטלות, תוצאות חידון) הורחבו ל-grid רב-עמודות (`lg:grid-cols-2/3`) כשיש קטעים עצמאיים שוות-משקל, במקום מוערמים בטור אחד. `ReportsPage` נשאר בכוונה (טבלה זקוקה לרוחב מלא).
+4. **ביקורת חפיפת פיצ'רים** (Explore agent) מצאה 6 פערים אמיתיים בין המורה לתלמידה — כולם מומשו:
+   - תוצאות חידון בדף השיעור של המורה (backend כבר תמך, רק חסר UI).
+   - `aiCodeReview` מוצג גם למורה במודל הציון (היה רק לתלמידה).
+   - כפתור "אפשרי בדיקת AI נוספת" למורה + זרימת "בקשי בדיקה נוספת מהמורה" לתלמידה כשמגיעה למגבלה (מזהה לפי הודעת שגיאה מדויקת `'AI review limit reached'` מה-backend).
+   - מונה "X/Y תלמידות סיימו" על בועות השיעור בדף הקורס של המורה (query חדש, **בלי migration** — `LessonProgress` כבר קיים; `courses.service.ts::getCourseById` מחזיר `completedCount`/`groupStudentCount` ל-ADMIN בלבד).
+   - חיפוש מקומי בדפי Assignments/Home של התלמידה (state מקומי, לא ה-store הגלובלי של המורה).
+   - תג "בקשת הגשה מאוחרת" מוצג גם אצל התלמידה על ההודעות שלה עצמה.
+5. **⚠️ שדה DB חדש — דורש migration:** `TeacherMessage.replySeen Boolean @default(false)` (התראת "תגובה לא נקראה" אצל התלמידה, מקבילה לפעמון ההודעות של המורה). נוספו `GET /messages/unread-replies-count` ו-`PATCH /messages/:id/reply-seen` (STUDENT), ונקודה אדומה על אייקון "הודעה למורה" ב-`StudentLayout`. **לפני build:** להריץ migration (ראה סקיל `run-migration`) — בלעדיו ה-backend ייכשל על `replySeen` לא קיים בעמודה.
+
+**הערה טכנית — tsc מקומי דרך Bash tool:** יש bug סביבתי במחשב הזה — `npx tsc` / `node node_modules/typescript/bin/tsc` דרך ה-Bash tool מחזיר עשרות שגיאות "Cannot find module 'lucide-react'" גם על קבצים שלא נגעו בהם. **דרך PowerShell אותה פקודה בדיוק רצה נקי (exit 0).** אם tsc "נשבר" פתאום על כל הקבצים — לנסות PowerShell לפני שמניחים שיש שגיאה אמיתית.
+
+**נשאר לעשות:**
+- להריץ migration ל-`replySeen` (המשתמשת, מהמחשב — לא Docker).
+- למזג `design/unify-teacher-student-ui` ל-main (טרם נדחף/מוזג — יש לתאם עם הסשן המקביל שגילינו).
+- לבדוק ויזואלית ב-docker (build לא נבדק בפועל בשיחה הזו, רק tsc + סקירת diff).
+
 ## סטטוס נוכחי (2026-07-20)
 
 המערכת עולה ורצה במלואה עם Docker Compose (`docker compose -p homework-app up -d --build`):
