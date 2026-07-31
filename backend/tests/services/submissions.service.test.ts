@@ -5,16 +5,18 @@ vi.mock('../../src/config/prisma', () => ({
     assignment: { findUnique: vi.fn(), findMany: vi.fn(), findFirst: vi.fn() },
     user: { findUnique: vi.fn() },
     submission: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
-    grade: { findUnique: vi.fn() },
+    grade: { findUnique: vi.fn(), upsert: vi.fn() },
   },
 }));
 
-const { uploadMock, assertAccessMock } = vi.hoisted(() => ({
+const { uploadMock, signatureMock, assertAccessMock } = vi.hoisted(() => ({
   uploadMock: vi.fn(),
+  signatureMock: vi.fn(),
   assertAccessMock: vi.fn(),
 }));
 vi.mock('../../src/utils/storage', () => ({
   uploadBuffer: uploadMock,
+  createUploadSignature: signatureMock,
 }));
 vi.mock('../../src/utils/access', () => ({
   assertLessonAccess: assertAccessMock,
@@ -27,6 +29,7 @@ import {
   getMySubmissions,
   getSubmissionById,
   importSubmissions,
+  getVideoUploadSignature,
 } from '../../src/services/submissions.service';
 
 async function xlsxBuffer(rows: string[][]): Promise<Buffer> {
@@ -118,6 +121,25 @@ describe('submissions.service.submitAssignment', () => {
     await expect(submitAssignment('a1', 's1', {})).rejects.toMatchObject({ status: 400 });
   });
 
+  it('stores an already-uploaded file url without touching storage.uploadBuffer', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment({ allowedTypes: ['mp4'] }));
+    p.submission.findUnique.mockResolvedValue(null);
+    p.submission.create.mockImplementation(({ data }: any) => Promise.resolve(data));
+    const r: any = await submitAssignment('a1', 's1', {
+      uploadedFile: { url: 'https://cdn/clip.mp4', originalName: 'clip.mp4' },
+    });
+    expect(uploadMock).not.toHaveBeenCalled();
+    expect(r.fileUrl).toBe('https://cdn/clip.mp4');
+    expect(r.fileName).toBe('clip.mp4');
+  });
+
+  it('rejects an already-uploaded file whose extension is not allowed', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment({ allowedTypes: ['pdf'] }));
+    await expect(submitAssignment('a1', 's1', {
+      uploadedFile: { url: 'https://cdn/clip.mp4', originalName: 'clip.mp4' },
+    })).rejects.toMatchObject({ status: 400 });
+  });
+
   it('computes isLate=true when deadline is in the past', async () => {
     p.assignment.findUnique.mockResolvedValue(baseAssignment({ deadline: new Date('2000-01-01') }));
     p.user.findUnique.mockResolvedValue({ githubUsername: 'g' });
@@ -144,6 +166,33 @@ describe('submissions.service.submitAssignment', () => {
     await submitAssignment('a1', 's1', { repoName: 'r' });
     expect(p.submission.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'sub1' } }));
     expect(p.submission.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('submissions.service.getVideoUploadSignature', () => {
+  it('throws 404 when the assignment does not exist', async () => {
+    p.assignment.findUnique.mockResolvedValue(null);
+    await expect(getVideoUploadSignature('a1', 's1')).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('throws 403 when the student has no lesson access', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment());
+    assertAccessMock.mockRejectedValue(Object.assign(new Error('Forbidden'), { status: 403 }));
+    await expect(getVideoUploadSignature('a1', 's1')).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('throws 400 when allowFile is false', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment({ allowFile: false }));
+    await expect(getVideoUploadSignature('a1', 's1')).rejects.toMatchObject({ status: 400 });
+    expect(signatureMock).not.toHaveBeenCalled();
+  });
+
+  it('returns signed params for the submissions folder', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment());
+    signatureMock.mockReturnValue({ timestamp: 1, signature: 'sig', apiKey: 'k', cloudName: 'c', folder: 'submissions' });
+    const r = await getVideoUploadSignature('a1', 's1');
+    expect(signatureMock).toHaveBeenCalledWith('submissions');
+    expect(r).toMatchObject({ signature: 'sig', folder: 'submissions' });
   });
 });
 

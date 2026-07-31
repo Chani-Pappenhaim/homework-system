@@ -43,6 +43,28 @@ export async function destroyByUrl(url: string): Promise<void> {
   }
 }
 
+/**
+ * Signed params for a browser-to-Cloudinary direct upload.
+ *
+ * The file bytes never touch our Node process this way — needed for video
+ * submissions, which were blowing past Render's 512MB memory limit going
+ * through multer.memoryStorage() + a base64 buffer copy in uploadBuffer.
+ */
+export function createUploadSignature(folder: string) {
+  const timestamp = Math.round(Date.now() / 1000);
+  const signature = cloudinary.utils.api_sign_request(
+    { timestamp, folder },
+    process.env.CLOUDINARY_API_SECRET as string
+  );
+  return {
+    timestamp,
+    signature,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    folder,
+  };
+}
+
 /** Prisma returns sizeBytes as BigInt, which JSON.stringify throws on. */
 export function toFileDTO<T extends { sizeBytes?: bigint | null }>(file: T) {
   return { ...file, sizeBytes: file.sizeBytes?.toString() ?? null };

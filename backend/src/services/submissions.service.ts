@@ -1,5 +1,5 @@
 import { prisma } from '../config/prisma';
-import { uploadBuffer } from '../utils/storage';
+import { uploadBuffer, createUploadSignature } from '../utils/storage';
 import { assertLessonAccess } from '../utils/access';
 import { computeSubmissionScore } from '../utils/grading';
 import ExcelJS from 'exceljs';
@@ -11,6 +11,9 @@ export async function submitAssignment(
     notes?: string;
     checklist?: unknown;
     file?: { buffer: Buffer; originalName: string; mimeType: string };
+    // Already uploaded straight from the browser to Cloudinary (videos) —
+    // the server only ever sees the resulting URL, never the file bytes.
+    uploadedFile?: { url: string; originalName: string };
   }
 ) {
   const assignment = await prisma.assignment.findUnique({
@@ -30,17 +33,22 @@ export async function submitAssignment(
     const student = await prisma.user.findUnique({ where: { id: studentId } });
     if (!student?.githubUsername) throw Object.assign(new Error('No GitHub username set for your account'), { status: 400 });
     githubUrl = `https://github.com/${student.githubUsername}/${payload.repoName}`;
-  } else if (payload.file) {
+  } else if (payload.file || payload.uploadedFile) {
     if (!assignment.allowFile) throw Object.assign(new Error('File upload not allowed for this assignment'), { status: 400 });
+    const originalName = payload.file ? payload.file.originalName : payload.uploadedFile!.originalName;
     if (assignment.allowedTypes.length > 0) {
-      const ext = payload.file.originalName.split('.').pop()?.toLowerCase() ?? '';
+      const ext = originalName.split('.').pop()?.toLowerCase() ?? '';
       if (!assignment.allowedTypes.includes(ext)) {
         throw Object.assign(new Error(`File type not allowed. Allowed: ${assignment.allowedTypes.join(', ')}`), { status: 400 });
       }
     }
-    const uploaded = await uploadBuffer(payload.file.buffer, payload.file.mimeType, 'submissions');
-    fileUrl = uploaded.url;
-    fileName = payload.file.originalName;
+    if (payload.file) {
+      const uploaded = await uploadBuffer(payload.file.buffer, payload.file.mimeType, 'submissions');
+      fileUrl = uploaded.url;
+    } else {
+      fileUrl = payload.uploadedFile!.url;
+    }
+    fileName = originalName;
   } else {
     throw Object.assign(new Error('No file or repo name provided'), { status: 400 });
   }
@@ -72,6 +80,17 @@ export async function submitAssignment(
   });
 
   return submission;
+}
+
+/** Signed params so a student's browser can upload a video straight to Cloudinary. */
+export async function getVideoUploadSignature(assignmentId: string, studentId: string) {
+  const assignment = await prisma.assignment.findUnique({ where: { id: assignmentId } });
+  if (!assignment) throw Object.assign(new Error('Assignment not found'), { status: 404 });
+
+  await assertLessonAccess(studentId, 'STUDENT', assignment.lessonId);
+  if (!assignment.allowFile) throw Object.assign(new Error('File upload not allowed for this assignment'), { status: 400 });
+
+  return createUploadSignature('submissions');
 }
 
 interface SubmissionAiFields {

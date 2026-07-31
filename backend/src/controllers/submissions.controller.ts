@@ -20,12 +20,23 @@ export async function submit(req: Request, res: Response) {
       ? { repoName: req.body.repoName as string, notes: req.body.notes as string | undefined, checklist }
       : req.file
         ? { file: { buffer: req.file.buffer, originalName: req.file.originalname, mimeType: req.file.mimetype }, notes: req.body.notes as string | undefined, checklist }
-        : null;
+        : req.body.uploadedFile
+          ? { uploadedFile: { url: req.body.uploadedFile.url as string, originalName: req.body.uploadedFile.originalName as string }, notes: req.body.notes as string | undefined, checklist }
+          : null;
 
     if (!payload) { res.status(400).json({ success: false, error: 'No file or repo name provided' }); return; }
 
     const submission = await submissionsService.submitAssignment(req.params.id as string, req.user!.userId, payload);
     res.json({ success: true, data: { submission } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function getVideoUploadSignature(req: Request, res: Response) {
+  try {
+    const signature = await submissionsService.getVideoUploadSignature(req.params.id as string, req.user!.userId);
+    res.json({ success: true, data: signature });
   } catch (err: any) {
     sendError(res, err);
   }
