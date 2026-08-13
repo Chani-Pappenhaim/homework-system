@@ -114,7 +114,7 @@
 - **Frontend:** קובץ חדש `src/lib/errors.ts` — `getApiErrorMessage(error, fallback?)`: אין response (שרת נפל/רשת) → "לא הצלחנו להתחבר לשרת..."; יש הודעת שרת → אותה (כבר סניטרית); אחרת → fallback. הוחל בכל מקומות תצוגת השגיאה למשתמש (LoginPage, ChangePasswordPage, CourseFormPage, GroupFormPage, teacher+student LessonDetailPage, student MessagesPage).
 - **בדיקות:** עודכן טסט אינטגרציה שקודם *אימת את הדליפה* (500 → 'boom') לאמת עכשיו שהמסר הגנרי מוחזר ו-'boom' לא דולף. נוסף `tests/lib/errors.test.ts` (6). backend 216 עוברים, frontend עלה ל-**229 עוברים**, tsc נקי בשני הצדדים, build עבר.
 
-## טיפול בהרדמות השרת / cold start (2026-07-24, branch feat/handle-server-sleep — טרם מוזג)
+## טיפול בהרדמות השרת / cold start (2026-07-24, branch feat/handle-server-sleep — ✅ נמצא ב-origin/main, אומת 2026-08-06)
 
 - **הרקע:** backend על Render free tier נרדם אחרי ~15 דק' חוסר פעילות → הבקשה הבאה סובלת מ-cold start של 30–60 שנ'. frontend על Vercel.
 - **Backend:** נוסף `GET /api/health` ב-`app.ts` (לפני ה-rate limiter, בלי auth/DB) — מחזיר `{status:'ok', uptime}`. משמש גם ל-keep-alive חיצוני וגם ל-warm-up מהקליינט. (ביטל את ההנחה הישנה ש-/api/health הוא 404.)
@@ -125,6 +125,32 @@
 - **בדיקות:** health test ב-`app.test.ts`, `ServerWakingBanner.test.tsx` (3). backend 217, frontend 232, tsc+build נקיים.
 - **keep-alive בקוד:** נוסף `.github/workflows/keep-alive.yml` — GitHub Actions cron כל 10 דק' שמפינג `https://homework-system-3haq.onrender.com/api/health` (הכתובת הציבורית מ-`.env`; frontend+backend על אותו Render service). **רץ רק אחרי מיזוג ל-main** (scheduled workflows רצים רק מה-default branch). **אזהרת עלות:** אם הריפו פרטי — 10 דק' חורג מ-2000 דקות Actions החינמיות בחודש; אז עדיף UptimeRobot/cron-job.org על אותו URL. הכתובת `homework-system-3haq.onrender.com` מקודדת בworkflow — לעדכן אם השרת עובר כתובת.
 - **גיט:** המשתמשת מבצעת בעצמה. השינויים בבראנץ' `feat/handle-server-sleep`, לא מוזגו ולא נדחפו.
+
+## יישור main מקומי מול origin + keep-alive חיצוני (2026-08-06)
+
+- **מצב שהתגלה:** ה-main המקומי היה 24 קומיטים "לפני" ו-88 "אחרי" את `origin/main`. בדיקת `git cherry origin/main main` הראתה שכל 15 הקומיטים האמיתיים כבר קיימים למעלה (patch-equivalent) — 9 הנותרים היו קומיטי מיזוג בלבד. כלומר **origin/main היה על-קבוצה מלאה של המקומי**: כל העבודה (health endpoint, keep-alive.yml, entrypoints, toast, safe errors) כבר נדחפה, ובנוסף היו למעלה 88 קומיטים חדשים.
+- **למה לא מיזגו/דחפו:** מיזוג היה מחיה קבצים ש**נמחקו במכוון** למעלה — `deadline.worker.ts`/`storage.worker.ts` הוחלפו ב-`deadline-check.ts`/`storage-check.ts`/`scheduled-tasks.ts` (interval רגיל במקום BullMQ Worker) בקומיט `fix(backend): cut idle Redis command volume from BullMQ workers`, כדי לחסוך פקודות Redis בסרק. דחיפה הייתה מכניסה רגרסיה לריפו המשותף.
+- **מה נעשה:** `git branch backup/main-2026-08-06` → `git fetch origin` → `git reset --hard origin/main`. אין קונפליקטים, שום קובץ מקומי לא נדרס. `.env`/`CLAUDE.md`/`AGENT_SPEC.md` gitignored ולכן `reset --hard` לא נגע בהם (אומת). `הוראות-הרצה-ומה-נשאר.md` מנוהל בגיט אבל היה זהה לגרסת origin.
+- **גיבוי:** בראנץ' `backup/main-2026-08-06` מצביע ל-`be982d7`. למחוק (`git branch -D`) אחרי שמאמתים שהכל עובד.
+- **דרוש אחרי היישור:** `npm install` ב-backend וב-frontend (package.json השתנה), הרצת 3 migrations חדשים (`spec_compliance_fields`, `add_message_reply_seen`, `lesson_github_links_and_password_reset`) **מהמחשב ולא מ-Docker** (SSL נטפרי), ואז build+up של Docker.
+- **keep-alive — הוחלט על שירות חיצוני ולא GitHub Actions:** cron של GitHub הוא best-effort ומתעכב, ובריפו פרטי 4,320 ריצות/חודש חורגות מ-2,000 הדקות החינמיות. ההמלצה: cron-job.org (או UptimeRobot, מינימום 5 דק') על `https://homework-system-3haq.onrender.com/api/health` כל 10 דק'.
+- **אומת חי:** ה-endpoint מחזיר 200 עם 61 בייט בלבד (`{"success":true,"data":{"status":"ok","uptime":...}}`). מדידה בפועל הראתה **cold start של 62.9 שניות** ו-`uptime: 16` — הוכחה שהשרת אכן נרדם.
+- **תקלה ב-cron-job.org:** "Failed (output too large)" בריצת בדיקה — לא יכול לנבוע מ-61 בייט, כלומר ה-URL שהוגדר שם כנראה שגוי (בלי `/api`, או כתובת ה-frontend שמחזירה HTML). פתרונות: לתקן את ה-URL; או לעבור ל-`HEAD` (Express עונה ל-HEAD על כל route של GET, בלי גוף תגובה כלל) ולכבות שמירת תגובות. **טרם נסגר סופית.**
+- **מגבלה לזכור:** Render Free = 750 שעות instance בחודש לכל השירותים החינמיים יחד. שירות אחד 24/7 ≈ 730 שעות (בסדר), שניים — חריגה.
+
+## הרצה מקומית אחרי ה-reset — 3 חוסמים שתוקנו (2026-08-06)
+
+הרצה ראשונה של הסטאק אחרי היישור מול origin. **המשתמשת נתנה אישור חד-פעמי להריץ Docker** (בניגוד לכלל הרגיל ב-CLAUDE.md). שלושה חוסמים נפרדים:
+
+1. **`DIRECT_URL` חסר ב-.env** — `prisma.config.ts` קורא `process.env.DIRECT_URL!`, ו-`docker-entrypoint.sh` מריץ `prisma migrate deploy` בכל עלייה של ה-api (`RUN_MIGRATIONS: "true"`). בלי המשתנה ה-api נופל על connection string ריק. נוסף ל-`.env` (זהה ל-`DATABASE_URL` מקומית; בפרודקשן חייב לעקוף את ה-pooler). **חסר גם ב-`backend/.env.example`** — שווה להוסיף שם.
+2. **images ישנים מול compose חדש** — הקונטיינרים היו מ-22/07 אבל `docker-compose.yml` (מה-reset) מריץ `node dist/src/entrypoints/worker.js`. תוצאה: `MODULE_NOT_FOUND` ולולאת קריסה ב-worker, ו-frontend שמגיש bundle ישן. **מלכודת:** `restart: unless-stopped` מחייה אוטומטית את הקונטיינרים הישנים כשה-Docker Desktop עולה, והאתר "עובד" — רק עם קוד ישן, בלי שום סימן שגיאה. **הבחנה מכרעת:** `docker compose ps` → עמודת `CREATED` (מתי נוצר) לעומת `STATUS` (מתי הופעל). `Up 29 minutes` לא אומר כלום; `CREATED 2 weeks ago` אומר הכל.
+3. **נטפרי — שתי נפילות SSL נפרדות ב-Prisma:**
+   - **בזמן build:** `npx prisma generate` נפל על `binaries.prisma.sh` עם `unable to get local issuer certificate`. ה-Dockerfile מתקין את ה-root CA של נטפרי ומגדיר `NODE_EXTRA_CA_CERTS`/`SSL_CERT_FILE` — **אבל ה-engine downloader של Prisma לא מכבד את המשתנים האלה**. תוקן עם `RUN NODE_TLS_REJECT_UNAUTHORIZED=0 npx prisma generate` (ממוקד לשורה אחת, לא ENV קבוע).
+   - **בזמן ריצה:** גם אחרי ה-build ה-api נכנס ללולאת קריסה — `migrate deploy` ניסה להוריד את ה-schema-engine בעלייה. הסיבה: `npm ci --omit=dev` בשלב הריצה **לא מוריד את הבינארי** (Prisma 7 מוריד engines בעצלתיים). תוקן בהעתקה מה-builder: `COPY --from=builder /root/.cache/prisma /root/.cache/prisma` + `node_modules/@prisma/engines`. עכשיו העלייה לא דורשת אינטרנט בכלל.
+
+- **שינויי Dockerfile אלה מקומיים בלבד** וסוטים מ-origin. טרם הוחלט אם לקמט/לדחוף (ה-`NODE_TLS_REJECT_UNAUTHORIZED=0` רלוונטי רק לרשת נטפרי; העתקת ה-engines דווקא נכונה לכולם ומזרזת עלייה).
+- **nginx צריך restart אחרי *כל* יצירה מחדש של api** — לא רק פעם אחת. קיבלנו 502 בגלל restart שנעשה לפני ה-`up` האחרון. הסדר הנכון: `build` → `up -d` → `restart nginx`.
+- **מצב סופי מאומת:** 6 קונטיינרים למעלה, 3 ה-migrations החדשים רצו (`spec_compliance_fields`, `add_message_reply_seen`, `lesson_github_links_and_password_reset`), `GET /api/health` → 200, `POST /api/auth/login` (admin@school.com/admin123) → 200, וכותרת הדף `Teacher Feature · המורה עדי שלום` (הישנה: `מערכת הגשת שיעורי בית` — **בדיקה מהירה לזיהוי bundle ישן**).
 
 ## הערות טכניות חשובות
 

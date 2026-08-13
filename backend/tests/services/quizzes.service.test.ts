@@ -8,9 +8,9 @@ vi.mock('../../src/config/prisma', () => ({
   },
 }));
 
-const { quizAdd } = vi.hoisted(() => ({ quizAdd: vi.fn() }));
+const { quizAdd, quizGetJob } = vi.hoisted(() => ({ quizAdd: vi.fn(), quizGetJob: vi.fn() }));
 vi.mock('../../src/infrastructure/queues/queues', () => ({
-  quizQueue: { add: quizAdd },
+  quizQueue: { add: quizAdd, getJob: quizGetJob },
 }));
 
 const { assertLessonAccessMock } = vi.hoisted(() => ({ assertLessonAccessMock: vi.fn() }));
@@ -23,6 +23,7 @@ const p = prisma as any;
 beforeEach(() => {
   vi.clearAllMocks();
   assertLessonAccessMock.mockResolvedValue(undefined);
+  quizGetJob.mockResolvedValue(undefined); // no prior generation job by default
 });
 
 const questions = [
@@ -39,16 +40,90 @@ describe('quizzes.service.getQuiz', () => {
     expect(quizAdd).toHaveBeenCalledWith(
       'generate',
       { lessonId: 'l1', lessonContent: '# content' },
-      { jobId: 'quiz:l1' },   // dedup — polling must not bill a Claude call per request
+      { jobId: 'quiz:l1' },   // dedup — polling must not bill a Gemini call per request
     );
   });
 
-  it('does not enqueue when the lesson has no content', async () => {
+  it('returns "unavailable" with a student-facing message when the lesson has no content', async () => {
     p.quiz.findUnique.mockResolvedValue(null);
     p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: null });
+    const r: any = await getQuiz('l1', 's1', 'STUDENT');
+    expect(r.status).toBe('unavailable');
+    expect(r.message).toContain('פני למורה');
+    expect(quizAdd).not.toHaveBeenCalled();
+  });
+
+  it('treats whitespace-only content as no content', async () => {
+    p.quiz.findUnique.mockResolvedValue(null);
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '   \n  ' });
+    const r: any = await getQuiz('l1', 's1', 'STUDENT');
+    expect(r.status).toBe('unavailable');
+    expect(quizAdd).not.toHaveBeenCalled();
+  });
+
+  it('tells the teacher what to do instead of telling her to ask the teacher', async () => {
+    p.quiz.findUnique.mockResolvedValue(null);
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: null });
+    const r: any = await getQuiz('l1', 'admin', 'ADMIN');
+    expect(r.status).toBe('unavailable');
+    expect(r.message).toContain('הוסיפי תוכן');
+    expect(r.message).not.toContain('פני למורה');
+  });
+
+  it('throws 404 when the lesson does not exist', async () => {
+    p.quiz.findUnique.mockResolvedValue(null);
+    p.lesson.findUnique.mockResolvedValue(null);
+    await expect(getQuiz('l1', 's1', 'STUDENT')).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('reports a failed job, removes it so the next request retries, and hides the cause from students', async () => {
+    p.quiz.findUnique.mockResolvedValue(null);
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
+    const remove = vi.fn().mockResolvedValue(undefined);
+    quizGetJob.mockResolvedValue({
+      getState: vi.fn().mockResolvedValue('failed'),
+      failedReason: 'Gemini API error: 404 — the model "gemini-2.0-flash" is not available.',
+      remove,
+    });
+
+    const r: any = await getQuiz('l1', 's1', 'STUDENT');
+    expect(r.status).toBe('failed');
+    expect(r.message).not.toContain('gemini-2.0-flash');
+    expect(remove).toHaveBeenCalled();
+    // The retry is the *next* request; this one only reports and clears.
+    expect(quizAdd).not.toHaveBeenCalled();
+  });
+
+  it('gives the teacher the technical failure reason', async () => {
+    p.quiz.findUnique.mockResolvedValue(null);
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
+    quizGetJob.mockResolvedValue({
+      getState: vi.fn().mockResolvedValue('failed'),
+      failedReason: 'Gemini API error: 404 model not available',
+      remove: vi.fn().mockResolvedValue(undefined),
+    });
+    const r: any = await getQuiz('l1', 'admin', 'ADMIN');
+    expect(r.message).toContain('Gemini API error: 404');
+  });
+
+  it('does not re-enqueue while a job is still waiting', async () => {
+    p.quiz.findUnique.mockResolvedValue(null);
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
+    quizGetJob.mockResolvedValue({ getState: vi.fn().mockResolvedValue('waiting'), remove: vi.fn() });
     const r = await getQuiz('l1', 's1', 'STUDENT');
     expect(r).toEqual({ status: 'generating' });
     expect(quizAdd).not.toHaveBeenCalled();
+  });
+
+  it('re-enqueues when a completed job left no quiz behind', async () => {
+    p.quiz.findUnique.mockResolvedValue(null);
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
+    const remove = vi.fn().mockResolvedValue(undefined);
+    quizGetJob.mockResolvedValue({ getState: vi.fn().mockResolvedValue('completed'), remove });
+    const r = await getQuiz('l1', 's1', 'STUDENT');
+    expect(r).toEqual({ status: 'generating' });
+    expect(remove).toHaveBeenCalled();
+    expect(quizAdd).toHaveBeenCalled();
   });
 
   it('hides correctIndex from students', async () => {

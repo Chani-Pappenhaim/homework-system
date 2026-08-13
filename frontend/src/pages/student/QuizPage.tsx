@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { quizzesApi } from '@/api/quizzes.api';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 
 export default function QuizPage() {
   const { lessonId } = useParams<{ lessonId: string }>();
+  const navigate = useNavigate();
   const [answers, setAnswers] = useState<number[]>([]);
   const [result, setResult] = useState<{ score: number; correct: number; total: number } | null>(null);
 
@@ -20,13 +21,15 @@ export default function QuizPage() {
     queryFn: () => quizzesApi.get(lessonId!),
     refetchInterval: (query) => {
       const status = (query.state.data?.data as any)?.data?.status;
-      // Stop polling once ready, or after we've given up (see the timeout below).
-      return status === 'generating' && !timedOut ? 3000 : false;
+      // Stop polling once the answer is terminal (ready/failed/unavailable), or
+      // after we've given up (see the timeout below). 5s keeps the poll rate
+      // comfortably under the AI rate limit on this route.
+      return status === 'generating' && !timedOut ? 5000 : false;
     },
   });
 
   const quizData = (data?.data as any)?.data;
-  const status: 'generating' | 'ready' = quizData?.status ?? 'generating';
+  const status: 'generating' | 'ready' | 'failed' | 'unavailable' = quizData?.status ?? 'generating';
   const quiz = quizData?.quiz;
 
   // Don't spin forever: if generation hasn't finished within 90s (e.g. the AI
@@ -52,22 +55,48 @@ export default function QuizPage() {
 
   if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
 
-  if (status === 'generating' && timedOut) {
-    return (
-      <div className="py-16 text-center" dir="rtl">
-        <div className="mx-auto max-w-md rounded-card border border-rule bg-sheet p-6 shadow-sheet">
-          <p className="font-display text-xl font-bold text-ink">יצירת החידון נמשכת יותר מדי</p>
-          <p className="mt-2 font-sans text-xs text-ink/60">
-            ייתכן שיש תקלה זמנית ביצירת השאלות. אפשר לנסות שוב.
-          </p>
+  // Every "no quiz to show" case renders the same card; only the wording and
+  // whether retrying can help differ.
+  const notice = (title: string, body: string, retry: boolean) => (
+    <div className="py-16 text-center" dir="rtl">
+      <div className="mx-auto max-w-md rounded-card border border-rule bg-sheet p-6 shadow-sheet">
+        <p className="font-display text-xl font-bold text-ink">{title}</p>
+        <p className="mt-2 font-sans text-sm text-ink/60">{body}</p>
+        <div className="mt-4 flex justify-center gap-2">
+          {retry && (
+            <button
+              onClick={() => { setTimedOut(false); refetch(); }}
+              className="lift rounded-input border border-rule bg-butter/40 px-4 py-2 font-semibold text-clay shadow-soft"
+            >
+              נסי שוב
+            </button>
+          )}
           <button
-            onClick={() => { setTimedOut(false); refetch(); }}
-            className="lift mt-4 rounded-input border border-rule bg-butter/40 px-4 py-2 font-semibold text-clay shadow-soft"
+            onClick={() => navigate(`/student/lessons/${lessonId}`)}
+            className="lift rounded-input border border-rule px-4 py-2 font-semibold text-ink/70 shadow-soft"
           >
-            נסי שוב
+            חזרה לשיעור
           </button>
         </div>
       </div>
+    </div>
+  );
+
+  // The lesson has no content to build questions from — retrying cannot fix it,
+  // so no retry button; the server's message is already role-appropriate.
+  if (status === 'unavailable') {
+    return notice('אי אפשר ליצור בוחן לשיעור זה', quizData?.message ?? 'חסרים נתונים ליצירת הבוחן. פני למורה.', false);
+  }
+
+  if (status === 'failed') {
+    return notice('יצירת הבוחן נכשלה', quizData?.message ?? 'אירעה שגיאה ביצירת השאלות.', true);
+  }
+
+  if (status === 'generating' && timedOut) {
+    return notice(
+      'יצירת החידון נמשכת יותר מדי',
+      'ייתכן שיש תקלה זמנית ביצירת השאלות. אפשר לנסות שוב.',
+      true,
     );
   }
 
