@@ -13,7 +13,7 @@ export function registerQuizWorker(connection: IORedis): Worker<QuizJobData> {
     async (job) => {
       const { lessonId, lessonContent } = job.data;
 
-      // Same Gemini provider as the homework review — the one that connects here.
+      // Same Gemini provider as the homework review — one AI provider product-wide.
       const questions = await generateQuiz(lessonContent);
       // Prisma types Json fields strictly; the typed array needs a cast to InputJsonValue.
       const questionsJson = questions as unknown as Prisma.InputJsonValue;

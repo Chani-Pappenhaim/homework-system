@@ -84,9 +84,22 @@
 ## Quiz Worker
 
 **Queue:** "quiz"  
-**AI:** Claude API (`claude-sonnet-4-6`) — שונה מהomework review שמשתמש ב-Gemini  
+**AI:** Google Gemini (`GEMINI_MODEL`) — אותו ספק כמו ה-homework review  
+**Input:** רק `lesson.contentMd`. אם הוא ריק — לא נוצר job, וה-API מחזיר `unavailable`  
 **Output:** JSON array של 10 שאלות אמריקאיות בעברית  
 **Format:** `[{ id, question, options: string[4], correctIndex: 0|1|2|3 }]`
+
+**סטטוסים של `GET /lessons/:id/quiz`:**
+| status | מתי | הודעה |
+|---|---|---|
+| `ready` | הבוחן קיים ב-DB | — |
+| `generating` | job בתור/רץ | — |
+| `unavailable` | לשיעור אין `contentMd` | ניסוח נפרד לתלמידה ולמורה |
+| `failed` | ה-job נכשל | לתלמידה — כללי; למורה — הסיבה הטכנית |
+
+ה-job נוצר עם `jobId: quiz:<lessonId>` כדי למנוע חיוב כפול. job שנכשל נמחק ברגע
+שהסטטוס מדווח, כך שהבקשה הבאה מתחילה ניסיון חדש (אחרת `removeOnFail` היה חוסם
+ניסיונות חוזרים למשך שבוע).
 
 ---
 
