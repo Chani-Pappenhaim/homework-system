@@ -40,8 +40,35 @@ describe('quizzes.service.getQuiz', () => {
     expect(quizAdd).toHaveBeenCalledWith(
       'generate',
       { lessonId: 'l1', lessonContent: '# content' },
-      { jobId: 'quiz:l1' },   // dedup — polling must not bill a Gemini call per request
+      { jobId: 'quiz-l1' },   // dedup — polling must not bill a Gemini call per request
     );
+  });
+
+  it('uses a job id BullMQ accepts — a colon made every add() throw', async () => {
+    p.quiz.findUnique.mockResolvedValue(null);
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
+    await getQuiz('l1', 's1', 'STUDENT');
+    const jobId: string = quizAdd.mock.calls[0][2].jobId;
+    // BullMQ rejects a custom id containing ':' unless it has exactly 3 parts.
+    expect(jobId.includes(':') && jobId.split(':').length !== 3).toBe(false);
+  });
+
+  it('reports a queue fault as "failed" instead of letting it escape as a 500', async () => {
+    p.quiz.findUnique.mockResolvedValue(null);
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
+    quizAdd.mockRejectedValueOnce(new Error('Custom Id cannot contain :'));
+    const r: any = await getQuiz('l1', 'admin', 'ADMIN');
+    expect(r.status).toBe('failed');
+    expect(r.message).toContain('Custom Id cannot contain');
+  });
+
+  it('hides a queue fault\'s technical detail from students', async () => {
+    p.quiz.findUnique.mockResolvedValue(null);
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
+    quizAdd.mockRejectedValueOnce(new Error('connect ECONNREFUSED redis:6379'));
+    const r: any = await getQuiz('l1', 's1', 'STUDENT');
+    expect(r.status).toBe('failed');
+    expect(r.message).not.toContain('ECONNREFUSED');
   });
 
   it('returns "unavailable" with a student-facing message when the lesson has no content', async () => {

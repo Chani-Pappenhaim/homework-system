@@ -37,35 +37,49 @@ export async function getQuiz(lessonId: string, userId: string, role: string) {
     // jobId dedups generation: concurrent page loads (or a poll loop) for the
     // same lesson must not each bill a Gemini call. The flip side is that a
     // finished job keeps its id in Redis (removeOnFail: 7 days), so a failed
-    // generation used to swallow every retry for a week — hence the explicit
+    // generation would swallow every retry for a week — hence the explicit
     // removal below before re-adding.
-    const jobId = `quiz:${lessonId}`;
-    const existing = await quizQueue.getJob(jobId);
+    //
+    // The separator is a dash, not a colon: BullMQ rejects any custom job id
+    // containing ':' unless it has exactly three colon-separated parts. With
+    // `quiz:<lessonId>` every add() threw, so no quiz was ever queued.
+    const jobId = `quiz-${lessonId}`;
 
-    if (existing) {
-      const state = await existing.getState();
+    try {
+      const existing = await quizQueue.getJob(jobId);
 
-      if (state === 'failed') {
-        const reason = existing.failedReason;
-        // Clear the id so the *next* request starts a fresh attempt — that is
-        // what the "try again" button does.
+      if (existing) {
+        const state = await existing.getState();
+
+        if (state === 'failed') {
+          const reason = existing.failedReason;
+          // Clear the id so the *next* request starts a fresh attempt — that is
+          // what the "try again" button does.
+          await existing.remove().catch(() => {});
+          return { status: 'failed' as const, message: failedMessage(role, reason) };
+        }
+
+        // 'completed' with no quiz row means the job finished but the write was
+        // lost; anything else is still in flight. Only the former needs a retry.
+        if (state !== 'completed') {
+          return { status: 'generating' as const };
+        }
         await existing.remove().catch(() => {});
-        return { status: 'failed' as const, message: failedMessage(role, reason) };
       }
 
-      // 'completed' with no quiz row means the job finished but the write was
-      // lost; anything else is still in flight. Only the former needs a retry.
-      if (state !== 'completed') {
-        return { status: 'generating' as const };
-      }
-      await existing.remove().catch(() => {});
+      await quizQueue.add(
+        'generate',
+        { lessonId, lessonContent: lesson.contentMd },
+        { jobId }
+      );
+    } catch (err: any) {
+      // A queue-level fault (Redis down, a rejected job id) must surface as a
+      // reported failure. Letting it escape as a 500 is what disguised this bug
+      // as an endless spinner.
+      console.error('[quiz] could not enqueue generation for lesson', lessonId, err);
+      return { status: 'failed' as const, message: failedMessage(role, err?.message) };
     }
 
-    await quizQueue.add(
-      'generate',
-      { lessonId, lessonContent: lesson.contentMd },
-      { jobId }
-    );
     return { status: 'generating' as const };
   }
 

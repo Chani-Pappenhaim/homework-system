@@ -16,7 +16,7 @@ export default function QuizPage() {
 
   const [timedOut, setTimedOut] = useState(false);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['quiz', lessonId],
     queryFn: () => quizzesApi.get(lessonId!),
     refetchInterval: (query) => {
@@ -29,7 +29,10 @@ export default function QuizPage() {
   });
 
   const quizData = (data?.data as any)?.data;
-  const status: 'generating' | 'ready' | 'failed' | 'unavailable' = quizData?.status ?? 'generating';
+  // A request that failed has no status. Defaulting it to 'generating' is what
+  // turned every server error into an endless spinner — treat it as an error.
+  const status: 'generating' | 'ready' | 'failed' | 'unavailable' | 'error' =
+    quizData?.status ?? (isError || data ? 'error' : 'generating');
   const quiz = quizData?.quiz;
 
   // Don't spin forever: if generation hasn't finished within 90s (e.g. the AI
@@ -90,6 +93,10 @@ export default function QuizPage() {
 
   if (status === 'failed') {
     return notice('יצירת הבוחן נכשלה', quizData?.message ?? 'אירעה שגיאה ביצירת השאלות.', true);
+  }
+
+  if (status === 'error') {
+    return notice('לא הצלחנו לטעון את החידון', 'אירעה שגיאה בשרת. אפשר לנסות שוב.', true);
   }
 
   if (status === 'generating' && timedOut) {
