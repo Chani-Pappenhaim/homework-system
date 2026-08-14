@@ -3,3 +3,7 @@
 # container entrypoint with: /bin/sh: bad interpreter: /bin/sh^M).
 *.sh text eol=lf
 backend/docker-entrypoint.sh text eol=lf
+
+# PEM certificates are fed to update-ca-certificates inside an Alpine container.
+# Keep them LF so a Windows checkout cannot hand the container CRLF certs.
+*.crt text eol=lf
