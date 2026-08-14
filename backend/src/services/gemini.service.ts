@@ -29,6 +29,31 @@ interface AiReviewResult {
   score: number;
 }
 
+// How long a single Gemini call may take before we give up. Without this a
+// connection that hangs leaves the job — and the student's page — waiting
+// indefinitely.
+const REQUEST_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS ?? 60_000);
+
+/**
+ * Flattens an error and its `cause` chain into one line.
+ *
+ * Node's fetch reports every network fault as a bare `TypeError: fetch failed`
+ * and puts the real reason (bad certificate, DNS failure, refused connection)
+ * in `cause`. Reporting only the top-level message tells the reader nothing.
+ */
+function describeError(err: any): string {
+  const parts: string[] = [];
+  let current = err;
+  for (let depth = 0; current && depth < 5; depth++) {
+    const code = current.code ? ` [${current.code}]` : '';
+    const message = current.message ?? String(current);
+    const piece = `${message}${code}`;
+    if (!parts.includes(piece)) parts.push(piece);
+    current = current.cause;
+  }
+  return parts.join(' ← ');
+}
+
 /**
  * One call to Gemini for every AI feature in the product.
  *
@@ -59,12 +84,16 @@ async function callGemini(
           contents: [{ role: 'user', parts: [{ text: userMessage }] }],
           generationConfig: { responseMimeType: 'application/json' },
         }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       }
     );
   } catch (err: any) {
-    // Network-level failure: no DNS, no route, or a TLS chain the container
-    // does not trust (an SSL-inspecting network without its root CA installed).
-    throw new Error(`Cannot reach the Gemini API: ${err?.message ?? err}`);
+    if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
+      throw new Error(`Gemini API timed out after ${REQUEST_TIMEOUT_MS}ms`);
+    }
+    // Network-level failure: no DNS, no route, or a TLS chain this process does
+    // not trust (an SSL-inspecting network whose root CA is not installed).
+    throw new Error(`Cannot reach the Gemini API: ${describeError(err)}`);
   }
 
   if (!response.ok) {

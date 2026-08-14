@@ -104,6 +104,27 @@ describe('gemini.service — failure reporting', () => {
     await expect(generateQuiz('content')).rejects.toThrow(/Cannot reach the Gemini API: unable to get local issuer certificate/);
   });
 
+  it('unwraps the cause chain that node\'s "fetch failed" hides', async () => {
+    // This is exactly what undici throws for an untrusted TLS chain: a useless
+    // top-level message with the real reason one level down.
+    const cause: any = new Error('unable to get local issuer certificate');
+    cause.code = 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY';
+    const wrapper: any = new TypeError('fetch failed');
+    wrapper.cause = cause;
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(wrapper));
+
+    await expect(generateQuiz('content')).rejects.toThrow(
+      /fetch failed ← unable to get local issuer certificate \[UNABLE_TO_GET_ISSUER_CERT_LOCALLY\]/,
+    );
+  });
+
+  it('reports a timeout distinctly from an unreachable host', async () => {
+    const timeout: any = new Error('The operation was aborted due to timeout');
+    timeout.name = 'TimeoutError';
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(timeout));
+    await expect(generateQuiz('content')).rejects.toThrow(/Gemini API timed out after \d+ms/);
+  });
+
   it('reports an empty 200 response with its finishReason', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
