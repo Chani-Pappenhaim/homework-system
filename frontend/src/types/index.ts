@@ -114,6 +114,30 @@ export interface LessonDetailDTO {
   completed?: boolean;
   files: LessonFile[];
   assignments: AssignmentDTO[];
+  // For a student, `exists` is already "is there a quiz I can take?" — the server
+  // collapses an unpublished draft to false so she never learns one is being written.
+  quiz?: { exists: boolean; published: boolean };
+}
+
+export interface QuizQuestionDTO {
+  id: string;
+  question: string;
+  options: string[];
+  /** Teacher-only — never sent to a student. */
+  correctIndex?: number;
+}
+
+export type QuizStatus = 'ready' | 'generating' | 'none' | 'unavailable' | 'failed';
+
+export interface QuizStateDTO {
+  status: QuizStatus;
+  message?: string;
+  quiz?: {
+    id: string;
+    published: boolean;
+    questionCount: number;
+    questions: QuizQuestionDTO[];
+  };
 }
 
 export interface GradeDTO {

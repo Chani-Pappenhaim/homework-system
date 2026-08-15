@@ -134,6 +134,26 @@
 ## Quizzes `/api/lessons/:id/quiz`
 | Method | Path | Auth | תיאור |
 |---|---|---|---|
-| GET | `/lessons/:id/quiz` | ✓ | אם לא קיים → מוסיף ל-queue → `{ status: "generating" }` |
-| POST | `/lessons/:id/quiz/attempt` | STUDENT | `{ answers: number[] }` → `{ score, correct, total }` |
+**הבוחן בבעלות המורה.** היא יוצרת, עורכת ומפרסמת; תלמידה רק עונה.
+קריאת GET **לא** מייצרת בוחן — רק `POST .../generate` (ADMIN) עושה זאת.
+
+| Method | Path | Auth | תיאור |
+|---|---|---|---|
+| GET | `/lessons/:id/quiz` | ✓ | סטטוס + שאלות. ADMIN מקבל גם טיוטה ו-`correctIndex`; STUDENT מקבל רק בוחן שפורסם |
+| POST | `/lessons/:id/quiz/generate` | ADMIN | מוסיף ל-queue → `202 { status: "generating" }`. 409 אם כבר קיים בוחן או שאין `contentMd` |
+| PUT | `/lessons/:id/quiz` | ADMIN | `{ questions: [...] }` — מחליף את השאלות. **מוחק את כל הניסיונות** |
+| PATCH | `/lessons/:id/quiz/publish` | ADMIN | `{ published: boolean }` |
+| POST | `/lessons/:id/quiz/attempt` | STUDENT | `{ answers: number[] }` → `{ score, correct, total }`. 409 אם הבוחן לא פורסם |
 | GET | `/lessons/:id/quiz/results` | ADMIN | תוצאות כל התלמידות |
+
+**סטטוסים של GET:**
+| status | מי רואה | משמעות |
+|---|---|---|
+| `ready` | שניהם | יש בוחן (למורה — גם טיוטה) |
+| `none` | ADMIN | אין בוחן, יש `contentMd` → אפשר ליצור |
+| `generating` | ADMIN | job בתור/רץ |
+| `failed` | ADMIN | היצירה נכשלה, כולל הסיבה הטכנית |
+| `unavailable` | שניהם | למורה: אין `contentMd`. לתלמידה: אין בוחן **או** שהוא טיוטה — שני המקרים נראים זהים |
+
+`GET /lessons/:id` מחזיר גם `quiz: { exists, published }`. עבור תלמידה `exists` מתקפל
+ל-"האם יש בוחן שאני יכולה לפתוח" — טיוטה מחזירה `false`.

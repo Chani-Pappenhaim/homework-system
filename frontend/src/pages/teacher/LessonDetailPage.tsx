@@ -28,6 +28,7 @@ import { FileGallery } from '@/components/ui/file-gallery';
 import { MultiUrlInput } from '@/components/ui/multi-url-input';
 import { DateField } from '@/components/ui/date-field';
 import { StudentAutocomplete } from '@/components/ui/student-autocomplete';
+import QuizPanel from '@/components/teacher/QuizPanel';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
 import { formatDate, formatDateTime, toExternalUrl } from '@/lib/utils';
@@ -445,6 +446,9 @@ export default function LessonDetailPage() {
             </div>
           )}
         </Card>
+
+        {/* Quiz — the teacher generates it, edits it, and decides when the class sees it */}
+        {id && <QuizPanel lessonId={id} hasContent={Boolean(lesson.contentMd?.trim())} />}
 
         {/* Quiz results — only rendered when this lesson actually has a quiz */}
         {quizResults && (

@@ -47,7 +47,7 @@ export async function createLesson(courseId: string, data: {
 export async function getLessonById(id: string, userId: string, role: string) {
   const lesson = await prisma.lesson.findUnique({
     where: { id },
-    include: { files: true, assignments: true },
+    include: { files: true, assignments: true, quiz: { select: { published: true } } },
   });
   if (!lesson) return null;
 
@@ -60,12 +60,22 @@ export async function getLessonById(id: string, userId: string, role: string) {
   const assignments = role === 'ADMIN'
     ? lesson.assignments
     : lesson.assignments.map(({ aiInstructions, ...rest }) => rest);
+
+  // Lets the page decide whether to offer a quiz link at all. A student must
+  // not learn that an unpublished draft exists, so for her `quiz` collapses to
+  // "is there a quiz I can take?".
+  const { quiz, ...lessonFields } = lesson;
+  const quizState = role === 'ADMIN'
+    ? { exists: Boolean(quiz), published: quiz?.published ?? false }
+    : { exists: Boolean(quiz?.published), published: Boolean(quiz?.published) };
+
   return {
-    ...lesson,
+    ...lessonFields,
     assignments,
     githubUrls: effectiveGithubUrls(lesson),
     completed: Boolean(progress),
     files: lesson.files.map(toFileDTO),
+    quiz: quizState,
   };
 }
 

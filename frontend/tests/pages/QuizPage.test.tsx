@@ -35,10 +35,25 @@ function renderPage() {
 beforeEach(() => vi.clearAllMocks());
 
 describe('QuizPage', () => {
-  it('shows the generating spinner while the quiz is being created', async () => {
-    getQuiz.mockResolvedValue({ data: { data: { status: 'generating' } } });
+  // Generation is the teacher's action now. A student never waits on an AI call,
+  // so there is no "generating" state on this page any more — an unpublished or
+  // missing quiz both read as simply "not available yet".
+  it('shows the server\'s message when no quiz is available to take', async () => {
+    getQuiz.mockResolvedValue({
+      data: { data: { status: 'unavailable', message: 'החידון לשיעור הזה עדיין לא פורסם.' } },
+    });
     renderPage();
-    expect(await screen.findByText('החידון נוצר, אנא המתיני...')).toBeInTheDocument();
+    expect(await screen.findByText('החידון עדיין לא זמין')).toBeInTheDocument();
+    expect(screen.getByText('החידון לשיעור הזה עדיין לא פורסם.')).toBeInTheDocument();
+    // Nothing she can do about it — offering "try again" would be a false promise.
+    expect(screen.queryByRole('button', { name: 'נסי שוב' })).not.toBeInTheDocument();
+  });
+
+  it('offers a retry when the request itself failed', async () => {
+    getQuiz.mockRejectedValue(new Error('network'));
+    renderPage();
+    expect(await screen.findByText('לא הצלחנו לטעון את החידון')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'נסי שוב' })).toBeInTheDocument();
   });
 
   it('renders quiz questions and options when ready', async () => {
