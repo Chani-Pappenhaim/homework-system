@@ -283,6 +283,15 @@ export async function submitQuizAttempt(
   };
 }
 
+/**
+ * Everything the teacher's quiz page shows: the quiz, who answered, and — the
+ * part she cannot work out from a list of scores — how the class did on each
+ * individual question.
+ *
+ * A per-student score says who is struggling. A per-question breakdown says what
+ * the class did not understand, which is what she would change her next lesson
+ * over. Both come from the same stored answers, so they are computed together.
+ */
 export async function getQuizResults(lessonId: string) {
   const quiz = await prisma.quiz.findUnique({
     where: { lessonId },
@@ -293,6 +302,40 @@ export async function getQuizResults(lessonId: string) {
   if (!quiz) throw Object.assign(new Error('Quiz not found'), { status: 404 });
 
   const questions = quiz.questions as any[];
+  const attempts = quiz.attempts;
+
+  const questionStats = questions.map((q, i) => {
+    // One count per option, plus a tally of attempts that skipped the question.
+    const optionCounts: number[] = (q.options as string[]).map(() => 0);
+    let unanswered = 0;
+
+    for (const attempt of attempts) {
+      const picked = (attempt.answers as any[])?.[i];
+      if (Number.isInteger(picked) && picked >= 0 && picked < optionCounts.length) {
+        optionCounts[picked]! += 1;
+      } else {
+        unanswered += 1;
+      }
+    }
+
+    const correctCount = optionCounts[q.correctIndex] ?? 0;
+    return {
+      id: q.id,
+      question: q.question,
+      options: q.options,
+      correctIndex: q.correctIndex,
+      optionCounts,
+      unanswered,
+      correctCount,
+      // Percentages are meaningless with no attempts; the page shows "no data"
+      // rather than a 0% that reads like everybody failed.
+      correctRate: attempts.length > 0 ? (correctCount / attempts.length) * 100 : null,
+    };
+  });
+  const averageScore = attempts.length > 0
+    ? attempts.reduce((sum, a) => sum + a.score, 0) / attempts.length
+    : null;
+
   return {
     quiz: {
       id: quiz.id,
@@ -300,7 +343,12 @@ export async function getQuizResults(lessonId: string) {
       published: quiz.published,
       questionCount: questions.length,
     },
-    results: quiz.attempts.map((a) => ({
+    summary: {
+      attemptCount: attempts.length,
+      averageScore,
+    },
+    questions: questionStats,
+    results: attempts.map((a) => ({
       studentName: a.student.name, studentEmail: a.student.email,
       score: a.score, takenAt: a.takenAt,
     })),

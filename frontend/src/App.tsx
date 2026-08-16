@@ -18,6 +18,7 @@ import CoursesPage from '@/pages/teacher/CoursesPage';
 import CourseFormPage from '@/pages/teacher/CourseFormPage';
 import CourseDetailPage from '@/pages/teacher/CourseDetailPage';
 import LessonDetailPage from '@/pages/teacher/LessonDetailPage';
+import TeacherQuizPage from '@/pages/teacher/QuizPage';
 import ReportsPage from '@/pages/teacher/ReportsPage';
 import TeacherMessagesPage from '@/pages/teacher/MessagesPage';
 import AiUsagePage from '@/pages/teacher/AiUsagePage';
@@ -59,6 +60,8 @@ function AppRoutes() {
           <Route path="courses/:id/edit" element={<CourseFormPage />} />
           <Route path="courses/:id" element={<CourseDetailPage />} />
           <Route path="lessons/:id" element={<LessonDetailPage />} />
+          {/* Mirrors the student's /student/quiz/:lessonId */}
+          <Route path="quiz/:lessonId" element={<TeacherQuizPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="messages" element={<TeacherMessagesPage />} />
           <Route path="ai-usage" element={<AiUsagePage />} />

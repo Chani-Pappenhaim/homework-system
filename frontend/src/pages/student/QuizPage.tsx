@@ -212,7 +212,13 @@ export default function QuizPage() {
         size="lg"
         loading={attemptMutation.isPending}
         onClick={() => attemptMutation.mutate()}
-        disabled={answers.some((a) => a === -1)}
+        // Checked against the question count, not just against `answers`:
+        // `answers` starts empty and is filled by an effect, and `[].some(...)`
+        // is false — so on the first frame the button was briefly enabled and a
+        // fast click posted an empty array, which the server rejects with a 400.
+        disabled={
+          answers.length !== (quiz?.questions.length ?? 0) || answers.some((a) => a === -1)
+        }
       >
         הגש חידון
       </Button>

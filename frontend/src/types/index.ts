@@ -148,6 +148,27 @@ export interface QuizAttemptResultDTO {
   review: QuizReviewItemDTO[];
 }
 
+/** Per-question class performance — teacher only. */
+export interface QuizQuestionStatsDTO {
+  id: string;
+  question: string;
+  options: string[];
+  correctIndex: number;
+  /** How many attempts chose each option, by option index. */
+  optionCounts: number[];
+  unanswered: number;
+  correctCount: number;
+  /** null when nobody has answered yet — not 0, which would read as "all wrong". */
+  correctRate: number | null;
+}
+
+export interface QuizResultsDTO {
+  quiz: { id: string; createdAt: string; published: boolean; questionCount: number };
+  summary: { attemptCount: number; averageScore: number | null };
+  questions: QuizQuestionStatsDTO[];
+  results: { studentName: string; studentEmail: string; score: number; takenAt: string }[];
+}
+
 export type QuizStatus = 'ready' | 'generating' | 'none' | 'unavailable' | 'failed';
 
 export interface QuizStateDTO {

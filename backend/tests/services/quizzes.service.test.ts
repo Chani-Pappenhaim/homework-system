@@ -343,11 +343,56 @@ describe('quizzes.service.getQuizResults', () => {
   it('returns quiz meta, its published state and mapped attempt results', async () => {
     p.quiz.findUnique.mockResolvedValue({
       id: 'qz1', createdAt: new Date(), questions, published: true,
-      attempts: [{ score: 100, takenAt: new Date(), student: { name: 'A', email: 'a@x.com' } }],
+      attempts: [{ score: 100, answers: [0, 1], takenAt: new Date(), student: { name: 'A', email: 'a@x.com' } }],
     });
     const r = await getQuizResults('l1');
     expect(r.quiz.questionCount).toBe(2);
     expect(r.quiz.published).toBe(true);
     expect(r.results[0]).toMatchObject({ studentName: 'A', score: 100 });
+  });
+
+  it('breaks results down per question, including which wrong answer they picked', async () => {
+    // q1 (correct 0): two right, one picked option 1.
+    // q2 (correct 1): all three wrong — everyone picked option 0.
+    const attempt = (name: string, answers: number[], score: number) =>
+      ({ score, answers, takenAt: new Date(), student: { name, email: `${name}@x.com` } });
+    p.quiz.findUnique.mockResolvedValue({
+      id: 'qz1', createdAt: new Date(), questions, published: true,
+      attempts: [attempt('A', [0, 0], 50), attempt('B', [0, 0], 50), attempt('C', [1, 0], 0)],
+    });
+
+    const r: any = await getQuizResults('l1');
+
+    expect(r.summary).toEqual({ attemptCount: 3, averageScore: (50 + 50 + 0) / 3 });
+
+    const [q1, q2] = r.questions;
+    expect(q1).toMatchObject({ correctCount: 2, optionCounts: [2, 1], unanswered: 0 });
+    expect(q1.correctRate).toBeCloseTo(66.67, 1);
+
+    // The whole class missed q2 the same way — that is the misconception to reteach.
+    expect(q2).toMatchObject({ correctCount: 0, optionCounts: [3, 0], correctRate: 0 });
+  });
+
+  it('reports no rate rather than 0% when nobody has answered', async () => {
+    p.quiz.findUnique.mockResolvedValue({
+      id: 'qz1', createdAt: new Date(), questions, published: true, attempts: [],
+    });
+    const r: any = await getQuizResults('l1');
+    expect(r.summary).toEqual({ attemptCount: 0, averageScore: null });
+    // 0% would read as "everybody got it wrong"; null lets the page say "no data".
+    expect(r.questions[0].correctRate).toBeNull();
+    expect(r.questions[0].optionCounts).toEqual([0, 0]);
+  });
+
+  it('counts a skipped or out-of-range answer as unanswered, not as a wrong option', async () => {
+    p.quiz.findUnique.mockResolvedValue({
+      id: 'qz1', createdAt: new Date(), questions, published: true,
+      attempts: [
+        { score: 0, answers: [-1, 9], takenAt: new Date(), student: { name: 'A', email: 'a@x.com' } },
+      ],
+    });
+    const r: any = await getQuizResults('l1');
+    expect(r.questions[0]).toMatchObject({ unanswered: 1, optionCounts: [0, 0], correctCount: 0 });
+    expect(r.questions[1]).toMatchObject({ unanswered: 1, optionCounts: [0, 0] });
   });
 });

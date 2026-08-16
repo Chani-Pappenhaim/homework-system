@@ -74,6 +74,16 @@ describe('QuizPage', () => {
     expect(submit).toBeEnabled();
   });
 
+  it('is disabled from the very first render, before the answer state is built', async () => {
+    // The answers array is filled by an effect, so for one frame it is empty —
+    // and `[].some(...)` is false. The button used to be briefly enabled there,
+    // and a fast click posted an empty array that the server rejects.
+    getQuiz.mockResolvedValue(readyQuiz);
+    renderPage();
+    const submit = await screen.findByRole('button', { name: 'הגש חידון' });
+    expect(submit).toBeDisabled();
+  });
+
   it('submits answers and shows the score result', async () => {
     getQuiz.mockResolvedValue(readyQuiz);
     attempt.mockResolvedValue({

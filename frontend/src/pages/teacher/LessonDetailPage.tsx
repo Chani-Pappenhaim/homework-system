@@ -28,11 +28,10 @@ import { FileGallery } from '@/components/ui/file-gallery';
 import { MultiUrlInput } from '@/components/ui/multi-url-input';
 import { DateField } from '@/components/ui/date-field';
 import { StudentAutocomplete } from '@/components/ui/student-autocomplete';
-import QuizPanel from '@/components/teacher/QuizPanel';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
 import { formatDate, formatDateTime, toExternalUrl } from '@/lib/utils';
-import type { AssignmentDTO, ChecklistResult, SubmissionDTO } from '@/types';
+import type { AssignmentDTO, ChecklistResult, QuizResultsDTO, SubmissionDTO } from '@/types';
 
 export default function LessonDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -120,16 +119,15 @@ export default function LessonDetailPage() {
     enabled: Boolean(assignment?.id),
   });
 
-  // Not every lesson has a quiz — a 404 here just means "no quiz section to show".
+  // Not every lesson has a quiz — a 404 here just means there is nothing to summarise.
   const { data: quizResultsData } = useQuery({
     queryKey: ['quiz-results', id],
     queryFn: () => quizzesApi.results(id!),
     enabled: Boolean(id),
     retry: false,
   });
-  const quizResults = (quizResultsData?.data as any)?.data as
-    | { quiz: { questionCount: number }; results: { studentName: string; studentEmail: string; score: number; takenAt: string }[] }
-    | undefined;
+  const quizResults = (quizResultsData?.data as any)?.data as QuizResultsDTO | undefined;
+  const quizState = lesson?.quiz ?? { exists: false, published: false };
 
   function openLessonEdit() {
     if (!lesson) return;
@@ -447,46 +445,40 @@ export default function LessonDetailPage() {
           )}
         </Card>
 
-        {/* Quiz — the teacher generates it, edits it, and decides when the class sees it */}
-        {id && <QuizPanel lessonId={id} hasContent={Boolean(lesson.contentMd?.trim())} />}
-
-        {/* Quiz results — only rendered when this lesson actually has a quiz */}
-        {quizResults && (
-          <Card accent="sage">
-            <CardHeader>
-              <h2 className="font-display text-base font-bold flex items-center gap-1.5">
-                <ListChecks size={15} className="text-sage" /> תוצאות חידון ({quizResults.results.length})
-              </h2>
-            </CardHeader>
-            {quizResults.results.length === 0 ? (
-              <CardContent><p className="text-sm text-ink/50">אף תלמידה עוד לא ענתה על החידון</p></CardContent>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-rule/20 text-xs text-ink/50">
-                      <th className="px-5 py-2.5 text-right font-medium">תלמידה</th>
-                      <th className="px-3 py-2.5 text-right font-medium">ציון</th>
-                      <th className="px-3 py-2.5 text-right font-medium">תאריך</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-rule/20">
-                    {quizResults.results.map((r, i) => (
-                      <tr key={i}>
-                        <td className="px-5 py-3">
-                          <p className="font-medium text-ink">{r.studentName}</p>
-                          <p className="text-xs text-ink/50">{r.studentEmail}</p>
-                        </td>
-                        <td className="px-3 py-3 font-semibold text-ink">{Math.round(r.score)}%</td>
-                        <td className="px-3 py-3 text-ink/70 text-xs">{formatDateTime(r.takenAt)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
-        )}
+        {/* Quiz — a summary and a way in. The editor and the class breakdown live
+            on their own page, mirroring the student's. */}
+        <Card accent="indigo">
+          <CardHeader>
+            <h2 className="font-display text-base font-bold flex items-center gap-1.5">
+              <ListChecks size={15} className="text-indigo" /> חידון השיעור
+            </h2>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              {quizState.exists ? (
+                <>
+                  <Badge variant={quizState.published ? 'success' : 'secondary'}>
+                    {quizState.published ? 'פורסם לתלמידות' : 'טיוטה — התלמידות לא רואות'}
+                  </Badge>
+                  <p className="mt-1.5 font-sans text-xs text-ink/55">
+                    {quizResults
+                      ? `${quizResults.quiz.questionCount} שאלות · ${quizResults.summary.attemptCount} תלמידות ענו`
+                      : 'עריכת השאלות ותוצאות הכיתה'}
+                  </p>
+                </>
+              ) : (
+                <p className="font-sans text-sm text-ink/55">
+                  {lesson.contentMd?.trim()
+                    ? 'עדיין לא נוצר חידון לשיעור זה.'
+                    : 'כדי ליצור חידון יש להוסיף תחילה תוכן שיעור.'}
+                </p>
+              )}
+            </div>
+            <Button variant={quizState.exists ? 'secondary' : 'clay'} onClick={() => navigate(`/teacher/quiz/${id}`)}>
+              {quizState.exists ? 'ניהול החידון' : 'ליצירת חידון'}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Lesson Access — sits alongside the main lesson content as a sidebar on wide screens */}
