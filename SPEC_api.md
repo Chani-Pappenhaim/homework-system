@@ -144,7 +144,7 @@
 | PUT | `/lessons/:id/quiz` | ADMIN | `{ questions: [...] }` — מחליף את השאלות. **מוחק את כל הניסיונות** |
 | PATCH | `/lessons/:id/quiz/publish` | ADMIN | `{ published: boolean }` |
 | POST | `/lessons/:id/quiz/attempt` | STUDENT | `{ answers: number[] }` → `{ score, correct, total }`. 409 אם הבוחן לא פורסם |
-| GET | `/lessons/:id/quiz/results` | ADMIN | תוצאות כל התלמידות |
+| GET | `/lessons/:id/quiz/results` | ADMIN | `{ quiz, summary, questions, results }` — ראה למטה |
 
 **סטטוסים של GET:**
 | status | מי רואה | משמעות |
@@ -157,3 +157,20 @@
 
 `GET /lessons/:id` מחזיר גם `quiz: { exists, published }`. עבור תלמידה `exists` מתקפל
 ל-"האם יש בוחן שאני יכולה לפתוח" — טיוטה מחזירה `false`.
+
+**`POST /attempt` מחזיר גם `review`** — זה **המקום היחיד** שתלמידה מקבלת את התשובות הנכונות,
+ורק אחרי שענתה:
+```
+review: [{ id, question, options, correctIndex, selectedIndex, isCorrect }]
+```
+
+**`GET /quiz/results` — נתוני הדשבורד של המורה:**
+```
+summary:   { attemptCount, averageScore }        // averageScore=null אם אין ניסיונות
+questions: [{ id, question, options, correctIndex,
+              optionCounts,   // כמה בחרו בכל אפשרות, לפי אינדקס
+              unanswered,     // דילגו או ערך מחוץ לטווח
+              correctCount,
+              correctRate }]  // null אם אין ניסיונות — לא 0, שנקרא "כולן טעו"
+results:   [{ studentName, studentEmail, score, takenAt }]
+```
