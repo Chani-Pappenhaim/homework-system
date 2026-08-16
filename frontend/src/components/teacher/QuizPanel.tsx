@@ -5,8 +5,7 @@ import { quizzesApi } from '@/api/quizzes.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { AutoTextarea } from '@/components/ui/auto-textarea';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
 import { cn } from '@/lib/utils';
@@ -180,10 +179,9 @@ export default function QuizPanel({ lessonId, hasContent }: { lessonId: string; 
             <div key={q.id} className="rounded-card border border-rule/60 bg-ground/30 p-3">
               <div className="mb-2 flex items-start gap-2">
                 <span className="mt-2 font-display text-sm font-bold text-ink/40 tabular">{qi + 1}</span>
-                <Textarea
+                <AutoTextarea
                   value={q.question}
                   onChange={(e) => editQuestion(qi, { question: e.target.value })}
-                  rows={2}
                   className="flex-1"
                   aria-label={`שאלה ${qi + 1}`}
                 />
@@ -191,10 +189,12 @@ export default function QuizPanel({ lessonId, hasContent }: { lessonId: string; 
 
               <div className="space-y-1.5 pr-6">
                 {q.options.map((opt, oi) => (
+                  // items-start, not items-center: an option that wraps to three
+                  // lines must not drag its radio button down to the middle.
                   <label
                     key={oi}
                     className={cn(
-                      'flex items-center gap-2 rounded-input border px-2 py-1.5 transition-colors',
+                      'flex items-start gap-2 rounded-input border px-2 py-1.5 transition-colors',
                       q.correctIndex === oi ? 'border-sage bg-sage/10' : 'border-rule/60 bg-sheet',
                     )}
                   >
@@ -203,13 +203,13 @@ export default function QuizPanel({ lessonId, hasContent }: { lessonId: string; 
                       name={`correct-${q.id}`}
                       checked={q.correctIndex === oi}
                       onChange={() => editQuestion(qi, { correctIndex: oi })}
-                      className="accent-sage"
+                      className="mt-2 shrink-0 accent-sage"
                       aria-label={`סמני כתשובה נכונה לשאלה ${qi + 1}, אפשרות ${oi + 1}`}
                     />
-                    <Input
+                    <AutoTextarea
                       value={opt}
                       onChange={(e) => editOption(qi, oi, e.target.value)}
-                      className="border-0 bg-transparent px-1 py-0 shadow-none focus-visible:ring-0"
+                      className="min-w-0 flex-1 border-0 bg-transparent px-1 py-1 shadow-none focus-visible:ring-0"
                       aria-label={`אפשרות ${oi + 1} לשאלה ${qi + 1}`}
                     />
                   </label>

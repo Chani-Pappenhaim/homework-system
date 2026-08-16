@@ -127,6 +127,27 @@ export interface QuizQuestionDTO {
   correctIndex?: number;
 }
 
+/**
+ * Returned only by POST /quiz/attempt. This is the one place a student receives
+ * the correct answers — after she has answered, so there is nothing left to give
+ * away, and she can see which questions she got wrong and what the answer was.
+ */
+export interface QuizReviewItemDTO {
+  id: string;
+  question: string;
+  options: string[];
+  correctIndex: number;
+  selectedIndex: number;
+  isCorrect: boolean;
+}
+
+export interface QuizAttemptResultDTO {
+  score: number;
+  correct: number;
+  total: number;
+  review: QuizReviewItemDTO[];
+}
+
 export type QuizStatus = 'ready' | 'generating' | 'none' | 'unavailable' | 'failed';
 
 export interface QuizStateDTO {

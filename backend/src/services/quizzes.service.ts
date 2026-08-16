@@ -264,7 +264,23 @@ export async function submitQuizAttempt(
     update: { answers, score, takenAt: new Date() },
   });
 
-  return { score, correct, total: questions.length };
+  return {
+    score,
+    correct,
+    total: questions.length,
+    // The correct answers ride back with the result, and only here. GET still
+    // withholds correctIndex from students — otherwise the quiz would ship its
+    // own answer key. Once she has answered there is nothing left to protect,
+    // and she needs to see which ones she got wrong and what the answer was.
+    review: questions.map((q, i) => ({
+      id: q.id,
+      question: q.question,
+      options: q.options,
+      correctIndex: q.correctIndex,
+      selectedIndex: answers[i],
+      isCorrect: answers[i] === q.correctIndex,
+    })),
+  };
 }
 
 export async function getQuizResults(lessonId: string) {

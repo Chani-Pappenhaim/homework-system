@@ -76,7 +76,17 @@ describe('QuizPage', () => {
 
   it('submits answers and shows the score result', async () => {
     getQuiz.mockResolvedValue(readyQuiz);
-    attempt.mockResolvedValue({ data: { data: { score: 100, correct: 1, total: 1 } } });
+    attempt.mockResolvedValue({
+      data: {
+        data: {
+          score: 100, correct: 1, total: 1,
+          review: [{
+            id: 'q-1', question: 'מהו React?', options: ['ספרייה', 'שפה'],
+            correctIndex: 0, selectedIndex: 0, isCorrect: true,
+          }],
+        },
+      },
+    });
     renderPage();
     await screen.findByText('1. מהו React?');
     await userEvent.click(screen.getAllByRole('radio')[0]);
@@ -84,5 +94,49 @@ describe('QuizPage', () => {
     await waitFor(() => expect(attempt).toHaveBeenCalledWith('l1', [0]));
     expect(await screen.findByText('100%')).toBeInTheDocument();
     expect(screen.getByText('מצוין!')).toBeInTheDocument();
+  });
+
+  it('shows the correct answer for a question she got wrong', async () => {
+    getQuiz.mockResolvedValue(readyQuiz);
+    attempt.mockResolvedValue({
+      data: {
+        data: {
+          score: 0, correct: 0, total: 1,
+          review: [{
+            id: 'q-1', question: 'מהו React?', options: ['ספרייה', 'שפה'],
+            correctIndex: 0, selectedIndex: 1, isCorrect: false,
+          }],
+        },
+      },
+    });
+    renderPage();
+    await screen.findByText('1. מהו React?');
+    await userEvent.click(screen.getAllByRole('radio')[1]);
+    await userEvent.click(screen.getByRole('button', { name: 'הגש חידון' }));
+
+    // Which one was hers, and which one was right — both have to be legible.
+    expect(await screen.findByText('התשובה שלך')).toBeInTheDocument();
+    expect(screen.getByText('התשובה הנכונה')).toBeInTheDocument();
+  });
+
+  it('marks the answer she got right as both hers and correct', async () => {
+    getQuiz.mockResolvedValue(readyQuiz);
+    attempt.mockResolvedValue({
+      data: {
+        data: {
+          score: 100, correct: 1, total: 1,
+          review: [{
+            id: 'q-1', question: 'מהו React?', options: ['ספרייה', 'שפה'],
+            correctIndex: 0, selectedIndex: 0, isCorrect: true,
+          }],
+        },
+      },
+    });
+    renderPage();
+    await screen.findByText('1. מהו React?');
+    await userEvent.click(screen.getAllByRole('radio')[0]);
+    await userEvent.click(screen.getByRole('button', { name: 'הגש חידון' }));
+
+    expect(await screen.findByText('התשובה שלך — נכונה')).toBeInTheDocument();
   });
 });

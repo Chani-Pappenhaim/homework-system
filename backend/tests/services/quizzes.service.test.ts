@@ -285,14 +285,14 @@ describe('quizzes.service.submitQuizAttempt', () => {
     p.quiz.findUnique.mockResolvedValue(live);
     p.quizAttempt.upsert.mockResolvedValue({});
     const r = await submitQuizAttempt('l1', 's1', 'STUDENT', [0, 1]);
-    expect(r).toEqual({ score: 100, correct: 2, total: 2 });
+    expect(r).toMatchObject({ score: 100, correct: 2, total: 2 });
   });
 
   it('scores a half-correct attempt as 50', async () => {
     p.quiz.findUnique.mockResolvedValue(live);
     p.quizAttempt.upsert.mockResolvedValue({});
     const r = await submitQuizAttempt('l1', 's1', 'STUDENT', [0, 0]);
-    expect(r).toEqual({ score: 50, correct: 1, total: 2 });
+    expect(r).toMatchObject({ score: 50, correct: 1, total: 2 });
   });
 
   it('upserts the attempt keyed by quiz+student', async () => {
@@ -302,6 +302,35 @@ describe('quizzes.service.submitQuizAttempt', () => {
     expect(p.quizAttempt.upsert).toHaveBeenCalledWith(expect.objectContaining({
       where: { quizId_studentId: { quizId: 'qz1', studentId: 's1' } },
     }));
+  });
+
+  it('returns a per-question review so she can see what she got wrong', async () => {
+    p.quiz.findUnique.mockResolvedValue(live);
+    p.quizAttempt.upsert.mockResolvedValue({});
+    // Q1 right, Q2 wrong.
+    const r: any = await submitQuizAttempt('l1', 's1', 'STUDENT', [0, 0]);
+
+    expect(r.review).toHaveLength(2);
+    expect(r.review[0]).toMatchObject({
+      id: 'q1', question: 'A?', correctIndex: 0, selectedIndex: 0, isCorrect: true,
+    });
+    expect(r.review[1]).toMatchObject({
+      id: 'q2', question: 'B?', correctIndex: 1, selectedIndex: 0, isCorrect: false,
+    });
+    // The right answer to the one she missed has to be in there, or the review
+    // tells her nothing she did not already know.
+    expect(r.review[1].options[r.review[1].correctIndex]).toBe('y');
+  });
+
+  it('reveals the answers only in the attempt result, never in a student GET', async () => {
+    p.quiz.findUnique.mockResolvedValue(live);
+    p.quizAttempt.upsert.mockResolvedValue({});
+
+    const read: any = await getQuiz('l1', 's1', 'STUDENT');
+    expect(read.quiz.questions[0]).not.toHaveProperty('correctIndex');
+
+    const answered: any = await submitQuizAttempt('l1', 's1', 'STUDENT', [0, 1]);
+    expect(answered.review[0]).toHaveProperty('correctIndex');
   });
 });
 

@@ -7,12 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
 import { cn } from '@/lib/utils';
+import type { QuizAttemptResultDTO } from '@/types';
 
 export default function QuizPage() {
   const { lessonId } = useParams<{ lessonId: string }>();
   const navigate = useNavigate();
   const [answers, setAnswers] = useState<number[]>([]);
-  const [result, setResult] = useState<{ score: number; correct: number; total: number } | null>(null);
+  const [result, setResult] = useState<QuizAttemptResultDTO | null>(null);
 
   // Reading this page never starts an AI generation any more — the teacher owns
   // that. So there is nothing to poll for and nothing to wait out: the server's
@@ -104,20 +105,37 @@ export default function QuizPage() {
           </CardContent>
         </Card>
 
-        {/* Per-question review — independent cards, spread across a grid on wide screens */}
+        {/* Per-question review. It reads the review the server sent back with the
+            result — the quiz itself never carries the correct answers to a
+            student, so before submitting there is nothing here to give away. */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {quiz?.questions.map((q: any, i: number) => (
-            <Card key={q.id}>
+          {result.review.map((q, i) => (
+            <Card key={q.id} accent={q.isCorrect ? 'sage' : 'coral'}>
               <CardContent className="space-y-2">
-                <p className="text-sm font-bold text-ink">{i + 1}. {q.question}</p>
-                {q.options.map((opt: string, j: number) => {
+                <div className="flex items-start gap-2">
+                  <span
+                    className={cn(
+                      'mt-px grid size-5 shrink-0 place-items-center rounded-full text-xs font-bold text-sheet',
+                      q.isCorrect ? 'bg-sage' : 'bg-coral',
+                    )}
+                    aria-hidden
+                  >
+                    {q.isCorrect ? '✓' : '✗'}
+                  </span>
+                  <p className="text-sm font-bold text-ink">
+                    {i + 1}. {q.question}
+                    <span className="sr-only">{q.isCorrect ? ' — ענית נכון' : ' — ענית לא נכון'}</span>
+                  </p>
+                </div>
+
+                {q.options.map((opt, j) => {
                   const isCorrect = q.correctIndex === j;
-                  const isSelected = answers[i] === j;
+                  const isSelected = q.selectedIndex === j;
                   return (
                     <div
                       key={j}
                       className={cn(
-                        'flex items-center gap-2 rounded-input border px-3 py-2 text-sm',
+                        'flex items-start gap-2 rounded-input border px-3 py-2 text-sm',
                         isCorrect
                           ? 'border-sage bg-sage/15 text-sage'
                           : isSelected
@@ -125,8 +143,20 @@ export default function QuizPage() {
                             : 'border-rule bg-ground/50 text-ink/70',
                       )}
                     >
-                      <span className="font-sans">{isCorrect ? '✓' : isSelected ? '✗' : '○'}</span>
-                      {opt}
+                      <span className="font-sans shrink-0" aria-hidden>
+                        {isCorrect ? '✓' : isSelected ? '✗' : '○'}
+                      </span>
+                      <span className="min-w-0 flex-1">{opt}</span>
+                      {/* Spell out what the colours mean — a wrong answer is only
+                          useful if she can tell which line was hers. */}
+                      {isCorrect && (
+                        <span className="shrink-0 text-[11px] font-semibold">
+                          {isSelected ? 'התשובה שלך — נכונה' : 'התשובה הנכונה'}
+                        </span>
+                      )}
+                      {isSelected && !isCorrect && (
+                        <span className="shrink-0 text-[11px] font-semibold">התשובה שלך</span>
+                      )}
                     </div>
                   );
                 })}
