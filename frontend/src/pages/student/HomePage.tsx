@@ -7,6 +7,8 @@ import { coursesApi } from '@/api/courses.api';
 import { submissionsApi } from '@/api/submissions.api';
 import { Tape } from '@/components/decor';
 import { cn, formatDate, isOverdue } from '@/lib/utils';
+import { unwrap } from '@/lib/api-utils';
+import type { PendingAssignment } from '@/types';
 
 // A little rotation per course card so they read like sheets tacked to a board.
 const CARD_ACCENTS = ['clay', 'indigo', 'sage', 'butter', 'coral'] as const;
@@ -20,8 +22,8 @@ export default function StudentHomePage() {
   const { data: mineData } = useQuery({ queryKey: ['mine'], queryFn: () => submissionsApi.mine() });
 
   const courses = coursesData?.data.data.courses ?? [];
-  const mine = (mineData?.data as any)?.data;
-  const pending: any[] = mine?.pending ?? [];
+  const mine = unwrap(mineData);
+  const pending: PendingAssignment[] = mine?.pending ?? [];
   const [search, setSearch] = useState('');
   const q = search.trim().toLowerCase();
   const filteredCourses = q ? courses.filter((c) => c.name?.toLowerCase().includes(q)) : courses;

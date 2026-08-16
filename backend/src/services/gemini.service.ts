@@ -1,5 +1,3 @@
-import AdmZip from 'adm-zip';
-import mammoth from 'mammoth';
 import { prisma } from '../config/prisma';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
@@ -7,10 +5,46 @@ const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 const PRICE_INPUT_PER_1M = 0.10;
 const PRICE_OUTPUT_PER_1M = 0.40;
 
-// Same caps as fetchGithubCode: max 20 files, max 5KB per file
-const CODE_EXTENSIONS = ['.js', '.ts', '.jsx', '.tsx', '.py', '.html', '.css', '.java', '.cs', '.cpp', '.c'];
-const MAX_FILES = 20;
-const MAX_FILE_CHARS = 5000;
+async function logAiUsage(type: string, tokensInput: number, tokensOutput: number) {
+  await prisma.aiUsageLog.create({
+    data: {
+      type,
+      tokensInput,
+      tokensOutput,
+      costUsd: (tokensInput / 1_000_000) * PRICE_INPUT_PER_1M + (tokensOutput / 1_000_000) * PRICE_OUTPUT_PER_1M,
+    },
+  });
+}
+
+/** Single call point for the Gemini API — sends a system+user prompt, logs usage, returns the raw text. */
+async function callGemini(systemPrompt: string, userMessage: string, usageType: string): Promise<string> {
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+        generationConfig: { responseMimeType: 'application/json' },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Gemini API error: ${response.status} ${err}`);
+  }
+
+  const data = await response.json() as any;
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  const tokensInput = data.usageMetadata?.promptTokenCount || 0;
+  const tokensOutput = data.usageMetadata?.candidatesTokenCount || 0;
+
+  await logAiUsage(usageType, tokensInput, tokensOutput);
+
+  return text;
+}
 
 interface AiReviewResult {
   codeReview: string;
@@ -36,38 +70,7 @@ ${aiInstructions ? `הנחיות ספציפיות למטלה זו:\n${aiInstruct
 
   const userMessage = `מטלה: ${assignmentTitle}\n\nקוד:\n\`\`\`\n${code}\n\`\`\``;
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ role: 'user', parts: [{ text: userMessage }] }],
-        generationConfig: { responseMimeType: 'application/json' },
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`Gemini API error: ${response.status} ${err}`);
-  }
-
-  const data = await response.json() as any;
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  const tokensInput = data.usageMetadata?.promptTokenCount || 0;
-  const tokensOutput = data.usageMetadata?.candidatesTokenCount || 0;
-
-  await prisma.aiUsageLog.create({
-    data: {
-      type: 'homework_review',
-      tokensInput,
-      tokensOutput,
-      costUsd: (tokensInput / 1_000_000) * PRICE_INPUT_PER_1M + (tokensOutput / 1_000_000) * PRICE_OUTPUT_PER_1M,
-    },
-  });
-
+  const text = await callGemini(systemPrompt, userMessage, 'homework_review');
   const parsed = JSON.parse(text);
   return {
     codeReview: parsed.code_review || '',
@@ -96,103 +99,10 @@ export async function generateQuiz(lessonContent: string): Promise<QuizQuestion[
 החזירי JSON בלבד (מערך), ללא טקסט נוסף, במבנה המדויק:
 [{"id":"1","question":"...","options":["...","...","...","..."],"correctIndex":0}]`;
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ role: 'user', parts: [{ text: `תוכן השיעור:\n${lessonContent}` }] }],
-        generationConfig: { responseMimeType: 'application/json' },
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`Gemini API error: ${response.status} ${err}`);
-  }
-
-  const data = await response.json() as any;
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  const tokensInput = data.usageMetadata?.promptTokenCount || 0;
-  const tokensOutput = data.usageMetadata?.candidatesTokenCount || 0;
-
-  await prisma.aiUsageLog.create({
-    data: {
-      type: 'quiz_generation',
-      tokensInput,
-      tokensOutput,
-      costUsd: (tokensInput / 1_000_000) * PRICE_INPUT_PER_1M + (tokensOutput / 1_000_000) * PRICE_OUTPUT_PER_1M,
-    },
-  });
-
+  const text = await callGemini(systemPrompt, `תוכן השיעור:\n${lessonContent}`, 'quiz_generation');
   const parsed = JSON.parse(text);
   // Gemini may wrap the array in an object; accept both shapes.
   const questions = Array.isArray(parsed) ? parsed : parsed.questions;
   if (!Array.isArray(questions)) throw new Error('Quiz generation returned no questions');
   return questions as QuizQuestion[];
-}
-
-export async function fetchGithubCode(githubUrl: string): Promise<string> {
-  // githubUrl = https://github.com/username/reponame
-  const match = githubUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
-  if (!match) throw new Error('Invalid GitHub URL');
-  const [, owner, repo] = match;
-
-  const apiUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/HEAD?recursive=1`;
-  const treeRes = await fetch(apiUrl, {
-    headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'homework-app' },
-  });
-  if (!treeRes.ok) throw new Error(`GitHub API error: ${treeRes.status}`);
-  const tree = await treeRes.json() as any;
-
-  const files = (tree.tree || []).filter((f: any) =>
-    f.type === 'blob' && CODE_EXTENSIONS.some((ext) => f.path.endsWith(ext)) &&
-    !f.path.includes('node_modules') && !f.path.includes('.min.')
-  ).slice(0, MAX_FILES);
-
-  const contents: string[] = [];
-  for (const file of files) {
-    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${file.path}`;
-    const res = await fetch(rawUrl, { headers: { 'User-Agent': 'homework-app' } });
-    if (!res.ok) continue;
-    const text = await res.text();
-    if (text.length > MAX_FILE_CHARS) continue; // skip huge files
-    contents.push(`--- ${file.path} ---\n${text}`);
-  }
-
-  return contents.join('\n\n');
-}
-
-export function extractZipCode(buffer: Buffer): string {
-  const zip = new AdmZip(buffer);
-  const entries = zip
-    .getEntries()
-    .filter((entry) => {
-      const name = entry.entryName;
-      return (
-        !entry.isDirectory &&
-        CODE_EXTENSIONS.some((ext) => name.endsWith(ext)) &&
-        !name.includes('node_modules/') &&
-        !name.includes('dist/') &&
-        !name.includes('.min.')
-      );
-    })
-    .slice(0, MAX_FILES);
-
-  const contents: string[] = [];
-  for (const entry of entries) {
-    const text = entry.getData().toString('utf8');
-    if (text.length > MAX_FILE_CHARS) continue; // skip huge files
-    contents.push(`--- ${entry.entryName} ---\n${text}`);
-  }
-
-  return contents.join('\n\n');
-}
-
-export async function extractDocxText(buffer: Buffer): Promise<string> {
-  const result = await mammoth.extractRawText({ buffer });
-  return result.value;
 }

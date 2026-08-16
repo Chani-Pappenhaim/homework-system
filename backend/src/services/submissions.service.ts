@@ -2,6 +2,7 @@ import { prisma } from '../config/prisma';
 import { uploadBuffer, createUploadSignature } from '../utils/storage';
 import { assertLessonAccess } from '../utils/access';
 import { computeSubmissionScore } from '../utils/grading';
+import { aiReviewQueue } from '../infrastructure/queues/queues';
 import ExcelJS from 'exceljs';
 
 export async function submitAssignment(
@@ -156,7 +157,7 @@ export async function getMySubmissions(studentId: string) {
     if (!sub) {
       pending.push({
         assignmentId: assignment.id, assignmentTitle: assignment.title,
-        lessonTopic: assignment.lesson.topic, courseName: assignment.lesson.course.name,
+        lessonId: assignment.lessonId, lessonTopic: assignment.lesson.topic, courseName: assignment.lesson.course.name,
         deadline: assignment.deadline,
       });
     } else {
@@ -199,6 +200,59 @@ export async function getSubmissionById(id: string, userId: string, role: string
     ? { ...submission.grade, contentScore: submission.aiApproved ? submission.grade.contentScore : null }
     : submission.grade;
   return { ...submission, grade, ...toStudentAiView(submission) };
+}
+
+export async function requestAiReview(submissionId: string, studentId: string) {
+  const submission = await prisma.submission.findUnique({ where: { id: submissionId } });
+  if (!submission) throw Object.assign(new Error('Submission not found'), { status: 404 });
+  if (submission.studentId !== studentId) throw Object.assign(new Error('Forbidden'), { status: 403 });
+  if (!submission.githubUrl) throw Object.assign(new Error('No GitHub URL on submission'), { status: 400 });
+
+  const maxReviews = submission.aiExtraAllowed ? 2 : 1;
+  if (submission.aiReviewCount >= maxReviews) {
+    throw Object.assign(new Error('AI review limit reached'), { status: 400 });
+  }
+  if (submission.aiStatus === 'pending') {
+    throw Object.assign(new Error('Review already in progress'), { status: 400 });
+  }
+
+  await prisma.submission.update({ where: { id: submission.id }, data: { aiStatus: 'pending' } });
+  await aiReviewQueue.add(
+    'review',
+    { submissionId: submission.id },
+    // GitHub and Gemini both fail transiently; without retries a blip costs the
+    // student her one review attempt.
+    { attempts: 3, backoff: { type: 'exponential', delay: 5000 } }
+  );
+}
+
+export async function approveAiReview(submissionId: string) {
+  return prisma.submission.update({
+    where: { id: submissionId },
+    data: { aiApproved: true },
+  });
+}
+
+// Restore the grade score back to the AI's score — no new AI request needed,
+// because aiScore is kept on the submission even after the teacher overrides the grade.
+export async function restoreAiScore(submissionId: string, gradedById: string) {
+  const submission = await prisma.submission.findUnique({ where: { id: submissionId } });
+  if (!submission) throw Object.assign(new Error('Submission not found'), { status: 404 });
+  if (submission.aiScore == null) {
+    throw Object.assign(new Error('אין ציון AI להגשה זו'), { status: 400 });
+  }
+  return prisma.grade.upsert({
+    where: { submissionId: submission.id },
+    create: { submissionId: submission.id, gradedById, contentScore: submission.aiScore },
+    update: { contentScore: submission.aiScore, gradedAt: new Date(), gradedById },
+  });
+}
+
+export async function allowExtraAiReview(submissionId: string) {
+  await prisma.submission.update({
+    where: { id: submissionId },
+    data: { aiExtraAllowed: true },
+  });
 }
 
 export async function importSubmissions(buffer: Buffer) {

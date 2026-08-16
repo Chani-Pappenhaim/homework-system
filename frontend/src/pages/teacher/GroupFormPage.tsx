@@ -59,7 +59,7 @@ export default function GroupFormPage() {
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['groups'] });
       toast.success(isEdit ? 'הקבוצה נשמרה בהצלחה' : 'הקבוצה נוצרה בהצלחה');
-      const gid = isEdit ? id! : (res.data as any).data.group.id;
+      const gid = isEdit ? id! : res.data.data.group.id;
       navigate(`/teacher/groups/${gid}/edit`);
     },
     onError: (e: any) => setError(getApiErrorMessage(e, 'שגיאה בשמירה')),

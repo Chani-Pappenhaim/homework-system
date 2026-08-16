@@ -10,6 +10,7 @@ import { gradesApi } from '@/api/grades.api';
 import { aiUsageApi } from '@/api/aiUsage.api';
 import { Tape, StatusPill, type PillVariant } from '@/components/decor';
 import { cn } from '@/lib/utils';
+import { unwrap } from '@/lib/api-utils';
 import type { ReportRow } from '@/types';
 
 function relTime(iso?: string): string {
@@ -45,11 +46,11 @@ export default function TeacherHomePage() {
   const { data: aiUsageData } = useQuery({ queryKey: ['ai-usage-summary'], queryFn: () => aiUsageApi.summary() });
   const { data: reportData, isLoading: reportLoading } = useQuery({ queryKey: ['report', {}], queryFn: () => gradesApi.report() });
 
-  const groups = groupsData?.data.data.groups ?? [];
-  const courses = coursesData?.data.data.courses ?? [];
-  const pending = (pendingData?.data as any)?.data?.count ?? 0;
-  const aiCost = (aiUsageData?.data as any)?.data?.totalCostUsd;
-  const report: ReportRow[] = (reportData?.data as any)?.data?.report ?? [];
+  const groups = unwrap(groupsData)?.groups ?? [];
+  const courses = unwrap(coursesData)?.courses ?? [];
+  const pending = unwrap(pendingData)?.count ?? 0;
+  const aiCost = unwrap(aiUsageData)?.totalCostUsd;
+  const report: ReportRow[] = unwrap(reportData)?.report ?? [];
 
   const q = search.trim().toLowerCase();
   const matches = (r: ReportRow) =>

@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatDate, formatDateTime } from '@/lib/utils';
+import { unwrap } from '@/lib/api-utils';
 import type { ReportRow } from '@/types';
 
 export default function ReportsPage() {
@@ -30,9 +31,9 @@ export default function ReportsPage() {
     queryFn: () => gradesApi.report(filters),
   });
 
-  const groups = groupsData?.data.data.groups ?? [];
-  const courses = coursesData?.data.data.courses ?? [];
-  const report: ReportRow[] = (reportData?.data as any)?.data?.report ?? [];
+  const groups = unwrap(groupsData)?.groups ?? [];
+  const courses = unwrap(coursesData)?.courses ?? [];
+  const report: ReportRow[] = unwrap(reportData)?.report ?? [];
 
   const exportMutation = useMutation({
     mutationFn: () => gradesApi.exportReport(Object.keys(filters).length ? filters : undefined),

@@ -1,4 +1,5 @@
 import api from './axios';
+import type { MySubmission, PendingAssignment, SubmissionDTO } from '@/types';
 
 /** Videos are the one submission type large enough to threaten the backend's memory limit. */
 export function isVideoFile(file: File): boolean {
@@ -49,10 +50,10 @@ export const submissionsApi = {
     api.post(`/assignments/${assignmentId}/submit`, { repoName, notes }),
 
   mine: () =>
-    api.get('/submissions/mine'),
+    api.get<{ success: true; data: { pending: PendingAssignment[]; submitted: MySubmission[] } }>('/submissions/mine'),
 
   get: (id: string) =>
-    api.get(`/submissions/${id}`),
+    api.get<{ success: true; data: { submission: SubmissionDTO } }>(`/submissions/${id}`),
 
   importSubmissions: (file: File) => {
     const form = new FormData();

@@ -17,6 +17,8 @@ import {
 } from '@/components/ui/dialog';
 import { cn, formatDateTime } from '@/lib/utils';
 import { getApiErrorMessage } from '@/lib/errors';
+import { unwrap } from '@/lib/api-utils';
+import type { MessageDTO } from '@/types';
 
 export default function StudentMessagesPage() {
   const qc = useQueryClient();
@@ -52,10 +54,10 @@ export default function StudentMessagesPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['unread-reply-count'] }),
   });
 
-  const messages: any[] = (data?.data as any)?.data?.messages ?? [];
+  const messages: MessageDTO[] = unwrap(data)?.messages ?? [];
   const openMsg = messages.find((m) => m.id === openId) ?? null;
 
-  function openMessage(msg: any) {
+  function openMessage(msg: MessageDTO) {
     setOpenId(msg.id);
     if (msg.replyContent && !msg.replySeen) markReplySeenMutation.mutate(msg.id);
   }

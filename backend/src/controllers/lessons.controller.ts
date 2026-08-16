@@ -64,9 +64,8 @@ export async function reorderLessons(req: Request, res: Response) {
 
 export async function uploadFile(req: Request, res: Response) {
   try {
-    if (!req.file) { res.status(400).json({ success: false, error: 'No file uploaded' }); return; }
     const file = await lessonsService.uploadLessonFile(
-      req.params.id as string, req.file.buffer, req.file.originalname, req.file.mimetype, req.body.name
+      req.params.id as string, req.file!.buffer, req.file!.originalname, req.file!.mimetype, req.body.name
     );
     res.status(201).json({ success: true, data: { file } });
   } catch (err: any) {
@@ -121,8 +120,7 @@ export async function revokeLessonAccess(req: Request, res: Response) {
 
 export async function importMarkdown(req: Request, res: Response) {
   try {
-    if (!req.file) { res.status(400).json({ success: false, error: 'No file uploaded' }); return; }
-    const content = req.file.buffer.toString('utf-8');
+    const content = req.file!.buffer.toString('utf-8');
     const lesson = await lessonsService.importMarkdown(req.params.id as string, content);
     res.json({ success: true, data: { lesson: { id: lesson.id, contentMd: lesson.contentMd } } });
   } catch (err: any) {

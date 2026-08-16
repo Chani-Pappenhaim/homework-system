@@ -1,15 +1,15 @@
 import api from './axios';
-import type { ChecklistResult } from '@/types';
+import type { ChecklistResult, ReportRow } from '@/types';
 
 export const gradesApi = {
   grade: (submissionId: string, data: { submissionScore?: number; contentScore?: number; feedback?: string; checklist?: ChecklistResult[] }) =>
     api.post(`/submissions/${submissionId}/grade`, data),
 
   report: (filters?: { groupId?: string; courseId?: string }) =>
-    api.get('/grades/report', { params: filters }),
+    api.get<{ success: true; data: { report: ReportRow[] } }>('/grades/report', { params: filters }),
 
   pending: () =>
-    api.get('/grades/pending'),
+    api.get<{ success: true; data: { count: number } }>('/grades/pending'),
 
   /**
    * Fetched through axios rather than an <a download>: a plain navigation sends

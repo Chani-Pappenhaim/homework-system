@@ -1,7 +1,8 @@
 import { Worker } from 'bullmq';
 import type IORedis from 'ioredis';
 import { prisma } from '../config/prisma';
-import { fetchGithubCode, extractZipCode, extractDocxText, reviewCode } from '../services/gemini.service';
+import { reviewCode } from '../services/gemini.service';
+import { fetchGithubCode, extractZipCode, extractDocxText } from '../utils/code-extraction';
 import type { AiReviewJobData } from '../infrastructure/queues/job-types';
 import { attachLifecycleLogging } from './worker-events';
 import { defaultWorkerOptions } from './worker-defaults';

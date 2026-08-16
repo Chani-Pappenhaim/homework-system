@@ -1,5 +1,5 @@
 import api from './axios';
-import type { AssignmentDTO } from '@/types';
+import type { AssignmentDTO, SubmissionDTO } from '@/types';
 
 export const assignmentsApi = {
   list: (lessonId: string) =>
@@ -15,7 +15,7 @@ export const assignmentsApi = {
     api.delete(`/assignments/${id}`),
 
   getSubmissions: (id: string) =>
-    api.get(`/assignments/${id}/submissions`),
+    api.get<{ success: true; data: { submissions: SubmissionDTO[] } }>(`/assignments/${id}/submissions`),
 
   importFromExcel: (file: File) => {
     const form = new FormData();

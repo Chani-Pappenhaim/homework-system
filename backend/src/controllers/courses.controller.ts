@@ -67,9 +67,8 @@ export async function deleteLink(req: Request, res: Response) {
 
 export async function uploadFile(req: Request, res: Response) {
   try {
-    if (!req.file) { res.status(400).json({ success: false, error: 'No file uploaded' }); return; }
     const file = await coursesService.uploadCourseFile(
-      req.params.id as string, req.file.buffer, req.file.originalname, req.file.mimetype, req.body.name
+      req.params.id as string, req.file!.buffer, req.file!.originalname, req.file!.mimetype, req.body.name
     );
     res.status(201).json({ success: true, data: { file } });
   } catch (err: any) {

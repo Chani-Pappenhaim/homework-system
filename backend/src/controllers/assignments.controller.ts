@@ -42,8 +42,7 @@ export async function deleteAssignment(req: Request, res: Response) {
 
 export async function importAssignments(req: Request, res: Response) {
   try {
-    if (!req.file) { res.status(400).json({ success: false, error: 'No file uploaded' }); return; }
-    const result = await assignmentsService.importAssignments(req.file.buffer);
+    const result = await assignmentsService.importAssignments(req.file!.buffer);
     res.json({ success: true, data: result });
   } catch (err: any) {
     sendError(res, err);

@@ -9,6 +9,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Tape } from '@/components/decor';
 import { cn } from '@/lib/utils';
+import { unwrap } from '@/lib/api-utils';
 import type { CourseDTO } from '@/types';
 
 // Each card gets its own accent so the grid reads like colourful tabbed sheets.
@@ -29,7 +30,7 @@ export default function CoursesPage() {
     queryFn: () => coursesApi.list(),
   });
 
-  const courses: CourseDTO[] = (data?.data as any)?.data?.courses ?? [];
+  const courses: CourseDTO[] = unwrap(data)?.courses ?? [];
 
   if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
 

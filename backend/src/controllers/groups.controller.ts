@@ -61,8 +61,7 @@ export async function removeStudent(req: Request, res: Response) {
 
 export async function importStudents(req: Request, res: Response) {
   try {
-    if (!req.file) { res.status(400).json({ success: false, error: 'No file uploaded' }); return; }
-    const result = await groupsService.importStudents(req.params.id as string, req.file.buffer);
+    const result = await groupsService.importStudents(req.params.id as string, req.file!.buffer);
     res.json({ success: true, data: result });
   } catch (err: any) {
     sendError(res, err);

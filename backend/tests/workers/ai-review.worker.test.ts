@@ -20,14 +20,17 @@ vi.mock('../../src/config/prisma', () => ({
   prisma: { submission: { findUnique: vi.fn(), update: vi.fn().mockResolvedValue({}) } },
 }));
 vi.mock('../../src/services/gemini.service', () => ({
+  reviewCode: vi.fn(),
+}));
+vi.mock('../../src/utils/code-extraction', () => ({
   fetchGithubCode: vi.fn(),
   extractZipCode: vi.fn(),
   extractDocxText: vi.fn(),
-  reviewCode: vi.fn(),
 }));
 
 import { prisma } from '../../src/config/prisma';
 import * as gemini from '../../src/services/gemini.service';
+import * as codeExtraction from '../../src/utils/code-extraction';
 import { registerAiReviewWorker } from '../../src/workers/ai-review.worker';
 
 // Registering the worker constructs the (mocked) BullMQ Worker, which captures
@@ -50,12 +53,12 @@ describe('ai-review worker', () => {
       id: 's1', githubUrl: 'https://github.com/u/r', fileName: null, fileUrl: null,
       assignment: { title: 'Task', aiInstructions: 'be strict' }, student: {},
     });
-    (gemini.fetchGithubCode as any).mockResolvedValue('const x = 1;');
+    (codeExtraction.fetchGithubCode as any).mockResolvedValue('const x = 1;');
     (gemini.reviewCode as any).mockResolvedValue({ score: 88, codeReview: 'cr', verbalReview: 'vr' });
 
     await run('s1');
 
-    expect(gemini.fetchGithubCode).toHaveBeenCalledWith('https://github.com/u/r');
+    expect(codeExtraction.fetchGithubCode).toHaveBeenCalledWith('https://github.com/u/r');
     expect(p.submission.update).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: 's1' },
       data: expect.objectContaining({ aiStatus: 'done', aiScore: 88, aiCodeReview: 'cr' }),
@@ -67,14 +70,14 @@ describe('ai-review worker', () => {
       id: 's2', githubUrl: null, fileName: 'work.zip', fileUrl: 'https://c/work.zip',
       assignment: { title: 'T' }, student: {},
     });
-    (gemini.extractZipCode as any).mockReturnValue('zipped code');
+    (codeExtraction.extractZipCode as any).mockReturnValue('zipped code');
     (gemini.reviewCode as any).mockResolvedValue({ score: 70, codeReview: 'c', verbalReview: 'v' });
     // downloadFile uses global fetch
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, arrayBuffer: async () => new ArrayBuffer(4) }));
 
     await run('s2');
 
-    expect(gemini.extractZipCode).toHaveBeenCalled();
+    expect(codeExtraction.extractZipCode).toHaveBeenCalled();
     expect(p.submission.update).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ aiStatus: 'done' }),
     }));

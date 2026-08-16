@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Github, Paperclip, CheckCircle, Clock, Bot, Check } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
 import { submissionsApi, isVideoFile } from '@/api/submissions.api';
-import { messagesApi } from '@/api/messages.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,7 +14,9 @@ import { Input } from '@/components/ui/input';
 import { BackLink } from '@/components/ui/back-link';
 import { cn, formatDate, formatDateTime, isOverdue, toExternalUrl } from '@/lib/utils';
 import { getApiErrorMessage } from '@/lib/errors';
-import type { AssignmentDTO } from '@/types';
+import { useTeacherRequest } from '@/hooks/useTeacherRequest';
+import { unwrap } from '@/lib/api-utils';
+import type { AssignmentDTO, MySubmission } from '@/types';
 
 export default function StudentLessonDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -33,7 +34,7 @@ export default function StudentLessonDetailPage() {
   });
 
   const lesson = data?.data.data.lesson;
-  const submitted: any[] = (mineData?.data as any)?.data?.submitted ?? [];
+  const submitted: MySubmission[] = unwrap(mineData)?.submitted ?? [];
 
   const progressMutation = useMutation({
     mutationFn: (completed: boolean) => lessonsApi.setProgress(id!, completed),
@@ -134,32 +135,26 @@ export default function StudentLessonDetailPage() {
 }
 
 function AssignmentCard({ assignment: a, submission: sub }: {
-  assignment: AssignmentDTO; submission: any;
+  assignment: AssignmentDTO; submission: MySubmission | undefined;
 }) {
   const qc = useQueryClient();
   const [repoName, setRepoName] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [showAiReview, setShowAiReview] = useState(false);
-  const [lateFormOpen, setLateFormOpen] = useState(false);
-  const [lateReason, setLateReason] = useState('');
-  const [lateRequestSent, setLateRequestSent] = useState(false);
   const [aiLimitReached, setAiLimitReached] = useState(false);
-  const [aiExtraFormOpen, setAiExtraFormOpen] = useState(false);
-  const [aiExtraReason, setAiExtraReason] = useState('');
-  const [aiExtraRequestSent, setAiExtraRequestSent] = useState(false);
 
-  const lateRequestMutation = useMutation({
-    mutationFn: () => messagesApi.send(
-      `בקשת הגשה מאוחרת עבור "${a.title}"${lateReason.trim() ? `: ${lateReason.trim()}` : ''}`,
-      a.id,
-    ),
-    onSuccess: () => { setLateRequestSent(true); setLateFormOpen(false); setLateReason(''); setError(''); },
-    onError: (e: any) => setError(getApiErrorMessage(e, 'שגיאה בשליחת הבקשה')),
-  });
+  const lateRequest = useTeacherRequest(
+    (reason) => `בקשת הגשה מאוחרת עבור "${a.title}"${reason ? `: ${reason}` : ''}`,
+    a.id,
+  );
+  const aiExtraRequest = useTeacherRequest(
+    (reason) => `בקשה לבדיקת AI נוספת עבור "${a.title}"${reason ? `: ${reason}` : ''}`,
+    a.id,
+  );
 
   const aiReviewMutation = useMutation({
-    mutationFn: () => submissionsApi.requestAiReview(sub?.id),
+    mutationFn: () => submissionsApi.requestAiReview(sub!.id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['mine'] }); setAiLimitReached(false); setError(''); },
     onError: (e: any) => {
       if (e?.response?.data?.error === 'AI review limit reached') {
@@ -169,15 +164,6 @@ function AssignmentCard({ assignment: a, submission: sub }: {
         setError(getApiErrorMessage(e, 'שגיאה בבקשת בדיקה'));
       }
     },
-  });
-
-  const aiExtraReviewRequestMutation = useMutation({
-    mutationFn: () => messagesApi.send(
-      `בקשה לבדיקת AI נוספת עבור "${a.title}"${aiExtraReason.trim() ? `: ${aiExtraReason.trim()}` : ''}`,
-      a.id,
-    ),
-    onSuccess: () => { setAiExtraRequestSent(true); setAiExtraFormOpen(false); setAiExtraReason(''); setError(''); },
-    onError: (e: any) => setError(getApiErrorMessage(e, 'שגיאה בשליחת הבקשה')),
   });
 
   const fileMutation = useMutation({
@@ -230,7 +216,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                   {sub.grade.submissionScore != null && <p className="font-semibold">ציון הגשה: {sub.grade.submissionScore}</p>}
                   {sub.grade.contentScore != null && <p className="font-semibold">ציון תוכן: {sub.grade.contentScore}</p>}
                   {sub.grade.feedback && <MarkdownRenderer content={sub.grade.feedback} className="text-xs" />}
-                  {sub.grade.checklist?.map((c: any) => (
+                  {sub.grade.checklist?.map((c) => (
                     <div key={c.id} className={`text-xs flex items-center gap-1 ${c.checked ? 'text-sage' : 'text-ink/50'}`}>
                       {c.checked ? '✓' : '✗'} {c.text}
                     </div>
@@ -257,35 +243,36 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                 {aiLimitReached && (
                   <div className="space-y-2 pt-1">
                     <p className="text-xs text-ink/70">נוצל מספר בדיקות ה-AI המותר להגשה זו.</p>
-                    {aiExtraRequestSent ? (
+                    {aiExtraRequest.sent ? (
                       <p className="text-xs text-sage font-medium">הבקשה נשלחה למורה ✓</p>
                     ) : (
-                      <Button size="sm" variant="outline" onClick={() => setAiExtraFormOpen(!aiExtraFormOpen)}>
+                      <Button size="sm" variant="outline" onClick={() => aiExtraRequest.setFormOpen(!aiExtraRequest.formOpen)}>
                         בקשי בדיקה נוספת מהמורה
                       </Button>
                     )}
-                    {aiExtraFormOpen && !aiExtraRequestSent && (
+                    {aiExtraRequest.formOpen && !aiExtraRequest.sent && (
                       <div className="space-y-2">
                         <Textarea
                           className="resize-none"
                           rows={2}
                           placeholder="הסבר קצר לבקשה (אופציונלי)"
-                          value={aiExtraReason}
-                          onChange={(e) => setAiExtraReason(e.target.value)}
+                          value={aiExtraRequest.reason}
+                          onChange={(e) => aiExtraRequest.setReason(e.target.value)}
                           autoFocus
                         />
                         <div className="flex gap-2">
                           <Button
                             size="sm"
-                            loading={aiExtraReviewRequestMutation.isPending}
-                            onClick={() => aiExtraReviewRequestMutation.mutate()}
+                            loading={aiExtraRequest.sending}
+                            onClick={() => aiExtraRequest.send()}
                           >
                             שלחי בקשה
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => { setAiExtraFormOpen(false); setAiExtraReason(''); }}>
+                          <Button size="sm" variant="outline" onClick={() => { aiExtraRequest.setFormOpen(false); aiExtraRequest.setReason(''); }}>
                             ביטול
                           </Button>
                         </div>
+                        {aiExtraRequest.error && <p className="text-coral text-xs">{aiExtraRequest.error}</p>}
                       </div>
                     )}
                   </div>
@@ -310,39 +297,40 @@ function AssignmentCard({ assignment: a, submission: sub }: {
           <>
             {a.deadline && isOverdue(a.deadline) && (
               <div className="space-y-2">
-                {lateRequestSent ? (
+                {lateRequest.sent ? (
                   <p className="text-xs text-sage font-medium">הבקשה נשלחה למורה ✓</p>
                 ) : (
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setLateFormOpen(!lateFormOpen)}
+                    onClick={() => lateRequest.setFormOpen(!lateRequest.formOpen)}
                   >
                     בקשי אישור הגשה מאוחרת
                   </Button>
                 )}
-                {lateFormOpen && !lateRequestSent && (
+                {lateRequest.formOpen && !lateRequest.sent && (
                   <div className="space-y-2">
                     <Textarea
                       className="resize-none"
                       rows={2}
                       placeholder="סיבת האיחור (אופציונלי)"
-                      value={lateReason}
-                      onChange={(e) => setLateReason(e.target.value)}
+                      value={lateRequest.reason}
+                      onChange={(e) => lateRequest.setReason(e.target.value)}
                       autoFocus
                     />
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        loading={lateRequestMutation.isPending}
-                        onClick={() => lateRequestMutation.mutate()}
+                        loading={lateRequest.sending}
+                        onClick={() => lateRequest.send()}
                       >
                         שלחי בקשה
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => { setLateFormOpen(false); setLateReason(''); }}>
+                      <Button size="sm" variant="outline" onClick={() => { lateRequest.setFormOpen(false); lateRequest.setReason(''); }}>
                         ביטול
                       </Button>
                     </div>
+                    {lateRequest.error && <p className="text-coral text-xs">{lateRequest.error}</p>}
                   </div>
                 )}
               </div>

@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Tape } from '@/components/decor';
 import { cn } from '@/lib/utils';
+import { unwrap } from '@/lib/api-utils';
 import type { GroupDTO } from '@/types';
 
 const ACCENTS = ['indigo', 'sage', 'clay', 'butter', 'coral'] as const;
@@ -27,7 +28,7 @@ export default function GroupsPage() {
     queryFn: () => groupsApi.list(),
   });
 
-  const groups: GroupDTO[] = (data?.data as any)?.data?.groups ?? [];
+  const groups: GroupDTO[] = unwrap(data)?.groups ?? [];
 
   if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
 

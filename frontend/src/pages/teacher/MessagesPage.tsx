@@ -16,6 +16,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn, formatDateTime } from '@/lib/utils';
+import { unwrap } from '@/lib/api-utils';
+import type { MessageDTO } from '@/types';
 
 export default function TeacherMessagesPage() {
   const qc = useQueryClient();
@@ -58,10 +60,10 @@ export default function TeacherMessagesPage() {
     },
   });
 
-  const messages: any[] = (data?.data as any)?.data?.messages ?? [];
+  const messages: MessageDTO[] = unwrap(data)?.messages ?? [];
   const openMsg = messages.find((m) => m.id === openId) ?? null;
 
-  function openMessage(msg: any) {
+  function openMessage(msg: MessageDTO) {
     setOpenId(msg.id);
     setReplyText(msg.replyContent ?? '');
     if (!msg.isRead) markReadMutation.mutate(msg.id);

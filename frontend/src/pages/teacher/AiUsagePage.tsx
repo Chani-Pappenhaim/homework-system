@@ -4,6 +4,7 @@ import { aiUsageApi } from '@/api/aiUsage.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { cn } from '@/lib/utils';
+import { unwrap } from '@/lib/api-utils';
 
 function formatMonth(month: string) {
   const [year, m] = month.split('-');
@@ -34,15 +35,13 @@ export default function AiUsagePage() {
     retry: 1,
   });
 
-  const summary = (data?.data as any)?.data;
-  const storage = (storageData?.data as any)?.data as
-    | { usedBytes: number; limitBytes: number; percent: number }
-    | undefined;
+  const summary = unwrap(data);
+  const storage = unwrap(storageData);
 
   if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
 
   const totalTokens = (summary?.totalTokensInput ?? 0) + (summary?.totalTokensOutput ?? 0);
-  const byMonth: any[] = summary?.byMonth ?? [];
+  const byMonth = summary?.byMonth ?? [];
 
   return (
     <div className="mx-auto max-w-6xl space-y-5" dir="rtl">

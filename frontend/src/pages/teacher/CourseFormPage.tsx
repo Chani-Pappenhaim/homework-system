@@ -77,7 +77,7 @@ export default function CourseFormPage() {
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['courses'] });
       toast.success(isEdit ? 'הקורס נשמר בהצלחה' : 'הקורס נוצר בהצלחה');
-      const cid = isEdit ? id! : (res.data as any).data.course.id;
+      const cid = isEdit ? id! : res.data.data.course.id;
       navigate(`/teacher/courses/${cid}`);
     },
     onError: (e: any) => setError(getApiErrorMessage(e, 'שגיאה בשמירה')),

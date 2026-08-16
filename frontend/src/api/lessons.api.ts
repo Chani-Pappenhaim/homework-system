@@ -1,5 +1,5 @@
 import api from './axios';
-import type { LessonDetailDTO } from '@/types';
+import type { LessonDetailDTO, StudentSummary } from '@/types';
 
 export const lessonsApi = {
   list: (courseId: string) =>
@@ -9,7 +9,7 @@ export const lessonsApi = {
     api.get<{ success: true; data: { lesson: LessonDetailDTO } }>(`/lessons/${id}`),
 
   create: (courseId: string, data: { topic: string; lessonDate?: string; contentMd?: string; githubUrl?: string; hidden?: boolean; order?: number }) =>
-    api.post(`/courses/${courseId}/lessons`, data),
+    api.post<{ success: true; data: { lesson: { id: string } } }>(`/courses/${courseId}/lessons`, data),
 
   update: (id: string, data: Partial<{ topic: string; lessonDate: string; contentMd: string; githubUrl: string; hidden: boolean; order: number }>) =>
     api.put(`/lessons/${id}`, data),
@@ -40,7 +40,7 @@ export const lessonsApi = {
   },
 
   getAccess: (id: string) =>
-    api.get(`/lessons/${id}/access`),
+    api.get<{ success: true; data: { students: StudentSummary[] } }>(`/lessons/${id}/access`),
 
   grantAccess: (id: string, studentId: string) =>
     api.post(`/lessons/${id}/access`, { studentId }),

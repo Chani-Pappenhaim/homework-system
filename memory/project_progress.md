@@ -2,6 +2,22 @@
 
 > קובץ זה עוקב אחרי מה שהושלם ומה שנשאר. יש לעדכן אותו בסוף כל שיחה שבה נעשתה עבודה.
 
+## אחידות עיצוב מורה/תלמידה + חתימת מפתחות (2026-07-31, מוזג ל-main ישירות — בלי PR, לפי בקשה מפורשת)
+
+**חשוב — עבודה מקבילה עם סשן Claude Code אחר:** לאורך השיחה הזו סשן אחר (worktrees תחת session id `076715d0-...`, וגם `feature/homework-fixes-batch`) עבד באותו repo, כולל checkout-ים ב**תיקייה הראשית המשותפת** וגם **rewrite של היסטוריית main** (hashes של קומיטים שכבר מוזגו השתנו — תוכן זהה, הורה שונה). **מכל עבודה מהותית — נעשתה ב-git worktree ייעודי תחת scratchpad, לא בתיקייה הראשית.** לפני כל push ל-main: `git fetch origin main` ובדיקה שהוא לא זז מאז שנוצר ה-worktree/merge, כדי לא לדרוס עבודה של הסשן השני.
+
+**מה נעשה (כולם merge ישיר ל-main, push רגיל בלי force, tsc נקי לפני כל push):**
+1. **מחיקת הודעות + דיאלוג צף אצל התלמידה** — ראה היסטוריית git (`feat: unify teacher/student UI design...`) לפרטים מלאים: `DELETE /messages/:id`(+`/reply`+`/mine`), Dialog overlay ב-`student/MessagesPage.tsx` כמו אצל המורה.
+2. **פריסת דפים רב-עמודתית** בדפי פירוט (קורס/קבוצה/שיעור, טפסים, AI usage, מטלות, תוצאות חידון) — grid במקום טור צר יחיד.
+3. **סגירת 6 פערי חפיפה בין מורה לתלמידה** (תוצאות חידון למורה, aiCodeReview למורה, "אפשרי בדיקה נוספת", מונה תלמידות שסיימו שיעור, חיפוש אצל התלמידה, תג בקשת הגשה מאוחרת). כולל migration ל-`TeacherMessage.replySeen` (רץ בפועל מול ה-DB המקומי דרך `npx prisma migrate dev` מ-worktree, לא Docker).
+4. **קבצי SPEC עודכנו** (`SPEC_api.md`, `SPEC_business_rules.md`, `SPEC_schema.md`, `SPEC_frontend.md`) לשקף את כל התוספות למעלה — הן לא היו חלק מהאפיון המקורי, נוספו על בסיס אישור מפורש של המשתמשת בצ'אט.
+5. **רוחב אחיד לכל הדפים** — הוסר `mx-auto max-w-*` מכל דף בנפרד (היה בין `max-w-lg` ל-`max-w-6xl`, בלי היגיון), הועבר פעם אחת ל-`<main>` ב-`TeacherLayout.tsx`/`StudentLayout.tsx` (`max-w-6xl`). דפי הודעות קיבלו פריסת 2 עמודות (טופס לצד רשימה) כדי לא להיראות דלילים ברוחב החדש. תוכן פנימי ממוקד (כרטיס חידון פעיל, טופס יצירה) עדיין יכול להישאר צר במפורש (`mx-auto max-w-*` על האלמנט הפנימי, לא על שורש הדף).
+6. **פוטר מוצמד + חתימת מפתחות** — `<footer>` עבר ל-`sticky bottom-0` (לא נגלל יותר). קומפוננטה חדשה `frontend/src/components/decor/DevSignature.tsx` — אנימציית typewriter קלה (CSS keyframes ב-`globals.css`, `.dev-signature-text`), **בהיר (לא כהה)**, "Chani Pappenheim" + "Tehila Aizental" עם קישורי mailto (לא ניחוש — אויתו ע"י המשתמשת בשאלה מפורשת בצ'אט).
+
+**נשאר לעשות:**
+- בדיקה ויזואלית אמיתית ב-Docker (`docker compose -p homework-app build --no-cache api frontend` + `up -d --force-recreate`) — כל האימות בשיחה הזו היה tsc + סקירת diff, לא נראה בפועל בדפדפן.
+- אם הסשן המקביל עדיין פעיל על branch משלו — לוודא איתו שאין קונפליקט תוכן (לא רק git history) על הקבצים ששניכם נגעתם בהם (למשל `frontend/src/components/Layout/*`, `backend/src/routes/submissions.routes.ts`).
+
 ## סטטוס נוכחי (2026-07-20)
 
 המערכת עולה ורצה במלואה עם Docker Compose (`docker compose -p homework-app up -d --build`):

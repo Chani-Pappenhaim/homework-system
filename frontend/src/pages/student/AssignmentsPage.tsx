@@ -7,12 +7,14 @@ import { Badge } from '@/components/ui/badge';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { PageHeader } from '@/components/ui/page-header';
 import { formatDate, formatDateTime, isOverdue } from '@/lib/utils';
+import { unwrap } from '@/lib/api-utils';
+import type { MySubmission, PendingAssignment } from '@/types';
 
 export default function AssignmentsPage() {
   const { data } = useQuery({ queryKey: ['mine'], queryFn: () => submissionsApi.mine() });
-  const mine = (data?.data as any)?.data;
-  const pending: any[] = mine?.pending ?? [];
-  const submitted: any[] = mine?.submitted ?? [];
+  const mine = unwrap(data);
+  const pending: PendingAssignment[] = mine?.pending ?? [];
+  const submitted: MySubmission[] = mine?.submitted ?? [];
   const [expanded, setExpanded] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
@@ -23,7 +25,7 @@ export default function AssignmentsPage() {
   });
 
   const q = search.trim().toLowerCase();
-  const matches = (item: any) =>
+  const matches = (item: { assignmentTitle: string; courseName: string }) =>
     !q || [item.assignmentTitle, item.courseName].some((f) => f?.toLowerCase().includes(q));
 
   const filteredPending = sortedPending.filter(matches);
@@ -120,7 +122,7 @@ export default function AssignmentsPage() {
                         <p><span className="text-ink/50">ציון תוכן: </span><span className="font-semibold text-ink">{s.grade.contentScore}</span></p>
                       )}
                     </div>
-                    {s.grade.checklist?.map((c: any) => (
+                    {s.grade.checklist?.map((c) => (
                       <div key={c.id} className={`text-xs flex items-center gap-1.5 ${c.checked ? 'text-sage' : 'text-ink/50'}`}>
                         <span>{c.checked ? '✓' : '✗'}</span> {c.text}
                       </div>

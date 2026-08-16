@@ -168,6 +168,7 @@ export interface MySubmission {
 export interface PendingAssignment {
   assignmentId: string;
   assignmentTitle: string;
+  lessonId: string;
   lessonTopic: string;
   courseName: string;
   deadline?: string;
@@ -205,6 +206,37 @@ export interface QuizAttemptResult {
   score: number;
   correct: number;
   total: number;
+}
+
+export interface MessageDTO {
+  id: string;
+  studentId: string;
+  content: string;
+  assignmentId?: string | null;
+  isRead: boolean;
+  replyContent?: string | null;
+  repliedAt?: string | null;
+  replySeen: boolean;
+  createdAt: string;
+  student?: { id: string; name: string; email: string };
+}
+
+export interface StudentSummary {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface QuizResultRow {
+  studentName: string;
+  studentEmail: string;
+  score: number;
+  takenAt: string;
+}
+
+export interface QuizResultsDTO {
+  quiz: { questionCount: number };
+  results: QuizResultRow[];
 }
 
 export interface ApiResponse<T> {

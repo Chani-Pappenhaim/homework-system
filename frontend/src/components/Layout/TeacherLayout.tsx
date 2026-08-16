@@ -10,6 +10,7 @@ import useAuthStore from '@/store/authStore';
 import useUiStore from '@/store/uiStore';
 import { authApi } from '@/api/auth.api';
 import { messagesApi } from '@/api/messages.api';
+import { unwrap } from '@/lib/api-utils';
 import { Brand } from '@/components/decor';
 
 const nav = [
@@ -32,7 +33,7 @@ export default function TeacherLayout() {
     queryFn: () => messagesApi.getUnreadCount(),
     refetchInterval: 60_000,
   });
-  const unreadCount: number = (unreadData?.data as any)?.data?.count ?? 0;
+  const unreadCount: number = unwrap(unreadData)?.count ?? 0;
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {

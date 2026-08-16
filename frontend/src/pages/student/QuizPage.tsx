@@ -7,11 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
 import { cn } from '@/lib/utils';
+import { unwrap } from '@/lib/api-utils';
+import type { QuizAttemptResult } from '@/types';
 
 export default function QuizPage() {
   const { lessonId } = useParams<{ lessonId: string }>();
   const [answers, setAnswers] = useState<number[]>([]);
-  const [result, setResult] = useState<{ score: number; correct: number; total: number } | null>(null);
+  const [result, setResult] = useState<QuizAttemptResult | null>(null);
 
   const [timedOut, setTimedOut] = useState(false);
 
@@ -19,13 +21,13 @@ export default function QuizPage() {
     queryKey: ['quiz', lessonId],
     queryFn: () => quizzesApi.get(lessonId!),
     refetchInterval: (query) => {
-      const status = (query.state.data?.data as any)?.data?.status;
+      const status = unwrap(query.state.data)?.status;
       // Stop polling once ready, or after we've given up (see the timeout below).
       return status === 'generating' && !timedOut ? 3000 : false;
     },
   });
 
-  const quizData = (data?.data as any)?.data;
+  const quizData = unwrap(data);
   const status: 'generating' | 'ready' = quizData?.status ?? 'generating';
   const quiz = quizData?.quiz;
 
@@ -46,7 +48,7 @@ export default function QuizPage() {
   const attemptMutation = useMutation({
     mutationFn: () => quizzesApi.attempt(lessonId!, answers),
     onSuccess: (res) => {
-      setResult((res.data as any).data);
+      setResult(res.data.data);
     },
   });
 
@@ -100,11 +102,11 @@ export default function QuizPage() {
 
         {/* Per-question review — independent cards, spread across a grid on wide screens */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {quiz?.questions.map((q: any, i: number) => (
+          {quiz?.questions.map((q, i) => (
             <Card key={q.id}>
               <CardContent className="space-y-2">
                 <p className="text-sm font-bold text-ink">{i + 1}. {q.question}</p>
-                {q.options.map((opt: string, j: number) => {
+                {q.options.map((opt, j) => {
                   const isCorrect = q.correctIndex === j;
                   const isSelected = answers[i] === j;
                   return (
@@ -142,11 +144,11 @@ export default function QuizPage() {
         actions={<Badge variant="secondary">{quiz?.questions.length} שאלות</Badge>}
       />
 
-      {quiz?.questions.map((q: any, i: number) => (
+      {quiz?.questions.map((q, i) => (
         <Card key={q.id}>
           <CardContent className="space-y-3">
             <p className="text-sm font-bold text-ink">{i + 1}. {q.question}</p>
-            {q.options.map((opt: string, j: number) => (
+            {q.options.map((opt, j) => (
               <label
                 key={j}
                 className={cn(

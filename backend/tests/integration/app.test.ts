@@ -8,14 +8,6 @@ vi.mock('bullmq', () => {
   return { Queue, Worker, QueueEvents };
 });
 
-// Keep prisma from constructing a real pg pool / connecting
-vi.mock('../../src/config/prisma', () => ({
-  prisma: {
-    submission: { findUnique: vi.fn(), update: vi.fn() },
-    grade: { upsert: vi.fn() },
-  },
-}));
-
 // --- Service module mocks (controllers under test call these) ---
 vi.mock('../../src/services/auth.service', () => ({
   loginWithPassword: vi.fn(),
@@ -28,6 +20,10 @@ vi.mock('../../src/services/submissions.service', () => ({
   getMySubmissions: vi.fn(),
   getSubmissionById: vi.fn(),
   importSubmissions: vi.fn(),
+  requestAiReview: vi.fn(),
+  approveAiReview: vi.fn(),
+  restoreAiScore: vi.fn(),
+  allowExtraAiReview: vi.fn(),
 }));
 vi.mock('../../src/services/grades.service', () => ({
   gradeSubmission: vi.fn(),
@@ -42,9 +38,6 @@ import { signAccessToken } from '../../src/utils/jwt';
 import * as authService from '../../src/services/auth.service';
 import * as submissionsService from '../../src/services/submissions.service';
 import * as gradesService from '../../src/services/grades.service';
-import { prisma } from '../../src/config/prisma';
-
-const p = prisma as any;
 
 const app = createApp();
 const studentToken = signAccessToken({ userId: 'stud1', role: 'STUDENT' });
@@ -150,17 +143,22 @@ describe('submissions controller', () => {
   });
 });
 
-describe('submissions controller — AI review (prisma-direct routes)', () => {
+describe('submissions controller — AI review (service-backed routes)', () => {
   it('request-ai-review returns 404 when submission not found', async () => {
-    p.submission.findUnique.mockResolvedValue(null);
+    (submissionsService.requestAiReview as any).mockRejectedValue(
+      Object.assign(new Error('Submission not found'), { status: 404 })
+    );
     const res = await request(app)
       .post('/api/submissions/sub1/request-ai-review')
       .set('Authorization', `Bearer ${studentToken}`);
     expect(res.status).toBe(404);
+    expect(submissionsService.requestAiReview).toHaveBeenCalledWith('sub1', 'stud1');
   });
 
   it('request-ai-review returns 403 when the submission belongs to another student', async () => {
-    p.submission.findUnique.mockResolvedValue({ id: 'sub1', studentId: 'someone-else', githubUrl: 'g' });
+    (submissionsService.requestAiReview as any).mockRejectedValue(
+      Object.assign(new Error('Forbidden'), { status: 403 })
+    );
     const res = await request(app)
       .post('/api/submissions/sub1/request-ai-review')
       .set('Authorization', `Bearer ${studentToken}`);
@@ -168,7 +166,9 @@ describe('submissions controller — AI review (prisma-direct routes)', () => {
   });
 
   it('request-ai-review returns 400 when there is no GitHub URL', async () => {
-    p.submission.findUnique.mockResolvedValue({ id: 'sub1', studentId: 'stud1', githubUrl: null });
+    (submissionsService.requestAiReview as any).mockRejectedValue(
+      Object.assign(new Error('No GitHub URL on submission'), { status: 400 })
+    );
     const res = await request(app)
       .post('/api/submissions/sub1/request-ai-review')
       .set('Authorization', `Bearer ${studentToken}`);
@@ -177,9 +177,9 @@ describe('submissions controller — AI review (prisma-direct routes)', () => {
   });
 
   it('request-ai-review returns 400 when the review limit is reached', async () => {
-    p.submission.findUnique.mockResolvedValue({
-      id: 'sub1', studentId: 'stud1', githubUrl: 'g', aiExtraAllowed: false, aiReviewCount: 1, aiStatus: null,
-    });
+    (submissionsService.requestAiReview as any).mockRejectedValue(
+      Object.assign(new Error('AI review limit reached'), { status: 400 })
+    );
     const res = await request(app)
       .post('/api/submissions/sub1/request-ai-review')
       .set('Authorization', `Bearer ${studentToken}`);
@@ -188,9 +188,9 @@ describe('submissions controller — AI review (prisma-direct routes)', () => {
   });
 
   it('request-ai-review returns 400 when a review is already pending', async () => {
-    p.submission.findUnique.mockResolvedValue({
-      id: 'sub1', studentId: 'stud1', githubUrl: 'g', aiExtraAllowed: false, aiReviewCount: 0, aiStatus: 'pending',
-    });
+    (submissionsService.requestAiReview as any).mockRejectedValue(
+      Object.assign(new Error('Review already in progress'), { status: 400 })
+    );
     const res = await request(app)
       .post('/api/submissions/sub1/request-ai-review')
       .set('Authorization', `Bearer ${studentToken}`);
@@ -198,20 +198,19 @@ describe('submissions controller — AI review (prisma-direct routes)', () => {
     expect(res.body.error).toMatch(/already in progress/);
   });
 
-  it('request-ai-review enqueues and sets pending on the happy path', async () => {
-    p.submission.findUnique.mockResolvedValue({
-      id: 'sub1', studentId: 'stud1', githubUrl: 'g', aiExtraAllowed: false, aiReviewCount: 0, aiStatus: null,
-    });
-    p.submission.update.mockResolvedValue({});
+  it('request-ai-review succeeds on the happy path', async () => {
+    (submissionsService.requestAiReview as any).mockResolvedValue(undefined);
     const res = await request(app)
       .post('/api/submissions/sub1/request-ai-review')
       .set('Authorization', `Bearer ${studentToken}`);
     expect(res.status).toBe(200);
-    expect(p.submission.update).toHaveBeenCalledWith({ where: { id: 'sub1' }, data: { aiStatus: 'pending' } });
+    expect(submissionsService.requestAiReview).toHaveBeenCalledWith('sub1', 'stud1');
   });
 
   it('restore-ai-score returns 400 when there is no AI score', async () => {
-    p.submission.findUnique.mockResolvedValue({ id: 'sub1', aiScore: null });
+    (submissionsService.restoreAiScore as any).mockRejectedValue(
+      Object.assign(new Error('אין ציון AI להגשה זו'), { status: 400 })
+    );
     const res = await request(app)
       .post('/api/submissions/sub1/restore-ai-score')
       .set('Authorization', `Bearer ${adminToken}`);
@@ -219,19 +218,13 @@ describe('submissions controller — AI review (prisma-direct routes)', () => {
   });
 
   it('restore-ai-score upserts the AI score into contentScore for an admin', async () => {
-    p.submission.findUnique.mockResolvedValue({ id: 'sub1', aiScore: 77 });
-    p.grade.upsert.mockResolvedValue({ id: 'gr1', contentScore: 77 });
+    (submissionsService.restoreAiScore as any).mockResolvedValue({ id: 'gr1', contentScore: 77 });
     const res = await request(app)
       .post('/api/submissions/sub1/restore-ai-score')
       .set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
     expect(res.body.data.grade).toMatchObject({ contentScore: 77 });
-    expect(p.grade.upsert).toHaveBeenCalled();
-    const arg = p.grade.upsert.mock.calls[0][0];
-    expect(arg.create).toMatchObject({ contentScore: 77 });
-    expect(arg.update).toMatchObject({ contentScore: 77 });
-    expect(arg.create).not.toHaveProperty('score');
-    expect(arg.update).not.toHaveProperty('score');
+    expect(submissionsService.restoreAiScore).toHaveBeenCalledWith('sub1', 'admin1');
   });
 
   it('restore-ai-score is 403 for a student (ADMIN-only route)', async () => {

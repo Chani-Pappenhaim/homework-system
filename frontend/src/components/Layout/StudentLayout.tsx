@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import useAuthStore from '@/store/authStore';
 import { authApi } from '@/api/auth.api';
 import { messagesApi } from '@/api/messages.api';
+import { unwrap } from '@/lib/api-utils';
 import { Brand } from '@/components/decor';
 
 const nav = [
@@ -22,7 +23,7 @@ export default function StudentLayout() {
     queryFn: () => messagesApi.getUnreadReplyCount(),
     refetchInterval: 60_000,
   });
-  const unreadReplyCount: number = (unreadReplyData?.data as any)?.data?.count ?? 0;
+  const unreadReplyCount: number = unwrap(unreadReplyData)?.count ?? 0;
 
   async function handleLogout() {
     await authApi.logout().catch(() => {});

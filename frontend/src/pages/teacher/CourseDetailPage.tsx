@@ -38,7 +38,7 @@ export default function CourseDetailPage() {
       githubUrl: newGithub || undefined,
     }),
     onSuccess: (res) => {
-      const lessonId = (res.data as any).data.lesson.id;
+      const lessonId = res.data.data.lesson.id;
       toast.success('השיעור נוצר בהצלחה');
       navigate(`/teacher/lessons/${lessonId}`);
     },
