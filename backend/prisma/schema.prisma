@@ -223,6 +223,10 @@ model Quiz {
   lessonId  String   @unique
   lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   questions Json
+  // A quiz starts as a draft only the teacher can see. Students get it once she
+  // has reviewed the AI's questions and published it, so nobody can sit an exam
+  // that is mid-edit.
+  published Boolean  @default(false)
   createdAt DateTime @default(now())
 
   attempts QuizAttempt[]

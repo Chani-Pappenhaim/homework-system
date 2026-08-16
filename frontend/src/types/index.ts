@@ -114,6 +114,72 @@ export interface LessonDetailDTO {
   completed?: boolean;
   files: LessonFile[];
   assignments: AssignmentDTO[];
+  // For a student, `exists` is already "is there a quiz I can take?" — the server
+  // collapses an unpublished draft to false so she never learns one is being written.
+  quiz?: { exists: boolean; published: boolean };
+}
+
+export interface QuizQuestionDTO {
+  id: string;
+  question: string;
+  options: string[];
+  /** Teacher-only — never sent to a student. */
+  correctIndex?: number;
+}
+
+/**
+ * Returned only by POST /quiz/attempt. This is the one place a student receives
+ * the correct answers — after she has answered, so there is nothing left to give
+ * away, and she can see which questions she got wrong and what the answer was.
+ */
+export interface QuizReviewItemDTO {
+  id: string;
+  question: string;
+  options: string[];
+  correctIndex: number;
+  selectedIndex: number;
+  isCorrect: boolean;
+}
+
+export interface QuizAttemptResultDTO {
+  score: number;
+  correct: number;
+  total: number;
+  review: QuizReviewItemDTO[];
+}
+
+/** Per-question class performance — teacher only. */
+export interface QuizQuestionStatsDTO {
+  id: string;
+  question: string;
+  options: string[];
+  correctIndex: number;
+  /** How many attempts chose each option, by option index. */
+  optionCounts: number[];
+  unanswered: number;
+  correctCount: number;
+  /** null when nobody has answered yet — not 0, which would read as "all wrong". */
+  correctRate: number | null;
+}
+
+export interface QuizResultsDTO {
+  quiz: { id: string; createdAt: string; published: boolean; questionCount: number };
+  summary: { attemptCount: number; averageScore: number | null };
+  questions: QuizQuestionStatsDTO[];
+  results: { studentName: string; studentEmail: string; score: number; takenAt: string }[];
+}
+
+export type QuizStatus = 'ready' | 'generating' | 'none' | 'unavailable' | 'failed';
+
+export interface QuizStateDTO {
+  status: QuizStatus;
+  message?: string;
+  quiz?: {
+    id: string;
+    published: boolean;
+    questionCount: number;
+    questions: QuizQuestionDTO[];
+  };
 }
 
 export interface GradeDTO {

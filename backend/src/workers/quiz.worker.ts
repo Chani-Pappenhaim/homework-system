@@ -18,10 +18,12 @@ export function registerQuizWorker(connection: IORedis): Worker<QuizJobData> {
       // Prisma types Json fields strictly; the typed array needs a cast to InputJsonValue.
       const questionsJson = questions as unknown as Prisma.InputJsonValue;
 
+      // Always lands as a draft: freshly generated questions are the AI's, and
+      // no student sees them until the teacher has reviewed and published.
       await prisma.quiz.upsert({
         where: { lessonId },
-        create: { lessonId, questions: questionsJson },
-        update: { questions: questionsJson },
+        create: { lessonId, questions: questionsJson, published: false },
+        update: { questions: questionsJson, published: false },
       });
     },
     { connection, ...defaultWorkerOptions }

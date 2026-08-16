@@ -110,13 +110,16 @@ export default function StudentLessonDetailPage() {
             </Card>
           )}
 
-          {/* Quiz button */}
-          <button
-            onClick={() => navigate(`/student/quiz/${lesson.id}`)}
-            className="lift w-full rounded-input border border-rule bg-butter/40 py-3 text-sm font-semibold text-clay shadow-soft"
-          >
-            פתחי חידון לשיעור זה ←
-          </button>
+          {/* Quiz — only once the teacher has published one. `exists` is already
+              "is there a quiz I may take?"; an unpublished draft reads as false. */}
+          {lesson.quiz?.exists && (
+            <button
+              onClick={() => navigate(`/student/quiz/${lesson.id}`)}
+              className="lift w-full rounded-input border border-rule bg-butter/40 py-3 text-sm font-semibold text-clay shadow-soft"
+            >
+              פתחי חידון לשיעור זה ←
+            </button>
+          )}
         </div>
 
         {/* Assignments */}
