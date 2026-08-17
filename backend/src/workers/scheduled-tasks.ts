@@ -1,7 +1,10 @@
 import { runDeadlineCheck } from './deadline-check';
 import { runStorageCheck } from './storage-check';
 
-const DEADLINE_INTERVAL_MS = 15 * 60 * 1000;
+// A deadline report summarises a deadline that has already passed, so checking
+// four times an hour bought nothing over checking once — it only multiplied the
+// Redis lookups in runDeadlineCheck by four.
+const DEADLINE_INTERVAL_MS = 60 * 60 * 1000;
 const STORAGE_INTERVAL_MS = 60 * 60 * 1000;
 
 export interface ScheduledTaskHandles {

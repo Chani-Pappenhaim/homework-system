@@ -129,6 +129,14 @@ export async function getQuiz(lessonId: string, userId: string, role: string) {
   try {
     const job = await quizQueue.getJob(jobIdFor(lessonId));
     if (job) {
+      // While the AI is working, this runs every 5 seconds from her open page —
+      // it is the most repeated Redis read in the app. getState() has to probe
+      // one key per possible state to answer, whereas `finishedOn` already came
+      // back with the job in the single read above and is set only once the job
+      // reaches a terminal state. So the polling case costs one command, and
+      // the expensive question is asked once, at the end.
+      if (!job.finishedOn) return { status: 'generating' as const };
+
       const state = await job.getState();
       if (state === 'failed') {
         const reason = job.failedReason;

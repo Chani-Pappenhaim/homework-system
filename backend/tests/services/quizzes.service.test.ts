@@ -94,12 +94,18 @@ describe('quizzes.service.getQuiz — the teacher owns the draft', () => {
     expect(r.message).toContain('הוסיפי תוכן');
   });
 
-  it('reports generation still running', async () => {
+  it('reports generation still running without asking Redis for the job state', async () => {
     p.quiz.findUnique.mockResolvedValue(null);
     p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
-    quizGetJob.mockResolvedValue({ getState: vi.fn().mockResolvedValue('active'), remove: vi.fn() });
+    // An unfinished job has no finishedOn — the same shape BullMQ returns.
+    const getState = vi.fn().mockResolvedValue('active');
+    quizGetJob.mockResolvedValue({ finishedOn: undefined, getState, remove: vi.fn() });
     const r: any = await getQuiz('l1', 'admin', 'ADMIN');
     expect(r.status).toBe('generating');
+    // Her page repeats this call every 5 seconds while she waits, and getState
+    // costs one Redis command per state it has to rule out. finishedOn came
+    // back with the job itself, so this path must stay at a single command.
+    expect(getState).not.toHaveBeenCalled();
   });
 
   it('reports a failed generation to the teacher with its reason, and clears the job', async () => {
@@ -107,6 +113,9 @@ describe('quizzes.service.getQuiz — the teacher owns the draft', () => {
     p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
     const remove = vi.fn().mockResolvedValue(undefined);
     quizGetJob.mockResolvedValue({
+      // BullMQ stamps finishedOn when a job reaches a terminal state; only then
+      // is it worth spending commands on which terminal state it is.
+      finishedOn: Date.now(),
       getState: vi.fn().mockResolvedValue('failed'),
       failedReason: 'Gemini API error: 404',
       remove,
