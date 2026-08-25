@@ -5,9 +5,8 @@ interface AuthState {
   user: UserDTO | null;
   accessToken: string | null;
   /**
-   * 'loading' until the refresh-cookie bootstrap has resolved. Guards must wait
-   * for 'ready' — treating the initial null user as "logged out" is what sent
-   * every refresh and every deep link to the login screen.
+   * 'loading' until the refresh-cookie bootstrap resolves. Route guards must wait
+   * for 'ready' rather than treating the initial null user as "logged out".
    */
   status: 'loading' | 'ready';
   setAuth: (user: UserDTO, token: string) => void;

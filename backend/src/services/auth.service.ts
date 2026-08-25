@@ -13,13 +13,12 @@ export type UserDTO = {
   groups: { id: string; name: string }[];
 };
 
-// A user loaded together with its group memberships. Students belong to one or
-// more groups; teachers have none.
+// A user loaded together with its group memberships. Students belong to one
+// or more groups; teachers have none.
 type UserWithGroups = User & {
   studentGroups?: { group: Pick<Group, 'id' | 'name'> }[];
 };
 
-// Prisma include that attaches each student's groups (id + name only).
 const groupsInclude = {
   studentGroups: { include: { group: { select: { id: true, name: true } } } },
 };
@@ -70,9 +69,8 @@ function hashToken(token: string): string {
 }
 
 /**
- * Always resolves successfully regardless of whether the email exists — the
- * caller (controller) returns the same generic message either way, so this
- * endpoint can't be used to discover which emails are registered.
+ * Always resolves successfully regardless of whether the email exists, so
+ * this endpoint can't be used to enumerate registered emails.
  */
 export async function requestPasswordReset(email: string): Promise<void> {
   const user = await prisma.user.findUnique({ where: { email } });

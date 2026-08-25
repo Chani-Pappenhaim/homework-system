@@ -9,10 +9,9 @@ import { unwrap } from '@/lib/api-utils';
 import type { LessonDetailDTO } from '@/types';
 
 /**
- * A summary and a way in. The editor and the class breakdown live on their
- * own page (mirroring the student's) — this card just shows status and links
- * there. Not every lesson has a quiz — a 404 on results just means there is
- * nothing to summarise yet.
+ * Shows quiz status for a lesson and links to the full editor/results page.
+ * Not every lesson has a quiz, so a 404 on the results fetch is expected
+ * and just means none has been created yet.
  */
 export function QuizResultsCard({ lesson }: { lesson: LessonDetailDTO }) {
   const navigate = useNavigate();

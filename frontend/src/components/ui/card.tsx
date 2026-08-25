@@ -17,7 +17,6 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   shadow?: boolean;
 }
 
-/** Card — a white sheet on the paper ground: hairline border, soft shadow. */
 const Card = React.forwardRef<HTMLDivElement, CardProps>(
   ({ className, accent, shadow = true, ...props }, ref) => (
     <div

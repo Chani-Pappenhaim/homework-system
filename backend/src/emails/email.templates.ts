@@ -46,9 +46,8 @@ export function studentMessageHtml(data: EmailJobMap['student-message']): string
   );
 }
 
-// Two ways to reply: jump straight to the thread in the app, or reply from
-// the mail client directly — a plain "you can reply via the system" sentence
-// meant a teacher had to navigate there manually every time.
+// Provides two reply paths: jump straight to the thread in the app, or reply
+// directly from the mail client.
 function replyButtons(systemUrl: string, replyToEmail?: string): string {
   const btn = (href: string, label: string, bg: string) =>
     `<a href="${href}" style="display:inline-block;background:${bg};color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:bold;margin:0 8px 8px 0;">${label}</a>`;

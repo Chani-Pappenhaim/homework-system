@@ -16,17 +16,14 @@ export default function QuizPage() {
   const [answers, setAnswers] = useState<number[]>([]);
   const [result, setResult] = useState<QuizAttemptResultDTO | null>(null);
 
-  // Reading this page never starts an AI generation any more — the teacher owns
-  // that. So there is nothing to poll for and nothing to wait out: the server's
-  // answer is final the first time.
+  // Loading a quiz never triggers generation; the server's answer is final on the first fetch, so there is nothing to poll.
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['quiz', lessonId],
     queryFn: () => quizzesApi.get(lessonId!),
   });
 
   const quizData = unwrap(data);
-  // A request that failed has no status. Defaulting it to a "wait" state is what
-  // once turned every server error into an endless spinner — treat it as an error.
+  // A failed request has no status field, so a failure must be treated as an error rather than defaulting to a wait state.
   const status: 'ready' | 'unavailable' | 'error' =
     quizData?.status === 'ready' ? 'ready'
       : quizData?.status === 'unavailable' ? 'unavailable'
@@ -106,9 +103,7 @@ export default function QuizPage() {
           </CardContent>
         </Card>
 
-        {/* Per-question review. It reads the review the server sent back with the
-            result — the quiz itself never carries the correct answers to a
-            student, so before submitting there is nothing here to give away. */}
+        {/* Per-question review, built from the result payload — correct answers are never sent to the client before submission. */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {result.review.map((q, i) => (
             <Card key={q.id} accent={q.isCorrect ? 'sage' : 'coral'}>
@@ -213,10 +208,7 @@ export default function QuizPage() {
         size="lg"
         loading={attemptMutation.isPending}
         onClick={() => attemptMutation.mutate()}
-        // Checked against the question count, not just against `answers`:
-        // `answers` starts empty and is filled by an effect, and `[].some(...)`
-        // is false — so on the first frame the button was briefly enabled and a
-        // fast click posted an empty array, which the server rejects with a 400.
+        // Requires the full answer count, not just a non-empty check, since answers are populated asynchronously after mount.
         disabled={
           answers.length !== (quiz?.questions.length ?? 0) || answers.some((a) => a === -1)
         }

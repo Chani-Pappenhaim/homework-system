@@ -35,10 +35,8 @@ export const coursesApi = {
   /**
    * Uploads straight from the browser to Cloudinary using a signed, short-lived
    * request, then tells the backend only the resulting URL. The file's bytes
-   * never pass through the Node process — Render bills egress it initiates
-   * itself (re-uploading a buffered copy) the same as real user traffic, so a
-   * course file that round-tripped through the server was burning through the
-   * free bandwidth quota for no benefit.
+   * never pass through the server, avoiding the extra bandwidth cost of
+   * relaying a buffered copy.
    */
   uploadFile: async (id: string, file: File, name?: string) => {
     const { data } = await api.post(`/courses/${id}/upload-signature`);

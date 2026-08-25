@@ -7,8 +7,7 @@ import * as quizzesController from '../controllers/quizzes.controller';
 const router = Router();
 router.use(verifyAccessTokenMiddleware);
 
-// Read-only for both roles. It no longer enqueues anything, so it is not the
-// billable route any more — generation is an explicit teacher action below.
+// Read-only for both roles; does not trigger generation or enqueue anything.
 router.get('/:id/quiz', quizzesController.getQuiz);
 
 // Teacher-owned lifecycle: generate a draft, edit it, publish it.

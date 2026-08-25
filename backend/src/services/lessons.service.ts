@@ -2,9 +2,9 @@ import { prisma } from '../config/prisma';
 import { uploadBuffer, createUploadSignature, destroyByUrl, toFileDTO } from '../utils/storage';
 import { assertLessonAccess, assertCourseAccess } from '../utils/access';
 
-// Lessons created before multi-link support only have the legacy single
-// `githubUrl` column populated; `githubUrls` is the source of truth going
-// forward, so fall back to wrapping the legacy value when it's empty.
+// Older lessons only have the legacy single `githubUrl` column populated;
+// `githubUrls` is the source of truth, so fall back to wrapping the legacy
+// value when it's empty.
 function effectiveGithubUrls(l: { githubUrl: string | null; githubUrls: string[] }): string[] {
   if (l.githubUrls.length > 0) return l.githubUrls;
   return l.githubUrl ? [l.githubUrl] : [];
@@ -61,9 +61,8 @@ export async function getLessonById(id: string, userId: string, role: string) {
     ? lesson.assignments
     : lesson.assignments.map(({ aiInstructions, ...rest }) => rest);
 
-  // Lets the page decide whether to offer a quiz link at all. A student must
-  // not learn that an unpublished draft exists, so for her `quiz` collapses to
-  // "is there a quiz I can take?".
+  // A student must not learn that an unpublished quiz draft exists, so for
+  // them `quiz` collapses to "is there a quiz I can take?".
   const { quiz, ...lessonFields } = lesson;
   const quizState = role === 'ADMIN'
     ? { exists: Boolean(quiz), published: quiz?.published ?? false }
@@ -79,7 +78,6 @@ export async function getLessonById(id: string, userId: string, role: string) {
   };
 }
 
-// Student self-marks a lesson complete (completed=true) or clears it (false)
 export async function setLessonProgress(studentId: string, lessonId: string, completed: boolean) {
   if (completed) {
     await prisma.lessonProgress.upsert({
@@ -113,9 +111,8 @@ export async function reorderLessons(lessons: { id: string; order: number }[]) {
   );
 }
 
-// Signed params for a browser-to-Cloudinary direct upload — the file's bytes
-// never pass through this server, so a lesson video/PDF doesn't count against
-// Render's outbound bandwidth the way re-uploading a buffered copy would.
+// Signed params for a direct browser-to-Cloudinary upload — the file's bytes
+// never pass through this server, avoiding extra outbound bandwidth.
 export function getLessonUploadSignature() {
   return createUploadSignature('lessons');
 }
@@ -142,7 +139,7 @@ export async function deleteLessonFile(lessonId: string, fileId: string) {
 }
 
 // Deletes a lesson and its children (assignments, submissions, files, quiz,
-// access, progress) via Prisma cascade. Stored file assets are cleaned up first,
+// access, progress) via cascade. Stored file assets are cleaned up first,
 // best-effort, so a storage failure can't block the delete.
 export async function deleteLesson(id: string) {
   const lesson = await prisma.lesson.findUnique({

@@ -26,7 +26,7 @@ export async function getCoursesForUser(userId: string, role: string) {
     orderBy: { createdAt: 'desc' },
   });
 
-  // Count this student's completed (visible) lessons per course, for the progress meter
+  // Count this student's completed lessons per course, for the progress meter
   const courseIds = courses.map((c) => c.id);
   const progress = await prisma.lessonProgress.findMany({
     where: { studentId: userId, lesson: { hidden: false, courseId: { in: courseIds } } },
@@ -65,7 +65,7 @@ export async function getCourseById(id: string, userId: string, role: string) {
 
   const visibleLessons = course.lessons.filter((l) => role === 'ADMIN' || !l.hidden);
 
-  // Which of these lessons has the current student marked complete?
+  // Lessons the current student has marked complete
   const completedIds = new Set(
     role === 'ADMIN'
       ? []
@@ -75,7 +75,7 @@ export async function getCourseById(id: string, userId: string, role: string) {
         })).map((p) => p.lessonId)
   );
 
-  // Teacher view: how many students in the course's group finished each lesson.
+  // Teacher view: how many students in the course's group finished each lesson
   let completedCountByLesson: Record<string, number> = {};
   let groupStudentCount = 0;
   if (role === 'ADMIN') {
@@ -153,8 +153,7 @@ export async function deleteCourseLink(courseId: string, linkId: string) {
   await prisma.courseLink.delete({ where: { id: linkId, courseId } });
 }
 
-// Signed params for a browser-to-Cloudinary direct upload — see the matching
-// comment on lessons.service.getLessonUploadSignature for why this exists.
+// Signed params for a direct browser-to-Cloudinary upload.
 export function getCourseUploadSignature() {
   return createUploadSignature('courses');
 }
@@ -180,10 +179,9 @@ export async function deleteCourseFile(courseId: string, fileId: string) {
   await prisma.courseFile.delete({ where: { id: fileId } });
 }
 
-// Deletes a course and everything under it. Prisma cascades the DB rows (lessons,
-// links, files, assignments, submissions...), so we only need to clean up the
-// stored (Cloudinary) assets first, best-effort — a storage hiccup must not block
-// the delete.
+// Deletes a course and everything under it. The DB rows cascade automatically,
+// so this only needs to clean up stored assets first, best-effort — a storage
+// hiccup must not block the delete.
 export async function deleteCourse(id: string) {
   const course = await prisma.course.findUnique({
     where: { id },

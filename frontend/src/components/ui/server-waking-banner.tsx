@@ -1,10 +1,9 @@
 import useServerStatus from '@/store/serverStatus';
 
 /**
- * A slim top banner shown while the backend is cold-starting (free-tier
- * spin-down). Driven by the axios interceptors via the serverStatus store, so
- * it appears whenever any request stalls past a few seconds and disappears once
- * the request completes — turning a mysterious 30–60s hang into a clear message.
+ * Top banner shown while the backend is cold-starting after a period of
+ * inactivity. Visibility is driven by the serverStatus store, which the
+ * axios interceptors update whenever a request stalls.
  */
 export function ServerWakingBanner() {
   const waking = useServerStatus((s) => s.waking);

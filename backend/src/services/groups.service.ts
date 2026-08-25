@@ -45,14 +45,11 @@ export async function updateGroup(id: string, data: { name?: string; seminar?: s
 }
 
 /**
- * Adding a student whose email already exists elsewhere (a different group)
- * is a legitimate cross-group enrollment, not a collision — this used to
- * throw "Email already exists" for that case too, which silently blocked a
- * teacher from re-using the same student account in a second group.
- * The one real collision is the same email already in *this* group.
- * The existing account's name/GitHub username are never overwritten — a
- * `warning` is returned instead so the caller can tell the teacher that the
- * name they typed didn't change an existing record with a different name.
+ * Adding a student whose email already exists in a different group is a
+ * valid cross-group enrollment, not a collision — the only real collision is
+ * the same email already being in *this* group. An existing account's
+ * name/GitHub username are never overwritten; a `warning` is returned instead
+ * when the submitted name differs from the stored one.
  */
 export async function addStudent(groupId: string, name: string, email: string, githubUsername?: string) {
   email = email.trim().toLowerCase();
@@ -114,10 +111,9 @@ export async function updateStudent(
   return { id: student.id, name: student.name, email: student.email, githubUsername: student.githubUsername };
 }
 
-// Deletes a group. Student memberships (StudentGroup) cascade automatically, but
-// the Course->Group relation is Restrict, so we must remove the group's courses
-// first (which cascades their lessons/assignments/submissions and cleans up
-// stored files). Student user accounts are left intact — they may belong to
+// Deletes a group. Student memberships cascade automatically, but the
+// Course->Group relation is Restrict, so the group's courses must be removed
+// first. Student user accounts are left intact since they may belong to
 // other groups.
 export async function deleteGroup(id: string) {
   const group = await prisma.group.findUnique({

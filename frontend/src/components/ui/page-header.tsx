@@ -16,11 +16,7 @@ interface PageHeaderProps {
   className?: string;
 }
 
-/**
- * PageHeader — the notebook page-title block: an optional back link, a thin ink
- * rule, an optional mono meta line, a Frank Ruhl Libre headline, and an actions
- * slot. One place so every inner page opens the same way.
- */
+/** Shared page-title block (back link, meta line, headline, actions) so inner pages open consistently. */
 export function PageHeader({ title, meta, actions, back, backLabel, className }: PageHeaderProps) {
   return (
     <div className={cn('border-b border-rule pb-3', className)}>

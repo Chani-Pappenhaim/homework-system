@@ -1,8 +1,5 @@
-// Transactional email via the Brevo HTTP API.
-//
-// We send over HTTP (not SMTP) because Render's free tier blocks outbound SMTP
-// connections. The `sendMail` signature is intentionally unchanged, so nothing
-// else in the project needs to change — only the delivery mechanism.
+// Sends transactional email via the Brevo HTTP API rather than SMTP, since
+// some hosting providers block outbound SMTP connections.
 
 const BREVO_ENDPOINT = 'https://api.brevo.com/v3/smtp/email';
 
@@ -10,7 +7,7 @@ export async function sendMail({ to, subject, html }: { to: string; subject: str
   const apiKey = process.env.BREVO_API_KEY;
   const senderEmail = process.env.BREVO_SENDER_EMAIL;
 
-  // Lazy/safe: importing or calling this never crashes when email isn't configured.
+  // Missing config disables email silently rather than throwing
   if (!apiKey || !senderEmail) {
     console.warn(`[email] BREVO_API_KEY/BREVO_SENDER_EMAIL not set — skipping email "${subject}" to ${to}`);
     return;

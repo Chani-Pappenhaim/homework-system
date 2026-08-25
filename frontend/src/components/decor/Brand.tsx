@@ -4,9 +4,9 @@ import { Logo } from './Logo';
 interface BrandProps {
   /** 'header' = compact inline; 'hero' = large stacked (login). */
   variant?: 'header' | 'hero';
-  /** Show the "הגשות · שיעורים · ציונים" tagline (hero only by default). */
+  /** Show the tagline (hero only by default). */
   tagline?: boolean;
-  /** Show "המורה עדי שלום" line. */
+  /** Show the teacher name line. */
   teacher?: boolean;
   className?: string;
 }
@@ -14,7 +14,6 @@ interface BrandProps {
 const TEACHER = 'המורה עדי שלום';
 const TAGLINE = 'הגשות · שיעורים · ציונים';
 
-/** Teacher Feature brand lockup — logo mark + wordmark, with optional tagline/teacher. */
 export function Brand({ variant = 'header', tagline, teacher, className }: BrandProps) {
   if (variant === 'hero') {
     return (

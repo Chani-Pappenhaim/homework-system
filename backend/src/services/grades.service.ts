@@ -69,8 +69,7 @@ export async function exportReport(filters: { groupId?: string; courseId?: strin
 }
 
 export async function getPendingGrades() {
-  // Every submission now carries an auto "ציון הגשה", so "pending" means the
-  // teacher hasn't set a content score yet (or, for legacy rows, no grade at all).
+  // "Pending" means the teacher hasn't set a content score yet (or there is no grade at all).
   const submissions = await prisma.submission.findMany({
     where: { OR: [{ grade: null }, { grade: { contentScore: null } }] },
     include: {

@@ -1,8 +1,8 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  // Base URL of the backend API (e.g. https://api.example.com). Empty in local
-  // dev, where requests go to the same origin and are proxied to the backend.
+  // Base URL of the backend API (e.g. https://api.example.com). Empty when
+  // requests should go to the same origin.
   readonly VITE_API_URL?: string;
 }
 

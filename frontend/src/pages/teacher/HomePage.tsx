@@ -64,7 +64,7 @@ export default function TeacherHomePage() {
     : '—';
 
   const dateMeta = new Intl.DateTimeFormat('he-IL', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
-  // "שלום, עדי!" — a hello that is also the teacher's name (עדי שלום).
+  // Fallback name is a pun: "שלום" doubles as both the greeting word and a surname.
   const firstName = (user?.name ?? 'עדי שלום').split(' ')[0];
 
   const kpis = [

@@ -19,8 +19,7 @@ export const submissionsApi = {
   /**
    * Videos skip the backend entirely: get a signed Cloudinary URL, upload the
    * file straight from the browser, then tell the backend only the resulting
-   * URL. The file's bytes never pass through the Node process — a full video
-   * buffered in memory was pushing Render past its 512MB limit.
+   * URL. Keeps large video files from ever being buffered in server memory.
    */
   submitVideo: async (assignmentId: string, file: File, notes?: string) => {
     const { data } = await api.post(`/assignments/${assignmentId}/video-upload-signature`);

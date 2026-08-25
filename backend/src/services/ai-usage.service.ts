@@ -7,10 +7,7 @@ export interface StorageUsage {
   percent: number;
 }
 
-/**
- * Current Cloudinary storage usage, so the teacher can see it on-screen instead
- * of only being emailed at 80%. Same source the storage monitor reads.
- */
+/** Returns current storage usage from the Cloudinary account. */
 export async function getStorageUsage(): Promise<StorageUsage> {
   const usage = await cloudinary.api.usage();
   const usedBytes = usage.storage?.used_bytes ?? 0;
@@ -44,7 +41,7 @@ export async function getSummary(): Promise<AiUsageSummary> {
     select: { type: true, tokensInput: true, tokensOutput: true, costUsd: true, createdAt: true },
   });
 
-  // Last 12 months, newest first
+  // Build the last 12 months as ordered buckets, newest first
   const now = new Date();
   const buckets = new Map<string, MonthBucket>();
   const order: string[] = [];

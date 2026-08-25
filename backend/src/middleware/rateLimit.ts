@@ -20,11 +20,10 @@ export const generalRateLimit = rateLimit({
  * Routes that can cause a paid AI call. The general limit of 1000/min is no
  * limit at all when each request may bill a Claude or Gemini job, so these are
  * kept deliberately tight and keyed per user rather than per IP (a whole class
- * can share one school NAT address).
+ * can share one shared NAT address).
  *
- * The cap must still clear the quiz page's polling rate (one request every 5s,
- * i.e. 12/min) with room to spare — at the old 20 the page was rate-limiting
- * its own status polling after about a minute of waiting.
+ * The cap must stay well above any legitimate polling rate (a status-polling
+ * client hitting this endpoint every few seconds should never trip its own limit).
  */
 export const aiRateLimit = rateLimit({
   windowMs: 60 * 1000,

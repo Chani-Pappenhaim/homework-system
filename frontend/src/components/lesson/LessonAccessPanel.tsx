@@ -11,9 +11,8 @@ import { getApiErrorMessage } from '@/lib/errors';
 import { unwrap } from '@/lib/api-utils';
 
 /**
- * Grants a student access to this one lesson even if she isn't in the
- * course's group — for a single student (search by name/email), a whole
- * other group, or a batch of emails pasted from a file.
+ * Grants access to a single lesson for students outside its default group,
+ * by individual lookup, by group, or by a batch of emails from a file.
  */
 export function LessonAccessPanel({ lessonId }: { lessonId: string }) {
   const qc = useQueryClient();

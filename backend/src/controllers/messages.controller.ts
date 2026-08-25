@@ -22,7 +22,7 @@ export async function getMessages(req: Request, res: Response) {
   }
 }
 
-// Student sees her own messages, including teacher replies
+// Includes the teacher's replies alongside the student's own messages
 export async function getMyMessages(req: Request, res: Response) {
   try {
     const messages = await messagesService.getMyMessages(req.user!.userId);
@@ -32,7 +32,7 @@ export async function getMyMessages(req: Request, res: Response) {
   }
 }
 
-// Teacher replies to a message; replying also marks it as read
+// Sending a reply also marks the message as read
 export async function replyMessage(req: Request, res: Response) {
   try {
     const { reply } = req.body;
@@ -62,7 +62,6 @@ export async function getUnreadCount(req: Request, res: Response) {
   }
 }
 
-// Student sees how many of the teacher's replies she hasn't opened yet
 export async function getUnreadReplyCount(req: Request, res: Response) {
   try {
     const count = await messagesService.getUnreadReplyCount(req.user!.userId);
@@ -72,7 +71,7 @@ export async function getUnreadReplyCount(req: Request, res: Response) {
   }
 }
 
-// Opening a message overlay marks its reply as seen (student only, own message)
+// Restricted to the message's own student
 export async function markReplySeen(req: Request, res: Response) {
   try {
     await messagesService.markReplySeen(req.params.id as string, req.user!.userId);
@@ -82,7 +81,6 @@ export async function markReplySeen(req: Request, res: Response) {
   }
 }
 
-// Teacher deletes an entire message thread from her inbox
 export async function deleteMessage(req: Request, res: Response) {
   try {
     await messagesService.deleteMessage(req.params.id as string);
@@ -92,7 +90,7 @@ export async function deleteMessage(req: Request, res: Response) {
   }
 }
 
-// Teacher retracts her own reply, leaving the original message unanswered
+// Leaves the original message unanswered again
 export async function deleteReply(req: Request, res: Response) {
   try {
     const message = await messagesService.deleteReply(req.params.id as string);
@@ -102,7 +100,6 @@ export async function deleteReply(req: Request, res: Response) {
   }
 }
 
-// Student deletes a message she sent (only her own)
 export async function deleteMyMessage(req: Request, res: Response) {
   try {
     await messagesService.deleteMyMessage(req.params.id as string, req.user!.userId);

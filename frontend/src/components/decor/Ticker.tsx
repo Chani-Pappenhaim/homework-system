@@ -5,7 +5,7 @@ interface TickerProps {
   className?: string;
 }
 
-/** <Ticker /> — a quiet announcements strip (the scrolling marquee was retired). */
+/** A static, wrapping strip of announcement items separated by dots. */
 export function Ticker({ items, className }: TickerProps) {
   return (
     <div

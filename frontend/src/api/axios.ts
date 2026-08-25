@@ -55,14 +55,13 @@ api.interceptors.request.use((config) => {
 const MAX_COLD_RETRIES = 4;
 
 /**
- * Did our own API answer, or did something in front of it?
+ * Distinguishes an error returned by the application from one produced by
+ * infrastructure in front of it (a gateway, a proxy).
  *
- * Every error our backend returns carries the {success:false, error} envelope.
- * A gateway waking the app cannot produce that shape — it serves its own HTML
- * page. So an envelope means the request reached the app and the app decided,
- * and asking again four more times only makes it decide the same thing four
- * more times. That is how a 502 from a failed job enqueue turned an instant
- * failure into minutes of "השרת מתעורר" before showing the error.
+ * Every error the backend returns carries the {success:false, error} envelope.
+ * A gateway that hasn't finished waking the app up cannot produce that shape —
+ * it serves its own HTML page. So an envelope means the request reached the
+ * app and the app decided, and retrying would only reach the same decision.
  */
 function isApplicationResponse(error: any): boolean {
   const data = error?.response?.data;

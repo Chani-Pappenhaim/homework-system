@@ -12,9 +12,9 @@ import { cn } from '@/lib/utils';
 import type { QuizQuestionDTO, QuizStateDTO } from '@/types';
 
 /**
- * The teacher's half of the quiz: she generates it, reads what the AI wrote,
- * corrects it, and only then publishes it to the class. Students never trigger
- * generation and never see a draft.
+ * Teacher-facing quiz editor: generate questions with AI, review and correct
+ * them, then publish to the class. Students never trigger generation and
+ * never see a draft.
  */
 export default function QuizPanel({ lessonId, hasContent }: { lessonId: string; hasContent: boolean }) {
   const qc = useQueryClient();
@@ -34,8 +34,7 @@ export default function QuizPanel({ lessonId, hasContent }: { lessonId: string; 
   const state = (data?.data as any)?.data as QuizStateDTO | undefined;
   const quiz = state?.quiz;
 
-  // Load the server's questions into the editor whenever a different version
-  // arrives — but never clobber edits in progress.
+  // Load the server's questions into the editor, without overwriting local edits in progress.
   useEffect(() => {
     if (quiz && draft === null) setDraft(quiz.questions);
   }, [quiz, draft]);
@@ -189,8 +188,7 @@ export default function QuizPanel({ lessonId, hasContent }: { lessonId: string; 
 
               <div className="space-y-1.5 pr-6">
                 {q.options.map((opt, oi) => (
-                  // items-start, not items-center: an option that wraps to three
-                  // lines must not drag its radio button down to the middle.
+                  // Align to items-start so a multi-line option doesn't push its radio button off-center.
                   <label
                     key={oi}
                     className={cn(
@@ -241,8 +239,7 @@ export default function QuizPanel({ lessonId, hasContent }: { lessonId: string; 
           <Button
             variant={quiz.published ? 'outline' : 'clay'}
             loading={publishMutation.isPending}
-            // Publishing the version on screen, not the one on the server, would
-            // be a lie — make her save first.
+            // Require saving unsaved edits first, so publishing always reflects the saved version.
             disabled={dirty}
             onClick={() => publishMutation.mutate(!quiz.published)}
             title={dirty ? 'יש לשמור את השינויים לפני פרסום' : undefined}

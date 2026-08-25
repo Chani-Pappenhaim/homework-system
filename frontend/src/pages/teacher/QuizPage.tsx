@@ -7,12 +7,7 @@ import QuizDashboard from '@/components/teacher/QuizDashboard';
 import { PageHeader } from '@/components/ui/page-header';
 import type { QuizResultsDTO } from '@/types';
 
-/**
- * Everything about a lesson's quiz, on its own page — the mirror of the
- * student's quiz page. The lesson page links here rather than carrying the
- * editor inline: ten editable questions plus a class breakdown is a screen of
- * its own, not a section buried under the submissions table.
- */
+/** Standalone page for managing a lesson's quiz: question editor plus a class-wide results breakdown. */
 export default function TeacherQuizPage() {
   const { lessonId } = useParams<{ lessonId: string }>();
 

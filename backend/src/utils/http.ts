@@ -1,16 +1,15 @@
 import { Response } from 'express';
 
-// Shown to the client for any server-side fault (5xx). It must never reveal the
-// real cause — DB errors, missing API keys, stack traces and the like are for
-// the logs, not the user.
+// Shown to the client for any server-side fault. Never reveals the real cause —
+// DB errors, missing API keys, stack traces and the like stay in the logs.
 export const GENERIC_SERVER_ERROR =
   'אירעה שגיאה בשרת. אנא נסו שוב מאוחר יותר, ואם הבעיה חוזרת פנו למנהל המערכת.';
 
 /**
- * Single place that turns a thrown error into a JSON error response.
+ * Turns a thrown error into a JSON error response.
  *
- * - 4xx (client errors we raised on purpose — "not found", "email exists",
- *   "wrong password"…) keep their message: it is meaningful and safe.
+ * - 4xx errors raised intentionally ("not found", "email exists", "wrong
+ *   password"…) keep their message: it is meaningful and safe to show.
  * - 5xx / anything unexpected returns GENERIC_SERVER_ERROR and logs the real
  *   error, so internal details never reach the client.
  */

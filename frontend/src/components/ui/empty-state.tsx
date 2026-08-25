@@ -8,10 +8,7 @@ interface EmptyStateProps {
   className?: string;
 }
 
-/**
- * EmptyState — a blank ruled page for "nothing here yet". Dashed ink border,
- * mono copy. Used wherever a list/table comes back empty.
- */
+/** Placeholder shown wherever a list or table comes back empty. */
 export function EmptyState({ children, icon, className }: EmptyStateProps) {
   return (
     <div

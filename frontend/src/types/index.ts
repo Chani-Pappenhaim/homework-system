@@ -114,8 +114,8 @@ export interface LessonDetailDTO {
   completed?: boolean;
   files: LessonFile[];
   assignments: AssignmentDTO[];
-  // For a student, `exists` is already "is there a quiz I can take?" — the server
-  // collapses an unpublished draft to false so she never learns one is being written.
+  // For a student, `exists` reflects whether a quiz is available to take; an
+  // unpublished draft is reported as false so its existence isn't revealed early.
   quiz?: { exists: boolean; published: boolean };
 }
 
@@ -128,9 +128,8 @@ export interface QuizQuestionDTO {
 }
 
 /**
- * Returned only by POST /quiz/attempt. This is the one place a student receives
- * the correct answers — after she has answered, so there is nothing left to give
- * away, and she can see which questions she got wrong and what the answer was.
+ * Returned only by POST /quiz/attempt — the one response that includes correct
+ * answers, since the student has already submitted and can now review results.
  */
 export interface QuizReviewItemDTO {
   id: string;

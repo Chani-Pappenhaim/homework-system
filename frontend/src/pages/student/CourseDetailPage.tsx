@@ -35,7 +35,6 @@ export default function StudentCourseDetailPage() {
       />
       {course.description && <p className="text-sm text-ink/70">{course.description}</p>}
 
-      {/* Progress */}
       <Card accent="sage">
         <CardContent>
           <div className="mb-2 flex items-center justify-between">
@@ -50,7 +49,6 @@ export default function StudentCourseDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Lesson tiles */}
       <Card accent="indigo">
         <CardHeader><h2 className="font-display text-base font-bold">שיעורים</h2></CardHeader>
         <CardContent>
@@ -77,7 +75,7 @@ export default function StudentCourseDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Links + Files — two independent lists, side by side on wide screens */}
+      {/* Two independent lists, side by side on wide screens */}
       {(course.links.length > 0 || course.files.length > 0) && (
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           {course.links.length > 0 && (

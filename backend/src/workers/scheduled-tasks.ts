@@ -2,8 +2,8 @@ import { runDeadlineCheck } from './deadline-check';
 import { runStorageCheck } from './storage-check';
 
 // A deadline report summarises a deadline that has already passed, so checking
-// four times an hour bought nothing over checking once — it only multiplied the
-// Redis lookups in runDeadlineCheck by four.
+// more than once an hour buys nothing — it only multiplies the Redis lookups
+// in runDeadlineCheck.
 const DEADLINE_INTERVAL_MS = 60 * 60 * 1000;
 const STORAGE_INTERVAL_MS = 60 * 60 * 1000;
 
@@ -12,14 +12,12 @@ export interface ScheduledTaskHandles {
 }
 
 /**
- * deadline-check and storage-monitor have no external trigger — the only
- * thing that ever ran them was their own BullMQ repeatable job. Routing a
- * purely self-scheduled periodic task through a full BullMQ Queue + Worker
- * pair costs a dedicated blocking Redis connection plus that Worker's
- * constant idle long-polling and stalled-job checks, on top of BullMQ's own
- * Redis-backed bookkeeping for the repeat schedule itself. A plain
- * setInterval gets the identical behavior (same cadence, same DB queries,
- * same emails enqueued) without any of that always-on Redis traffic.
+ * deadline-check and storage-monitor have no external trigger — nothing needs
+ * to enqueue them or track retries. Routing a purely self-scheduled periodic
+ * task through a full BullMQ Queue + Worker pair costs a dedicated blocking
+ * Redis connection plus constant idle polling and stalled-job checks. A plain
+ * setInterval gets the same cadence and behavior without that always-on
+ * Redis traffic.
  */
 export function startScheduledTasks(): ScheduledTaskHandles {
   const runSafely = (label: string, task: () => Promise<void>) => {

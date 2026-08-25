@@ -25,7 +25,7 @@ function oauthCallbackHandler(strategy: 'github' | 'google') {
         return res.redirect(`${process.env.FRONTEND_URL}/login?error=oauth_unregistered`);
       }
       // req.user is typed as the JWT payload elsewhere; the OAuth flow puts the
-      // full user here and oauthCallback reads it via `as any`, as before.
+      // full user here instead, so oauthCallback reads it via `as any`.
       req.user = user as any;
       return authController.oauthCallback(req, res).catch(next);
     })(req, res, next);

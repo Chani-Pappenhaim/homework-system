@@ -69,12 +69,10 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-graph p-4" dir="rtl">
       <div className="relative w-full max-w-sm">
-        {/* Brand */}
         <div className="mb-6">
           <Brand variant="hero" teacher />
         </div>
 
-        {/* Card */}
         <div className="relative rounded-xl border border-rule bg-sheet p-6 shadow-lift">
           <Tape color="clay" rotate={-4} className="-top-2.5 right-10 w-20" />
           <Tape color="indigo" rotate={4} className="-top-2.5 left-10 w-16" />
@@ -112,14 +110,12 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Divider */}
           <div className="my-5 flex items-center gap-3">
             <div className="h-0.5 flex-1 border-t border-dashed border-rule/30" />
             <span className="font-sans text-[11px] uppercase text-ink/50">או המשיכי עם</span>
             <div className="h-0.5 flex-1 border-t border-dashed border-rule/30" />
           </div>
 
-          {/* OAuth */}
           <div className="flex flex-col gap-2">
             <button
               type="button"

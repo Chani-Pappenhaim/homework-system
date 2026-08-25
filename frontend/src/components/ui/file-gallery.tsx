@@ -28,11 +28,9 @@ interface FileGalleryProps {
 }
 
 /**
- * A grid of file "cards" (thumbnail for images, icon otherwise) that open in
- * an in-page preview dialog instead of a new browser tab — a plain link list
- * doesn't communicate what's actually attached, and a new tab is jarring for
- * a quick look at a video or PDF. Falls back to a direct download for types
- * the browser can't render inline (zip/docx/etc).
+ * Grid of file cards (thumbnail for images, icon otherwise) that open in an
+ * in-page preview dialog, falling back to a direct download link for file
+ * types that can't be rendered inline.
  */
 export function FileGallery({ files, onDelete, className }: FileGalleryProps) {
   const [preview, setPreview] = useState<GalleryFile | null>(null);

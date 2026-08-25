@@ -13,13 +13,11 @@ export function registerQuizWorker(connection: IORedis): Worker<QuizJobData> {
     async (job) => {
       const { lessonId, lessonContent } = job.data;
 
-      // Same Gemini provider as the homework review — one AI provider product-wide.
       const questions = await generateQuiz(lessonContent);
-      // Prisma types Json fields strictly; the typed array needs a cast to InputJsonValue.
+      // Prisma's Json fields are typed strictly; cast the typed array to InputJsonValue.
       const questionsJson = questions as unknown as Prisma.InputJsonValue;
 
-      // Always lands as a draft: freshly generated questions are the AI's, and
-      // no student sees them until the teacher has reviewed and published.
+      // Generated questions always land as an unpublished draft until a teacher reviews them.
       await prisma.quiz.upsert({
         where: { lessonId },
         create: { lessonId, questions: questionsJson, published: false },

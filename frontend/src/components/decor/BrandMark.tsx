@@ -1,9 +1,6 @@
 import { Logo } from './Logo';
 
-/**
- * BrandMark — back-compat alias. The mark is now the ruled-card <Logo />.
- * Prefer <Brand /> for the full lockup or <Logo /> for the mark alone.
- */
+/** Back-compat alias for the logo mark. Prefer <Brand /> or <Logo /> directly. */
 export function BrandMark({ className }: { className?: string }) {
   return <Logo size={32} className={className} />;
 }

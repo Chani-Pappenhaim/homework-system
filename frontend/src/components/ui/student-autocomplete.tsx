@@ -8,11 +8,7 @@ interface StudentAutocompleteProps {
   placeholder?: string;
 }
 
-/**
- * Free-text search by name OR email against the student directory, with a
- * dropdown of matches — replaces a plain "type an exact email and hope"
- * field, which only told you it was wrong after you clicked submit.
- */
+/** Free-text search by name or email against the student directory, showing a dropdown of matches. */
 export function StudentAutocomplete({ onSelect, placeholder = 'חפשי לפי שם או אימייל' }: StudentAutocompleteProps) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);

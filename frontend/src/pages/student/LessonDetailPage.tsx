@@ -76,11 +76,10 @@ export default function StudentLessonDetailPage() {
         </div>
       </div>
 
-      {/* Reading column (content/files) beside the assignments column on wide screens; a
-          plain single-column stack on narrow screens, preserving the original read order. */}
+      {/* Reading column sits beside the assignments column on wide screens and stacks
+          into a single column on narrow screens, keeping the same read order either way. */}
       <div className={cn('grid grid-cols-1 gap-5', hasAssignments && 'lg:grid-cols-5')}>
         <div className={cn('space-y-5', hasAssignments && 'lg:col-span-3')}>
-          {/* Content */}
           {lesson.contentMd && (
             <Card>
               <CardContent>
@@ -89,7 +88,6 @@ export default function StudentLessonDetailPage() {
             </Card>
           )}
 
-          {/* GitHub */}
           {lesson.githubUrls.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {lesson.githubUrls.map((url, i) => (
@@ -101,7 +99,6 @@ export default function StudentLessonDetailPage() {
             </div>
           )}
 
-          {/* Files */}
           {lesson.files.length > 0 && (
             <Card>
               <CardHeader><h2 className="font-display text-base font-bold">חומרי עזר</h2></CardHeader>
@@ -111,8 +108,7 @@ export default function StudentLessonDetailPage() {
             </Card>
           )}
 
-          {/* Quiz — only once the teacher has published one. `exists` is already
-              "is there a quiz I may take?"; an unpublished draft reads as false. */}
+          {/* `exists` already means "published and available to take" — a draft quiz reads as false. */}
           {lesson.quiz?.exists && (
             <button
               onClick={() => navigate(`/student/quiz/${lesson.id}`)}
@@ -123,7 +119,6 @@ export default function StudentLessonDetailPage() {
           )}
         </div>
 
-        {/* Assignments */}
         {hasAssignments && (
           <div className="space-y-5 lg:col-span-2">
             {lesson.assignments.map((a) => {
@@ -206,7 +201,6 @@ function AssignmentCard({ assignment: a, submission: sub }: {
           <p className="text-xs text-ink/50">מועד אחרון: <span className="font-medium">{formatDate(a.deadline)}</span></p>
         )}
 
-        {/* Already submitted */}
         {sub ? (
           <div className="space-y-3">
             <div className="bg-sage/10 border border-sage/30 rounded-input p-3 text-sm space-y-1">
@@ -228,7 +222,6 @@ function AssignmentCard({ assignment: a, submission: sub }: {
               )}
             </div>
 
-            {/* AI Review section */}
             {sub.githubUrl && (
               <div className="border border-rule/15 rounded-input p-3 text-sm space-y-2">
                 <div className="flex items-center justify-between">

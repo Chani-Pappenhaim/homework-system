@@ -2,12 +2,8 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 
 /**
- * A textarea that grows to fit its content instead of scrolling.
- *
- * Quiz answers are often a full sentence. In a single-line input the text runs
- * past the edge of the box and the teacher can only read the first few words of
- * the option she is trying to check — so the fields that hold authored text
- * wrap and expand rather than clip.
+ * A textarea that grows to fit its content instead of scrolling, so longer
+ * free-text answers stay fully visible rather than being clipped.
  */
 const AutoTextarea = React.forwardRef<HTMLTextAreaElement, React.ComponentProps<'textarea'>>(
   ({ className, value, onChange, ...props }, forwardedRef) => {
@@ -22,8 +18,7 @@ const AutoTextarea = React.forwardRef<HTMLTextAreaElement, React.ComponentProps<
       el.style.height = `${el.scrollHeight}px`;
     }, []);
 
-    // Re-measure on every value change, including ones that come from outside
-    // (loading the server's questions, discarding edits).
+    // Re-measure on every value change, including ones set programmatically.
     React.useLayoutEffect(resize, [value, resize]);
 
     return (

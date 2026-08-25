@@ -42,7 +42,7 @@ export async function getMyMessages(studentId: string) {
   });
 }
 
-// Teacher replies to a message; replying also marks it as read
+// Replying also marks the message as read
 export async function replyMessage(messageId: string, reply: string) {
   const message = await prisma.teacherMessage.update({
     where: { id: messageId },
@@ -67,14 +67,13 @@ export async function getUnreadCount() {
   return prisma.teacherMessage.count({ where: { isRead: false } });
 }
 
-// Student sees how many of the teacher's replies she hasn't opened yet
 export async function getUnreadReplyCount(studentId: string) {
   return prisma.teacherMessage.count({
     where: { studentId, replyContent: { not: null }, replySeen: false },
   });
 }
 
-// Opening a message overlay marks its reply as seen (student only, own message)
+// Marks a reply as seen; restricted to the student's own message
 export async function markReplySeen(messageId: string, studentId: string) {
   await prisma.teacherMessage.updateMany({
     where: { id: messageId, studentId },
@@ -82,12 +81,11 @@ export async function markReplySeen(messageId: string, studentId: string) {
   });
 }
 
-// Teacher deletes an entire message thread from her inbox
 export async function deleteMessage(messageId: string) {
   await prisma.teacherMessage.delete({ where: { id: messageId } });
 }
 
-// Teacher retracts her own reply, leaving the original message unanswered
+// Retracts a reply, leaving the original message unanswered
 export async function deleteReply(messageId: string) {
   return prisma.teacherMessage.update({
     where: { id: messageId },
@@ -95,7 +93,6 @@ export async function deleteReply(messageId: string) {
   });
 }
 
-// Student deletes a message she sent (only her own)
 export async function deleteMyMessage(messageId: string, studentId: string) {
   const message = await prisma.teacherMessage.findUnique({ where: { id: messageId } });
   if (!message || message.studentId !== studentId) {

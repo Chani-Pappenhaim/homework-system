@@ -16,7 +16,6 @@ interface StatusPillProps {
   className?: string;
 }
 
-/** <StatusPill /> — a soft tinted status chip. */
 export function StatusPill({ variant = 'neutral', children, className }: StatusPillProps) {
   return (
     <span

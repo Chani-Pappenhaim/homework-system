@@ -55,8 +55,7 @@ function FileUpload({ onFile, accept, label = 'גרור קובץ לכאן או �
     if (file) pick(file);
   }
 
-  // Staged step: a file was chosen — show a preview and wait for confirmation
-  // (and, when withName, a display name) before actually uploading.
+  // A file was chosen: show a preview and require explicit confirmation before uploading.
   if (staged) {
     const kind = getFileKind(staged.name);
     return (

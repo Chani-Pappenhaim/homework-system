@@ -6,7 +6,7 @@ interface StampProps {
   className?: string;
 }
 
-/** <Stamp /> — a small clay-outlined chip (softened from the rubber stamp). */
+/** A small clay-outlined chip. */
 export function Stamp({ children, className }: StampProps) {
   return (
     <span

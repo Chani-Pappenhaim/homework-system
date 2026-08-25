@@ -14,9 +14,6 @@ const LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000; // ignore deadlines older than 7 da
 // expiry. Cleared alongside the key it mirrors so the two never disagree.
 const reportedAssignments = new Set<string>();
 
-// Same logic that used to run inside a BullMQ 'deadline-check' Worker driven
-// by a repeatable job — see scheduled-tasks.ts for why this is now a plain
-// interval instead.
 export async function runDeadlineCheck(): Promise<void> {
   const now = new Date();
   const lookbackStart = new Date(now.getTime() - LOOKBACK_MS);

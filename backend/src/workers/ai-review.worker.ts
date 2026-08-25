@@ -20,9 +20,8 @@ export function registerAiReviewWorker(connection: IORedis): Worker<AiReviewJobD
       const { submissionId } = job.data;
 
       // Anything that throws below leaves aiStatus at 'pending', and requestAiReview
-      // refuses to re-enqueue while pending — so a private repo or a Gemini blip used
-      // to lock the student out of her review permanently. Always land on a terminal
-      // status before rethrowing.
+      // refuses to re-enqueue while pending. Always land on a terminal status before
+      // rethrowing, so a failure doesn't permanently block further review attempts.
       try {
         const submission = await prisma.submission.findUnique({
           where: { id: submissionId },

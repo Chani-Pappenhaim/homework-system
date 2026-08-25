@@ -241,8 +241,8 @@ export async function setQuizPublished(lessonId: string, published: boolean) {
 export async function submitQuizAttempt(
   lessonId: string, studentId: string, role: string, answers: unknown
 ) {
-  // The quiz is resolved from the lesson in the route, never from the body —
-  // trusting a body quizId let any student post an attempt for any quiz.
+  // The quiz is resolved from the lesson in the route, never from a client-supplied
+  // id, so a student can only ever submit an attempt for the quiz they were shown.
   await assertLessonAccess(studentId, role, lessonId);
 
   const quiz = await prisma.quiz.findUnique({ where: { lessonId } });

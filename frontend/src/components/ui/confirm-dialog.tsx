@@ -13,7 +13,7 @@ interface ConfirmDialogProps {
   onConfirm: () => void;
 }
 
-/** A modal confirmation, replacing the browser's native `confirm()` — unstyled, blocks the whole tab, and can't show details like a student's name/email together. */
+/** A styled modal confirmation, used instead of the browser's native `confirm()` so it can show richer detail and match the app's design. */
 export function ConfirmDialog({
   open, onOpenChange, title, description, confirmLabel = 'אישור', cancelLabel = 'ביטול',
   destructive = true, loading, onConfirm,

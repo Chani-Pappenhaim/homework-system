@@ -1,12 +1,9 @@
 import ExcelJS, { type Cell } from 'exceljs';
 
 /**
- * ExcelJS gives back a plain string only for a "plain text" cell. If Excel
- * auto-linked the cell (e.g. a GitHub URL/username pasted in and turned into
- * a hyperlink) the value is `{text, hyperlink}`; rich text is `{richText:[...]}`;
- * a formula result is `{formula, result}`. Reading any of those with
- * `String(cell.value)` produces the literal text "[object Object]" — this is
- * the single place that unwraps all of them to plain text.
+ * Unwraps an ExcelJS cell value to plain text. ExcelJS returns a plain string
+ * only for simple text cells — hyperlinks, rich text, and formula results are
+ * returned as objects that would otherwise stringify to "[object Object]".
  */
 export function cellText(cell: Cell): string {
   const v = cell.value;
@@ -29,8 +26,7 @@ export function isValidEmail(email: string): boolean {
   return EMAIL_RE.test(email);
 }
 
-// A GitHub username, not a full URL: letters/digits/hyphens, no slashes.
-// Teachers sometimes paste the full profile URL instead — strip it down.
+// Extracts a bare GitHub username from either a username or a full profile URL.
 export function normalizeGithubUsername(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) return '';
@@ -38,7 +34,7 @@ export function normalizeGithubUsername(raw: string): string {
   return (match ? match[1] : trimmed).replace(/^@/, '');
 }
 
-/** A tiny one-sheet xlsx: a header row plus one example row, for "download a sample file" links next to Excel imports. */
+/** Builds a one-sheet xlsx template with a header row and one example row. */
 export async function buildTemplateWorkbook(headers: string[], example: (string | number)[]): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet('Template');

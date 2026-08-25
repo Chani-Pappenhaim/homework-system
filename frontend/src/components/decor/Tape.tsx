@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils';
 
 type TapeColor = 'mustard' | 'lilac' | 'tomato' | 'cobalt' | 'clay' | 'indigo' | 'sage' | 'butter' | 'coral';
 
-// Old + new color names both map to translucent washi tints.
+// Multiple color name aliases map to the same translucent washi tint.
 const fills: Record<TapeColor, string> = {
   mustard: 'rgb(var(--butter) / 0.4)',
   butter: 'rgb(var(--butter) / 0.4)',

@@ -39,8 +39,8 @@ export async function uploadBuffer(
 
 /**
  * Uploads use resource_type 'auto', so a PDF or image is stored as 'image'/'video'.
- * Destroying it as 'raw' returns {result:'not found'} without throwing, which used to
- * leave the asset billed forever. Try the type the URL implies, then fall back.
+ * Destroying it as 'raw' returns {result:'not found'} without throwing, which would
+ * silently leave the asset undeleted. Try the type the URL implies, then fall back.
  */
 export async function destroyByUrl(url: string): Promise<void> {
   const publicId = extractPublicId(url);
@@ -58,9 +58,8 @@ export async function destroyByUrl(url: string): Promise<void> {
 /**
  * Signed params for a browser-to-Cloudinary direct upload.
  *
- * The file bytes never touch our Node process this way — needed for video
- * submissions, which were blowing past Render's 512MB memory limit going
- * through multer.memoryStorage() + a base64 buffer copy in uploadBuffer.
+ * The file bytes never touch our Node process this way, which avoids the
+ * memory overhead of buffering large uploads (e.g. video) server-side.
  */
 export function createUploadSignature(folder: string) {
   const timestamp = Math.round(Date.now() / 1000);

@@ -8,12 +8,9 @@ interface State {
   error: Error | null;
 }
 
-// Without this, any uncaught render error (e.g. a page choking on an
-// unexpected 403/network response) unmounts the whole React tree and leaves
-// a blank white screen — which reads to a user as "the site just crashes for
-// no reason". This catches it and shows a recoverable Hebrew error screen
-// instead. The caller remounts this per-route (key={pathname}) so navigating
-// away from the broken page recovers automatically.
+// Catches uncaught render errors so they show a recoverable error screen
+// instead of unmounting the whole React tree into a blank page. Meant to be
+// remounted per route (key={pathname}) so leaving the broken page recovers.
 export default class ErrorBoundary extends Component<Props, State> {
   state: State = { error: null };
 

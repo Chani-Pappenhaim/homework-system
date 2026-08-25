@@ -35,7 +35,7 @@ export default function AssignmentsPage() {
     <div className="space-y-5" dir="rtl">
       <PageHeader title="המטלות שלי" meta="מחברת · מטלות" />
 
-      {/* Local search — filters both lists below by assignment title or course name */}
+      {/* Filters both lists below by assignment title or course name */}
       <div className="flex items-center gap-2 rounded-input border border-rule bg-sheet px-3 py-1.5 transition-colors focus-within:border-clay sm:max-w-sm">
         <Search size={15} className="text-ink-soft" />
         <input
@@ -49,9 +49,8 @@ export default function AssignmentsPage() {
         )}
       </div>
 
-      {/* Pending + Submitted — two independent lists, side by side on wide screens */}
+      {/* Two independent lists, side by side on wide screens */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        {/* Pending */}
         <Card accent="coral">
           <CardHeader>
             <h2 className="font-display text-base font-bold">לא הוגשו ({filteredPending.length})</h2>
@@ -78,7 +77,6 @@ export default function AssignmentsPage() {
           </div>
         </Card>
 
-        {/* Submitted */}
         <Card accent="sage">
           <CardHeader>
             <h2 className="font-display text-base font-bold">הוגשו ({filteredSubmitted.length})</h2>

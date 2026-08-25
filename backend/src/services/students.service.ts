@@ -9,10 +9,8 @@ export async function findStudentByEmail(email: string) {
 
 /**
  * A cross-group student directory — used for the "exceptional lesson access"
- * autocomplete, so a teacher can find a student by name (not just typing an
- * exact email and hoping it matches). Previously the only way to find a
- * student by email was to fetch every group's full member list one at a
- * time from the browser; this replaces that N+1 with one query.
+ * autocomplete, so a teacher can find a student by name or email in a single
+ * query instead of an exact-match lookup.
  */
 export async function searchStudents(query?: string) {
   const q = query?.trim();

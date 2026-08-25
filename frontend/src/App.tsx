@@ -35,18 +35,15 @@ function AppRoutes() {
   return (
     <ErrorBoundary key={location.pathname}>
       <Routes>
-        {/* Public */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/auth/callback" element={<OAuthCallbackPage />} />
 
-        {/* Must change password */}
         <Route path="/change-password" element={
           <AuthGuard><ChangePasswordPage /></AuthGuard>
         } />
 
-        {/* Teacher routes */}
         <Route path="/teacher" element={
           <AuthGuard><ChangePasswordGuard><AdminGuard /></ChangePasswordGuard></AuthGuard>
         }>
@@ -60,14 +57,13 @@ function AppRoutes() {
           <Route path="courses/:id/edit" element={<CourseFormPage />} />
           <Route path="courses/:id" element={<CourseDetailPage />} />
           <Route path="lessons/:id" element={<LessonDetailPage />} />
-          {/* Mirrors the student's /student/quiz/:lessonId */}
+          {/* Mirrors the student quiz route so the same lesson quiz is reachable from either role */}
           <Route path="quiz/:lessonId" element={<TeacherQuizPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="messages" element={<TeacherMessagesPage />} />
           <Route path="ai-usage" element={<AiUsagePage />} />
         </Route>
 
-        {/* Student routes */}
         <Route path="/student" element={
           <AuthGuard><ChangePasswordGuard /></AuthGuard>
         }>
@@ -79,7 +75,6 @@ function AppRoutes() {
           <Route path="messages" element={<StudentMessagesPage />} />
         </Route>
 
-        {/* Default redirect */}
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

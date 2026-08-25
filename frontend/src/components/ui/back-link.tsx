@@ -3,21 +3,13 @@ import { ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface BackLinkProps {
-  /**
-   * Explicit parent route. When omitted, goes back one step in history
-   * (navigate(-1)) — i.e. up the path the user actually walked, not to a
-   * reset top-level tab.
-   */
+  /** Explicit parent route. When omitted, steps back one entry in browser history instead. */
   to?: string;
   label?: string;
   className?: string;
 }
 
-/**
- * BackLink — contextual "back" control. In RTL the arrow points right (→),
- * the direction of "back". Prefer an explicit `to` when the parent is known;
- * otherwise it steps back through history.
- */
+/** Contextual "back" control; the arrow points right to match RTL layout. */
 export function BackLink({ to, label = 'חזרה', className }: BackLinkProps) {
   const navigate = useNavigate();
   const cls = cn(

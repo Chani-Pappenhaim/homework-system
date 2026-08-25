@@ -26,7 +26,7 @@ export function GradeModal({ submission, assignment, onClose }: {
   const [checklist, setChecklist] = useState<ChecklistResult[]>([]);
   const [showAiCodeReview, setShowAiCodeReview] = useState(false);
 
-  // Reseeds the form whenever a different submission is opened for grading.
+  // Resets form state whenever a different submission is opened.
   useEffect(() => {
     setLocal(submission);
     if (!submission) return;
@@ -37,16 +37,14 @@ export function GradeModal({ submission, assignment, onClose }: {
     })) ?? [];
     setChecklist(nextChecklist);
     if (submission.grade?.submissionScore != null) {
-      // Existing grade — never overwrite the teacher's submission score
+      // Don't overwrite an already-set submission score.
       setSubmissionScore(submission.grade.submissionScore.toString());
     } else {
-      // Suggested prefill: 100, minus 10 for late, minus 5 per unchecked requirement
+      // Default suggestion: 100, minus 10 for a late submission, minus 5 per unchecked requirement.
       const unchecked = nextChecklist.filter((c) => !c.checked).length;
       const suggested = Math.max(0, 100 - (submission.isLate ? 10 : 0) - unchecked * 5);
       setSubmissionScore(String(suggested));
     }
-    // Content score is prefilled only from an existing grade; the "restore AI"
-    // button is what fills it from the AI score.
     setContentScore(submission.grade?.contentScore != null ? submission.grade.contentScore.toString() : '');
     setFeedback(submission.grade?.feedback ?? '');
   }, [submission, assignment]);

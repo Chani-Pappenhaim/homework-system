@@ -10,7 +10,7 @@ import { cn, formatDate, isOverdue } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import type { PendingAssignment } from '@/types';
 
-// A little rotation per course card so they read like sheets tacked to a board.
+// Slight rotation per card gives the row a hand-tacked, sheet-on-a-board look.
 const CARD_ACCENTS = ['clay', 'indigo', 'sage', 'butter', 'coral'] as const;
 const TAPES = ['clay', 'sage', 'indigo', 'butter'] as const;
 
@@ -35,7 +35,6 @@ export default function StudentHomePage() {
 
   return (
     <div className="space-y-5" dir="rtl">
-      {/* Greeting */}
       <section className="sheet relative p-5">
         <Tape color="clay" rotate={-4} className="-top-2.5 right-8 w-20" />
         <Tape color="sage" rotate={3} className="-top-2 right-28 w-14" />
@@ -67,7 +66,6 @@ export default function StudentHomePage() {
         </div>
       </section>
 
-      {/* Courses */}
       {courses.length > 0 && (
         <div className="flex items-center gap-2 rounded-input border border-rule bg-sheet px-3 py-1.5 transition-colors focus-within:border-clay sm:max-w-sm">
           <Search size={15} className="text-ink-soft" />
@@ -124,7 +122,6 @@ export default function StudentHomePage() {
         </div>
       )}
 
-      {/* Pending assignments */}
       {pending.length > 0 && (
         <section className="sheet">
           <div className="flex items-center gap-2 border-b border-rule px-4 py-3">

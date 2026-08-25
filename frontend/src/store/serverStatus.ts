@@ -2,9 +2,8 @@ import { create } from 'zustand';
 
 interface ServerStatusState {
   /**
-   * True while a request has been stalling long enough that the backend is
-   * almost certainly cold-starting (free-tier spin-down). Drives the global
-   * "server is waking up" banner. Set by the axios interceptors.
+   * True while a request is stalling long enough to indicate the backend is
+   * cold-starting. Drives the global "server is waking up" banner.
    */
   waking: boolean;
   setWaking: (waking: boolean) => void;

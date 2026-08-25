@@ -21,8 +21,7 @@ router.post('/:id/students', groupsController.addStudent);
 router.post('/:id/students/remove-bulk', groupsController.removeStudents);
 router.put('/:id/students/:studentId', groupsController.updateStudent);
 router.delete('/:id/students/:studentId', groupsController.removeStudent);
-// upload.single('file') is what populates req.file — without it the controller
-// always saw an empty body and answered 400 "No file uploaded".
+// upload.single('file') must run first so it populates req.file for requireFile.
 router.post('/:id/import', upload.single('file'), requireFile, groupsController.importStudents);
 router.post('/:id/reset-password/:studentId', groupsController.resetPassword);
 

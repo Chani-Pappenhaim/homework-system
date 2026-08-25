@@ -61,7 +61,6 @@ export default function TeacherLayout() {
 
   return (
     <div className="flex min-h-screen flex-col bg-graph" dir="rtl">
-      {/* Top bar */}
       <header className="sticky top-0 z-30 border-b border-rule bg-sheet/80 backdrop-blur-sm">
         <div className="flex h-16 items-center gap-4 px-5 md:px-6">
           <button onClick={() => navigate('/teacher')}>
@@ -113,7 +112,6 @@ export default function TeacherLayout() {
         </div>
       </header>
 
-      {/* Body: icon rail (right, flush to the edge) + content */}
       <div className="flex w-full flex-1">
         <nav className="sticky top-16 z-40 hidden h-fit w-16 shrink-0 flex-col items-center gap-2 py-5 md:flex">
           {nav.map(({ to, label, icon: Icon, end }) => (
@@ -146,7 +144,6 @@ export default function TeacherLayout() {
         </main>
       </div>
 
-      {/* Mobile nav */}
       <nav className="sticky bottom-0 z-30 flex items-center justify-around border-t border-rule bg-sheet/90 px-2 py-1.5 backdrop-blur-sm md:hidden">
         {nav.map(({ to, label, icon: Icon, end }) => (
           <NavLink key={to} to={to} end={end}>

@@ -2,9 +2,6 @@ import { cloudinary } from '../config/cloudinary';
 import { sharedConnection } from '../infrastructure/redis/connection';
 import { emailQueue } from '../infrastructure/queues/queues';
 
-// Same logic that used to run inside a BullMQ 'storage-monitor' Worker driven
-// by a repeatable job — see scheduled-tasks.ts for why this is now a plain
-// interval instead.
 export async function runStorageCheck(): Promise<void> {
   const usage = await cloudinary.api.usage();
   const percent = (usage.storage.used_bytes / usage.storage.limit) * 100;

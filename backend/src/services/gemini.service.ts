@@ -4,15 +4,14 @@ import { prisma } from '../config/prisma';
 // call time instead of an `undefined` sneaking into the request URL.
 const geminiApiKey = () => process.env.GEMINI_API_KEY;
 
-// Google retires model ids. `gemini-2.0-flash` — the previous default — now
-// answers 404 "no longer available", which surfaced as an endless "generating"
-// spinner. Keep this pinned to a model that exists and check the list at
-// https://generativelanguage.googleapis.com/v1beta/models?key=... when it 404s.
+// Google periodically retires model ids, which makes calls 404. Keep this
+// pinned to a model that currently exists; check the available models at
+// https://generativelanguage.googleapis.com/v1beta/models?key=... if it 404s.
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 
 // Per-1M-token prices for GEMINI_MODEL, used only for the AI-usage cost report.
-// They are env-tunable because the model is: changing one without the other
-// silently makes the cost column wrong.
+// Env-tunable, but must be kept in sync with GEMINI_MODEL or the reported cost
+// will be wrong.
 const PRICE_INPUT_PER_1M = Number(process.env.GEMINI_PRICE_INPUT_PER_1M ?? 0.10);
 const PRICE_OUTPUT_PER_1M = Number(process.env.GEMINI_PRICE_OUTPUT_PER_1M ?? 0.40);
 
@@ -23,8 +22,7 @@ interface AiReviewResult {
 }
 
 // How long a single Gemini call may take before we give up. Without this a
-// connection that hangs leaves the job — and the student's page — waiting
-// indefinitely.
+// hung connection leaves the job waiting indefinitely.
 const REQUEST_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS ?? 60_000);
 
 /**
@@ -48,12 +46,9 @@ function describeError(err: any): string {
 }
 
 /**
- * One call to Gemini for every AI feature in the product.
- *
- * Every failure mode below used to surface identically — as a job that threw
- * something unreadable, leaving the student on a spinner forever. Each now
- * produces a message that names the actual cause, because that message is what
- * the teacher eventually reads in the UI.
+ * Shared entry point for calling Gemini. Normalizes every failure mode
+ * (timeout, network error, HTTP error, empty/blocked response, malformed
+ * JSON) into an error message that names the actual cause.
  */
 async function callGemini(
   systemPrompt: string,
@@ -171,10 +166,9 @@ export interface QuizQuestion {
 }
 
 /**
- * Generates a Hebrew multiple-choice quiz from lesson content using the same
- * Gemini model as the homework review — one AI provider across the product.
- * Usage is logged as 'quiz_generation' so it counts under quizzes in the
- * AI-usage report.
+ * Generates a Hebrew multiple-choice quiz from lesson content. Usage is
+ * logged as 'quiz_generation' so it counts under quizzes in the AI-usage
+ * report.
  */
 export async function generateQuiz(lessonContent: string): Promise<QuizQuestion[]> {
   const systemPrompt = `את מחוללת חידונים לקורס תכנות.

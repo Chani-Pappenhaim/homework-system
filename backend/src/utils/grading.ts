@@ -1,10 +1,9 @@
 /**
- * "ציון הגשה" (submission score) — the automatic score, per the business rules:
- * starts at 100 and is docked for lateness and for each requirement the student
- * left unchecked in her submission checklist.
+ * Automatic submission score: starts at 100 and is docked for lateness and for
+ * each unchecked item in the submission checklist.
  *
- * Shared by the submit flow (auto, visible to the student immediately) and the
- * teacher's grade-modal prefill so the two can never drift apart.
+ * Shared by the submit flow and the teacher's grade-modal prefill so the two
+ * never drift apart.
  */
 export const LATE_PENALTY = 10;
 export const UNCHECKED_PENALTY = 5;

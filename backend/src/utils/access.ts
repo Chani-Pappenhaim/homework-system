@@ -8,8 +8,8 @@ function forbidden() {
  * The single home for "may this user read this lesson?".
  *
  * Every entry point that returns lesson-scoped content (the lesson itself, its
- * assignments, its quiz) must call this. Access was previously re-implemented
- * per service, and the places that forgot became read-anything holes.
+ * assignments, its quiz) must call this, so access rules stay consistent
+ * across all of them instead of being reimplemented per service.
  */
 export async function assertLessonAccess(userId: string, role: string, lessonId: string) {
   if (role === 'ADMIN') return;

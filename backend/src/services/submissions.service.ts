@@ -73,7 +73,8 @@ export async function submitAssignment(
         data: { assignmentId, studentId, fileUrl, fileName, githubUrl, notes, checklist, isLate },
       });
 
-  // ציון הגשה אוטומטי — נראה לתלמידה מיד. משאיר contentScore/feedback אם המורה כבר נתנה.
+  // Automatic submission score, visible to the student right away. Any
+  // contentScore/feedback already given by the teacher is left untouched.
   const submissionScore = computeSubmissionScore(isLate, submission.checklist);
   await prisma.grade.upsert({
     where: { submissionId: submission.id },
@@ -234,8 +235,8 @@ export async function approveAiReview(submissionId: string) {
   });
 }
 
-// Restore the grade score back to the AI's score — no new AI request needed,
-// because aiScore is kept on the submission even after the teacher overrides the grade.
+// Restores the grade's content score to the AI's score without a new AI
+// request, since aiScore stays on the submission even after being overridden.
 export async function restoreAiScore(submissionId: string, gradedById: string) {
   const submission = await prisma.submission.findUnique({ where: { id: submissionId } });
   if (!submission) throw Object.assign(new Error('Submission not found'), { status: 404 });

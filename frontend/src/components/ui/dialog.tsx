@@ -44,12 +44,8 @@ const DialogContent = React.forwardRef<
 >(({ className, children, size = 'md', hideClose, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
-    {/*
-      The panel is capped and its body scrolls inside it. Without max-h/flex,
-      tall dialogs (grading, lesson edit) ran past the bottom of the viewport
-      while the page behind was scroll-locked, leaving the save button
-      unreachable on a laptop screen.
-    */}
+    {/* Panel height is capped and its body scrolls internally, so tall dialogs
+        stay fully reachable within the viewport. */}
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
@@ -64,8 +60,8 @@ const DialogContent = React.forwardRef<
     >
       {children}
       {!hideClose && (
-        // `end-4` follows the writing direction, so it sits top-left in this
-        // RTL app and top-right if a subtree is ever flipped to LTR.
+        // `end-4` follows the writing direction rather than a fixed side, so
+        // it stays correctly positioned in both RTL and LTR contexts.
         <DialogPrimitive.Close
           className={cn(
             'absolute end-4 top-4 rounded-sm p-1 text-muted-foreground opacity-70 transition',

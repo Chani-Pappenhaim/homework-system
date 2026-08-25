@@ -7,7 +7,6 @@ const MAX_FILES = 20;
 const MAX_FILE_CHARS = 5000;
 
 export async function fetchGithubCode(githubUrl: string): Promise<string> {
-  // githubUrl = https://github.com/username/reponame
   const match = githubUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
   if (!match) throw new Error('Invalid GitHub URL');
   const [, owner, repo] = match;
@@ -30,7 +29,7 @@ export async function fetchGithubCode(githubUrl: string): Promise<string> {
     const res = await fetch(rawUrl, { headers: { 'User-Agent': 'homework-app' } });
     if (!res.ok) continue;
     const text = await res.text();
-    if (text.length > MAX_FILE_CHARS) continue; // skip huge files
+    if (text.length > MAX_FILE_CHARS) continue;
     contents.push(`--- ${file.path} ---\n${text}`);
   }
 
@@ -56,7 +55,7 @@ export function extractZipCode(buffer: Buffer): string {
   const contents: string[] = [];
   for (const entry of entries) {
     const text = entry.getData().toString('utf8');
-    if (text.length > MAX_FILE_CHARS) continue; // skip huge files
+    if (text.length > MAX_FILE_CHARS) continue;
     contents.push(`--- ${entry.entryName} ---\n${text}`);
   }
 

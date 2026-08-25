@@ -3,16 +3,10 @@ import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  /**
-   * `label` and `error` are not part of upstream shadcn, which expects a Label
-   * to be composed alongside the Input. They stay because every form here uses
-   * them, and folding them in is what lets the label carry an htmlFor — as
-   * separate markup the two were never associated, so clicking a label did
-   * nothing and screen readers announced the field unnamed.
-   */
+  /** Optional label and error text rendered alongside the input, with the label properly associated via htmlFor for accessibility. */
   label?: string;
   error?: string;
-  /** Rendered inside the input's own relative wrapper (e.g. a show/hide password toggle) — positioned against the input box itself, not the label/error stack around it. */
+  /** Rendered inside the input's own wrapper (e.g. a show/hide password toggle), positioned against the input box itself. */
   endAdornment?: React.ReactNode;
 }
 

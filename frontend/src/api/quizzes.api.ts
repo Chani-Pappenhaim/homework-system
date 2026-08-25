@@ -11,11 +11,9 @@ export const quizzesApi = {
   generate: (lessonId: string) =>
     api.post(`/lessons/${lessonId}/quiz/generate`),
 
-  /** Replace the questions with the teacher's edited version. */
   updateQuestions: (lessonId: string, questions: QuizQuestionDTO[]) =>
     api.put(`/lessons/${lessonId}/quiz`, { questions }),
 
-  /** Show the draft to students, or pull it back. */
   setPublished: (lessonId: string, published: boolean) =>
     api.patch(`/lessons/${lessonId}/quiz/publish`, { published }),
 

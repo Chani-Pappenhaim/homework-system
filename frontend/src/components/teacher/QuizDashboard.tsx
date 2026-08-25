@@ -3,20 +3,13 @@ import { cn, formatDateTime } from '@/lib/utils';
 import type { QuizQuestionStatsDTO, QuizResultsDTO } from '@/types';
 
 /**
- * How the class did — per question, not just per student.
+ * Per-question breakdown of quiz results, ordered by lowest correct rate,
+ * showing which wrong answers were chosen — this surfaces specific
+ * misconceptions rather than just which students scored low.
  *
- * A column of scores tells the teacher who is struggling. It cannot tell her
- * *what* they misunderstood, which is the thing she would reteach. So the
- * primary view here is one row per question ordered by how many got it right,
- * with the wrong answers they actually chose underneath: a distractor that
- * catches half the class is a specific misconception, not noise.
- *
- * On colour: the brand palette is deliberately low-chroma, and its accents fail
- * a colourblind-separation check against each other (sage vs coral ΔE 14.4,
- * below the 15 floor). Nothing here is encoded by hue. Every bar is the same
- * single hue and carries magnitude by length only; correctness is carried by a
- * ✓ mark, a word, and a printed count — so the charts stay readable in
- * greyscale, in dark mode, and for a colourblind reader.
+ * Correctness and magnitude are conveyed by shape (a checkmark, a printed
+ * count, bar length) rather than by color, since the palette's accent colors
+ * don't pass a colorblind-safe contrast check against each other.
  */
 
 /** Proportion bar: one hue, length = magnitude, value always printed alongside. */
@@ -61,7 +54,6 @@ function QuestionRow({ q, index, attemptCount }: {
             </span>
           </div>
 
-          {/* What the wrong answers actually were. */}
           <ul className="mt-3 space-y-1">
             {q.options.map((opt, j) => {
               const isCorrect = j === q.correctIndex;
@@ -112,7 +104,7 @@ export default function QuizDashboard({ data }: { data: QuizResultsDTO }) {
     );
   }
 
-  // Weakest first: the questions she might reteach are the reason to open this page.
+  // Order weakest-first, since those are the most actionable questions.
   const byDifficulty = [...questions].sort((a, b) => (a.correctRate ?? 0) - (b.correctRate ?? 0));
   const hardest = byDifficulty[0];
 
@@ -150,7 +142,7 @@ export default function QuizDashboard({ data }: { data: QuizResultsDTO }) {
         </CardContent>
       </Card>
 
-      {/* The same data per student — a plain table, and the text equivalent of the charts above. */}
+      {/* Per-student scores, as a plain-text equivalent of the charts above. */}
       <Card>
         <CardHeader>
           <h2 className="font-display text-base font-bold">ציוני התלמידות ({results.length})</h2>

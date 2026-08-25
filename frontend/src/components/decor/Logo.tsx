@@ -9,9 +9,8 @@ interface LogoProps {
 }
 
 /**
- * קליק כיתה mark — a ruled index card with a folded corner and (optionally) a
- * sage check badge, the "click" of a checked-off submission. Colors reference
- * the CSS palette vars so the mark flips correctly in dark mode.
+ * Ruled index-card mark with a folded corner and an optional check badge.
+ * Colors reference CSS palette vars so the mark adapts to dark mode.
  */
 export function Logo({ size = 28, withCheck = false, className }: LogoProps) {
   const w = (size * 40) / 48;
@@ -30,7 +29,7 @@ export function Logo({ size = 28, withCheck = false, className }: LogoProps) {
       {/* folded top-left corner */}
       <path d="M1 14 L14 1 L14 14 Z" fill="rgb(var(--rule))" />
       <path d="M14 1 L14 14 L1 14" stroke="rgb(var(--ink))" strokeWidth="1.2" strokeLinejoin="round" fill="none" opacity="0.55" />
-      {/* ruled lines — top one in clay */}
+      {/* ruled lines */}
       <line x1="7" y1="20" x2="33" y2="20" stroke="rgb(var(--clay))" strokeWidth="2" strokeLinecap="round" />
       <line x1="12" y1="28" x2="33" y2="28" stroke="rgb(var(--rule))" strokeWidth="2" strokeLinecap="round" />
       <line x1="9" y1="36" x2="33" y2="36" stroke="rgb(var(--rule))" strokeWidth="2" strokeLinecap="round" />

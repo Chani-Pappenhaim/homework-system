@@ -13,7 +13,7 @@ export async function getQuiz(req: Request, res: Response) {
   }
 }
 
-/** Teacher-only: start an AI generation. Students never reach this route. */
+/** Starts AI generation of the quiz draft. Teacher-only. */
 export async function generate(req: Request, res: Response) {
   try {
     const result = await quizzesService.requestQuizGeneration(
@@ -25,7 +25,7 @@ export async function generate(req: Request, res: Response) {
   }
 }
 
-/** Teacher-only: save her edited questions. */
+/** Saves edited quiz questions. Teacher-only. */
 export async function updateQuestions(req: Request, res: Response) {
   try {
     const result = await quizzesService.updateQuizQuestions(
@@ -37,7 +37,7 @@ export async function updateQuestions(req: Request, res: Response) {
   }
 }
 
-/** Teacher-only: publish the draft to students, or pull it back. */
+/** Publishes the quiz draft to students, or pulls it back. Teacher-only. */
 export async function setPublished(req: Request, res: Response) {
   try {
     if (typeof req.body.published !== 'boolean') {
