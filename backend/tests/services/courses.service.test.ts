@@ -183,24 +183,31 @@ describe('courses.service create/update + links + files', () => {
     await deleteCourseLink('c1', 'lk1');
     expect(p.courseLink.delete).toHaveBeenCalledWith({ where: { id: 'lk1', courseId: 'c1' } });
   });
-  it('uploadCourseFile uploads then stores the record', async () => {
+  it('uploadCourseFile uploads a buffer then stores the record', async () => {
     uploadMock.mockResolvedValue({ url: 'https://cdn/x.pdf', bytes: 42, resourceType: 'image', publicId: 'p' });
     p.courseFile.create.mockImplementation(({ data }: any) => Promise.resolve(data));
-    const r: any = await uploadCourseFile('c1', Buffer.from('x'), 'x.pdf', 'application/pdf');
+    const r: any = await uploadCourseFile('c1', { buffer: Buffer.from('x'), mimeType: 'application/pdf', originalName: 'x.pdf' });
+    expect(r).toMatchObject({ courseId: 'c1', url: 'https://cdn/x.pdf', name: 'x.pdf' });
+  });
+
+  it('uploadCourseFile stores an already-uploaded url without calling Cloudinary again', async () => {
+    p.courseFile.create.mockImplementation(({ data }: any) => Promise.resolve(data));
+    const r: any = await uploadCourseFile('c1', { url: 'https://cdn/x.pdf', bytes: 42, originalName: 'x.pdf' });
+    expect(uploadMock).not.toHaveBeenCalled();
     expect(r).toMatchObject({ courseId: 'c1', url: 'https://cdn/x.pdf', name: 'x.pdf' });
   });
 
   it('uploadCourseFile uses the given display name over the original filename', async () => {
     uploadMock.mockResolvedValue({ url: 'https://cdn/x.pdf', bytes: 42, resourceType: 'image', publicId: 'p' });
     p.courseFile.create.mockImplementation(({ data }: any) => Promise.resolve(data));
-    const r: any = await uploadCourseFile('c1', Buffer.from('x'), 'x.pdf', 'application/pdf', '  מצגת שיעור 1  ');
+    const r: any = await uploadCourseFile('c1', { buffer: Buffer.from('x'), mimeType: 'application/pdf', originalName: 'x.pdf' }, '  מצגת שיעור 1  ');
     expect(r.name).toBe('מצגת שיעור 1');
   });
 
   it('uploadCourseFile falls back to the original name when the display name is blank', async () => {
     uploadMock.mockResolvedValue({ url: 'https://cdn/x.pdf', bytes: 42, resourceType: 'image', publicId: 'p' });
     p.courseFile.create.mockImplementation(({ data }: any) => Promise.resolve(data));
-    const r: any = await uploadCourseFile('c1', Buffer.from('x'), 'x.pdf', 'application/pdf', '   ');
+    const r: any = await uploadCourseFile('c1', { buffer: Buffer.from('x'), mimeType: 'application/pdf', originalName: 'x.pdf' }, '   ');
     expect(r.name).toBe('x.pdf');
   });
 
@@ -208,7 +215,7 @@ describe('courses.service create/update + links + files', () => {
     uploadMock.mockResolvedValue({ url: 'https://cdn/x.pdf', bytes: 42, resourceType: 'image', publicId: 'p' });
     // Prisma hands back a BigInt for sizeBytes; the DTO must stringify it.
     p.courseFile.create.mockResolvedValue({ id: 'f1', courseId: 'c1', name: 'x.pdf', url: 'https://cdn/x.pdf', sizeBytes: 42n });
-    const r: any = await uploadCourseFile('c1', Buffer.from('x'), 'x.pdf', 'application/pdf');
+    const r: any = await uploadCourseFile('c1', { buffer: Buffer.from('x'), mimeType: 'application/pdf', originalName: 'x.pdf' });
     expect(r.sizeBytes).toBe('42');
     expect(() => JSON.stringify(r)).not.toThrow();
   });

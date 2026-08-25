@@ -1,5 +1,5 @@
 import { prisma } from '../config/prisma';
-import { uploadBuffer, destroyByUrl, toFileDTO } from '../utils/storage';
+import { uploadBuffer, createUploadSignature, destroyByUrl, toFileDTO } from '../utils/storage';
 import { assertLessonAccess, assertCourseAccess } from '../utils/access';
 
 // Lessons created before multi-link support only have the legacy single
@@ -113,12 +113,25 @@ export async function reorderLessons(lessons: { id: string; order: number }[]) {
   );
 }
 
-export async function uploadLessonFile(lessonId: string, buffer: Buffer, originalName: string, mimeType: string, displayName?: string) {
-  const uploaded = await uploadBuffer(buffer, mimeType, 'lessons', originalName);
-  const file = await prisma.lessonFile.create({
-    data: { lessonId, name: displayName?.trim() || originalName, url: uploaded.url, sizeBytes: uploaded.bytes },
+// Signed params for a browser-to-Cloudinary direct upload — the file's bytes
+// never pass through this server, so a lesson video/PDF doesn't count against
+// Render's outbound bandwidth the way re-uploading a buffered copy would.
+export function getLessonUploadSignature() {
+  return createUploadSignature('lessons');
+}
+
+export async function uploadLessonFile(
+  lessonId: string,
+  file: { buffer: Buffer; mimeType: string; originalName: string } | { url: string; bytes: number; originalName: string },
+  displayName?: string
+) {
+  const { url, bytes } = 'buffer' in file
+    ? await uploadBuffer(file.buffer, file.mimeType, 'lessons', file.originalName)
+    : file;
+  const created = await prisma.lessonFile.create({
+    data: { lessonId, name: displayName?.trim() || file.originalName, url, sizeBytes: bytes },
   });
-  return toFileDTO(file);
+  return toFileDTO(created);
 }
 
 export async function deleteLessonFile(lessonId: string, fileId: string) {

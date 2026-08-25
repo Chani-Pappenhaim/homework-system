@@ -179,24 +179,31 @@ describe('lessons.service create / update / markdown', () => {
 });
 
 describe('lessons.service file upload/delete', () => {
-  it('uploadLessonFile stores the upload result', async () => {
+  it('uploadLessonFile uploads a buffer and stores the result', async () => {
     uploadMock.mockResolvedValue({ url: 'https://cdn/x.pdf', bytes: 99, resourceType: 'image', publicId: 'p' });
     p.lessonFile.create.mockImplementation(({ data }: any) => Promise.resolve(data));
-    const r: any = await uploadLessonFile('l1', Buffer.from('x'), 'x.pdf', 'application/pdf');
+    const r: any = await uploadLessonFile('l1', { buffer: Buffer.from('x'), mimeType: 'application/pdf', originalName: 'x.pdf' });
+    expect(r).toMatchObject({ lessonId: 'l1', name: 'x.pdf', url: 'https://cdn/x.pdf' });
+  });
+
+  it('uploadLessonFile stores an already-uploaded url without calling Cloudinary again', async () => {
+    p.lessonFile.create.mockImplementation(({ data }: any) => Promise.resolve(data));
+    const r: any = await uploadLessonFile('l1', { url: 'https://cdn/x.pdf', bytes: 99, originalName: 'x.pdf' });
+    expect(uploadMock).not.toHaveBeenCalled();
     expect(r).toMatchObject({ lessonId: 'l1', name: 'x.pdf', url: 'https://cdn/x.pdf' });
   });
 
   it('uploadLessonFile uses the given display name over the original filename', async () => {
     uploadMock.mockResolvedValue({ url: 'https://cdn/x.pdf', bytes: 99, resourceType: 'image', publicId: 'p' });
     p.lessonFile.create.mockImplementation(({ data }: any) => Promise.resolve(data));
-    const r: any = await uploadLessonFile('l1', Buffer.from('x'), 'x.pdf', 'application/pdf', 'תרגיל בית');
+    const r: any = await uploadLessonFile('l1', { buffer: Buffer.from('x'), mimeType: 'application/pdf', originalName: 'x.pdf' }, 'תרגיל בית');
     expect(r.name).toBe('תרגיל בית');
   });
 
   it('uploadLessonFile stringifies sizeBytes so the response cannot throw on BigInt', async () => {
     uploadMock.mockResolvedValue({ url: 'https://cdn/x.pdf', bytes: 99, resourceType: 'image', publicId: 'p' });
     p.lessonFile.create.mockResolvedValue({ id: 'f1', lessonId: 'l1', name: 'x.pdf', url: 'https://cdn/x.pdf', sizeBytes: 99n });
-    const r: any = await uploadLessonFile('l1', Buffer.from('x'), 'x.pdf', 'application/pdf');
+    const r: any = await uploadLessonFile('l1', { buffer: Buffer.from('x'), mimeType: 'application/pdf', originalName: 'x.pdf' });
     expect(r.sizeBytes).toBe('99');
     expect(() => JSON.stringify(r)).not.toThrow();
   });

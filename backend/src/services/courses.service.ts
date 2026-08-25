@@ -1,5 +1,5 @@
 import { prisma } from '../config/prisma';
-import { uploadBuffer, destroyByUrl, toFileDTO } from '../utils/storage';
+import { uploadBuffer, createUploadSignature, destroyByUrl, toFileDTO } from '../utils/storage';
 import { assertCourseAccess } from '../utils/access';
 
 export async function getCoursesForUser(userId: string, role: string) {
@@ -153,12 +153,24 @@ export async function deleteCourseLink(courseId: string, linkId: string) {
   await prisma.courseLink.delete({ where: { id: linkId, courseId } });
 }
 
-export async function uploadCourseFile(courseId: string, buffer: Buffer, originalName: string, mimeType: string, displayName?: string) {
-  const uploaded = await uploadBuffer(buffer, mimeType, 'courses', originalName);
-  const file = await prisma.courseFile.create({
-    data: { courseId, name: displayName?.trim() || originalName, url: uploaded.url, sizeBytes: uploaded.bytes },
+// Signed params for a browser-to-Cloudinary direct upload — see the matching
+// comment on lessons.service.getLessonUploadSignature for why this exists.
+export function getCourseUploadSignature() {
+  return createUploadSignature('courses');
+}
+
+export async function uploadCourseFile(
+  courseId: string,
+  file: { buffer: Buffer; mimeType: string; originalName: string } | { url: string; bytes: number; originalName: string },
+  displayName?: string
+) {
+  const { url, bytes } = 'buffer' in file
+    ? await uploadBuffer(file.buffer, file.mimeType, 'courses', file.originalName)
+    : file;
+  const created = await prisma.courseFile.create({
+    data: { courseId, name: displayName?.trim() || file.originalName, url, sizeBytes: bytes },
   });
-  return toFileDTO(file);
+  return toFileDTO(created);
 }
 
 export async function deleteCourseFile(courseId: string, fileId: string) {

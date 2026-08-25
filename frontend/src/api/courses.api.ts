@@ -32,11 +32,36 @@ export const coursesApi = {
   deleteLink: (id: string, linkId: string) =>
     api.delete(`/courses/${id}/links/${linkId}`),
 
-  uploadFile: (id: string, file: File, name?: string) => {
+  /**
+   * Uploads straight from the browser to Cloudinary using a signed, short-lived
+   * request, then tells the backend only the resulting URL. The file's bytes
+   * never pass through the Node process — Render bills egress it initiates
+   * itself (re-uploading a buffered copy) the same as real user traffic, so a
+   * course file that round-tripped through the server was burning through the
+   * free bandwidth quota for no benefit.
+   */
+  uploadFile: async (id: string, file: File, name?: string) => {
+    const { data } = await api.post(`/courses/${id}/upload-signature`);
+    const { apiKey, cloudName, timestamp, signature, folder } = data.data;
+
     const form = new FormData();
     form.append('file', file);
-    if (name?.trim()) form.append('name', name.trim());
-    return api.post(`/courses/${id}/files`, form);
+    form.append('api_key', apiKey);
+    form.append('timestamp', String(timestamp));
+    form.append('signature', signature);
+    form.append('folder', folder);
+
+    const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
+      method: 'POST',
+      body: form,
+    });
+    if (!uploadRes.ok) throw new Error('File upload to storage failed');
+    const uploaded = await uploadRes.json();
+
+    return api.post(`/courses/${id}/files`, {
+      uploadedFile: { url: uploaded.secure_url, bytes: uploaded.bytes, originalName: file.name },
+      name,
+    });
   },
 
   deleteFile: (id: string, fileId: string) =>

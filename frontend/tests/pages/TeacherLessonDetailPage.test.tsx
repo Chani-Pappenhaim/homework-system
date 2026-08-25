@@ -35,7 +35,7 @@ const lesson = {
   topic: 'שיעור בדיקה',
   lessonDate: '2026-07-01T00:00:00Z',
   contentMd: '',
-  githubUrl: '',
+  githubUrls: [],
   hidden: false,
   order: 0,
   files: [],

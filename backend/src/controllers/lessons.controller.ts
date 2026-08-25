@@ -62,11 +62,22 @@ export async function reorderLessons(req: Request, res: Response) {
   }
 }
 
+export async function getUploadSignature(req: Request, res: Response) {
+  try {
+    const signature = lessonsService.getLessonUploadSignature();
+    res.json({ success: true, data: signature });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
 export async function uploadFile(req: Request, res: Response) {
   try {
-    const file = await lessonsService.uploadLessonFile(
-      req.params.id as string, req.file!.buffer, req.file!.originalname, req.file!.mimetype, req.body.name
-    );
+    const source = req.file
+      ? { buffer: req.file.buffer, mimeType: req.file.mimetype, originalName: req.file.originalname }
+      : req.body.uploadedFile as { url: string; bytes: number; originalName: string } | undefined;
+    if (!source) { res.status(400).json({ success: false, error: 'No file provided' }); return; }
+    const file = await lessonsService.uploadLessonFile(req.params.id as string, source, req.body.name);
     res.status(201).json({ success: true, data: { file } });
   } catch (err: any) {
     sendError(res, err);
