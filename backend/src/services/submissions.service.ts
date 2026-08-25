@@ -3,6 +3,7 @@ import { uploadBuffer, createUploadSignature } from '../utils/storage';
 import { assertLessonAccess } from '../utils/access';
 import { computeSubmissionScore } from '../utils/grading';
 import { aiReviewQueue } from '../infrastructure/queues/queues';
+import { cellText } from '../utils/excel';
 import ExcelJS from 'exceljs';
 
 export async function submitAssignment(
@@ -44,7 +45,7 @@ export async function submitAssignment(
       }
     }
     if (payload.file) {
-      const uploaded = await uploadBuffer(payload.file.buffer, payload.file.mimeType, 'submissions');
+      const uploaded = await uploadBuffer(payload.file.buffer, payload.file.mimeType, 'submissions', payload.file.originalName);
       fileUrl = uploaded.url;
     } else {
       fileUrl = payload.uploadedFile!.url;
@@ -268,9 +269,9 @@ export async function importSubmissions(buffer: Buffer) {
 
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1) return;
-    const assignmentTitle = String(row.getCell(1).value ?? '').trim();
-    const studentEmail = String(row.getCell(2).value ?? '').trim();
-    const repoName = String(row.getCell(3).value ?? '').trim();
+    const assignmentTitle = cellText(row.getCell(1)).trim();
+    const studentEmail = cellText(row.getCell(2)).trim().toLowerCase();
+    const repoName = cellText(row.getCell(3)).trim();
     if (!assignmentTitle || !studentEmail || !repoName) {
       errors.push(`Row ${rowNumber}: missing data`);
       return;

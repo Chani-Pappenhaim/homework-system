@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import AuthGuard from '@/components/guards/AuthGuard';
 import AdminGuard from '@/components/guards/AdminGuard';
 import ChangePasswordGuard from '@/components/guards/ChangePasswordGuard';
@@ -6,6 +7,8 @@ import ChangePasswordGuard from '@/components/guards/ChangePasswordGuard';
 import LoginPage from '@/pages/auth/LoginPage';
 import ChangePasswordPage from '@/pages/auth/ChangePasswordPage';
 import OAuthCallbackPage from '@/pages/auth/OAuthCallbackPage';
+import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage';
+import ResetPasswordPage from '@/pages/auth/ResetPasswordPage';
 
 import TeacherHomePage from '@/pages/teacher/HomePage';
 import GroupsPage from '@/pages/teacher/GroupsPage';
@@ -15,6 +18,7 @@ import CoursesPage from '@/pages/teacher/CoursesPage';
 import CourseFormPage from '@/pages/teacher/CourseFormPage';
 import CourseDetailPage from '@/pages/teacher/CourseDetailPage';
 import LessonDetailPage from '@/pages/teacher/LessonDetailPage';
+import TeacherQuizPage from '@/pages/teacher/QuizPage';
 import ReportsPage from '@/pages/teacher/ReportsPage';
 import TeacherMessagesPage from '@/pages/teacher/MessagesPage';
 import AiUsagePage from '@/pages/teacher/AiUsagePage';
@@ -26,12 +30,15 @@ import AssignmentsPage from '@/pages/student/AssignmentsPage';
 import QuizPage from '@/pages/student/QuizPage';
 import StudentMessagesPage from '@/pages/student/MessagesPage';
 
-export default function App() {
+function AppRoutes() {
+  const location = useLocation();
   return (
-    <BrowserRouter>
+    <ErrorBoundary key={location.pathname}>
       <Routes>
         {/* Public */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/auth/callback" element={<OAuthCallbackPage />} />
 
         {/* Must change password */}
@@ -53,6 +60,8 @@ export default function App() {
           <Route path="courses/:id/edit" element={<CourseFormPage />} />
           <Route path="courses/:id" element={<CourseDetailPage />} />
           <Route path="lessons/:id" element={<LessonDetailPage />} />
+          {/* Mirrors the student's /student/quiz/:lessonId */}
+          <Route path="quiz/:lessonId" element={<TeacherQuizPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="messages" element={<TeacherMessagesPage />} />
           <Route path="ai-usage" element={<AiUsagePage />} />
@@ -74,6 +83,14 @@ export default function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
+    </ErrorBoundary>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
     </BrowserRouter>
   );
 }

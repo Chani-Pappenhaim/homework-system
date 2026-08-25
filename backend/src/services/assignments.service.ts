@@ -1,5 +1,6 @@
 import { prisma } from '../config/prisma';
 import { assertLessonAccess } from '../utils/access';
+import { cellText } from '../utils/excel';
 import ExcelJS from 'exceljs';
 
 export async function getAssignments(lessonId: string, userId: string, role: string) {
@@ -46,11 +47,11 @@ export async function importAssignments(buffer: Buffer) {
 
   for (let i = 2; i <= (sheet.lastRow?.number ?? 1); i++) {
     const row = sheet.getRow(i);
-    const lessonId = String(row.getCell(1).value ?? '').trim();
-    const title = String(row.getCell(2).value ?? '').trim();
-    const description = String(row.getCell(3).value ?? '').trim() || undefined;
-    const deadline = String(row.getCell(4).value ?? '').trim() || undefined;
-    const allowedTypesRaw = String(row.getCell(5).value ?? '').trim();
+    const lessonId = cellText(row.getCell(1)).trim();
+    const title = cellText(row.getCell(2)).trim();
+    const description = cellText(row.getCell(3)).trim() || undefined;
+    const deadline = cellText(row.getCell(4)).trim() || undefined;
+    const allowedTypesRaw = cellText(row.getCell(5)).trim();
     const allowedTypes = allowedTypesRaw ? allowedTypesRaw.split(',').map((s) => s.trim()) : [];
 
     if (!lessonId || !title) { errors.push(`Row ${i}: missing lessonId or title`); continue; }

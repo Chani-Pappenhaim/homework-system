@@ -11,11 +11,23 @@ export interface UploadedFile {
 export async function uploadBuffer(
   buffer: Buffer,
   mimeType: string,
-  folder: string
+  folder: string,
+  originalName?: string
 ): Promise<UploadedFile> {
+  // A base64 data URI carries no filename, so Cloudinary has nothing to derive
+  // one from and falls back to a random public_id with no extension — fine for
+  // images/video (format is detected from content), but for 'raw' resources
+  // (docx/zip/etc.) the extension IS part of the public_id, so without it the
+  // stored asset has no extension and downloads lose both their name and type.
+  // filename_override tells Cloudinary the real name even though the data URI
+  // itself is anonymous.
   const result = await cloudinary.uploader.upload(
     `data:${mimeType};base64,${buffer.toString('base64')}`,
-    { resource_type: 'auto', folder }
+    {
+      resource_type: 'auto',
+      folder,
+      ...(originalName ? { use_filename: true, unique_filename: true, filename_override: originalName } : {}),
+    }
   );
   return {
     url: result.secure_url,

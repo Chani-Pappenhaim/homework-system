@@ -1,37 +1,241 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { assertLessonAccess } from '../utils/access';
 import { quizQueue } from '../infrastructure/queues/queues';
 
+/**
+ * A quiz belongs to the teacher, not to whoever opened the page first.
+ *
+ * She generates it, reviews the AI's questions, edits what she wants and
+ * publishes. Until she publishes, students are told the quiz is not ready —
+ * they can neither see it nor sit it. Generation is never triggered by a
+ * student request, so no student waits on (or bills) an AI call.
+ */
+
+/** BullMQ rejects a custom job id containing ':' unless it has exactly 3 parts. */
+const jobIdFor = (lessonId: string) => `quiz-${lessonId}`;
+
+function noContentMessage(role: string): string {
+  return role === 'ADMIN'
+    ? 'לא ניתן ליצור בוחן: לשיעור אין תוכן שיעור. הוסיפי תוכן בעריכת השיעור ואז אפשר יהיה ליצור בוחן.'
+    : 'חסרים נתונים ליצירת הבוחן לשיעור זה. פני למורה כדי שתוסיף את תוכן השיעור.';
+}
+
+function failedMessage(role: string, reason?: string): string {
+  return role === 'ADMIN'
+    ? `יצירת הבוחן נכשלה: ${reason || 'שגיאה לא ידועה'}`
+    : 'יצירת הבוחן נכשלה. פני למורה.';
+}
+
+/** What a student is told whenever there is no quiz she may take. */
+const NOT_PUBLISHED_MESSAGE = 'החידון לשיעור הזה עדיין לא פורסם. המורה מכינה אותו — נסי שוב מאוחר יותר.';
+
+export interface QuizQuestionInput {
+  id?: unknown;
+  question?: unknown;
+  options?: unknown;
+  correctIndex?: unknown;
+}
+
+/**
+ * Validates teacher-edited questions before they can replace a stored quiz.
+ *
+ * Scoring trusts `correctIndex` to point at a real option, and the student page
+ * renders one radio per option — a malformed question saved here would only
+ * fail later, in the middle of somebody's quiz.
+ */
+export function validateQuestions(input: unknown): { id: string; question: string; options: string[]; correctIndex: number }[] {
+  if (!Array.isArray(input) || input.length === 0) {
+    throw Object.assign(new Error('הבוחן חייב לכלול לפחות שאלה אחת'), { status: 400 });
+  }
+
+  return input.map((q: QuizQuestionInput, i: number) => {
+    const question = typeof q?.question === 'string' ? q.question.trim() : '';
+    if (!question) {
+      throw Object.assign(new Error(`שאלה ${i + 1}: חסר טקסט השאלה`), { status: 400 });
+    }
+
+    if (!Array.isArray(q.options) || q.options.length < 2) {
+      throw Object.assign(new Error(`שאלה ${i + 1}: נדרשות לפחות שתי אפשרויות`), { status: 400 });
+    }
+    const options = q.options.map((o) => (typeof o === 'string' ? o.trim() : ''));
+    if (options.some((o) => !o)) {
+      throw Object.assign(new Error(`שאלה ${i + 1}: כל האפשרויות חייבות להכיל טקסט`), { status: 400 });
+    }
+
+    if (!Number.isInteger(q.correctIndex) || (q.correctIndex as number) < 0 || (q.correctIndex as number) >= options.length) {
+      throw Object.assign(new Error(`שאלה ${i + 1}: יש לסמן תשובה נכונה`), { status: 400 });
+    }
+
+    // ids double as React keys, so they must be unique whatever came in.
+    return { id: String(q.id ?? i + 1), question, options, correctIndex: q.correctIndex as number };
+  });
+}
+
+function toJson(questions: unknown) {
+  return questions as unknown as Prisma.InputJsonValue;
+}
+
+async function lessonOr404(lessonId: string) {
+  const lesson = await prisma.lesson.findUnique({ where: { id: lessonId } });
+  if (!lesson) throw Object.assign(new Error('Lesson not found'), { status: 404 });
+  return lesson;
+}
+
+/**
+ * Reads the quiz for a lesson.
+ *
+ * The teacher sees the draft, the correct answers and the generation state.
+ * A student sees a quiz only once it is published, and never sees correctIndex,
+ * a failure reason or the fact that a draft exists.
+ */
 export async function getQuiz(lessonId: string, userId: string, role: string) {
   await assertLessonAccess(userId, role, lessonId);
+  const isTeacher = role === 'ADMIN';
 
   const quiz = await prisma.quiz.findUnique({ where: { lessonId } });
 
-  if (!quiz) {
-    const lesson = await prisma.lesson.findUnique({ where: { id: lessonId } });
-    if (lesson?.contentMd) {
-      // jobId dedups generation: concurrent page loads (or a poll loop) for the
-      // same lesson must not each bill a Claude call.
-      await quizQueue.add(
-        'generate',
-        { lessonId, lessonContent: lesson.contentMd },
-        { jobId: `quiz:${lessonId}` }
-      );
-    }
-    return { status: 'generating' as const };
+  if (quiz && (isTeacher || quiz.published)) {
+    const questions = quiz.questions as any[];
+    return {
+      status: 'ready' as const,
+      quiz: {
+        id: quiz.id,
+        published: quiz.published,
+        questionCount: questions.length,
+        questions: questions.map((q) => ({
+          id: q.id,
+          question: q.question,
+          options: q.options,
+          ...(isTeacher && { correctIndex: q.correctIndex }),
+        })),
+      },
+    };
   }
 
-  const questions = quiz.questions as any[];
+  // Past this point there is nothing the student may take: either no quiz at
+  // all, or a draft. Both look identical to her, so a draft stays invisible.
+  if (!isTeacher) {
+    return { status: 'unavailable' as const, message: NOT_PUBLISHED_MESSAGE };
+  }
+
+  const lesson = await lessonOr404(lessonId);
+  if (!lesson.contentMd?.trim()) {
+    return { status: 'unavailable' as const, message: noContentMessage(role) };
+  }
+
+  // No quiz yet — report where generation stands so the teacher's page can show
+  // a spinner, an error, or the "create quiz" button.
+  try {
+    const job = await quizQueue.getJob(jobIdFor(lessonId));
+    if (job) {
+      // While the AI is working, this runs every 5 seconds from her open page —
+      // it is the most repeated Redis read in the app. getState() has to probe
+      // one key per possible state to answer, whereas `finishedOn` already came
+      // back with the job in the single read above and is set only once the job
+      // reaches a terminal state. So the polling case costs one command, and
+      // the expensive question is asked once, at the end.
+      if (!job.finishedOn) return { status: 'generating' as const };
+
+      const state = await job.getState();
+      if (state === 'failed') {
+        const reason = job.failedReason;
+        // Clear the id so the next generate request starts a fresh attempt.
+        await job.remove().catch(() => {});
+        return { status: 'failed' as const, message: failedMessage(role, reason) };
+      }
+      if (state !== 'completed') return { status: 'generating' as const };
+      await job.remove().catch(() => {});
+    }
+  } catch (err: any) {
+    console.error('[quiz] could not read generation state for lesson', lessonId, err);
+    return { status: 'failed' as const, message: failedMessage(role, err?.message) };
+  }
+
+  return { status: 'none' as const };
+}
+
+/**
+ * Teacher-only: queue an AI generation for this lesson.
+ *
+ * Refuses when a quiz already exists — replacing one silently would discard
+ * questions she may have edited, along with every attempt already made on it.
+ */
+export async function requestQuizGeneration(lessonId: string, role: string) {
+  const existing = await prisma.quiz.findUnique({ where: { lessonId } });
+  if (existing) {
+    throw Object.assign(new Error('כבר קיים בוחן לשיעור זה'), { status: 409 });
+  }
+
+  const lesson = await lessonOr404(lessonId);
+  if (!lesson.contentMd?.trim()) {
+    throw Object.assign(new Error(noContentMessage(role)), { status: 409 });
+  }
+
+  const jobId = jobIdFor(lessonId);
+  try {
+    // jobId dedups generation: a double click must not bill two Gemini calls.
+    const job = await quizQueue.getJob(jobId);
+    if (job) {
+      const state = await job.getState();
+      if (state === 'active' || state === 'waiting' || state === 'delayed') {
+        return { status: 'generating' as const };
+      }
+      // A finished job keeps its id in Redis (removeOnFail: 7 days) and would
+      // swallow every retry for a week; drop it before re-adding.
+      await job.remove().catch(() => {});
+    }
+
+    await quizQueue.add('generate', { lessonId, lessonContent: lesson.contentMd }, { jobId });
+  } catch (err: any) {
+    console.error('[quiz] could not enqueue generation for lesson', lessonId, err);
+    throw Object.assign(new Error(failedMessage(role, err?.message)), { status: 502 });
+  }
+
+  return { status: 'generating' as const };
+}
+
+/**
+ * Teacher-only: replace the quiz's questions with her edited version.
+ *
+ * Editing invalidates every attempt already recorded — a stored score refers to
+ * questions that no longer exist — so the attempts are cleared with it. That is
+ * also why publishing is a separate, deliberate step.
+ */
+export async function updateQuizQuestions(lessonId: string, questions: unknown) {
+  const quiz = await prisma.quiz.findUnique({ where: { lessonId } });
+  if (!quiz) throw Object.assign(new Error('Quiz not found'), { status: 404 });
+
+  const validated = validateQuestions(questions);
+
+  const [, updated] = await prisma.$transaction([
+    prisma.quizAttempt.deleteMany({ where: { quizId: quiz.id } }),
+    prisma.quiz.update({ where: { id: quiz.id }, data: { questions: toJson(validated) } }),
+  ]);
+
   return {
-    status: 'ready' as const,
     quiz: {
-      id: quiz.id,
-      questions: questions.map((q) => ({
-        id: q.id, question: q.question, options: q.options,
-        ...(role === 'ADMIN' && { correctIndex: q.correctIndex }),
-      })),
+      id: updated.id,
+      published: updated.published,
+      questionCount: validated.length,
+      questions: validated,
     },
   };
+}
+
+/** Teacher-only: show the quiz to students, or pull it back to a draft. */
+export async function setQuizPublished(lessonId: string, published: boolean) {
+  const quiz = await prisma.quiz.findUnique({ where: { lessonId } });
+  if (!quiz) throw Object.assign(new Error('Quiz not found'), { status: 404 });
+
+  const questions = quiz.questions as any[];
+  if (published) {
+    // Publishing an empty or malformed quiz would hand students a broken page.
+    validateQuestions(questions);
+  }
+
+  const updated = await prisma.quiz.update({ where: { id: quiz.id }, data: { published } });
+  return { published: updated.published };
 }
 
 export async function submitQuizAttempt(
@@ -43,6 +247,12 @@ export async function submitQuizAttempt(
 
   const quiz = await prisma.quiz.findUnique({ where: { lessonId } });
   if (!quiz) throw Object.assign(new Error('Quiz not found'), { status: 404 });
+
+  // A draft is invisible in GET; it must be unanswerable here too, or a student
+  // holding an old page could submit against questions still being edited.
+  if (!quiz.published) {
+    throw Object.assign(new Error(NOT_PUBLISHED_MESSAGE), { status: 409 });
+  }
 
   const questions = quiz.questions as any[];
   if (!Array.isArray(questions) || questions.length === 0) {
@@ -62,9 +272,34 @@ export async function submitQuizAttempt(
     update: { answers, score, takenAt: new Date() },
   });
 
-  return { score, correct, total: questions.length };
+  return {
+    score,
+    correct,
+    total: questions.length,
+    // The correct answers ride back with the result, and only here. GET still
+    // withholds correctIndex from students — otherwise the quiz would ship its
+    // own answer key. Once she has answered there is nothing left to protect,
+    // and she needs to see which ones she got wrong and what the answer was.
+    review: questions.map((q, i) => ({
+      id: q.id,
+      question: q.question,
+      options: q.options,
+      correctIndex: q.correctIndex,
+      selectedIndex: answers[i],
+      isCorrect: answers[i] === q.correctIndex,
+    })),
+  };
 }
 
+/**
+ * Everything the teacher's quiz page shows: the quiz, who answered, and — the
+ * part she cannot work out from a list of scores — how the class did on each
+ * individual question.
+ *
+ * A per-student score says who is struggling. A per-question breakdown says what
+ * the class did not understand, which is what she would change her next lesson
+ * over. Both come from the same stored answers, so they are computed together.
+ */
 export async function getQuizResults(lessonId: string) {
   const quiz = await prisma.quiz.findUnique({
     where: { lessonId },
@@ -75,9 +310,53 @@ export async function getQuizResults(lessonId: string) {
   if (!quiz) throw Object.assign(new Error('Quiz not found'), { status: 404 });
 
   const questions = quiz.questions as any[];
+  const attempts = quiz.attempts;
+
+  const questionStats = questions.map((q, i) => {
+    // One count per option, plus a tally of attempts that skipped the question.
+    const optionCounts: number[] = (q.options as string[]).map(() => 0);
+    let unanswered = 0;
+
+    for (const attempt of attempts) {
+      const picked = (attempt.answers as any[])?.[i];
+      if (Number.isInteger(picked) && picked >= 0 && picked < optionCounts.length) {
+        optionCounts[picked]! += 1;
+      } else {
+        unanswered += 1;
+      }
+    }
+
+    const correctCount = optionCounts[q.correctIndex] ?? 0;
+    return {
+      id: q.id,
+      question: q.question,
+      options: q.options,
+      correctIndex: q.correctIndex,
+      optionCounts,
+      unanswered,
+      correctCount,
+      // Percentages are meaningless with no attempts; the page shows "no data"
+      // rather than a 0% that reads like everybody failed.
+      correctRate: attempts.length > 0 ? (correctCount / attempts.length) * 100 : null,
+    };
+  });
+  const averageScore = attempts.length > 0
+    ? attempts.reduce((sum, a) => sum + a.score, 0) / attempts.length
+    : null;
+
   return {
-    quiz: { id: quiz.id, createdAt: quiz.createdAt, questionCount: questions.length },
-    results: quiz.attempts.map((a) => ({
+    quiz: {
+      id: quiz.id,
+      createdAt: quiz.createdAt,
+      published: quiz.published,
+      questionCount: questions.length,
+    },
+    summary: {
+      attemptCount: attempts.length,
+      averageScore,
+    },
+    questions: questionStats,
+    results: attempts.map((a) => ({
       studentName: a.student.name, studentEmail: a.student.email,
       score: a.score, takenAt: a.takenAt,
     })),

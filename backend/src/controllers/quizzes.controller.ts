@@ -1,4 +1,4 @@
-﻿import { Request, Response } from 'express';
+import { Request, Response } from 'express';
 import * as quizzesService from '../services/quizzes.service';
 import { sendError } from '../utils/http';
 
@@ -6,6 +6,46 @@ export async function getQuiz(req: Request, res: Response) {
   try {
     const result = await quizzesService.getQuiz(
       req.params.id as string, req.user!.userId, req.user!.role
+    );
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+/** Teacher-only: start an AI generation. Students never reach this route. */
+export async function generate(req: Request, res: Response) {
+  try {
+    const result = await quizzesService.requestQuizGeneration(
+      req.params.id as string, req.user!.role
+    );
+    res.status(202).json({ success: true, data: result });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+/** Teacher-only: save her edited questions. */
+export async function updateQuestions(req: Request, res: Response) {
+  try {
+    const result = await quizzesService.updateQuizQuestions(
+      req.params.id as string, req.body.questions
+    );
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+/** Teacher-only: publish the draft to students, or pull it back. */
+export async function setPublished(req: Request, res: Response) {
+  try {
+    if (typeof req.body.published !== 'boolean') {
+      res.status(400).json({ success: false, error: 'published must be a boolean' });
+      return;
+    }
+    const result = await quizzesService.setQuizPublished(
+      req.params.id as string, req.body.published
     );
     res.json({ success: true, data: result });
   } catch (err: any) {
@@ -32,4 +72,3 @@ export async function getResults(req: Request, res: Response) {
     sendError(res, err);
   }
 }
-

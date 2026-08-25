@@ -34,7 +34,7 @@ export default function GroupDetailPage() {
   if (!group) return <div className="p-6 font-sans text-coral">קבוצה לא נמצאה</div>;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5" dir="rtl">
+    <div className="space-y-5" dir="rtl">
       {/* Header */}
       <div className="border-b border-rule pb-3">
         <BackLink className="mb-2" />
@@ -116,7 +116,7 @@ export default function GroupDetailPage() {
             {group.students.length === 0 && (
               <p className="px-5 py-4 text-sm text-ink/50">אין תלמידות עדיין</p>
             )}
-            {group.students.map((s) => (
+            {[...group.students].sort((a, b) => a.name.localeCompare(b.name, 'he')).map((s) => (
               <div key={s.id} className="px-5 py-3">
                 <p className="text-sm font-medium text-ink">{s.name}</p>
                 <p className="text-xs text-ink/50">{s.email}</p>

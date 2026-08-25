@@ -19,7 +19,12 @@ export async function sendMessage(studentId: string, content: string, assignment
     },
     include: { student: { select: { id: true, name: true, email: true } } },
   });
-  await enqueueEmail('student-message', { studentName: message.student.name, content: message.content });
+  await enqueueEmail('student-message', {
+    messageId: message.id,
+    studentName: message.student.name,
+    studentEmail: message.student.email,
+    content: message.content,
+  });
   return message;
 }
 
@@ -45,6 +50,7 @@ export async function replyMessage(messageId: string, reply: string) {
     include: { student: { select: { id: true, name: true, email: true } } },
   });
   await enqueueEmail('teacher-reply', {
+    messageId: message.id,
     studentEmail: message.student.email,
     studentName: message.student.name,
     originalContent: message.content,

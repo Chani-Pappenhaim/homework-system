@@ -66,7 +66,7 @@ describe('lessons.service.getLessons', () => {
   });
   it('maps assignmentCount from _count', async () => {
     p.lesson.findMany.mockResolvedValue([
-      { id: 'l1', topic: 'T', lessonDate: null, hidden: false, order: 1, githubUrl: null, _count: { assignments: 2 } },
+      { id: 'l1', topic: 'T', lessonDate: null, hidden: false, order: 1, githubUrl: null, githubUrls: [], _count: { assignments: 2 } },
     ]);
     const r = await getLessons('c1', 'admin', 'ADMIN');
     expect(r[0].assignmentCount).toBe(2);
@@ -86,11 +86,34 @@ describe('lessons.service.getLessonById', () => {
   });
   it('returns lesson with stringified file sizes', async () => {
     p.lesson.findUnique.mockResolvedValue({
-      id: 'l1', hidden: false, assignments: [],
+      id: 'l1', hidden: false, assignments: [], githubUrl: null, githubUrls: [], quiz: null,
       files: [{ id: 'f1', sizeBytes: 1234n }],
     });
     const r: any = await getLessonById('l1', 's1', 'STUDENT');
     expect(r.files[0].sizeBytes).toBe('1234');
+  });
+
+  it('tells a student a quiz exists only once it is published', async () => {
+    const lesson = {
+      id: 'l1', hidden: false, assignments: [], files: [], githubUrl: null, githubUrls: [],
+    };
+    p.lesson.findUnique.mockResolvedValue({ ...lesson, quiz: { published: false } });
+    const asStudent: any = await getLessonById('l1', 's1', 'STUDENT');
+    // A draft must be indistinguishable from no quiz at all.
+    expect(asStudent.quiz).toEqual({ exists: false, published: false });
+
+    p.lesson.findUnique.mockResolvedValue({ ...lesson, quiz: { published: true } });
+    const published: any = await getLessonById('l1', 's1', 'STUDENT');
+    expect(published.quiz).toEqual({ exists: true, published: true });
+  });
+
+  it('tells the teacher a draft exists so she can go on editing it', async () => {
+    p.lesson.findUnique.mockResolvedValue({
+      id: 'l1', hidden: false, assignments: [], files: [], githubUrl: null, githubUrls: [],
+      quiz: { published: false },
+    });
+    const r: any = await getLessonById('l1', 'admin', 'ADMIN');
+    expect(r.quiz).toEqual({ exists: true, published: false });
   });
 });
 

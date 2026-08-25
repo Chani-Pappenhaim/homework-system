@@ -17,7 +17,7 @@
 | Grade | ציון להגשה — שני ציונים נפרדים |
 | AiUsageLog | מעקב שימוש + עלות Gemini |
 | TeacherMessage | הודעה מתלמידה למורה |
-| Quiz | חידון אמריקאי לשיעור (נוצר פעם אחת) |
+| Quiz | חידון אמריקאי לשיעור (אחד לשיעור). המורה יוצרת, עורכת ומפרסמת |
 | QuizAttempt | ניסיון חידון של תלמידה |
 
 ## Key Fields to Remember
@@ -214,6 +214,7 @@ model Quiz {
   lessonId String @unique
   lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   questions Json   // Array<{ id, question, options: string[4], correctIndex: 0|1|2|3 }>
+  published Boolean @default(false)   // טיוטה עד שהמורה מפרסמת; תלמידה לא רואה טיוטה
   createdAt DateTime @default(now())
   attempts QuizAttempt[]
 }

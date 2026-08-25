@@ -21,6 +21,8 @@ model User {
   githubUsername     String?
   oauthProvider      String?
   oauthId            String?
+  resetTokenHash        String?
+  resetTokenExpiresAt   DateTime?
   createdAt          DateTime @default(now())
 
   studentGroups    StudentGroup[]
@@ -95,6 +97,7 @@ model Lesson {
   lessonDate DateTime?
   contentMd  String?
   githubUrl  String?
+  githubUrls String[]  @default([])
   hidden     Boolean   @default(false)
   order      Int       @default(0)
   createdAt  DateTime  @default(now())
@@ -220,6 +223,10 @@ model Quiz {
   lessonId  String   @unique
   lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   questions Json
+  // A quiz starts as a draft only the teacher can see. Students get it once she
+  // has reviewed the AI's questions and published it, so nobody can sit an exam
+  // that is mid-edit.
+  published Boolean  @default(false)
   createdAt DateTime @default(now())
 
   attempts QuizAttempt[]

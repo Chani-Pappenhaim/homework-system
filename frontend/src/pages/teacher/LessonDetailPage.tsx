@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Github, Paperclip, Edit, Trash2, Plus } from 'lucide-react';
+import { Github, Edit, Trash2, Plus } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
 import { assignmentsApi } from '@/api/assignments.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { BackLink } from '@/components/ui/back-link';
 import { FileUpload } from '@/components/ui/file-upload';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
+import { FileGallery } from '@/components/ui/file-gallery';
 import { useToast } from '@/components/ui/toast';
 import { LessonEditModal } from '@/components/lesson/LessonEditModal';
 import { AssignmentModal } from '@/components/lesson/AssignmentModal';
@@ -68,7 +69,7 @@ export default function LessonDetailPage() {
   if (!lesson) return <div className="p-6 text-coral">שיעור לא נמצא</div>;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5" dir="rtl">
+    <div className="space-y-5" dir="rtl">
       <BackLink to={`/teacher/courses/${lesson.courseId}`} label="חזרה לקורס" />
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:items-start">
       <div className="space-y-5 lg:col-span-2">
@@ -104,28 +105,21 @@ export default function LessonDetailPage() {
           {lesson.contentMd
             ? <MarkdownRenderer content={lesson.contentMd} />
             : <p className="text-sm text-ink/50">אין תוכן לשיעור עדיין — לחצי על "ערוך שיעור" כדי להוסיף חומר לימוד.</p>}
-          {lesson.githubUrl && (
-            <a href={toExternalUrl(lesson.githubUrl)} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-2 text-sm text-ink border border-rule/20 rounded-input px-3 py-1.5 hover:bg-ground/60 transition">
-              <Github size={14} /> קוד השיעור ב-GitHub
-            </a>
+          {lesson.githubUrls.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {lesson.githubUrls.map((url, i) => (
+                <a key={i} href={toExternalUrl(url)} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-2 text-sm text-ink border border-rule/20 rounded-input px-3 py-1.5 hover:bg-ground/60 transition">
+                  <Github size={14} /> {lesson.githubUrls.length > 1 ? `קוד השיעור #${i + 1}` : 'קוד השיעור ב-GitHub'}
+                </a>
+              ))}
+            </div>
           )}
 
           {/* Files management */}
           <div className="space-y-2 pt-2 border-t border-rule/20">
             <p className="text-xs text-ink/50 font-medium">קבצים מצורפים</p>
-            {lesson.files.map((f) => (
-              <div key={f.id} className="flex items-center justify-between">
-                <a href={f.url} target="_blank" rel="noreferrer"
-                  className="flex items-center gap-1.5 text-sm text-clay hover:underline">
-                  <Paperclip size={12} /> {f.name}
-                </a>
-                <Button size="sm" variant="destructive"
-                  onClick={() => { if (confirm(`למחוק את הקובץ ${f.name}?`)) deleteFileMutation.mutate(f.id); }}>
-                  <Trash2 size={12} />
-                </Button>
-              </div>
-            ))}
+            <FileGallery files={lesson.files} onDelete={(fileId) => deleteFileMutation.mutate(fileId)} />
             {lesson.files.length === 0 && (
               <p className="text-xs text-ink/50">אין קבצים מצורפים</p>
             )}
@@ -192,7 +186,7 @@ export default function LessonDetailPage() {
           )}
         </Card>
 
-        <QuizResultsCard lessonId={lesson.id} />
+        <QuizResultsCard lesson={lesson} />
       </div>
 
       {/* Lesson Access — sits alongside the main lesson content as a sidebar on wide screens */}

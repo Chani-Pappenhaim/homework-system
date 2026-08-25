@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { DateField } from '@/components/ui/date-field';
+import { MultiUrlInput } from '@/components/ui/multi-url-input';
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/toast';
 import type { LessonDetailDTO } from '@/types';
@@ -19,7 +21,7 @@ export function LessonEditModal({ lesson, open, onClose }: {
   const [topic, setTopic] = useState('');
   const [date, setDate] = useState('');
   const [contentMd, setContentMd] = useState('');
-  const [githubUrl, setGithubUrl] = useState('');
+  const [githubUrls, setGithubUrls] = useState<string[]>(['']);
   const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
@@ -27,13 +29,17 @@ export function LessonEditModal({ lesson, open, onClose }: {
     setTopic(lesson.topic);
     setDate(lesson.lessonDate ? lesson.lessonDate.slice(0, 10) : '');
     setContentMd(lesson.contentMd ?? '');
-    setGithubUrl(lesson.githubUrl ?? '');
+    setGithubUrls(lesson.githubUrls.length > 0 ? lesson.githubUrls : ['']);
     setHidden(lesson.hidden);
   }, [open, lesson]);
 
   const saveMutation = useMutation({
     mutationFn: () => lessonsApi.update(lesson.id, {
-      topic, lessonDate: date || undefined, contentMd, githubUrl, hidden,
+      topic,
+      lessonDate: date || undefined,
+      contentMd,
+      githubUrls: githubUrls.map((u) => u.trim()).filter(Boolean),
+      hidden,
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['lesson', lesson.id] });
@@ -50,7 +56,7 @@ export function LessonEditModal({ lesson, open, onClose }: {
         </DialogHeader>
         <DialogBody className="space-y-4">
           <Input label="נושא השיעור *" value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="React Hooks" />
-          <Input label="תאריך (אופציונלי)" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <DateField label="תאריך" value={date} onChange={setDate} />
           <div className="flex flex-col gap-1">
             <Label htmlFor="lesson-content">חומר הלימוד (Markdown)</Label>
             <Textarea
@@ -63,7 +69,7 @@ export function LessonEditModal({ lesson, open, onClose }: {
             />
             <p className="text-xs text-ink-soft">אפשר לעצב עם Markdown: כותרות (#), רשימות, קוד (```), קישורים ועוד</p>
           </div>
-          <Input label="קישור לקוד ב-GitHub (אופציונלי)" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="https://github.com/..." />
+          <MultiUrlInput label="קישורים לקוד ב-GitHub (אופציונלי)" values={githubUrls} onChange={setGithubUrls} placeholder="https://github.com/..." />
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} className="accent-ink" />
             הסתר שיעור מהתלמידות

@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
-import { Upload, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Upload, X, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getFileKind } from '@/lib/file-type';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
@@ -18,20 +19,26 @@ function FileUpload({ onFile, accept, label = 'גרור קובץ לכאן או �
   const [dragOver, setDragOver] = useState(false);
   const [staged, setStaged] = useState<File | null>(null);
   const [name, setName] = useState('');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!staged) { setPreviewUrl(null); return; }
+    const kind = getFileKind(staged.name);
+    if (kind !== 'image' && kind !== 'video') { setPreviewUrl(null); return; }
+    const url = URL.createObjectURL(staged);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [staged]);
 
   function pick(file: File) {
-    if (withName) {
-      setStaged(file);
-      // Default the name to the original filename without its extension
-      setName(file.name.replace(/\.[^.]+$/, ''));
-    } else {
-      onFile(file);
-    }
+    setStaged(file);
+    // Default the name to the original filename without its extension
+    if (withName) setName(file.name.replace(/\.[^.]+$/, ''));
   }
 
   function confirmUpload() {
     if (!staged) return;
-    onFile(staged, name);
+    onFile(staged, withName ? name : undefined);
     setStaged(null);
     setName('');
   }
@@ -48,26 +55,39 @@ function FileUpload({ onFile, accept, label = 'גרור קובץ לכאן או �
     if (file) pick(file);
   }
 
-  // Naming step: a file was chosen, waiting for a display name + confirmation
+  // Staged step: a file was chosen — show a preview and wait for confirmation
+  // (and, when withName, a display name) before actually uploading.
   if (staged) {
+    const kind = getFileKind(staged.name);
     return (
       <div className={cn('border-2 border-[#EEEBF5] rounded-input p-4 space-y-3', className)}>
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-sm text-[#6B7280] truncate">
+        <div className="flex items-center gap-3">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-ground/50">
+            {kind === 'image' && previewUrl ? (
+              <img src={previewUrl} alt={staged.name} className="h-full w-full object-cover" />
+            ) : kind === 'video' && previewUrl ? (
+              <video src={previewUrl} className="h-full w-full object-cover" muted />
+            ) : (
+              <FileText size={22} className="text-ink/50" />
+            )}
+          </div>
+          <p className="min-w-0 flex-1 truncate text-sm text-[#6B7280]">
             קובץ נבחר: <span className="font-medium text-[#1A1830]">{staged.name}</span>
           </p>
           <button type="button" onClick={cancel} className="text-[#9CA3AF] hover:text-[#1A1830] flex-shrink-0">
             <X size={16} />
           </button>
         </div>
-        <Input
-          label="שם הקובץ"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="שם לתצוגה"
-        />
+        {withName && (
+          <Input
+            label="שם הקובץ"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="שם לתצוגה"
+          />
+        )}
         <div className="flex gap-2">
-          <Button size="sm" onClick={confirmUpload} disabled={!name.trim()}>העלה קובץ</Button>
+          <Button size="sm" onClick={confirmUpload} disabled={withName && !name.trim()}>העלה קובץ</Button>
           <Button size="sm" variant="outline" onClick={cancel}>ביטול</Button>
         </div>
       </div>

@@ -24,7 +24,7 @@ export function Logo({ size = 28, withCheck = false, className }: LogoProps) {
       xmlns="http://www.w3.org/2000/svg"
       className={cn('shrink-0', className)}
       role="img"
-      aria-label="קליק כיתה"
+      aria-label="Teacher Feature"
     >
       <rect x="1" y="1" width="38" height="46" rx="3" fill="rgb(var(--sheet))" stroke="rgb(var(--ink))" strokeWidth="1.5" />
       {/* folded top-left corner */}

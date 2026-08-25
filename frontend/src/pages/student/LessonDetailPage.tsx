@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Github, Paperclip, CheckCircle, Clock, Bot, Check } from 'lucide-react';
+import { Github, CheckCircle, Clock, Bot, Check } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
 import { submissionsApi, isVideoFile } from '@/api/submissions.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { FileUpload } from '@/components/ui/file-upload';
+import { FileGallery } from '@/components/ui/file-gallery';
 import { Input } from '@/components/ui/input';
 import { BackLink } from '@/components/ui/back-link';
 import { cn, formatDate, formatDateTime, isOverdue, toExternalUrl } from '@/lib/utils';
@@ -51,7 +52,7 @@ export default function StudentLessonDetailPage() {
   const hasAssignments = lesson.assignments.length > 0;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5" dir="rtl">
+    <div className="space-y-5" dir="rtl">
       <div className="border-b border-rule pb-3">
         <BackLink to={`/student/courses/${lesson.courseId}`} label="חזרה לקורס" className="mb-2" />
         <div className="flex items-start justify-between gap-3">
@@ -89,35 +90,37 @@ export default function StudentLessonDetailPage() {
           )}
 
           {/* GitHub */}
-          {lesson.githubUrl && (
-            <a href={toExternalUrl(lesson.githubUrl)} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-2 text-sm border border-rule/20 rounded-input px-4 py-2 text-ink hover:bg-ground/60 transition">
-              <Github size={14} /> קוד השיעור ב-GitHub
-            </a>
+          {lesson.githubUrls.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {lesson.githubUrls.map((url, i) => (
+                <a key={i} href={toExternalUrl(url)} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-2 text-sm border border-rule/20 rounded-input px-4 py-2 text-ink hover:bg-ground/60 transition">
+                  <Github size={14} /> {lesson.githubUrls.length > 1 ? `קוד השיעור #${i + 1}` : 'קוד השיעור ב-GitHub'}
+                </a>
+              ))}
+            </div>
           )}
 
           {/* Files */}
           {lesson.files.length > 0 && (
             <Card>
-              <CardHeader><h2 className="font-display text-base font-bold">קבצים</h2></CardHeader>
-              <CardContent className="space-y-2">
-                {lesson.files.map((f) => (
-                  <a key={f.id} href={f.url} target="_blank" rel="noreferrer"
-                    className="flex items-center gap-2 text-sm text-clay hover:underline">
-                    <Paperclip size={12} /> {f.name}
-                  </a>
-                ))}
+              <CardHeader><h2 className="font-display text-base font-bold">חומרי עזר</h2></CardHeader>
+              <CardContent>
+                <FileGallery files={lesson.files} />
               </CardContent>
             </Card>
           )}
 
-          {/* Quiz button */}
-          <button
-            onClick={() => navigate(`/student/quiz/${lesson.id}`)}
-            className="lift w-full rounded-input border border-rule bg-butter/40 py-3 text-sm font-semibold text-clay shadow-soft"
-          >
-            פתחי חידון לשיעור זה ←
-          </button>
+          {/* Quiz — only once the teacher has published one. `exists` is already
+              "is there a quiz I may take?"; an unpublished draft reads as false. */}
+          {lesson.quiz?.exists && (
+            <button
+              onClick={() => navigate(`/student/quiz/${lesson.id}`)}
+              className="lift w-full rounded-input border border-rule bg-butter/40 py-3 text-sm font-semibold text-clay shadow-soft"
+            >
+              פתחי חידון לשיעור זה ←
+            </button>
+          )}
         </div>
 
         {/* Assignments */}

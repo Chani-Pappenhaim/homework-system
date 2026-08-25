@@ -12,9 +12,11 @@ export interface DeadlineReportRow {
 
 export interface EmailJobMap {
   'reset-password': { email: string; name: string };
+  'forgot-password-link': { email: string; name: string; resetUrl: string };
   'storage-alert': { email: string; name: string };
-  'student-message': { studentName: string; content: string; assignmentTitle?: string };
+  'student-message': { messageId: string; studentName: string; studentEmail: string; content: string; assignmentTitle?: string };
   'teacher-reply': {
+    messageId: string;
     studentEmail: string;
     studentName: string;
     originalContent: string;

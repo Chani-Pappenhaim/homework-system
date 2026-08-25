@@ -23,11 +23,20 @@ export const groupsApi = {
   removeStudent: (groupId: string, studentId: string) =>
     api.delete(`/groups/${groupId}/students/${studentId}`),
 
+  removeStudents: (groupId: string, studentIds: string[]) =>
+    api.post<{ success: true; data: { removed: number } }>(`/groups/${groupId}/students/remove-bulk`, { studentIds }),
+
+  updateStudent: (groupId: string, studentId: string, data: Partial<{ name: string; email: string; githubUsername: string }>) =>
+    api.put(`/groups/${groupId}/students/${studentId}`, data),
+
   importStudents: (groupId: string, file: File) => {
     const form = new FormData();
     form.append('file', file);
     return api.post(`/groups/${groupId}/import`, form);
   },
+
+  downloadImportTemplate: () =>
+    api.get('/groups/import-template', { responseType: 'blob' }),
 
   resetPassword: (groupId: string, studentId: string) =>
     api.post(`/groups/${groupId}/reset-password/${studentId}`),

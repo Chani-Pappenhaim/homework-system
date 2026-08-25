@@ -3,8 +3,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authApi } from '@/api/auth.api';
 import useAuthStore from '@/store/authStore';
 import { API_URL } from '@/lib/config';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Brand, Tape } from '@/components/decor';
 import { getApiErrorMessage } from '@/lib/errors';
 
@@ -22,7 +24,11 @@ export default function LoginPage() {
   // in with Google/GitHub whose email the teacher has not added.
   useEffect(() => {
     if (searchParams.get('error') === 'oauth_unregistered') {
-      setError('החשבון הזה אינו רשום במערכת. פני למורה כדי שתוסיף אותך.');
+      setError(
+        'החשבון הזה אינו רשום במערכת. פני למורה כדי שתוסיף אותך. ' +
+        'לניסיון עם חשבון Google אחר — לחצי שוב, ייפתח מסך בחירת חשבון. ' +
+        'לניסיון עם חשבון GitHub אחר, ייתכן שתצטרכי להתנתק מהחשבון הזה גם באתר GitHub עצמו.'
+      );
     }
   }, [searchParams]);
 
@@ -82,14 +88,18 @@ export default function LoginPage() {
               required
               autoFocus
             />
-            <Input
-              label="סיסמא"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div className="flex flex-col gap-1">
+              <PasswordInput
+                label="סיסמא"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              <Link to="/forgot-password" className="self-start text-xs text-clay hover:underline">
+                שכחתי סיסמא
+              </Link>
+            </div>
 
             {error && (
               <p className="border border-coral bg-coral/10 px-3 py-2 font-sans text-sm text-coral">

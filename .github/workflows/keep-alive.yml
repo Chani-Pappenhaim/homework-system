@@ -16,10 +16,35 @@ name: Keep backend awake
 #   widen the interval or use an external monitor (UptimeRobot / cron-job.org)
 #   pointed at the same URL instead — it does the same job without spending
 #   Actions minutes.
+# - The interval only controls how close to the 15-minute idle window we cut
+#   it — it does NOT control total instance-hours, since any interval under
+#   15 minutes keeps the service awake 24/7 either way. Render Free gives
+#   750 instance-hours/month pooled across all free services; one service
+#   awake around the clock already burns ~744 of those (31 days x 24h),
+#   leaving almost no margin — which is what suspended the service on
+#   2026-08-25. The hour restrictions below let Render put the instance to
+#   sleep whenever real usage is very unlikely, cutting monthly usage to
+#   roughly 400-430 hours — comfortable headroom under the cap. The
+#   tradeoff: the very first request after each gap pays a normal ~30-60s
+#   cold start, same as before this workflow existed.
+# - Three separate schedules (cron's day-of-week field: 0=Sun ... 6=Sat):
+#     Sun-Thu: 04:00-20:59 UTC   (~06:00/07:00-23:00/24:00 Israel, DST-dependent)
+#     Fri:     04:00-12:59 UTC  (stops by early Friday afternoon Israel time,
+#                                 ahead of the requested 16:00 cutoff even in
+#                                 winter IST, to stay safely before Shabbat)
+#     Sat:     17:00-20:59 UTC  (resumes ~19:30-20:30 Israel time depending on
+#                                 DST, at/after the requested 20:30 motzei
+#                                 Shabbat) — no ping at all Sat 00:00-16:59 UTC,
+#                                 so the whole Shabbat is a genuine sleep window.
+#   The DST margins are intentionally asymmetric (stop a bit early Friday,
+#   resume a bit early Saturday) — better to lose a few extra idle hours than
+#   to accidentally ping during Shabbat.
 
 on:
   schedule:
-    - cron: '*/10 * * * *'   # every 10 minutes
+    - cron: '*/10 4-20 * * 0-4'  # Sun-Thu, every 10 minutes, 04:00-20:59 UTC
+    - cron: '*/10 4-12 * * 5'    # Fri, every 10 minutes, 04:00-12:59 UTC
+    - cron: '*/10 17-20 * * 6'   # Sat, every 10 minutes, 17:00-20:59 UTC
   workflow_dispatch: {}        # allow a manual run from the Actions tab
 
 # A later run makes an earlier still-pending one pointless — keep only the newest.

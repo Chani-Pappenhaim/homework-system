@@ -24,6 +24,12 @@ export function resetPasswordHtml(data: EmailJobMap['reset-password']): string {
   );
 }
 
+export function forgotPasswordLinkHtml(data: EmailJobMap['forgot-password-link']): string {
+  return wrapRtl(
+    `<p>שלום ${data.name},</p><p>התקבלה בקשה לאיפוס הסיסמא שלך. לחצי על הקישור הבא כדי לבחור סיסמא חדשה (בתוקף לשעה אחת):</p><p><a href="${data.resetUrl}" style="color:#4f46e5;">איפוס סיסמא</a></p><p>אם לא ביקשת זאת, אפשר להתעלם מהמייל.</p>`
+  );
+}
+
 export function storageAlertHtml(): string {
   return wrapRtl(
     `<p>שלום,</p><p>שטח האחסון בחשבון ה-Cloudinary עבר <strong>80%</strong> מהמכסה.</p><p>מומלץ למחוק קבצים ישנים או להרחיב את המכסה כדי שהגשות חדשות לא ייכשלו.</p>`
@@ -34,14 +40,27 @@ export function studentMessageHtml(data: EmailJobMap['student-message']): string
   const assignmentLine = data.assignmentTitle
     ? `<p>בנוגע למטלה: <strong>${data.assignmentTitle}</strong></p>`
     : '';
+  const systemUrl = `${process.env.FRONTEND_URL}/teacher/messages?highlight=${data.messageId}`;
   return wrapRtl(
-    `<p>התקבלה הודעה חדשה מ<strong>${data.studentName}</strong>:</p>${assignmentLine}<blockquote style="border-right: 3px solid #ccc; padding-right: 12px; margin: 12px 0; color: #333;">${data.content}</blockquote><p>ניתן להשיב דרך המערכת.</p>`
+    `<p>התקבלה הודעה חדשה מ<strong>${data.studentName}</strong>:</p>${assignmentLine}<blockquote style="border-right: 3px solid #ccc; padding-right: 12px; margin: 12px 0; color: #333;">${data.content}</blockquote>${replyButtons(systemUrl, data.studentEmail)}`
   );
 }
 
+// Two ways to reply: jump straight to the thread in the app, or reply from
+// the mail client directly — a plain "you can reply via the system" sentence
+// meant a teacher had to navigate there manually every time.
+function replyButtons(systemUrl: string, replyToEmail?: string): string {
+  const btn = (href: string, label: string, bg: string) =>
+    `<a href="${href}" style="display:inline-block;background:${bg};color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:bold;margin:0 8px 8px 0;">${label}</a>`;
+  const mailtoBtn = replyToEmail ? btn(`mailto:${replyToEmail}`, 'השב במייל', '#6b7280') : '';
+  return `<p>${btn(systemUrl, 'השב דרך המערכת', '#4f46e5')}${mailtoBtn}</p>`;
+}
+
 export function teacherReplyHtml(data: EmailJobMap['teacher-reply']): string {
+  const systemUrl = `${process.env.FRONTEND_URL}/student/messages?highlight=${data.messageId}`;
+  const adminEmail = process.env.ADMIN_EMAIL;
   return wrapRtl(
-    `<p>שלום ${data.studentName},</p><p>המורה השיבה להודעה ששלחת:</p><blockquote style="border-right: 3px solid #ccc; padding-right: 12px; margin: 12px 0; color: #666;">${data.originalContent}</blockquote><p><strong>תשובת המורה:</strong></p><blockquote style="border-right: 3px solid #4f46e5; padding-right: 12px; margin: 12px 0; color: #333;">${data.replyContent}</blockquote>`
+    `<p>שלום ${data.studentName},</p><p>המורה השיבה להודעה ששלחת:</p><blockquote style="border-right: 3px solid #ccc; padding-right: 12px; margin: 12px 0; color: #666;">${data.originalContent}</blockquote><p><strong>תשובת המורה:</strong></p><blockquote style="border-right: 3px solid #4f46e5; padding-right: 12px; margin: 12px 0; color: #333;">${data.replyContent}</blockquote>${replyButtons(systemUrl, adminEmail ?? '')}`
   );
 }
 

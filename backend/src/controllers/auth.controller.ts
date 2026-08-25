@@ -70,6 +70,27 @@ export async function changePassword(req: Request, res: Response): Promise<void>
   }
 }
 
+export async function forgotPassword(req: Request, res: Response): Promise<void> {
+  try {
+    await authService.requestPasswordReset(req.body.email);
+  } catch (err) {
+    console.error('forgotPassword error:', err);
+  }
+  // Same response whether or not the email exists — otherwise this endpoint
+  // becomes a way to check which emails are registered.
+  res.json({ success: true, data: null });
+}
+
+export async function resetPasswordWithToken(req: Request, res: Response): Promise<void> {
+  try {
+    const { token, newPassword } = req.body;
+    await authService.resetPasswordWithToken(token, newPassword);
+    res.json({ success: true, data: null });
+  } catch (err: any) {
+    sendError(res, err, 400);
+  }
+}
+
 export async function me(req: Request, res: Response): Promise<void> {
   try {
     const user = await authService.getUserById(req.user!.userId);
