@@ -321,3 +321,136 @@ npx prisma migrate dev --name <name>
 **עדיין פתוח — איכות הבוחן:** הבוחן נבנה **אך ורק** מ-`lesson.contentMd`. לא נשלחים ל-AI:
 `topic`, שם הקורס, קבצי השיעור, `githubUrls`, או המטלות. אין `aiInstructions` לבוחן
 (למטלות יש). כלומר ה-prompt לא יודע כלום על הקורס מעבר לטקסט השיעור.
+
+## Render suspended — נגמרה מכסת ה-bandwidth (2026-08-19, אבחון בלבד, לא שונה קוד)
+
+**התסמין:** מיילים חוזרים מגיטהאב "Keep backend awake: All jobs have failed", ~3 בשעה.
+ה-workflow `.github/workflows/keep-alive.yml` (cron כל 10 דק') נכשל אחרי ~10 שנ'.
+
+**השורש:** `https://homework-system-3haq.onrender.com` מחזיר **503** בכל נתיב, עם הכותרת
+`x-render-routing: suspend-by-user`. הדשבורד מראה `Suspended by Render` והבאנר:
+*"You've used the 5 GB of free bandwidth in your Hobby workspace."*
+כלומר **חריגת bandwidth**, לא חריגת 750 שעות instance ולא באג. **אזהרה: הכותרת
+`suspend-by-user` מטעה — היא מופיעה גם בהשעיית workspace אוטומטית, לא רק בהשעיה ידנית.**
+
+**היקף:** `.env` מראה ש-`FRONTEND_URL` == כתובת ה-backend — פרונט ובק על **אותו** Render
+service (Docker, Frankfurt, שם `homework-system`). לכן ההשעיה מפילה את **כל** המערכת.
+
+**מה אוכל את ה-bandwidth (ממצאי בדיקת קוד):**
+1. **נכסי הפרונט** נשלחים מ-Render בכל טעינת דף. `frontend/nginx-spa.conf` מפעיל `gzip on`
+   אבל **אין בו שום cache header** (`expires`/`Cache-Control`) — למרות ש-Vite מייצר שמות
+   עם hash שבטוח לשמור לשנה. גם `gzip_types` חסר `image/svg+xml`.
+2. **העלאות קבצים דרך ה-backend:** `backend/src/utils/storage.ts::uploadBuffer` שולח
+   ל-Cloudinary **base64 data URI** — ניפוח של ~33% ביציאה מ-Render על כל קובץ. יש כבר
+   נתיב ישיר דפדפן→Cloudinary אבל **רק לוידאו** (`POST /submissions/:id/video-upload-signature`).
+   שאר הנתיבים (assignments/courses/groups/lessons) עדיין עוברים דרך multer בשרת.
+3. **אין `compression` middleware** ב-Express (אומת: אין ב-`app.ts` ולא ב-`package.json`).
+   *הורדות* קבצים לא עולות bandwidth — הן מוגשות מ-`secure_url` של Cloudinary.
+
+**לא האשם:** ה-keep-alive עצמו — 4,320 פינגים × ~61 בייט ≈ 260KB לחודש (0.005% מ-5GB).
+
+**האופציות שהוצגו למשתמשת (טרם נבחרה אחת):** כרטיס אשראי ב-Render ($0.15/GB) / להמתין
+לאיפוס מחזור החיוב / Pro / **המלצה מבנית: להעביר את הפרונט ל-Vercel** — `frontend/vercel.json`
+כבר קיים אבל עם ה-placeholder `YOUR-BACKEND.onrender.com` שמעולם לא מולא. מעבר כזה דורש
+גם CORS + עדכון `FRONTEND_URL`/`OAUTH_SUCCESS_REDIRECT`/callbacks של Google+GitHub.
+
+**קשור:** ההחלטה מ-2026-08-06 לעבור ל-keep-alive חיצוני (cron-job.org) **לא בוצעה** —
+`keep-alive.yml` עדיין ב-main ועדיין רץ. עד שה-Render יחזור או שה-workflow יכובה,
+המיילים ימשיכו.
+
+## Render חזר, הכל תקין — ה"שרת רדום" הוא רק cold start (2026-09-02)
+
+**התסמין:** המשתמשת המתינה לתחילת החודש שחריגת ה-bandwidth תתאפס. Render חזר, אבל
+בכניסה היא עדיין רואה את הבאנר "השרת רדום/מתעורר".
+
+**המסקנה הסופית: אין שום תקלה — המערכת עובדת במלואה.** הפרודקשן תקין: לוגין
+מחזיר **200** עם טוקן, ה-DB (Supabase) עונה, Redis מחובר. הבאנר "השרת מתעורר" הוא
+**cold start רגיל של Render free** (הרדמה אחרי 15 דק' חוסר פעילות; בקשה ראשונה ~30–70 שנ').
+זו התנהגות קבועה, **לא** מכסה חודשית — ההמתנה לתחילת החודש תיקנה רק את חריגת ה-bandwidth.
+הפתרון למשתמשת: להמתין ~דקה בלי לרענן; ה-retry האוטומטי ב-axios משלים את הלוגין.
+
+**⚠️ לקח לגבי בדיקות — טעות אבחון שקרתה כאן:** בדיקות ראשונות עם
+`curl.exe -d '{"...":"..."}'` **דרך PowerShell** נתנו 500, והסקתי בטעות ש"ה-DB נפל".
+בפועל **PowerShell משבש את המרכאות** בהעברת ארגומנט ל-exe נייטיב — השרת קיבל
+`{email:admin@school.com,...}` בלי מרכאות, body-parser זרק `entity.parse.failed` (400
+שממוסך ל-500 ע"י ה-error handler הגלובלי), עוד **לפני** שנגע ב-DB. הלוגים של Render הם
+שחשפו: `SyntaxError: Expected property name ... type: 'entity.parse.failed'`.
+**הכלל:** ב-Windows להעביר גוף JSON ל-curl **דרך קובץ** (`--data @file.json`), לא inline.
+עם קובץ: `login → 200`, `reset-password → 400 "הקישור אינו תקין"` (בדיוק תשובת DB-חי).
+
+**עובדות פרודקשן שאומתו:**
+- ה-DB הוא **Supabase** — `aws-0-eu-west-1.pooler.supabase.com:5432` (מלוג העלייה).
+  גם `migrate deploy` (DIRECT_URL) וגם ה-seed/runtime (DATABASE_URL/pooler) עובדים.
+- הפרונט על **Vercel** — `https://homework-system-mocha.vercel.app` (מכותרת CORS);
+  ה-backend על `homework-system-3haq.onrender.com`. ה-boot log מראה `No pending migrations`,
+  `Admin user already exists`, 3 workers + 4 חיבורי Redis ready, `Server running on port 4000`.
+- מדידת cold start בפועל: בקשה ראשונה 72 שנ', `uptime` אחריה 18 שנ'.
+
+**פתוח (אם ההמתנה מפריעה):** לוודא ש-keep-alive רץ שוב (ייתכן שכובה בגלל מיילי הכישלון
+מזמן ההשעיה) — `keep-alive.yml` בריפו, או cron-job.org חיצוני על `/api/health`.
+
+## מפתח Gemini נחסם בפרודקשן + "הגש חידון" נכשל בשקט (2026-09-09, branch fix/quiz-attempt-silent-failure)
+
+### 1. Gemini 403 "Your project has been denied access" — נפתר
+
+**התסמין:** בדומיין בלבד (לא ב-localhost) יצירת בוחן נכשלה עם
+`Gemini API error: 403 Your project has been denied access. Please contact support.`
+
+**האבחון:** המפתח שב-`.env` המקומי עבד מצוין (200). מיפוי הודעות Google שנבדק בפועל:
+מפתח שגוי → **401 UNAUTHENTICATED**; מפתח ריק → **403 "unregistered callers"**;
+ואילו *"your project has been denied access"* = **חסימה ברמת פרויקט Google Cloud** —
+Google זיהתה את המפתח, מצאה את הפרויקט שלו, וחסמה את הפרויקט. כלומר לא מפתח שגוי ולא חסר.
+
+**המסקנה:** ב-Render היה מפתח **אחר**, מפרויקט חסום. `.env` המקומי **לא רלוונטי לפרודקשן** —
+Render קורא אך ורק ממשתני הסביבה בדשבורד (`dashboard.render.com/web/srv-XXXX/env`).
+
+**התיקון:** המשתמשת יצרה מפתח חדש והגדירה אותו ב-Render תחת `GEMINI_API_KEY`. עובד.
+
+**לזכור:** עדיף מפתח נפרד לכל סביבה (חסימה אחת לא מפילה את השתיים). אם המפתח נוצר בחשבון
+Google מוסדי/עבודה — מדיניות ה-admin חוסמת את Generative Language API, ומפתח חדש **מאותו
+חשבון ייחסם שוב**; צריך חשבון Gmail פרטי.
+
+### 2. "הגש חידון" לא עשה כלום — תוקן
+
+**שורש א' (למה בשקט):** `frontend/src/pages/student/QuizPage.tsx` היה העמוד היחיד שה-mutation
+שלו **בלי `onError`**. כל דחייה מהשרת עצרה את הספינר ולא שינתה דבר על המסך — נראה בדיוק
+ככפתור שבור. כל שאר העמודים משתמשים ב-`getApiErrorMessage`.
+
+**שורש ב' (למה בכלל נכשל):** ב-`App.tsx` מקטע `/student/*` מוגן ב-`AuthGuard` בלבד —
+**אין role guard** (לעומת `/teacher/*` שיש לו `AdminGuard`). לכן מורה מחוברת יכולה לפתוח
+`/student/quiz/:lessonId`, ו-`getQuiz` מציג לה את הבוחן גם כשהוא טיוטה (`isTeacher || quiz.published`).
+אבל `POST /lessons/:id/quiz/attempt` הוא `requireRole('STUDENT')` → **403 תמיד**.
+
+**התיקון:** `onError` שמציג את הודעת השרת + באנר "תצוגה מקדימה" למורה + כפתור מושבת עבורה.
+
+**כל השגיאות האפשריות בהגשה** (שימושי לאבחון עתידי):
+403 `requireRole('STUDENT')` (מורה מגישה) · 403 `Forbidden` מ-`assertLessonAccess`
+(תלמידה בלי שיוך לקבוצה ובלי `lessonAccess`) · 404 שיעור לא קיים · 409 בוחן לא פורסם ·
+400 מספר תשובות לא תואם · 500 גנרי.
+
+**חוב פתוח:** `backend/src/utils/access.ts` זורק `'Forbidden'` באנגלית, וההודעה מגיעה
+כמות שהיא למסך התלמידה.
+
+### אימות
+- `npx tsc --noEmit` בפרונט → **0 שגיאות**.
+- `tests/pages/QuizPage.test.tsx` → **8/8 עוברות**.
+
+**⚠️ חוב בדיקות שקדם לשינוי (לא רגרסיה):** בסוויטת הפרונט המלאה **40 בדיקות ב-14 קבצים
+נכשלות** (Badge, Button, Card, FileUpload, Input, Layouts + 8 עמודים). הורצה השוואה עם
+ובלי השינוי — **רשימת הכשלים זהה בדיוק**, כלומר הכשל קדם לעבודה הזו. שווה טיפול בנפרד.
+
+### שתי מלכודות שהתגלו בהרצה המקומית (אותו תאריך)
+
+**1. `origin/main` הקדים ב-4 קומיטים — refactor של 121 קבצים.** הבראנץ' נוצר מ-main מקומי
+מיושן. בוצע `rebase` על main המעודכן; הייתה **התנגשות ב-`student/QuizPage.tsx`** כי ה-refactor
+ניסח מחדש בדיוק את השורות שתוקנו (הוסיף `unwrap` מ-`@/lib/api-utils`, הסיר `as any`, וקיצר
+הערות ל-"history-free house style"). נפתר בלקיחת גרסת main והחלת התיקון מחדש **בסגנון שלהם**.
+**חשוב: ה-refactor לא הוסיף `onError` — הבאג עדיין היה שם, התיקון עדיין נחוץ.**
+
+**2. nginx מחזיק IP ישן אחרי `build` + `up -d` — 502 מטעה.** `docker compose up -d` יוצר מחדש
+רק את השירותים שה-image שלהם השתנה. nginx **לא** מופעל מחדש, וממשיך להצביע על ה-IP הישן של
+הקונטיינר `api` → **502 בכל `/api/*`** בזמן שהלוג של ה-api מראה `Server running on port 4000`.
+**הפתרון:** `docker compose -p homework-app restart nginx` אחרי כל בנייה מחדש של ה-api.
+
+**3. חסימת נטפרי על `cdn.playwright.dev`.** `npx playwright install chromium` נכשל ב-timeout.
+עקיפה שעבדה: `chromium.launch({ channel: 'msedge' })` — משתמש ב-Edge המותקן במקום להוריד.
