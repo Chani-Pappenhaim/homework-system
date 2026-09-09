@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
 import { cn } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
+import { getApiErrorMessage } from '@/lib/errors';
+import useAuthStore from '@/store/authStore';
 import type { QuizAttemptResultDTO } from '@/types';
 
 export default function QuizPage() {
@@ -15,6 +17,11 @@ export default function QuizPage() {
   const navigate = useNavigate();
   const [answers, setAnswers] = useState<number[]>([]);
   const [result, setResult] = useState<QuizAttemptResultDTO | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Submitting is student-only. A teacher still reaches this page and is shown the
+  // quiz even as a draft, so say so rather than letting her answer into a 403.
+  const isTeacher = useAuthStore((s) => s.user?.role) === 'ADMIN';
 
   // Loading a quiz never triggers generation; the server's answer is final on the first fetch, so there is nothing to poll.
   const { data, isLoading, isError, refetch } = useQuery({
@@ -38,9 +45,12 @@ export default function QuizPage() {
 
   const attemptMutation = useMutation({
     mutationFn: () => quizzesApi.attempt(lessonId!, answers),
+    onMutate: () => setSubmitError(null),
     onSuccess: (res) => {
       setResult(res.data.data);
     },
+    // A rejected attempt must say so; without this the button just stopped spinning.
+    onError: (e: any) => setSubmitError(getApiErrorMessage(e, 'שגיאה בהגשת החידון')),
   });
 
   if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
@@ -202,6 +212,14 @@ export default function QuizPage() {
         ))}
       </div>
 
+      {isTeacher && (
+        <p className="rounded-card border border-rule bg-butter/40 p-3 text-center font-sans text-sm text-clay">
+          זוהי תצוגה מקדימה של החידון כפי שהתלמידה רואה אותו. הגשה אפשרית מחשבון תלמידה בלבד.
+        </p>
+      )}
+
+      {submitError && <p className="text-center text-sm text-coral">{submitError}</p>}
+
       <Button
         variant="clay"
         className="w-full"
@@ -210,7 +228,9 @@ export default function QuizPage() {
         onClick={() => attemptMutation.mutate()}
         // Requires the full answer count, not just a non-empty check, since answers are populated asynchronously after mount.
         disabled={
-          answers.length !== (quiz?.questions.length ?? 0) || answers.some((a) => a === -1)
+          isTeacher
+          || answers.length !== (quiz?.questions.length ?? 0)
+          || answers.some((a) => a === -1)
         }
       >
         הגש חידון
