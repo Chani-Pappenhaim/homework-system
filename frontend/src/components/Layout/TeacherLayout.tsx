@@ -160,11 +160,7 @@ export default function TeacherLayout() {
       <footer className="sticky bottom-0 z-30 hidden border-t border-rule bg-sheet/90 backdrop-blur-sm md:block">
         <div className="flex items-center justify-between gap-4 px-6 py-3 text-[11px] text-ink-soft">
           <span>Teacher Feature · המורה עדי שלום</span>
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-sage" /> מחובר</span>
-            <span className="h-3 w-px bg-rule" />
-            <DevSignature />
-          </div>
+          <DevSignature />
         </div>
       </footer>
     </div>
