@@ -4,21 +4,32 @@
 React 18 + TypeScript + Vite + TailwindCSS 3 + shadcn/ui + Zustand + React Query v5 + Axios
 
 ## Design System
-- **Sidebar:** `#1A1830` (כהה) + תוכן `#F8F7FC` (בהיר)
-- **Accent:** `#C2185B` (magenta) → `#7C3AED` (violet) gradient
+
+**"קליק כיתה"** — עיצוב "מחברת/דף" (notebook/paper), לא dashboard כהה עם גרדיאנט. הטוקנים מוגדרים כ-CSS vars ב-`globals.css` (RGB channels) וחשופים ב-`tailwind.config.ts` דרך `rgb(var(--x) / <alpha-value>)`, כך שמודיפייר שקיפות (`bg-clay/20`) עובד.
+
 - **RTL:** `dir="rtl" lang="he"` על `<html>`
-- **Font:** Inter
+- **Font:** Heebo (לא Inter) — משמש גם ל-`sans`, גם ל-`serif`, גם ל-`display`
 
-### צבעים חשובים
-```
-Sidebar bg: #1A1830 | Sidebar text: #A89BC2 | Active: rgba(194,24,91,0.12)
-Page bg: #F8F7FC | Cards: #FFFFFF | Border: #EEEBF5
-Primary: #C2185B | Secondary: #7C3AED
-```
+### טוקנים (Tailwind class names)
+| טוקן | תפקיד |
+|---|---|
+| `ground` | רקע העמוד |
+| `sheet` | רקע כרטיסים/דפים |
+| `ink` / `ink-soft` | טקסט עיקרי / משני |
+| `rule` | קווי גבול (border) |
+| `clay` | accent ראשי (primary/secondary, ring) |
+| `coral` | destructive / אזהרה |
+| `sage` | הצלחה/חיובי |
+| `indigo` | accent משני |
+| `butter` | הדגשה חמה (streaks, badges) |
 
-### כפתורים
-- Primary: `bg-gradient-to-br from-[#C2185B] to-[#7C3AED] text-white rounded-lg`
-- Ghost: `border border-[#E5E7EB] bg-white text-[#6B7280] rounded-lg`
+צבעי הפלטה נמוכי-רוויה במכוון — **sage↔coral נכשלים בבדיקת עיוורון-צבעים** (ΔE 14.4 מול רף 15), אז אסור לקודד משמעות רק בצבע (ראה QuizDashboard כדוגמה: תמיד גם ✓/מספר/טקסט).
+
+מחלקות דינמיות מהצורה `` `bg-${accent}` `` מסוכנות ל-purge של Tailwind בפרודקשן — יש `safelist` ב-`tailwind.config.ts` שמכסה את הצירופים הקבועים (`bg/text/border` × כל טוקן, כולל `before:bg-*` לספיינים של כרטיסים), אבל העדיפות היא עדיין מפה סטטית (`Record<Accent, string>`) בקוד עצמו במקום להסתמך על ה-safelist.
+
+### רדיוסים וצללים
+- `rounded-card` (3px) לכרטיסים, `rounded-input` (7px) לשדות קלט, `rounded-badge`/`rounded-full` לתגיות
+- `shadow-soft` / `shadow-sheet` / `shadow-lift` — מוגדרים כ-CSS vars, לא ערכי Tailwind רגילים
 
 ---
 
