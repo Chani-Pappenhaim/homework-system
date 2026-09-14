@@ -2,6 +2,35 @@
 
 > קובץ זה עוקב אחרי מה שהושלם ומה שנשאר. יש לעדכן אותו בסוף כל שיחה שבה נעשתה עבודה.
 
+## 2026-09-15 — אבטחה + ארכיטקטורה + Tailwind + cold start (branch feature/security-architecture-fixes → מוזג ל-main, קומיט `cb59c85`)
+
+**בקשה מקורית:** לתקן בעיית Tailwind דינמית ב-`HomePage.tsx` של התלמידה, כל בעיות האבטחה והארכיטקטורה שסומנו קודם, ולתקן שתי תופעות cold-start ב-Render (איטיות מדי פעם + כניסה ראשונה אחרי הפסקה נכנסת לדף "מתעורר" של Render במקום ל-OAuth).
+
+### אבטחה (קומיט `532147a`)
+- **Multer DoS:** `multer.memoryStorage()` בלי `limits.fileSize` = כל קובץ שמישהו מעלה נטען שלם לזיכרון התהליך. נוסף `backend/src/middleware/upload.ts` עם קונפיג מדורג (`uploadAttachment` 25MB, `uploadImport` 5MB), וכל ה-routes (`courses`, `lessons`, `groups`, `assignments`, `submissions`) עברו להשתמש בו. `app.ts` מטפל ב-`MulterError`/`LIMIT_FILE_SIZE` → 413 לפני ה-500 הגנרי.
+- **Zip-bomb:** `extractZipCode` (ב-`code-extraction.ts`) בדק את הגודל המפוענח **אחרי** `.getData()` — מאוחר מדי. תוקן לבדוק `entry.header.size` (מטא-דאטה מה-central directory של הזיפ, לא דורש לפענח) **לפני** קריאת התוכן.
+- **JWT_SECRET חלש:** `jwt.ts` הסתמך על `process.env.JWT_SECRET!` — מספק ל-TypeScript אבל לא בודק שום דבר בזמן ריצה. נוסף `requireStrongSecret()` שזורק שגיאה עם עליית השרת אם המשתנה חסר, קצר מ-16 תווים, או ערך placeholder נפוץ (`secret`, `changeme`, `password`, `test`, `123456`). אומת מול `tests/setup.ts` שהערכים שם (17-19 תווים) עוברים את הבדיקה.
+
+### ארכיטקטורה (קומיטים `331ebdd`, `0b97309`)
+- **Tailwind דינמי ב-`student/HomePage.tsx`:** `` `bg-${accent}` `` הוחלף במפה סטטית `ACCENT_CLASSES: Record<accent, {...}>`. **הערה חשובה:** `tailwind.config.ts` כבר הכיל `safelist` עם regex שמכסה בדיוק את הצירופים האלה — כלומר זה לא היה באג פרודקשן פעיל, אבל המפה הסטטית עדיין עדיפה (מפורשת יותר, לא תלויה בתחזוקת ה-safelist).
+- **`teacher/CourseDetailPage.tsx`:** רשימת השיעורים הייתה ריבועים ממוספרים עם שם רק ב-hover; הוחלפה לשורות ברוחב מלא (עיגול ממוספר + נושא + תאריך + מס' הגשות + חץ), header עטוף ב-`Card`, נוספה שורת סטטיסטיקה (מס' תלמידות/שיעורים/אחוז השלמה, מחושב מצד הלקוח מנתוני `LessonSummary` הקיימים — אין endpoint חדש).
+- **`teacher/LessonDetailPage.tsx`:** תיאור מטלה/דדליין/הנחיות AI היו פסקה רצופה אחת; הוחלפו ל-`<dl>` מובנה עם `dt`/`dd`.
+- **`TeacherLayout.tsx`:** ה-sidebar הדסקטופי היה אייקונים בלבד (`w-16`) עם tooltip ב-hover; הורחב ל-`w-40` עם תוויות טקסט גלויות ליד כל אייקון.
+- **`student/LessonDetailPage.tsx`:** header ידני הוחלף ברכיב המשותף `PageHeader` (כבר קיים ב-`components/ui/page-header.tsx`).
+- **`SPEC_frontend.md`:** תוקן section "Design System" שתיאר פלטה ישנה (sidebar כהה + גרדיאנט מגנטה-סגול, פונט Inter) שמעולם לא תאמה למימוש בפועל. עודכן לפלטת "קליק כיתה" האמיתית (ground/sheet/ink/rule/clay/coral/sage/indigo/butter, פונט Heebo) + הערת עיוורון-צבעים (sage↔coral נכשל ΔE) + הערת ה-safelist.
+
+### Cold start / OAuth (קומיט `d3ffb33`)
+**שורש הבעיה:** ניווט מלא (`window.location.href`) ישירות לשרת שעלול להיות רדום נקלט על ידי דף ה"מתעורר" של Render עצמו, במקום להמשיך ל-OAuth של גוגל/גיטהאב. זה גם ההסבר לשתי התלונות (איטיות + כניסה ראשונה נכשלת) — אותה סיבת שורש.
+**התיקון:** `LoginPage.tsx` — לפני הניווט ל-`/auth/:provider`, מבצע `wakeBackend()`: פולינג על `/api/health` (לא תלוי DB/auth) כל 1.5 שניות עד 20 שניות, עם מצב UI "מעירה את השרת… זה עלול לקחת עד כ-20 שניות" על שני הכפתורים.
+**לא שונה:** `.github/workflows/keep-alive.yml` (cron שמפעיל כל 10 דק' רק בחלונות שעות מסוימים, כדי לא לחרוג ממכסת 750 שעות/חודש של Render Free) — נשאר כמו שהיה. **פתוח לדיון עם המשתמשת:** האם להדק את המרווח, תלוי אם הריפו פרטי (משפיע על תקציב דקות Actions) — לא ניתן היה לאמת (`gh` CLI לא מותקן בסביבה).
+
+### בדיקות
+- `npx tsc --noEmit` (פרונט) ו-`eslint` על כל הקבצים שנערכו — עברו נקי.
+- `npx vitest run` (בק): **9 כשלים קיימים מראש** ב-`courses/email/grades/groups/quizzes/submissions.service.test.ts`, קשורים ל-logic של `contentScore`/`contentApproved` (מקומיט `5990966`). אומת עם `git stash` + הרצה חוזרת — **רשימה זהה** עם/בלי השינויים של השיחה הזו → לא רגרסיה, לא טופל (מחוץ לסקופ).
+
+### תיעוד חסר שהתגלה (מתייחס לשיחה הקודמת, קומיט `cea75cd`)
+פיצ'ר checkbox "כללי גם את הקבצים המצורפים" ביצירת בוחן ב-AI (QuizPanel, מוצג רק כשיש קבצים בשיעור, כבוי כברירת מחדל) מעולם לא תועד כאן. מתועד כעת בדיעבד.
+
 ## 2026-09-14 (המשך) — תוקן: "נסי שוב" בחידון, ניסיון רשמי מול תרגול + היסטוריה
 
 **דיווח:** "בחידון יש אפשרות של נסי שוב, אבל זה לא עובד. בכלל אמורה להיות אפשרות לנסות שוב אבל רק ללימוד התלמידה ולא לשינוי ציון (שהיא תוכל לראות נסיונות לעצמה)".
