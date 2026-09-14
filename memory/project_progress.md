@@ -2,6 +2,28 @@
 
 > קובץ זה עוקב אחרי מה שהושלם ומה שנשאר. יש לעדכן אותו בסוף כל שיחה שבה נעשתה עבודה.
 
+## 2026-09-15 (המשך) — תוקנו 9 כשלי הבדיקות "הקיימים מראש" (branch fix/pre-existing-grade-test-failures → מוזג ל-main, קומיט `8722a51`)
+
+בעקבות הבקשה "תתקן את מה שנמצא" (מתייחסת ל-9 הכשלים שסומנו קודם כ"לא רגרסיה, מחוץ לסקופ").
+**כולם התבררו כבדיקות מיושנות**, לא באגים בפרודקשן — כל אחת בדקה התנהגות ישנה שכבר הוחלפה
+בכוונה בשינוי מתועד קודם. **לא שונה קוד פרודקשן בכלל**, רק הבדיקות עודכנו:
+
+- **`grades.service`/`submissions.service` (4 בדיקות):** `getPendingGrades` והתצוגות של ציון
+  לתלמידה עברו ל-gate לפי `grade.contentApproved` (מהכללת אישור ציון-תוכן, קומיט `5990966`)
+  במקום הבדיקה הישנה `grade === null` / `submission.aiApproved`.
+- **`groups.service` (2 בדיקות):** `addStudent` עכשיו מאפשרת לחשבון קיים להצטרף לקבוצה שנייה
+  (עם warning) במקום 409 תמיד — רק "כבר בקבוצה הזו" היא התנגשות אמיתית (יש docstring מתועד
+  בקוד שמסביר את זה). הודעות השגיאה ב-`importStudents` עברו לעברית.
+- **`quizzes.service` (1 בדיקה):** כישלון יצירת בוחן **בכוונה** לא חושף את שגיאת ה-provider
+  הגולמית ללקוח (ראו הערה ב-`failedMessage()`) — הבדיקה ציפתה בדיוק להדלפה הזו.
+- **`email.service` (1 בדיקה, קובץ שלם נכתב מחדש):** כל הקובץ בדק transport של nodemailer/SMTP
+  שכבר הוחלף לגמרי ב-Brevo HTTP API — נכתב מחדש עם מוק ל-`fetch` ומכסה skip/send/שגיאת status.
+- **`courses.service` (1 בדיקה):** מוק ה-prisma חסר `studentGroup.count` ו-`lessonProgress.groupBy`
+  שה-query הסטטיסטי החדש ב-`getCourseById` (groupStudentCount/completedCount, מהארכיטקטורה
+  שתוקנה קודם היום ב-`CourseDetailPage.tsx`) צריך — נוספו עם ערכי ברירת מחדל.
+
+**אימות:** `npx vitest run` → **277/277 עוברות**. `npx tsc --noEmit` → נקי.
+
 ## 2026-09-15 — אבטחה + ארכיטקטורה + Tailwind + cold start (branch feature/security-architecture-fixes → מוזג ל-main, קומיט `cb59c85`)
 
 **בקשה מקורית:** לתקן בעיית Tailwind דינמית ב-`HomePage.tsx` של התלמידה, כל בעיות האבטחה והארכיטקטורה שסומנו קודם, ולתקן שתי תופעות cold-start ב-Render (איטיות מדי פעם + כניסה ראשונה אחרי הפסקה נכנסת לדף "מתעורר" של Render במקום ל-OAuth).
