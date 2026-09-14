@@ -98,7 +98,7 @@ export default function StudentHomePage() {
       ) : filteredCourses.length === 0 ? (
         <div className="sheet p-8 text-center text-sm text-ink-soft">{`אין תוצאות ל"${search.trim()}"`}</div>
       ) : (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 sm:[grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
           {filteredCourses.map((c, i) => {
             const done = c.completedLessons ?? 0;
             const total = c.lessonCount || 0;

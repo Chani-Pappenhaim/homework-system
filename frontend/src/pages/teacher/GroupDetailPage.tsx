@@ -74,9 +74,11 @@ export default function GroupDetailPage() {
         </div>
       </div>
 
-      {/* Courses + Students — independent, equal-weight sections, side by side on wide screens */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
-        <Card accent="indigo">
+      {/* Courses (main, wider) + Students (narrow rail, capped height with its
+          own scroll) side by side — the rail's scroll cap keeps its height in
+          proportion to the main card regardless of how many students it holds. */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:items-start">
+        <Card accent="indigo" className="lg:col-span-2">
           <CardHeader>
             <div className="flex items-center justify-between">
               <h2 className="font-display text-base font-bold flex items-center gap-1.5">
@@ -91,7 +93,7 @@ export default function GroupDetailPage() {
             {group.courses.length === 0 ? (
               <p className="text-sm text-ink/50">אין קורסים בקבוצה זו עדיין</p>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-wrap gap-3">
                 {group.courses.map((c) => (
                   <button
                     key={c.id}
@@ -107,12 +109,12 @@ export default function GroupDetailPage() {
           </CardContent>
         </Card>
 
-        {/* Students (read-only) */}
+        {/* Students (read-only) — narrow rail, scrolls internally past a cap */}
         <Card>
           <CardHeader>
             <h2 className="font-display text-base font-bold">תלמידות ({group.students.length})</h2>
           </CardHeader>
-          <div className="divide-y divide-rule/20">
+          <div className="max-h-[420px] divide-y divide-rule/20 overflow-y-auto">
             {group.students.length === 0 && (
               <p className="px-5 py-4 text-sm text-ink/50">אין תלמידות עדיין</p>
             )}

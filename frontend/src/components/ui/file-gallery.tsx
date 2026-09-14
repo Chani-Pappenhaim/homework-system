@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image, Video, FileText, Music, Archive, File as FileIcon, Download, X } from 'lucide-react';
+import { Image, Video, FileText, Music, Archive, File as FileIcon, Download, ExternalLink, X } from 'lucide-react';
 import { cn, formatBytes } from '@/lib/utils';
 import { getFileKind } from '@/lib/file-type';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -95,13 +95,23 @@ function FilePreviewDialog({ file, onClose }: { file: GalleryFile | null; onClos
         <DialogContent size="lg" className="max-h-[85vh]">
           <div className="flex items-center justify-between gap-3 border-b border-rule px-5 py-3.5 pe-12">
             <DialogTitle className="truncate">{file.name}</DialogTitle>
-            <a
-              href={file.url}
-              download={file.name}
-              className="flex shrink-0 items-center gap-1 rounded-input border border-rule px-2.5 py-1.5 text-xs font-semibold text-ink hover:bg-ground/60"
-            >
-              <Download size={12} /> הורדה
-            </a>
+            <div className="flex shrink-0 items-center gap-2">
+              <a
+                href={file.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 rounded-input border border-rule px-2.5 py-1.5 text-xs font-semibold text-ink hover:bg-ground/60"
+              >
+                <ExternalLink size={12} /> פתיחה בכרטיסייה חדשה
+              </a>
+              <a
+                href={file.url}
+                download={file.name}
+                className="flex items-center gap-1 rounded-input border border-rule px-2.5 py-1.5 text-xs font-semibold text-ink hover:bg-ground/60"
+              >
+                <Download size={12} /> הורדה
+              </a>
+            </div>
           </div>
           <div className="flex items-center justify-center overflow-auto p-4">
             {kind === 'image' && (
@@ -118,13 +128,23 @@ function FilePreviewDialog({ file, onClose }: { file: GalleryFile | null; onClos
               <div className="flex flex-col items-center gap-3 py-10 text-center">
                 <FileText size={40} className="text-ink/40" />
                 <p className="text-sm text-ink/70">אין תצוגה מקדימה זמינה לסוג קובץ זה</p>
-                <a
-                  href={file.url}
-                  download={file.name}
-                  className="lift rounded-input bg-ink px-4 py-2 text-sm font-semibold text-sheet shadow-soft"
-                >
-                  הורדת הקובץ
-                </a>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={file.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="lift rounded-input border border-rule px-4 py-2 text-sm font-semibold text-ink shadow-soft"
+                  >
+                    פתיחה בכרטיסייה חדשה
+                  </a>
+                  <a
+                    href={file.url}
+                    download={file.name}
+                    className="lift rounded-input bg-ink px-4 py-2 text-sm font-semibold text-sheet shadow-soft"
+                  >
+                    הורדת הקובץ
+                  </a>
+                </div>
               </div>
             )}
           </div>
