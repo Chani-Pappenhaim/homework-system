@@ -1,11 +1,9 @@
 import { Router } from 'express';
-import multer from 'multer';
 import { verifyAccessTokenMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/role';
 import * as groupsController from '../controllers/groups.controller';
 import { requireFile } from '../middleware/requireFile';
-
-const upload = multer({ storage: multer.memoryStorage() });
+import { uploadImport as upload } from '../middleware/upload';
 
 const router = Router();
 router.use(verifyAccessTokenMiddleware, requireRole('ADMIN'));

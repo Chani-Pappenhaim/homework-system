@@ -1,12 +1,11 @@
 import { Router } from 'express';
-import multer from 'multer';
 import { verifyAccessTokenMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/role';
 import * as assignmentsController from '../controllers/assignments.controller';
 import { requireFile } from '../middleware/requireFile';
+import { uploadImport as upload } from '../middleware/upload';
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
 router.use(verifyAccessTokenMiddleware);
 
 router.get('/:lessonId/assignments', assignmentsController.getAssignments);

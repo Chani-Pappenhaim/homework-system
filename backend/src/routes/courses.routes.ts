@@ -2,9 +2,7 @@ import { Router } from 'express';
 import { verifyAccessTokenMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/role';
 import * as coursesController from '../controllers/courses.controller';
-import multer from 'multer';
-
-const upload = multer({ storage: multer.memoryStorage() });
+import { uploadAttachment as upload } from '../middleware/upload';
 
 const router = Router();
 router.use(verifyAccessTokenMiddleware);
