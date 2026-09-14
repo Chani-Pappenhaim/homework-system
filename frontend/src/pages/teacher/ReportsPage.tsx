@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Download, ClipboardCheck } from 'lucide-react';
 import { gradesApi } from '@/api/grades.api';
@@ -16,8 +16,10 @@ import type { ReportRow } from '@/types';
 
 export default function ReportsPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [groupId, setGroupId] = useState('');
-  const [courseId, setCourseId] = useState('');
+  // Deep-linked from a course page ("בדיקה" there jumps straight to that course's reports).
+  const [courseId, setCourseId] = useState(searchParams.get('courseId') ?? '');
   const [exportError, setExportError] = useState('');
 
   const { data: groupsData } = useQuery({ queryKey: ['groups'], queryFn: () => groupsApi.list() });

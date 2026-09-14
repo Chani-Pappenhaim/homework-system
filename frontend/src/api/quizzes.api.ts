@@ -1,5 +1,5 @@
 import api from './axios';
-import type { QuizAttemptResultDTO, QuizQuestionDTO, QuizResultsDTO, QuizStateDTO } from '@/types';
+import type { QuizAttemptResultDTO, QuizQuestionDTO, QuizResultsDTO, QuizStateDTO, QuizAttemptHistoryDTO } from '@/types';
 
 export const quizzesApi = {
   /** Read-only for both roles. A student gets a quiz only once it is published. */
@@ -23,4 +23,8 @@ export const quizzesApi = {
   // --- student only -------------------------------------------------------
   attempt: (lessonId: string, answers: number[]) =>
     api.post<{ success: true; data: QuizAttemptResultDTO }>(`/lessons/${lessonId}/quiz/attempt`, { answers }),
+
+  /** The student's own past attempts — official grade plus practice retries. */
+  myAttempts: (lessonId: string) =>
+    api.get<{ success: true; data: QuizAttemptHistoryDTO }>(`/lessons/${lessonId}/quiz/attempts`),
 };

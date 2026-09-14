@@ -18,5 +18,6 @@ router.patch('/:id/quiz/publish', requireRole('ADMIN'), quizzesController.setPub
 router.get('/:id/quiz/results', requireRole('ADMIN'), quizzesController.getResults);
 
 router.post('/:id/quiz/attempt', requireRole('STUDENT'), quizzesController.submitAttempt);
+router.get('/:id/quiz/attempts', requireRole('STUDENT'), quizzesController.getMyAttempts);
 
 export default router;

@@ -241,6 +241,9 @@ model QuizAttempt {
   answers   Json
   score     Float
   takenAt   DateTime @default(now())
+  // The first attempt per student is locked in as the official grade; every
+  // later retry is practice only and never overwrites it (see quizzes.service.ts).
+  isOfficial Boolean @default(true)
 
-  @@unique([quizId, studentId])
+  @@index([quizId, studentId])
 }

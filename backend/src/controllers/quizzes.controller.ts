@@ -72,3 +72,15 @@ export async function getResults(req: Request, res: Response) {
     sendError(res, err);
   }
 }
+
+/** A student's own attempt history for this quiz — official grade plus practice retries. */
+export async function getMyAttempts(req: Request, res: Response) {
+  try {
+    const data = await quizzesService.getMyQuizAttempts(
+      req.params.id as string, req.user!.userId, req.user!.role
+    );
+    res.json({ success: true, data });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}

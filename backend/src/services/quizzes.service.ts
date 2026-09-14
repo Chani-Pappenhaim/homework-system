@@ -271,16 +271,23 @@ export async function submitQuizAttempt(
   const correct = answers.filter((a, i) => a === questions[i]?.correctIndex).length;
   const score = (correct / questions.length) * 100;
 
-  await prisma.quizAttempt.upsert({
-    where: { quizId_studentId: { quizId: quiz.id, studentId } },
-    create: { quizId: quiz.id, studentId, answers, score },
-    update: { answers, score, takenAt: new Date() },
+  // The first attempt is the official grade and is never touched again; every
+  // attempt after it is a fresh row, kept only for the student's own practice
+  // history, so retrying can never change what the teacher sees as her score.
+  const hasOfficial = await prisma.quizAttempt.findFirst({
+    where: { quizId: quiz.id, studentId, isOfficial: true },
+    select: { id: true },
+  });
+  const isOfficial = !hasOfficial;
+  await prisma.quizAttempt.create({
+    data: { quizId: quiz.id, studentId, answers, score, isOfficial },
   });
 
   return {
     score,
     correct,
     total: questions.length,
+    isOfficial,
     // The correct answers ride back with the result, and only here. GET still
     // withholds correctIndex from students — otherwise the quiz would ship its
     // own answer key. Once she has answered there is nothing left to protect,
@@ -309,7 +316,9 @@ export async function getQuizResults(lessonId: string) {
   const quiz = await prisma.quiz.findUnique({
     where: { lessonId },
     include: {
-      attempts: { include: { student: { select: { name: true, email: true } } } },
+      // Practice retries are the student's own business — the teacher's stats
+      // and per-student score must stay based on the one official attempt.
+      attempts: { where: { isOfficial: true }, include: { student: { select: { name: true, email: true } } } },
     },
   });
   if (!quiz) throw Object.assign(new Error('Quiz not found'), { status: 404 });
@@ -364,6 +373,31 @@ export async function getQuizResults(lessonId: string) {
     results: attempts.map((a) => ({
       studentName: a.student.name, studentEmail: a.student.email,
       score: a.score, takenAt: a.takenAt,
+    })),
+  };
+}
+
+/**
+ * A student's own attempt history for this quiz — the official (first, graded)
+ * attempt plus every practice retry after it, oldest first.
+ */
+export async function getMyQuizAttempts(lessonId: string, studentId: string, role: string) {
+  await assertLessonAccess(studentId, role, lessonId);
+
+  const quiz = await prisma.quiz.findUnique({ where: { lessonId } });
+  if (!quiz) return { attempts: [] };
+
+  const attempts = await prisma.quizAttempt.findMany({
+    where: { quizId: quiz.id, studentId },
+    orderBy: { takenAt: 'asc' },
+  });
+
+  return {
+    attempts: attempts.map((a, i) => ({
+      attemptNumber: i + 1,
+      score: a.score,
+      takenAt: a.takenAt,
+      isOfficial: a.isOfficial,
     })),
   };
 }

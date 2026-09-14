@@ -1,7 +1,7 @@
 import { toExternalUrl, todayISO } from '@/lib/utils';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Edit, Lock, ExternalLink, Plus, Trash2 } from 'lucide-react';
+import { Edit, Lock, ExternalLink, Plus, Trash2, ClipboardCheck } from 'lucide-react';
 import { FileGallery } from '@/components/ui/file-gallery';
 import { MultiUrlInput } from '@/components/ui/multi-url-input';
 import { DateField } from '@/components/ui/date-field';
@@ -77,6 +77,9 @@ export default function CourseDetailPage() {
           {course.description && <p className="text-ink/70 text-sm mt-1">{course.description}</p>}
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/reports?courseId=${id}`)}>
+            <ClipboardCheck size={13} /> בדיקת הגשות
+          </Button>
           <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/courses/${id}/edit`)}>
             <Edit size={13} /> ערוך קורס
           </Button>

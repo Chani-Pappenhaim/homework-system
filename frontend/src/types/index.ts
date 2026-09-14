@@ -145,6 +145,19 @@ export interface QuizAttemptResultDTO {
   correct: number;
   total: number;
   review: QuizReviewItemDTO[];
+  /** True only for the first attempt — the one that counts as the grade. */
+  isOfficial: boolean;
+}
+
+export interface QuizAttemptHistoryItem {
+  attemptNumber: number;
+  score: number;
+  takenAt: string;
+  isOfficial: boolean;
+}
+
+export interface QuizAttemptHistoryDTO {
+  attempts: QuizAttemptHistoryItem[];
 }
 
 /** Per-question class performance — teacher only. */

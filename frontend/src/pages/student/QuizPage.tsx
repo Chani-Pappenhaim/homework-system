@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
-import { cn } from '@/lib/utils';
+import { cn, formatDateTime } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import { getApiErrorMessage } from '@/lib/errors';
 import useAuthStore from '@/store/authStore';
@@ -48,10 +48,25 @@ export default function QuizPage() {
     onMutate: () => setSubmitError(null),
     onSuccess: (res) => {
       setResult(res.data.data);
+      refetchHistory();
     },
     // A rejected attempt must say so; without this the button just stopped spinning.
     onError: (e: any) => setSubmitError(getApiErrorMessage(e, 'שגיאה בהגשת החידון')),
   });
+
+  // Own attempt history — fetched once results exist, so a fresh visit doesn't pay for it.
+  const { data: historyData, refetch: refetchHistory } = useQuery({
+    queryKey: ['quiz-attempts', lessonId],
+    queryFn: () => quizzesApi.myAttempts(lessonId!),
+    enabled: !!result,
+  });
+  const attemptHistory = unwrap(historyData)?.attempts ?? [];
+
+  const handleRetry = () => {
+    setResult(null);
+    setSubmitError(null);
+    setAnswers(new Array(quiz?.questions.length ?? 0).fill(-1));
+  };
 
   if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
 
@@ -105,13 +120,51 @@ export default function QuizPage() {
               {Math.round(result.score)}%
             </span>
             <p className="font-sans text-sm text-ink/70">{result.correct} מתוך {result.total} תשובות נכונות</p>
-            <div>
+            <div className="flex flex-wrap justify-center gap-2">
               <Badge variant={result.score >= 80 ? 'success' : result.score >= 60 ? 'warning' : 'destructive'}>
                 {result.score >= 80 ? 'מצוין!' : result.score >= 60 ? 'טוב' : 'נסי שוב'}
               </Badge>
+              <Badge variant={result.isOfficial ? 'secondary' : 'warning'}>
+                {result.isOfficial ? 'זהו הניסיון הרשמי — הציון נשמר' : 'ניסיון תרגול — לא משפיע על הציון'}
+              </Badge>
+            </div>
+            {!result.isOfficial && (
+              <p className="font-sans text-xs text-ink/50">
+                הציון הרשמי שלך נקבע כבר בניסיון הראשון ולא ישתנה. ניסיון זה הוא לתרגול אישי בלבד.
+              </p>
+            )}
+            <div className="flex justify-center pt-1">
+              <button
+                onClick={handleRetry}
+                className="lift rounded-input border border-rule bg-butter/40 px-4 py-2 text-sm font-semibold text-clay shadow-soft"
+              >
+                נסי שוב (תרגול)
+              </button>
             </div>
           </CardContent>
         </Card>
+
+        {attemptHistory.length > 1 && (
+          <Card className="mx-auto max-w-lg">
+            <CardContent className="space-y-2">
+              <p className="font-display text-sm font-bold text-ink">הניסיונות שלך</p>
+              <div className="space-y-1.5">
+                {attemptHistory.map((a) => (
+                  <div
+                    key={a.attemptNumber}
+                    className="flex items-center justify-between rounded-input border border-rule bg-ground/50 px-3 py-1.5 text-sm"
+                  >
+                    <span className="text-ink/70">ניסיון {a.attemptNumber} · {formatDateTime(a.takenAt)}</span>
+                    <span className="flex items-center gap-2">
+                      <span className="font-semibold tabular text-ink">{Math.round(a.score)}%</span>
+                      {a.isOfficial && <Badge variant="secondary">רשמי</Badge>}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Per-question review, built from the result payload — correct answers are never sent to the client before submission. */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

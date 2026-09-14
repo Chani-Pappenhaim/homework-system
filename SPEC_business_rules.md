@@ -34,7 +34,7 @@
 
 ### כללים נוספים
 - סיסמא ברירת מחדל: `"12345678"`, `mustChangePassword=true` חוסם כל routes
-- חידון נוצר פעם אחת לשיעור; ניתן לחזור ולגשת (מחליף ניסיון קודם). תוצאות כל התלמידות מוצגות למורה בדף השיעור (`GET /lessons/:id/quiz/results`)
+- חידון נוצר פעם אחת לשיעור; הניסיון הראשון של כל תלמידה הוא הרשמי (`isOfficial=true`) וקובע את הציון לצמיתות — ניסיון חוזר (`נסי שוב`) נשמר כשורה נפרדת לתרגול אישי בלבד (`isOfficial=false`) ולא משנה את הציון. תלמידה יכולה לראות את היסטוריית הניסיונות שלה (`GET /lessons/:id/quiz/attempts`). תוצאות כל התלמידות מוצגות למורה בדף השיעור לפי הניסיון הרשמי בלבד (`GET /lessons/:id/quiz/results`)
 - התראת אחסון: 80%, פעם אחת ב-24 שעות (Redis dedup)
 - **Teacher is the only ADMIN** — אין multi-teacher support
 - `app.set('trust proxy', 1)` חובה ב-app.ts (בגלל nginx → rate limiter)

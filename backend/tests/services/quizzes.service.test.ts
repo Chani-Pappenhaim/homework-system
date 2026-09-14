@@ -4,7 +4,7 @@ vi.mock('../../src/config/prisma', () => ({
   prisma: {
     quiz: { findUnique: vi.fn(), update: vi.fn() },
     lesson: { findUnique: vi.fn() },
-    quizAttempt: { upsert: vi.fn(), deleteMany: vi.fn() },
+    quizAttempt: { findFirst: vi.fn(), create: vi.fn(), findMany: vi.fn(), deleteMany: vi.fn() },
     $transaction: vi.fn(),
   },
 }));
@@ -282,7 +282,7 @@ describe('quizzes.service.submitQuizAttempt', () => {
     p.quiz.findUnique.mockResolvedValue(draft);
     await expect(submitQuizAttempt('l1', 's1', 'STUDENT', [0, 1]))
       .rejects.toMatchObject({ status: 409 });
-    expect(p.quizAttempt.upsert).not.toHaveBeenCalled();
+    expect(p.quizAttempt.create).not.toHaveBeenCalled();
   });
 
   it('throws 404 when quiz missing', async () => {
@@ -292,30 +292,46 @@ describe('quizzes.service.submitQuizAttempt', () => {
 
   it('scores a perfect attempt as 100', async () => {
     p.quiz.findUnique.mockResolvedValue(live);
-    p.quizAttempt.upsert.mockResolvedValue({});
+    p.quizAttempt.findFirst.mockResolvedValue(null);
+    p.quizAttempt.create.mockResolvedValue({});
     const r = await submitQuizAttempt('l1', 's1', 'STUDENT', [0, 1]);
     expect(r).toMatchObject({ score: 100, correct: 2, total: 2 });
   });
 
   it('scores a half-correct attempt as 50', async () => {
     p.quiz.findUnique.mockResolvedValue(live);
-    p.quizAttempt.upsert.mockResolvedValue({});
+    p.quizAttempt.findFirst.mockResolvedValue(null);
+    p.quizAttempt.create.mockResolvedValue({});
     const r = await submitQuizAttempt('l1', 's1', 'STUDENT', [0, 0]);
     expect(r).toMatchObject({ score: 50, correct: 1, total: 2 });
   });
 
-  it('upserts the attempt keyed by quiz+student', async () => {
+  it('locks the first attempt as official and creates a new row for it', async () => {
     p.quiz.findUnique.mockResolvedValue(live);
-    p.quizAttempt.upsert.mockResolvedValue({});
-    await submitQuizAttempt('l1', 's1', 'STUDENT', [0, 1]);
-    expect(p.quizAttempt.upsert).toHaveBeenCalledWith(expect.objectContaining({
-      where: { quizId_studentId: { quizId: 'qz1', studentId: 's1' } },
+    p.quizAttempt.findFirst.mockResolvedValue(null);
+    p.quizAttempt.create.mockResolvedValue({});
+    const r: any = await submitQuizAttempt('l1', 's1', 'STUDENT', [0, 1]);
+    expect(p.quizAttempt.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ quizId: 'qz1', studentId: 's1', isOfficial: true }),
     }));
+    expect(r.isOfficial).toBe(true);
+  });
+
+  it('records a retry as a new, non-official row and never touches the official one', async () => {
+    p.quiz.findUnique.mockResolvedValue(live);
+    p.quizAttempt.findFirst.mockResolvedValue({ id: 'existing-official' });
+    p.quizAttempt.create.mockResolvedValue({});
+    const r: any = await submitQuizAttempt('l1', 's1', 'STUDENT', [0, 1]);
+    expect(p.quizAttempt.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ quizId: 'qz1', studentId: 's1', isOfficial: false }),
+    }));
+    expect(r.isOfficial).toBe(false);
   });
 
   it('returns a per-question review so she can see what she got wrong', async () => {
     p.quiz.findUnique.mockResolvedValue(live);
-    p.quizAttempt.upsert.mockResolvedValue({});
+    p.quizAttempt.findFirst.mockResolvedValue(null);
+    p.quizAttempt.create.mockResolvedValue({});
     // Q1 right, Q2 wrong.
     const r: any = await submitQuizAttempt('l1', 's1', 'STUDENT', [0, 0]);
 
@@ -333,7 +349,8 @@ describe('quizzes.service.submitQuizAttempt', () => {
 
   it('reveals the answers only in the attempt result, never in a student GET', async () => {
     p.quiz.findUnique.mockResolvedValue(live);
-    p.quizAttempt.upsert.mockResolvedValue({});
+    p.quizAttempt.findFirst.mockResolvedValue(null);
+    p.quizAttempt.create.mockResolvedValue({});
 
     const read: any = await getQuiz('l1', 's1', 'STUDENT');
     expect(read.quiz.questions[0]).not.toHaveProperty('correctIndex');
