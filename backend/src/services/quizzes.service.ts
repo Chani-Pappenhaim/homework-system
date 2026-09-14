@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { assertLessonAccess } from '../utils/access';
 import { quizQueue } from '../infrastructure/queues/queues';
+import { extractLessonFilesText } from '../utils/code-extraction';
 
 /**
  * A quiz belongs to the teacher, not to whoever opened the page first.
@@ -166,7 +167,7 @@ export async function getQuiz(lessonId: string, userId: string, role: string) {
  * Refuses when a quiz already exists — replacing one silently would discard
  * questions she may have edited, along with every attempt already made on it.
  */
-export async function requestQuizGeneration(lessonId: string, role: string) {
+export async function requestQuizGeneration(lessonId: string, role: string, includeFiles: boolean) {
   const existing = await prisma.quiz.findUnique({ where: { lessonId } });
   if (existing) {
     throw Object.assign(new Error('כבר קיים בוחן לשיעור זה'), { status: 409 });
@@ -175,6 +176,20 @@ export async function requestQuizGeneration(lessonId: string, role: string) {
   const lesson = await lessonOr404(lessonId);
   if (!lesson.contentMd?.trim()) {
     throw Object.assign(new Error(noContentMessage(role)), { status: 409 });
+  }
+
+  // Files are opt-in (checkbox, default off) because feeding them to Gemini
+  // can meaningfully raise the cost of a single generation — the markdown
+  // description alone stays the default.
+  let lessonContent = lesson.contentMd;
+  if (includeFiles) {
+    const files = await prisma.lessonFile.findMany({ where: { lessonId } });
+    if (files.length > 0) {
+      const filesText = await extractLessonFilesText(files);
+      if (filesText) {
+        lessonContent = `${lessonContent}\n\n--- קבצים מצורפים לשיעור ---\n${filesText}`;
+      }
+    }
   }
 
   const jobId = jobIdFor(lessonId);
@@ -191,7 +206,7 @@ export async function requestQuizGeneration(lessonId: string, role: string) {
       await job.remove().catch(() => {});
     }
 
-    await quizQueue.add('generate', { lessonId, lessonContent: lesson.contentMd }, { jobId });
+    await quizQueue.add('generate', { lessonId, lessonContent }, { jobId });
   } catch (err: any) {
     console.error('[quiz] could not enqueue generation for lesson', lessonId, err);
     throw Object.assign(new Error(failedMessage(role)), { status: 502 });

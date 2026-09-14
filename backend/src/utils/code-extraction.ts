@@ -1,5 +1,6 @@
 import AdmZip from 'adm-zip';
 import mammoth from 'mammoth';
+import { toDeliveryUrl } from './storage';
 
 // Same caps across every extraction path: max 20 files, max 5KB per file
 const CODE_EXTENSIONS = ['.js', '.ts', '.jsx', '.tsx', '.py', '.html', '.css', '.java', '.cs', '.cpp', '.c'];
@@ -65,4 +66,45 @@ export function extractZipCode(buffer: Buffer): string {
 export async function extractDocxText(buffer: Buffer): Promise<string> {
   const result = await mammoth.extractRawText({ buffer });
   return result.value;
+}
+
+// Same per-file caps as code extraction above — this feeds the same Gemini
+// call budget, just from lesson attachments instead of a submission.
+const ATTACHMENT_MAX_FILES = 10;
+const ATTACHMENT_MAX_FILE_CHARS = 5000;
+
+/**
+ * Best-effort text extraction from a lesson's attached files, for the
+ * optional "include attached files" quiz-generation toggle. Only formats we
+ * can actually turn into text are read (.docx, .txt, .md) — images, PDFs,
+ * spreadsheets, zips etc. are silently skipped rather than failing the whole
+ * generation, since the teacher only asked for extra context, not a guarantee
+ * every file is used.
+ */
+export async function extractLessonFilesText(
+  files: { name: string; url: string }[]
+): Promise<string> {
+  const contents: string[] = [];
+
+  for (const file of files.slice(0, ATTACHMENT_MAX_FILES)) {
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (ext !== 'docx' && ext !== 'txt' && ext !== 'md') continue;
+
+    try {
+      const res = await fetch(toDeliveryUrl(file.url));
+      if (!res.ok) continue;
+
+      const text = ext === 'docx'
+        ? await extractDocxText(Buffer.from(await res.arrayBuffer()))
+        : await res.text();
+
+      if (text.trim()) {
+        contents.push(`--- ${file.name} ---\n${text.slice(0, ATTACHMENT_MAX_FILE_CHARS)}`);
+      }
+    } catch {
+      // One unreadable file must not block quiz generation for the rest.
+    }
+  }
+
+  return contents.join('\n\n');
 }

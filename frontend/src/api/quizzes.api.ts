@@ -8,8 +8,8 @@ export const quizzesApi = {
 
   // --- teacher only -------------------------------------------------------
   /** Queue an AI generation. The only quiz route that can cost money. */
-  generate: (lessonId: string) =>
-    api.post(`/lessons/${lessonId}/quiz/generate`),
+  generate: (lessonId: string, includeFiles: boolean) =>
+    api.post(`/lessons/${lessonId}/quiz/generate`, { includeFiles }),
 
   updateQuestions: (lessonId: string, questions: QuizQuestionDTO[]) =>
     api.put(`/lessons/${lessonId}/quiz`, { questions }),

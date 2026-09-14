@@ -89,7 +89,7 @@
 
 **Queue:** "quiz"  
 **AI:** Google Gemini (`GEMINI_MODEL`) — אותו ספק כמו ה-homework review  
-**Input:** רק `lesson.contentMd`  
+**Input:** `lesson.contentMd`, ובאופן אופציונלי (checkbox אצל המורה, כברירת מחדל כבוי) גם טקסט מחולץ מהקבצים המצורפים לשיעור (`.docx`/`.txt`/`.md` בלבד, עד 10 קבצים / 5KB לקובץ) — כי צירוף קבצים עלול להעלות משמעותית את עלות היצירה  
 **Output:** JSON array של 10 שאלות אמריקאיות בעברית  
 **Format:** `[{ id, question, options: string[4], correctIndex: 0|1|2|3 }]`
 

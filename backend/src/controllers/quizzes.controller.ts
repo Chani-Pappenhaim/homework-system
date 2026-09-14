@@ -17,7 +17,7 @@ export async function getQuiz(req: Request, res: Response) {
 export async function generate(req: Request, res: Response) {
   try {
     const result = await quizzesService.requestQuizGeneration(
-      req.params.id as string, req.user!.role
+      req.params.id as string, req.user!.role, req.body?.includeFiles === true
     );
     res.status(202).json({ success: true, data: result });
   } catch (err: any) {

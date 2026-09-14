@@ -40,7 +40,11 @@ export default function TeacherQuizPage() {
         backLabel="חזרה לשיעור"
       />
 
-      <QuizPanel lessonId={lessonId!} hasContent={Boolean(lesson.contentMd?.trim())} />
+      <QuizPanel
+        lessonId={lessonId!}
+        hasContent={Boolean(lesson.contentMd?.trim())}
+        hasFiles={lesson.files.length > 0}
+      />
 
       {results && <QuizDashboard data={results} />}
     </div>

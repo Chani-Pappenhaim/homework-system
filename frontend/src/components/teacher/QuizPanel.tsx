@@ -16,12 +16,15 @@ import type { QuizQuestionDTO, QuizStateDTO } from '@/types';
  * them, then publish to the class. Students never trigger generation and
  * never see a draft.
  */
-export default function QuizPanel({ lessonId, hasContent }: { lessonId: string; hasContent: boolean }) {
+export default function QuizPanel({
+  lessonId, hasContent, hasFiles,
+}: { lessonId: string; hasContent: boolean; hasFiles: boolean }) {
   const qc = useQueryClient();
   const toast = useToast();
 
   const [draft, setDraft] = useState<QuizQuestionDTO[] | null>(null);
   const [error, setError] = useState('');
+  const [includeFiles, setIncludeFiles] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['quiz', lessonId],
@@ -40,7 +43,7 @@ export default function QuizPanel({ lessonId, hasContent }: { lessonId: string; 
   }, [quiz, draft]);
 
   const generateMutation = useMutation({
-    mutationFn: () => quizzesApi.generate(lessonId),
+    mutationFn: () => quizzesApi.generate(lessonId, includeFiles),
     onSuccess: () => {
       setError('');
       qc.invalidateQueries({ queryKey: ['quiz', lessonId] });
@@ -142,6 +145,17 @@ export default function QuizPanel({ lessonId, hasContent }: { lessonId: string; 
             : <p className="text-sm text-ink/60">
                 ה-AI יכתוב 10 שאלות אמריקאיות על תוכן השיעור. תוכלי לערוך אותן לפני שהתלמידות רואות אותן.
               </p>}
+          {hasFiles && (
+            <label className="flex items-center gap-2 text-sm text-ink/70">
+              <input
+                type="checkbox"
+                checked={includeFiles}
+                onChange={(e) => setIncludeFiles(e.target.checked)}
+                className="accent-clay"
+              />
+              כללי גם את הקבצים המצורפים לשיעור (עשוי להעלות את עלות היצירה)
+            </label>
+          )}
           {errorLine}
           <Button
             variant="clay"

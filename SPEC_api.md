@@ -142,7 +142,7 @@
 | Method | Path | Auth | תיאור |
 |---|---|---|---|
 | GET | `/lessons/:id/quiz` | ✓ | סטטוס + שאלות. ADMIN מקבל גם טיוטה ו-`correctIndex`; STUDENT מקבל רק בוחן שפורסם |
-| POST | `/lessons/:id/quiz/generate` | ADMIN | מוסיף ל-queue → `202 { status: "generating" }`. 409 אם כבר קיים בוחן או שאין `contentMd` |
+| POST | `/lessons/:id/quiz/generate` | ADMIN | `{ includeFiles?: boolean }` (ברירת מחדל `false`) — האם ה-AI יקבל גם את הקבצים המצורפים לשיעור (`.docx`/`.txt`/`.md` בלבד) בנוסף ל-`contentMd`. מוסיף ל-queue → `202 { status: "generating" }`. 409 אם כבר קיים בוחן או שאין `contentMd` |
 | PUT | `/lessons/:id/quiz` | ADMIN | `{ questions: [...] }` — מחליף את השאלות. **מוחק את כל הניסיונות** |
 | PATCH | `/lessons/:id/quiz/publish` | ADMIN | `{ published: boolean }` |
 | POST | `/lessons/:id/quiz/attempt` | STUDENT | `{ answers: number[] }` → `{ score, correct, total }`. 409 אם הבוחן לא פורסם |
