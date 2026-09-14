@@ -1,7 +1,7 @@
-import { toExternalUrl, todayISO } from '@/lib/utils';
+import { toExternalUrl, todayISO, formatDate } from '@/lib/utils';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Edit, Lock, ExternalLink, Plus, Trash2, ClipboardCheck } from 'lucide-react';
+import { Edit, Lock, ExternalLink, Plus, Trash2, ClipboardCheck, ChevronLeft } from 'lucide-react';
 import { FileGallery } from '@/components/ui/file-gallery';
 import { MultiUrlInput } from '@/components/ui/multi-url-input';
 import { DateField } from '@/components/ui/date-field';
@@ -21,6 +21,16 @@ import {
 } from '@/components/ui/dialog';
 import { useState } from 'react';
 import { useToast } from '@/components/ui/toast';
+
+function StatTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-card border border-rule bg-sheet p-4">
+      <p className="font-sans text-xs text-ink/50">{label}</p>
+      <p className="mt-1 font-display text-3xl font-bold tabular text-ink">{value}</p>
+      {hint && <p className="mt-0.5 font-sans text-xs text-ink/50">{hint}</p>}
+    </div>
+  );
+}
 
 export default function CourseDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -66,70 +76,91 @@ export default function CourseDetailPage() {
   if (isLoading) return <div className="p-6 text-ink/50">טוען...</div>;
   if (!course) return <div className="p-6 text-coral">קורס לא נמצא</div>;
 
+  const studentCount = course.lessons.find((l) => l.groupStudentCount != null)?.groupStudentCount ?? 0;
+  const completionPct = studentCount > 0 && course.lessons.length > 0
+    ? Math.round(
+        (course.lessons.reduce((s, l) => s + (l.completedCount ?? 0), 0) / (studentCount * course.lessons.length)) * 100,
+      )
+    : 0;
+
   return (
     <div className="space-y-5" dir="rtl">
       {/* Header */}
-      <div className="flex items-start justify-between border-b border-rule pb-3">
-        <div>
-          <BackLink className="mb-2" />
-          <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{course.name}</h1>
-          <p className="text-ink/70 text-sm mt-0.5">{course.groupName} · {course.year}</p>
-          {course.description && <p className="text-ink/70 text-sm mt-1">{course.description}</p>}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/reports?courseId=${id}`)}>
-            <ClipboardCheck size={13} /> בדיקת הגשות
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/courses/${id}/edit`)}>
-            <Edit size={13} /> ערוך קורס
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            loading={deleteCourseMutation.isPending}
-            onClick={() => {
-              if (confirm(`למחוק את הקורס "${course.name}"? כל השיעורים, המטלות, ההגשות והקבצים של הקורס יימחקו לצמיתות.`)) {
-                deleteCourseMutation.mutate();
-              }
-            }}
-          >
-            <Trash2 size={13} /> מחק קורס
-          </Button>
-        </div>
-      </div>
+      <Card>
+        <CardContent className="flex items-start justify-between">
+          <div>
+            <BackLink className="mb-2" />
+            <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{course.name}</h1>
+            <p className="text-ink/70 text-sm mt-0.5">{course.groupName} · {course.year}</p>
+            {course.description && <p className="text-ink/70 text-sm mt-1">{course.description}</p>}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/reports?courseId=${id}`)}>
+              <ClipboardCheck size={13} /> בדיקת הגשות
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/courses/${id}/edit`)}>
+              <Edit size={13} /> ערוך קורס
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              loading={deleteCourseMutation.isPending}
+              onClick={() => {
+                if (confirm(`למחוק את הקורס "${course.name}"? כל השיעורים, המטלות, ההגשות והקבצים של הקורס יימחקו לצמיתות.`)) {
+                  deleteCourseMutation.mutate();
+                }
+              }}
+            >
+              <Trash2 size={13} /> מחק קורס
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Lesson bubbles */}
+      {/* Stats */}
+      {studentCount > 0 && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <StatTile label="תלמידות בקורס" value={String(studentCount)} />
+          <StatTile label="שיעורים" value={String(course.lessons.length)} />
+          <StatTile label="השלמה ממוצעת" value={`${completionPct}%`} hint="מכלל השיעורים" />
+        </div>
+      )}
+
+      {/* Lessons */}
       <Card accent="indigo">
         <CardHeader>
           <h2 className="font-display text-base font-bold">שיעורים ({course.lessons.length})</h2>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-3">
-            {course.lessons.map((l, i) => (
-              <div key={l.id} className="flex flex-col items-center gap-1">
-                <button
-                  onClick={() => navigate(`/teacher/lessons/${l.id}`)}
-                  title={l.topic}
-                  className={`lift relative grid size-16 place-items-center rounded-lg border border-rule font-display text-lg font-bold shadow-soft
-                    ${l.hidden ? 'bg-ground/60 text-ink/40' : 'bg-sheet text-ink'}`}
-                >
-                  <span>{i + 1}</span>
-                  {l.hidden && <Lock size={10} className="absolute top-1 left-1 text-ink/50" />}
-                </button>
-                {Boolean(l.groupStudentCount) && (
-                  <span className="text-[10px] font-medium text-ink-soft tabular">
-                    {l.completedCount ?? 0}/{l.groupStudentCount} סיימו
-                  </span>
-                )}
-              </div>
-            ))}
+        <CardContent className="space-y-2">
+          {course.lessons.map((l, i) => (
             <button
-              onClick={() => { setNewTopic(''); setNewDate(todayISO()); setNewContent(''); setNewGithubUrls(['']); setNewLessonModal(true); }}
-              className="grid size-16 place-items-center rounded-lg border border-dashed border-rule text-ink-soft transition-colors hover:border-clay/50 hover:text-clay"
+              key={l.id}
+              onClick={() => navigate(`/teacher/lessons/${l.id}`)}
+              className={`flex w-full items-center gap-3 rounded-card border border-rule px-4 py-3 text-right transition-colors hover:bg-butter/10
+                ${l.hidden ? 'bg-ground/40' : 'bg-sheet'}`}
             >
-              <Plus size={18} />
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-ground font-display text-sm font-bold tabular text-ink/60">
+                {i + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-1.5 truncate text-sm font-bold text-ink">
+                  {l.hidden && <Lock size={11} className="shrink-0 text-ink/40" />}
+                  {l.topic}
+                </p>
+                <p className="mt-0.5 text-[11px] text-ink-soft">
+                  {l.lessonDate ? formatDate(l.lessonDate) : 'ללא תאריך'}
+                  {Boolean(l.groupStudentCount) && ` · ${l.completedCount ?? 0}/${l.groupStudentCount} סיימו`}
+                </p>
+              </div>
+              <ChevronLeft size={14} className="shrink-0 text-ink-soft" />
             </button>
-          </div>
+          ))}
+          <button
+            onClick={() => { setNewTopic(''); setNewDate(todayISO()); setNewContent(''); setNewGithubUrls(['']); setNewLessonModal(true); }}
+            className="flex w-full items-center justify-center gap-1.5 rounded-card border border-dashed border-rule px-4 py-3 text-sm text-ink-soft transition-colors hover:border-clay/50 hover:text-clay"
+          >
+            <Plus size={16} /> שיעור חדש
+          </button>
         </CardContent>
       </Card>
 
