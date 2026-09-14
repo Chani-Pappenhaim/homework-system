@@ -51,10 +51,21 @@ beforeEach(() => vi.clearAllMocks());
 
 describe('groups.service', () => {
   describe('addStudent', () => {
-    it('throws 409 when the email already exists', async () => {
-      p.user.findUnique.mockResolvedValue({ id: 'existing' });
+    it('throws 409 when the student is already in this group', async () => {
+      p.user.findUnique.mockResolvedValue({ id: 'existing', name: 'A' });
+      p.studentGroup.findUnique.mockResolvedValue({ studentId: 'existing', groupId: 'g1' });
       await expect(addStudent('g1', 'A', 'a@x.com')).rejects.toMatchObject({ status: 409 });
       expect(p.user.create).not.toHaveBeenCalled();
+    });
+
+    it('joins an existing account (from another group) to this group instead of erroring, with a warning if the name differs', async () => {
+      p.user.findUnique.mockResolvedValue({ id: 'existing', name: 'Old Name' });
+      p.studentGroup.findUnique.mockResolvedValue(null);
+      p.studentGroup.create.mockResolvedValue({});
+      const r = await addStudent('g1', 'New Name', 'a@x.com');
+      expect(p.user.create).not.toHaveBeenCalled();
+      expect(p.studentGroup.create).toHaveBeenCalledWith({ data: { studentId: 'existing', groupId: 'g1' } });
+      expect(r.warning).toContain('Old Name');
     });
 
     it('creates a STUDENT with default password + githubUsername and links to group', async () => {
@@ -187,7 +198,7 @@ describe('groups.service', () => {
     it('collects synchronous validation errors for rows missing name/email', async () => {
       const buf = await xlsxBuffer([[null, 'a@x.com', null]]);
       const r = await importStudents('g1', buf);
-      expect(r.errors.some((e) => e.includes('missing name or email'))).toBe(true);
+      expect(r.errors.some((e) => e.includes('חסר שם או אימייל'))).toBe(true);
     });
 
     it('creates a new student and counts it as imported', async () => {

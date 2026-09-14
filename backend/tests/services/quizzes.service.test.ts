@@ -122,7 +122,10 @@ describe('quizzes.service.getQuiz — the teacher owns the draft', () => {
     });
     const r: any = await getQuiz('l1', 'admin', 'ADMIN');
     expect(r.status).toBe('failed');
-    expect(r.message).toContain('Gemini API error: 404');
+    // The raw provider error must never reach the client — only a generic,
+    // actionable Hebrew message (see failedMessage() in quizzes.service.ts).
+    expect(r.message).not.toContain('Gemini API error: 404');
+    expect(r.message).toContain('יצירת הבוחן נכשלה');
     expect(remove).toHaveBeenCalled();
   });
 

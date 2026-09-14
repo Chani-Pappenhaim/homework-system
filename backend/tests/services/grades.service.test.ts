@@ -71,7 +71,7 @@ describe('grades.service.getPendingGrades', () => {
     ]);
     const r = await getPendingGrades();
     expect(p.submission.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { grade: null },
+      where: { OR: [{ grade: null }, { grade: { contentScore: null } }] },
     }));
     expect(r.count).toBe(1);
     expect(r.submissions[0]).toMatchObject({ id: 's1', studentName: 'A', assignmentTitle: 'T' });

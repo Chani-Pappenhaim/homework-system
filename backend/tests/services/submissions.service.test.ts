@@ -209,39 +209,39 @@ describe('submissions.service.getMySubmissions', () => {
         lesson: { topic: 'T2', course: { name: 'C2' } },
         submissions: [{ id: 'sub2', submittedAt: new Date(), isLate: false, notes: 'n', aiApproved: true }] },
     ]);
-    p.grade.findUnique.mockResolvedValue({ submissionScore: 90, contentScore: 80, feedback: 'good', checklist: null });
+    p.grade.findUnique.mockResolvedValue({ submissionScore: 90, contentScore: 80, contentApproved: true, feedback: 'good', checklist: null });
 
     const r = await getMySubmissions('s1');
     expect(r.pending).toHaveLength(1);
     expect(r.pending[0].assignmentTitle).toBe('Pending one');
     expect(r.submitted).toHaveLength(1);
-    expect(r.submitted[0].grade).toEqual({ submissionScore: 90, contentScore: 80, feedback: 'good', checklist: null });
+    expect(r.submitted[0].grade).toEqual({ submissionScore: 90, contentScore: 80, contentApproved: true, feedback: 'good', checklist: null });
   });
 
-  it('always shows submissionScore but hides contentScore until the AI review is approved', async () => {
+  it('always shows submissionScore but hides contentScore until the teacher approves it', async () => {
     p.user.findUnique.mockResolvedValue({ studentGroups: [], lessonAccess: [] });
     p.assignment.findMany.mockResolvedValue([
       { id: 'a2', title: 'Not approved', deadline: null,
         lesson: { topic: 'T', course: { name: 'C' } },
         submissions: [{ id: 'sub2', submittedAt: new Date(), isLate: false, notes: null, aiApproved: false }] },
     ]);
-    p.grade.findUnique.mockResolvedValue({ submissionScore: 90, contentScore: 80, feedback: 'good', checklist: null });
+    p.grade.findUnique.mockResolvedValue({ submissionScore: 90, contentScore: 80, contentApproved: false, feedback: 'good', checklist: null });
 
     const r = await getMySubmissions('s1');
-    expect(r.submitted[0].grade).toEqual({ submissionScore: 90, contentScore: null, feedback: 'good', checklist: null });
+    expect(r.submitted[0].grade).toEqual({ submissionScore: 90, contentScore: null, contentApproved: false, feedback: 'good', checklist: null });
   });
 
-  it('reveals contentScore once the AI review is approved', async () => {
+  it('reveals contentScore once the teacher approves it', async () => {
     p.user.findUnique.mockResolvedValue({ studentGroups: [], lessonAccess: [] });
     p.assignment.findMany.mockResolvedValue([
       { id: 'a2', title: 'Approved', deadline: null,
         lesson: { topic: 'T', course: { name: 'C' } },
         submissions: [{ id: 'sub2', submittedAt: new Date(), isLate: false, notes: null, aiApproved: true }] },
     ]);
-    p.grade.findUnique.mockResolvedValue({ submissionScore: 90, contentScore: 80, feedback: 'good', checklist: null });
+    p.grade.findUnique.mockResolvedValue({ submissionScore: 90, contentScore: 80, contentApproved: true, feedback: 'good', checklist: null });
 
     const r = await getMySubmissions('s1');
-    expect(r.submitted[0].grade).toEqual({ submissionScore: 90, contentScore: 80, feedback: 'good', checklist: null });
+    expect(r.submitted[0].grade).toEqual({ submissionScore: 90, contentScore: 80, contentApproved: true, feedback: 'good', checklist: null });
   });
 
   it('submitted item has null grade when not graded yet', async () => {
@@ -313,10 +313,10 @@ describe('submissions.service.getSubmissionById', () => {
     expect(r.grade.contentScore).toBe(80);
   });
 
-  it('hides the grade contentScore from the student until the AI review is approved', async () => {
+  it('hides the grade contentScore from the student until the teacher approves it', async () => {
     p.submission.findUnique.mockResolvedValue({
       id: 'sub1', studentId: 's1', aiStatus: 'done', aiApproved: false,
-      grade: { submissionScore: 90, contentScore: 80 },
+      grade: { submissionScore: 90, contentScore: 80, contentApproved: false },
     });
     const r: any = await getSubmissionById('sub1', 's1', 'STUDENT');
     expect(r.grade.submissionScore).toBe(90); // submission score is always hers
@@ -326,7 +326,7 @@ describe('submissions.service.getSubmissionById', () => {
   it('reveals the grade contentScore to the student once approved', async () => {
     p.submission.findUnique.mockResolvedValue({
       id: 'sub1', studentId: 's1', aiStatus: 'done', aiApproved: true,
-      grade: { submissionScore: 90, contentScore: 80 },
+      grade: { submissionScore: 90, contentScore: 80, contentApproved: true },
     });
     const r: any = await getSubmissionById('sub1', 's1', 'STUDENT');
     expect(r.grade.contentScore).toBe(80);
