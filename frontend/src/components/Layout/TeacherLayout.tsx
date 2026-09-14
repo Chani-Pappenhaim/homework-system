@@ -113,21 +113,23 @@ export default function TeacherLayout() {
       </header>
 
       <div className="flex w-full flex-1">
-        <nav className="sticky top-16 z-40 hidden h-fit w-40 shrink-0 flex-col gap-1 px-3 py-5 md:flex">
+        <nav className="sticky top-16 z-40 hidden h-fit w-16 shrink-0 flex-col items-center gap-2 py-5 md:flex">
           {nav.map(({ to, label, icon: Icon, end }) => (
-            <NavLink key={to} to={to} end={end}>
+            <NavLink key={to} to={to} end={end} className="group relative">
               {({ isActive }) => (
                 <span
                   className={cn(
-                    'relative flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                    'relative grid size-11 place-items-center rounded-lg transition-colors',
                     isActive ? 'bg-ink text-sheet shadow-soft' : 'text-ink-soft hover:bg-ground hover:text-ink',
                   )}
                 >
-                  <Icon size={18} className="shrink-0" />
-                  <span className="truncate">{label}</span>
+                  <Icon size={20} />
                   {to === '/teacher/messages' && unreadCount > 0 && (
-                    <span className="absolute left-2.5 top-1/2 size-2 -translate-y-1/2 rounded-full bg-coral" />
+                    <span className="absolute -left-1 -top-1 size-2 rounded-full bg-coral" />
                   )}
+                  <span className="pointer-events-none absolute right-12 top-1/2 z-50 -translate-y-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11px] text-sheet opacity-0 shadow-lift transition-opacity group-hover:opacity-100">
+                    {label}
+                  </span>
                 </span>
               )}
             </NavLink>
