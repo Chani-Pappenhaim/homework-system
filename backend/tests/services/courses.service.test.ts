@@ -4,11 +4,11 @@ vi.mock('../../src/config/prisma', () => ({
   prisma: {
     course: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
     user: { findUnique: vi.fn() },
-    studentGroup: { findFirst: vi.fn() },
+    studentGroup: { findFirst: vi.fn(), count: vi.fn() },
     lessonAccess: { findUnique: vi.fn() },
     courseFile: { findUnique: vi.fn(), delete: vi.fn(), create: vi.fn() },
     courseLink: { create: vi.fn(), delete: vi.fn() },
-    lessonProgress: { findMany: vi.fn() },
+    lessonProgress: { findMany: vi.fn(), groupBy: vi.fn() },
   },
 }));
 
@@ -47,6 +47,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   assertCourseAccessMock.mockResolvedValue(undefined);
   p.lessonProgress.findMany.mockResolvedValue([]);
+  p.lessonProgress.groupBy.mockResolvedValue([]);
+  p.studentGroup.count.mockResolvedValue(0);
 });
 
 describe('courses.service.getCoursesForUser', () => {
