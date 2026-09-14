@@ -185,11 +185,15 @@
       dev-signature-caret 700ms step-end infinite;
   }
 
-  /* Type out, hold so the name is readable, erase, hold empty, repeat. */
+  /* Type out, hold so the name is readable, erase, hold empty, repeat.
+     Widths are in `ch` (per-name char count via --sig-chars), not `%` —
+     `%` resolved against the flex column's fit-content width (set by the
+     shorter static role label below it), so each cycle the box snapped
+     between 0 and that mismatched width and shoved the next signature. */
   @keyframes dev-signature-type {
     0% { width: 0; }
-    22% { width: 100%; }
-    72% { width: 100%; }
+    22% { width: calc(var(--sig-chars, 20) * 1ch); }
+    72% { width: calc(var(--sig-chars, 20) * 1ch); }
     94% { width: 0; }
     100% { width: 0; }
   }

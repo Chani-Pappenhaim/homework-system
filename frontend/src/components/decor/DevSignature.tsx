@@ -15,10 +15,10 @@ export function DevSignature() {
           className="group flex items-center gap-1.5"
         >
           <span className="text-clay">✳</span>
-          <span className="flex flex-col">
+          <span className="flex flex-col" style={{ minWidth: `${dev.name.length}ch` }}>
             <span
               className="dev-signature-text text-ink-soft transition-colors group-hover:text-clay"
-              style={{ animationDelay: `${i * 0.85}s` }}
+              style={{ animationDelay: `${i * 0.85}s`, '--sig-chars': dev.name.length } as React.CSSProperties}
             >
               {dev.name}
             </span>
