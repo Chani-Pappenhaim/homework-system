@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import passport from 'passport';
+import { MulterError } from 'multer';
 import { generalRateLimit } from './middleware/rateLimit';
 import { configurePassport } from './config/passport';
 import { GENERIC_SERVER_ERROR } from './utils/http';
@@ -65,8 +66,12 @@ export function createApp() {
   // message so no internal detail (DB, keys, stack) ever reaches the client.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    console.error('[unhandled]', err);
     if (res.headersSent) return;
+    if (err instanceof MulterError && err.code === 'LIMIT_FILE_SIZE') {
+      res.status(413).json({ success: false, error: 'הקובץ גדול מדי' });
+      return;
+    }
+    console.error('[unhandled]', err);
     res.status(500).json({ success: false, error: GENERIC_SERVER_ERROR });
   });
 

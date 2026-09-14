@@ -12,7 +12,7 @@ import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { FileUpload } from '@/components/ui/file-upload';
 import { FileGallery } from '@/components/ui/file-gallery';
 import { Input } from '@/components/ui/input';
-import { BackLink } from '@/components/ui/back-link';
+import { PageHeader } from '@/components/ui/page-header';
 import { cn, formatDate, formatDateTime, isOverdue, toExternalUrl } from '@/lib/utils';
 import { getApiErrorMessage } from '@/lib/errors';
 import { useTeacherRequest } from '@/hooks/useTeacherRequest';
@@ -53,15 +53,12 @@ export default function StudentLessonDetailPage() {
 
   return (
     <div className="space-y-5" dir="rtl">
-      <div className="border-b border-rule pb-3">
-        <BackLink to={`/student/courses/${lesson.courseId}`} label="חזרה לקורס" className="mb-2" />
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{lesson.topic}</h1>
-            {lesson.lessonDate && (
-              <p className="mt-1 font-sans text-xs text-ink/60">{formatDate(lesson.lessonDate)}</p>
-            )}
-          </div>
+      <PageHeader
+        title={lesson.topic}
+        meta={lesson.lessonDate ? formatDate(lesson.lessonDate) : undefined}
+        back={`/student/courses/${lesson.courseId}`}
+        backLabel="חזרה לקורס"
+        actions={
           <button
             onClick={() => progressMutation.mutate(!lesson.completed)}
             disabled={progressMutation.isPending}
@@ -73,8 +70,8 @@ export default function StudentLessonDetailPage() {
             <Check size={15} strokeWidth={3} />
             {lesson.completed ? 'הושלם — בטלי סימון' : 'סיימתי את השיעור'}
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Reading column sits beside the assignments column on wide screens and stacks
           into a single column on narrow screens, keeping the same read order either way. */}

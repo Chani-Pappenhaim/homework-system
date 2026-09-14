@@ -14,6 +14,17 @@ import type { PendingAssignment } from '@/types';
 const CARD_ACCENTS = ['clay', 'indigo', 'sage', 'butter', 'coral'] as const;
 const TAPES = ['clay', 'sage', 'indigo', 'butter'] as const;
 
+// Every class Tailwind's production build needs to see must appear as a
+// literal string somewhere in source — `` `bg-${accent}` `` is invisible to
+// the scanner and gets purged. This map makes each combination literal.
+const ACCENT_CLASSES: Record<(typeof CARD_ACCENTS)[number], { bar: string; text: string; bg: string }> = {
+  clay: { bar: 'before:bg-clay', text: 'text-clay', bg: 'bg-clay' },
+  indigo: { bar: 'before:bg-indigo', text: 'text-indigo', bg: 'bg-indigo' },
+  sage: { bar: 'before:bg-sage', text: 'text-sage', bg: 'bg-sage' },
+  butter: { bar: 'before:bg-butter', text: 'text-butter', bg: 'bg-butter' },
+  coral: { bar: 'before:bg-coral', text: 'text-coral', bg: 'bg-coral' },
+};
+
 export default function StudentHomePage() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
@@ -101,7 +112,7 @@ export default function StudentHomePage() {
                 className={cn(
                   'sheet lift relative p-4 pr-5 text-right',
                   'before:absolute before:inset-y-3 before:right-0 before:w-1 before:rounded-full',
-                  `before:bg-${accent}`,
+                  ACCENT_CLASSES[accent].bar,
                 )}
               >
                 <Tape color={tape} rotate={i % 2 ? 4 : -4} className="-top-2 left-6 w-14" />
@@ -110,10 +121,10 @@ export default function StudentHomePage() {
                 <div className="mt-4">
                   <div className="mb-1 flex items-center justify-between text-[11px]">
                     <span className="text-ink-soft">{done}/{total} הושלמו</span>
-                    <span className={cn('font-semibold tabular', `text-${accent}`)}>{pct}%</span>
+                    <span className={cn('font-semibold tabular', ACCENT_CLASSES[accent].text)}>{pct}%</span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-ground">
-                    <div className={cn('h-full rounded-full transition-all', `bg-${accent}`)} style={{ width: `${pct}%` }} />
+                    <div className={cn('h-full rounded-full transition-all', ACCENT_CLASSES[accent].bg)} style={{ width: `${pct}%` }} />
                   </div>
                 </div>
               </button>

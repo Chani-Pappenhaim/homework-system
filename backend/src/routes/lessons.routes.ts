@@ -3,9 +3,7 @@ import { verifyAccessTokenMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/role';
 import * as lessonsController from '../controllers/lessons.controller';
 import { requireFile } from '../middleware/requireFile';
-import multer from 'multer';
-
-const upload = multer({ storage: multer.memoryStorage() });
+import { uploadAttachment as upload, uploadImport } from '../middleware/upload';
 
 const router = Router();
 router.use(verifyAccessTokenMiddleware);
@@ -22,7 +20,7 @@ router.post('/:id/files', requireRole('ADMIN'), upload.single('file'), lessonsCo
 // comment on submissions.routes for why the file never touches this server.
 router.post('/:id/upload-signature', requireRole('ADMIN'), lessonsController.getUploadSignature);
 router.delete('/:id/files/:fileId', requireRole('ADMIN'), lessonsController.deleteFile);
-router.post('/:id/import-md', requireRole('ADMIN'), upload.single('file'), requireFile, lessonsController.importMarkdown);
+router.post('/:id/import-md', requireRole('ADMIN'), uploadImport.single('file'), requireFile, lessonsController.importMarkdown);
 router.get('/:id/access', requireRole('ADMIN'), lessonsController.getLessonAccess);
 router.post('/:id/access', requireRole('ADMIN'), lessonsController.grantLessonAccess);
 router.post('/:id/access/bulk', requireRole('ADMIN'), lessonsController.grantLessonAccessBulk);

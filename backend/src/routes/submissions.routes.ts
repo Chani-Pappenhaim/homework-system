@@ -4,14 +4,13 @@ import { requireRole } from '../middleware/role';
 import { aiRateLimit } from '../middleware/rateLimit';
 import { requireFile } from '../middleware/requireFile';
 import * as submissionsController from '../controllers/submissions.controller';
-import multer from 'multer';
+import { uploadAttachment, uploadImport } from '../middleware/upload';
 
-const upload = multer({ storage: multer.memoryStorage() });
 const router = Router();
 router.use(verifyAccessTokenMiddleware);
 
-router.post('/import', requireRole('ADMIN'), upload.single('file'), requireFile, submissionsController.importSubmissions);
-router.post('/:id/submit', requireRole('STUDENT'), upload.single('file'), submissionsController.submit);
+router.post('/import', requireRole('ADMIN'), uploadImport.single('file'), requireFile, submissionsController.importSubmissions);
+router.post('/:id/submit', requireRole('STUDENT'), uploadAttachment.single('file'), submissionsController.submit);
 // Signed Cloudinary params for a video submission — the browser uploads directly
 // from here, so the file's bytes never pass through this server's memory.
 router.post('/:id/video-upload-signature', requireRole('STUDENT'), submissionsController.getVideoUploadSignature);

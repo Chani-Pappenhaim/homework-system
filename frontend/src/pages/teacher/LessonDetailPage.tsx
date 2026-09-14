@@ -168,17 +168,28 @@ export default function LessonDetailPage() {
           {assignment && (
             <div>
               {/* Assignment info */}
-              <div className="px-5 py-3 bg-ground/60 border-b border-rule/20 text-sm text-ink/70">
+              <div className="px-5 py-3 bg-ground/60 border-b border-rule/20">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="space-y-0.5">
-                    {assignment.description && <p className="mb-1">{assignment.description}</p>}
-                    {assignment.deadline && <p>מועד אחרון: <span className="font-medium text-ink">{formatDate(assignment.deadline)}</span></p>}
-                    {assignment.aiInstructions && (
-                      <p className="text-xs text-ink/50 mt-1">
-                        <span className="font-medium">הנחיות AI:</span> {assignment.aiInstructions}
-                      </p>
+                  <dl className="grid flex-1 grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
+                    {assignment.description && (
+                      <>
+                        <dt className="text-xs font-medium text-ink/50">תיאור</dt>
+                        <dd className="text-ink/80">{assignment.description}</dd>
+                      </>
                     )}
-                  </div>
+                    {assignment.deadline && (
+                      <>
+                        <dt className="text-xs font-medium text-ink/50">מועד אחרון</dt>
+                        <dd className="font-medium text-ink">{formatDate(assignment.deadline)}</dd>
+                      </>
+                    )}
+                    {assignment.aiInstructions && (
+                      <>
+                        <dt className="text-xs font-medium text-ink/50">הנחיות AI</dt>
+                        <dd className="text-xs text-ink/60">{assignment.aiInstructions}</dd>
+                      </>
+                    )}
+                  </dl>
                   <div className="flex gap-1 shrink-0">
                     <Button size="sm" variant="outline" onClick={() => setAssignmentModal(assignment)}>
                       <Edit size={12} />

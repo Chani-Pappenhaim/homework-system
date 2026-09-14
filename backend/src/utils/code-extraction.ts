@@ -48,7 +48,13 @@ export function extractZipCode(buffer: Buffer): string {
         CODE_EXTENSIONS.some((ext) => name.endsWith(ext)) &&
         !name.includes('node_modules/') &&
         !name.includes('dist/') &&
-        !name.includes('.min.')
+        !name.includes('.min.') &&
+        // Declared (uncompressed) size, read straight from the central
+        // directory — rejecting oversized entries here, before getData()
+        // inflates them, is what actually stops a zip bomb. Checking the
+        // decompressed text's length afterwards is too late: the inflate
+        // itself is the memory blowup.
+        entry.header.size <= MAX_FILE_CHARS
       );
     })
     .slice(0, MAX_FILES);
@@ -56,7 +62,6 @@ export function extractZipCode(buffer: Buffer): string {
   const contents: string[] = [];
   for (const entry of entries) {
     const text = entry.getData().toString('utf8');
-    if (text.length > MAX_FILE_CHARS) continue;
     contents.push(`--- ${entry.entryName} ---\n${text}`);
   }
 

@@ -1,7 +1,20 @@
 import jwt from 'jsonwebtoken';
 
-const ACCESS_SECRET = process.env.JWT_SECRET!;
-const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
+// A missing or guessable secret lets anyone forge a valid login token (ADMIN
+// included) — since jwt.sign/verify accept an empty string silently, this has
+// to be checked explicitly rather than relying on `!` to catch it at runtime.
+const PLACEHOLDER_VALUES = new Set(['secret', 'changeme', 'password', 'test', '123456']);
+
+function requireStrongSecret(envVar: string): string {
+  const value = process.env[envVar];
+  if (!value || value.trim().length < 16 || PLACEHOLDER_VALUES.has(value.trim().toLowerCase())) {
+    throw new Error(`${envVar} is missing or too weak — set a long random value before starting the server`);
+  }
+  return value;
+}
+
+const ACCESS_SECRET = requireStrongSecret('JWT_SECRET');
+const REFRESH_SECRET = requireStrongSecret('JWT_REFRESH_SECRET');
 
 export interface TokenPayload {
   userId: string;
