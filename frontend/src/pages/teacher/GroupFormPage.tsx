@@ -161,7 +161,7 @@ export default function GroupFormPage() {
     <div className="space-y-5" dir="rtl">
       <div className="border-b border-rule pb-3">
         <BackLink className="mb-2" />
-        <h1 className="font-display text-2xl font-bold text-ink md:text-3xl">{isEdit ? 'עריכת קבוצה' : 'קבוצה חדשה'}</h1>
+        <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{isEdit ? 'עריכת קבוצה' : 'קבוצה חדשה'}</h1>
       </div>
 
       {/* Form + Students — independent, equal-weight sections side by side on wide edit screens; a plain narrow form when creating */}

@@ -61,7 +61,7 @@
 1. Validate (student owns it, has GitHub/file, count < limit, not pending)
 2. `aiStatus = "pending"` → queue job
 3. Worker fetches code
-4. Gemini API (`gemini-2.0-flash`) עם system prompt → JSON: `{ code_review, verbal_review, score }`
+4. Gemini API (`gemini-3.6-flash`) עם system prompt → JSON: `{ code_review, verbal_review, score }`
 5. Save: `aiCodeReview`, `aiVerbalReview`, `aiScore`, `aiStatus="done"`, `aiReviewCount += 1`
 6. Log to `AiUsageLog`
 7. Error → `aiStatus = "error"`
@@ -158,7 +158,7 @@ JWT_REFRESH_SECRET=<64 chars>
 CLOUDINARY_CLOUD_NAME= | CLOUDINARY_API_KEY= | CLOUDINARY_API_SECRET=
 GITHUB_CLIENT_ID= | GITHUB_CLIENT_SECRET=
 GOOGLE_CLIENT_ID= | GOOGLE_CLIENT_SECRET=
-GEMINI_API_KEY= | GEMINI_MODEL=gemini-2.0-flash
+GEMINI_API_KEY= | GEMINI_MODEL=gemini-3.6-flash
 RESEND_API_KEY=
 SMTP_HOST= | SMTP_PORT=587 | SMTP_USER= | SMTP_PASS=
 FROM_EMAIL=noreply@yourdomain.com

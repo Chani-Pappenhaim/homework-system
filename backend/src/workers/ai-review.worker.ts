@@ -3,6 +3,7 @@ import type IORedis from 'ioredis';
 import { prisma } from '../config/prisma';
 import { reviewCode } from '../services/gemini.service';
 import { fetchGithubCode, extractZipCode, extractDocxText } from '../utils/code-extraction';
+import { toDeliveryUrl } from '../utils/storage';
 import type { AiReviewJobData } from '../infrastructure/queues/job-types';
 import { attachLifecycleLogging } from './worker-events';
 import { defaultWorkerOptions } from './worker-defaults';
@@ -35,9 +36,9 @@ export function registerAiReviewWorker(connection: IORedis): Worker<AiReviewJobD
         if (submission.githubUrl) {
           code = await fetchGithubCode(submission.githubUrl);
         } else if (submission.fileUrl && fileRef.endsWith('.zip')) {
-          code = extractZipCode(await downloadFile(submission.fileUrl));
+          code = extractZipCode(await downloadFile(toDeliveryUrl(submission.fileUrl)));
         } else if (submission.fileUrl && fileRef.endsWith('.docx')) {
-          code = await extractDocxText(await downloadFile(submission.fileUrl));
+          code = await extractDocxText(await downloadFile(toDeliveryUrl(submission.fileUrl)));
         } else {
           throw new Error(
             'Unsupported submission type for AI review: expected a GitHub URL, a .zip file, or a .docx file'

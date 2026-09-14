@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Download } from 'lucide-react';
+import { Download, ClipboardCheck } from 'lucide-react';
 import { gradesApi } from '@/api/grades.api';
 import { groupsApi } from '@/api/groups.api';
 import { coursesApi } from '@/api/courses.api';
@@ -14,6 +15,7 @@ import { unwrap } from '@/lib/api-utils';
 import type { ReportRow } from '@/types';
 
 export default function ReportsPage() {
+  const navigate = useNavigate();
   const [groupId, setGroupId] = useState('');
   const [courseId, setCourseId] = useState('');
   const [exportError, setExportError] = useState('');
@@ -96,12 +98,7 @@ export default function ReportsPage() {
       {/* Table */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-base font-bold">תוצאות</h2>
-            <span className="rounded-full bg-clay/15 px-2.5 py-0.5 font-sans text-[11px] font-bold text-clay">
-              {report.length}
-            </span>
-          </div>
+          <h2 className="font-display text-base font-bold">תוצאות ({report.length})</h2>
         </CardHeader>
         <div className="overflow-x-auto">
           {isLoading ? (
@@ -112,7 +109,7 @@ export default function ReportsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-rule bg-ground/70">
-                  {['תלמידה', 'קבוצה', 'קורס', 'שיעור', 'מטלה', 'מועד אחרון', 'הגשה', 'ציון הגשה', 'ציון תוכן'].map((h) => (
+                  {['תלמידה', 'קבוצה', 'קורס', 'שיעור', 'מטלה', 'מועד אחרון', 'הגשה', 'ציון הגשה', 'ציון תוכן', ''].map((h) => (
                     <th key={h} className="px-4 py-2.5 text-right font-sans text-[11px] font-bold uppercase text-ink/60">{h}</th>
                   ))}
                 </tr>
@@ -142,6 +139,15 @@ export default function ReportsPage() {
                       {r.contentScore != null
                         ? <span className="font-semibold text-ink">{r.contentScore}</span>
                         : <span className="text-ink/50">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigate(`/teacher/lessons/${r.lessonId}?assignmentId=${r.assignmentId}&submissionId=${r.submissionId}`)}
+                      >
+                        <ClipboardCheck size={12} /> בדיקה
+                      </Button>
                     </td>
                   </tr>
                 ))}

@@ -7,7 +7,7 @@ const geminiApiKey = () => process.env.GEMINI_API_KEY;
 // Google periodically retires model ids, which makes calls 404. Keep this
 // pinned to a model that currently exists; check the available models at
 // https://generativelanguage.googleapis.com/v1beta/models?key=... if it 404s.
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
 
 // Per-1M-token prices for GEMINI_MODEL, used only for the AI-usage cost report.
 // Env-tunable, but must be kept in sync with GEMINI_MODEL or the reported cost

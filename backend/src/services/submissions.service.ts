@@ -1,5 +1,5 @@
 import { prisma } from '../config/prisma';
-import { uploadBuffer, createUploadSignature } from '../utils/storage';
+import { uploadBuffer, createUploadSignature, toDeliveryUrl } from '../utils/storage';
 import { assertLessonAccess } from '../utils/access';
 import { computeSubmissionScore } from '../utils/grading';
 import { aiReviewQueue } from '../infrastructure/queues/queues';
@@ -170,7 +170,7 @@ export async function getMySubmissions(studentId: string) {
         lessonTopic: assignment.lesson.topic, courseName: assignment.lesson.course.name,
         submittedAt: sub.submittedAt, isLate: sub.isLate, notes: sub.notes,
         checklist: sub.checklist,
-        githubUrl: sub.githubUrl, fileUrl: sub.fileUrl, fileName: sub.fileName,
+        githubUrl: sub.githubUrl, fileUrl: sub.fileUrl ? toDeliveryUrl(sub.fileUrl) : sub.fileUrl, fileName: sub.fileName,
         ...toStudentAiView(sub),
         grade: grade ? { submissionScore: grade.submissionScore, contentScore: sub.aiApproved ? grade.contentScore : null, feedback: grade.feedback, checklist: grade.checklist } : null,
       });
@@ -195,13 +195,14 @@ export async function getSubmissionById(id: string, userId: string, role: string
   if (role !== 'ADMIN' && submission.studentId !== userId) {
     throw Object.assign(new Error('Forbidden'), { status: 403 });
   }
-  if (role === 'ADMIN') return submission;
+  const fileUrl = submission.fileUrl ? toDeliveryUrl(submission.fileUrl) : submission.fileUrl;
+  if (role === 'ADMIN') return { ...submission, fileUrl };
   // The content score is the teacher's call and stays hidden until she approves
   // the AI review; the submission score is always the student's to see.
   const grade = submission.grade
     ? { ...submission.grade, contentScore: submission.aiApproved ? submission.grade.contentScore : null }
     : submission.grade;
-  return { ...submission, grade, ...toStudentAiView(submission) };
+  return { ...submission, fileUrl, grade, ...toStudentAiView(submission) };
 }
 
 export async function requestAiReview(submissionId: string, studentId: string) {

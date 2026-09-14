@@ -1,5 +1,14 @@
 import { cloudinary } from '../config/cloudinary';
 
+/**
+ * Multer/busboy decode multipart `filename` headers as latin1, not utf8, so a
+ * non-ASCII original filename (e.g. Hebrew) arrives mojibake'd on
+ * `req.file.originalname`. Re-decoding the bytes as utf8 recovers it.
+ */
+export function fixMulterFilename(name: string): string {
+  return Buffer.from(name, 'latin1').toString('utf8');
+}
+
 export interface UploadedFile {
   url: string;
   bytes: number;
@@ -77,8 +86,12 @@ export function createUploadSignature(folder: string) {
 }
 
 /** Prisma returns sizeBytes as BigInt, which JSON.stringify throws on. */
-export function toFileDTO<T extends { sizeBytes?: bigint | null }>(file: T) {
-  return { ...file, sizeBytes: file.sizeBytes?.toString() ?? null };
+export function toFileDTO<T extends { sizeBytes?: bigint | null; url?: string }>(file: T) {
+  return {
+    ...file,
+    sizeBytes: file.sizeBytes?.toString() ?? null,
+    ...(file.url ? { url: toDeliveryUrl(file.url) } : {}),
+  };
 }
 
 export function extractPublicId(url: string): string | null {
@@ -86,7 +99,26 @@ export function extractPublicId(url: string): string | null {
   return match ? match[1] : null;
 }
 
-function resourceTypeFromUrl(url: string): string {
+export function resourceTypeFromUrl(url: string): string {
   const match = url.match(/\/(image|video|raw)\/upload\//);
   return match ? match[1]! : 'raw';
+}
+
+/**
+ * Cloudinary blocks unsigned delivery of 'raw' assets (docx/xlsx/zip/etc.) and
+ * of PDFs by default; a signed URL bypasses that restriction without needing
+ * an account-level toggle. Rebuilds it from the stored (unsigned) URL on every
+ * read rather than persisting a signed one, since a signature should always be
+ * freshly generated, not stored as if it were the file's permanent address.
+ */
+export function toDeliveryUrl(url: string): string {
+  const publicId = extractPublicId(url);
+  if (!publicId) return url;
+  const formatMatch = url.match(/\.([a-zA-Z0-9]+)$/);
+  return cloudinary.url(publicId, {
+    resource_type: resourceTypeFromUrl(url),
+    format: formatMatch ? formatMatch[1] : undefined,
+    secure: true,
+    sign_url: true,
+  });
 }

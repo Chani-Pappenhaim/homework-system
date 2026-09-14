@@ -271,7 +271,7 @@ describe('submissions.service.getSubmissionById', () => {
   it('allows ADMIN to read any submission', async () => {
     const sub = { id: 'sub1', studentId: 'other' };
     p.submission.findUnique.mockResolvedValue(sub);
-    await expect(getSubmissionById('sub1', 'admin', 'ADMIN')).resolves.toBe(sub);
+    await expect(getSubmissionById('sub1', 'admin', 'ADMIN')).resolves.toMatchObject(sub);
   });
 
   it('allows the owning student', async () => {

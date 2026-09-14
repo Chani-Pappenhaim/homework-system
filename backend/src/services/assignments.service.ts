@@ -1,6 +1,7 @@
 import { prisma } from '../config/prisma';
 import { assertLessonAccess } from '../utils/access';
 import { cellText } from '../utils/excel';
+import { toDeliveryUrl } from '../utils/storage';
 import ExcelJS from 'exceljs';
 
 export async function getAssignments(lessonId: string, userId: string, role: string) {
@@ -84,7 +85,7 @@ export async function getAssignmentSubmissions(assignmentId: string) {
     submissions: submissions.map((s) => ({
       id: s.id, studentId: s.studentId,
       studentName: s.student.name, studentEmail: s.student.email,
-      fileUrl: s.fileUrl, fileName: s.fileName, githubUrl: s.githubUrl,
+      fileUrl: s.fileUrl ? toDeliveryUrl(s.fileUrl) : s.fileUrl, fileName: s.fileName, githubUrl: s.githubUrl,
       notes: s.notes,
       submittedAt: s.submittedAt, isLate: s.isLate,
       aiStatus: s.aiStatus, aiScore: s.aiScore, aiApproved: s.aiApproved,

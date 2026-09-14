@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Github, Edit, Trash2, Plus } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
@@ -24,6 +24,7 @@ import type { AssignmentDTO, SubmissionDTO } from '@/types';
 export default function LessonDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const qc = useQueryClient();
   const toast = useToast();
   const [selectedAssignment, setSelectedAssignment] = useState(0);
@@ -38,6 +39,16 @@ export default function LessonDetailPage() {
 
   const lesson = lessonData?.data.data.lesson;
   const assignment = lesson?.assignments[selectedAssignment];
+
+  // Deep-link from the grades report ("open for review"): land straight on the
+  // right assignment tab instead of making the teacher hunt for it manually.
+  const targetAssignmentId = searchParams.get('assignmentId');
+  const targetSubmissionId = searchParams.get('submissionId') ?? undefined;
+  useEffect(() => {
+    if (!lesson || !targetAssignmentId) return;
+    const i = lesson.assignments.findIndex((a) => a.id === targetAssignmentId);
+    if (i >= 0) setSelectedAssignment(i);
+  }, [lesson, targetAssignmentId]);
 
   const uploadFileMutation = useMutation({
     mutationFn: (vars: { file: File; name?: string }) => lessonsApi.uploadFile(id!, vars.file, vars.name),
@@ -70,37 +81,37 @@ export default function LessonDetailPage() {
 
   return (
     <div className="space-y-5" dir="rtl">
-      <BackLink to={`/teacher/courses/${lesson.courseId}`} label="חזרה לקורס" />
+      <div className="border-b border-rule pb-3">
+        <BackLink to={`/teacher/courses/${lesson.courseId}`} label="חזרה לקורס" className="mb-2" />
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{lesson.topic}</h1>
+            {lesson.lessonDate && <p className="mt-1 text-sm text-ink/70">{formatDate(lesson.lessonDate)}</p>}
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {lesson.hidden && <Badge variant="warning">מוסתר</Badge>}
+            <Button size="sm" variant="outline" onClick={() => setLessonEditOpen(true)}>
+              <Edit size={12} /> ערוך שיעור
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              loading={deleteLessonMutation.isPending}
+              onClick={() => {
+                if (confirm(`למחוק את השיעור "${lesson.topic}"? כל המטלות, ההגשות והקבצים של השיעור יימחקו לצמיתות.`)) {
+                  deleteLessonMutation.mutate();
+                }
+              }}
+            >
+              <Trash2 size={12} /> מחק שיעור
+            </Button>
+          </div>
+        </div>
+      </div>
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:items-start">
       <div className="space-y-5 lg:col-span-2">
       {/* Lesson content */}
       <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="font-display text-2xl font-bold text-ink">{lesson.topic}</h1>
-              {lesson.lessonDate && <p className="text-sm text-ink/70 mt-0.5">{formatDate(lesson.lessonDate)}</p>}
-            </div>
-            <div className="flex items-center gap-2">
-              {lesson.hidden && <Badge variant="warning">מוסתר</Badge>}
-              <Button size="sm" variant="outline" onClick={() => setLessonEditOpen(true)}>
-                <Edit size={12} /> ערוך שיעור
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                loading={deleteLessonMutation.isPending}
-                onClick={() => {
-                  if (confirm(`למחוק את השיעור "${lesson.topic}"? כל המטלות, ההגשות והקבצים של השיעור יימחקו לצמיתות.`)) {
-                    deleteLessonMutation.mutate();
-                  }
-                }}
-              >
-                <Trash2 size={12} /> מחק שיעור
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
         <CardContent className="space-y-4">
           {lesson.contentMd
             ? <MarkdownRenderer content={lesson.contentMd} />
@@ -181,7 +192,12 @@ export default function LessonDetailPage() {
                 </div>
               </div>
 
-              <AssignmentSubmissionsTable assignmentId={assignment.id} onGrade={setGradeModal} />
+              <AssignmentSubmissionsTable
+                assignmentId={assignment.id}
+                onGrade={setGradeModal}
+                autoOpenSubmissionId={assignment.id === targetAssignmentId ? targetSubmissionId : undefined}
+                onAutoOpenHandled={() => setSearchParams((p) => { p.delete('assignmentId'); p.delete('submissionId'); return p; }, { replace: true })}
+              />
             </div>
           )}
         </Card>

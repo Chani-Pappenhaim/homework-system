@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Github, Paperclip, Edit } from 'lucide-react';
 import { assignmentsApi } from '@/api/assignments.api';
@@ -7,9 +8,12 @@ import { formatDateTime } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import type { SubmissionDTO } from '@/types';
 
-export function AssignmentSubmissionsTable({ assignmentId, onGrade }: {
+export function AssignmentSubmissionsTable({ assignmentId, onGrade, autoOpenSubmissionId, onAutoOpenHandled }: {
   assignmentId: string | undefined;
   onGrade: (submission: SubmissionDTO) => void;
+  /** Deep-link support: open this submission's grade modal as soon as it loads. */
+  autoOpenSubmissionId?: string;
+  onAutoOpenHandled?: () => void;
 }) {
   const { data: submissionsData } = useQuery({
     queryKey: ['submissions', assignmentId],
@@ -17,6 +21,18 @@ export function AssignmentSubmissionsTable({ assignmentId, onGrade }: {
     enabled: Boolean(assignmentId),
   });
   const submissions: SubmissionDTO[] = unwrap(submissionsData)?.submissions ?? [];
+
+  // Fire once per deep-link — without the ref, a later refetch (e.g. after
+  // grading) would find the same id again and re-open the modal on its own.
+  const openedRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!autoOpenSubmissionId || openedRef.current === autoOpenSubmissionId) return;
+    const match = submissions.find((s) => s.id === autoOpenSubmissionId);
+    if (!match) return;
+    openedRef.current = autoOpenSubmissionId;
+    onGrade(match);
+    onAutoOpenHandled?.();
+  }, [autoOpenSubmissionId, submissions, onGrade, onAutoOpenHandled]);
 
   return (
     <div className="overflow-x-auto">

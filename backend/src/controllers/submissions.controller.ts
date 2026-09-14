@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as submissionsService from '../services/submissions.service';
 import { sendError } from '../utils/http';
+import { fixMulterFilename } from '../utils/storage';
 
 interface SubmissionPayload {
   repoName?: string;
@@ -27,7 +28,7 @@ function buildSubmissionPayload(req: Request): SubmissionPayload | null {
   }
   if (req.file) {
     return {
-      file: { buffer: req.file.buffer, originalName: req.file.originalname, mimeType: req.file.mimetype },
+      file: { buffer: req.file.buffer, originalName: fixMulterFilename(req.file.originalname), mimeType: req.file.mimetype },
       notes,
       checklist,
     };

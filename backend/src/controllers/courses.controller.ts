@@ -1,6 +1,7 @@
 ﻿import { Request, Response } from 'express';
 import * as coursesService from '../services/courses.service';
 import { sendError } from '../utils/http';
+import { fixMulterFilename } from '../utils/storage';
 
 export async function getCourses(req: Request, res: Response) {
   const courses = await coursesService.getCoursesForUser(req.user!.userId, req.user!.role);
@@ -77,7 +78,7 @@ export async function getUploadSignature(req: Request, res: Response) {
 export async function uploadFile(req: Request, res: Response) {
   try {
     const source = req.file
-      ? { buffer: req.file.buffer, mimeType: req.file.mimetype, originalName: req.file.originalname }
+      ? { buffer: req.file.buffer, mimeType: req.file.mimetype, originalName: fixMulterFilename(req.file.originalname) }
       : req.body.uploadedFile as { url: string; bytes: number; originalName: string } | undefined;
     if (!source) { res.status(400).json({ success: false, error: 'No file provided' }); return; }
     const file = await coursesService.uploadCourseFile(req.params.id as string, source, req.body.name);

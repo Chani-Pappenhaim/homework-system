@@ -2,6 +2,88 @@
 
 > קובץ זה עוקב אחרי מה שהושלם ומה שנשאר. יש לעדכן אותו בסוף כל שיחה שבה נעשתה עבודה.
 
+## 2026-09-14 — תוקן: קבצים לא-תמונה (docx/xlsx/zip) לא נצפים/מורדים
+
+**דיווח מחברה שבדקה את המערכת:** "הבחנים עובדים מצוין... א"א לראות או להוריד את הקבצים המועלים מלבד קבצי תמונה."
+
+**שורש הבעיה (אומת בקוד, לא בפרודקשן — אין גישה לדשבורד Cloudinary):** `uploadBuffer()` ב-[storage.ts](../backend/src/utils/storage.ts) מעלה עם `resource_type: 'auto'` — Cloudinary מסווג תמונות (וגם PDF) כ-`image`, אבל **docx/xlsx/pptx/zip כ-`raw`**. מאז 2025 Cloudinary **חוסמת כברירת מחדל** גישה ציבורית-לא-חתומה ל-`raw` (ול-PDF לא-מסומן) — כל `secure_url` גולמי מחזיר 401. ה-frontend ([file-gallery.tsx](../frontend/src/components/ui/file-gallery.tsx)) היה תקין לגמרי — הבעיה הייתה רק ב-URL שחוזר מהשרת.
+
+**המשתמשת בחרה (מתוך 3 אופציות שהוצגו):** "מה מומלץ?" — הומלץ ויושם **שינוי קוד** (URL חתום, sign_url) על פני הגדרת דשבורד Cloudinary ("Allow delivery of PDF and ZIP files"), כי היא ביקשה גם שזה יעבוד חלק **וגם** שהקבצים לא יהיו חשופים ברשת ללא הרשאה — הגדרת הדשבורד הייתה חושפת את כל קבצי ה-raw/PDF בציבור.
+
+**התיקון:** פונקציה חדשה `toDeliveryUrl()` ב-storage.ts — משחזרת `public_id`/`resource_type`/`format` מה-URL הגולמי השמור (לא משנה מה שמור ב-DB), ומייצרת URL חתום טרי בכל קריאה דרך `cloudinary.url(..., { sign_url: true })`. יושם בכל נקודות היציאה ל-API: `toFileDTO` (קבצי שיעור/קורס, גם [lessons.service.ts](../backend/src/services/lessons.service.ts) וגם [courses.service.ts](../backend/src/services/courses.service.ts)), `submissions.service.ts` (3 מקומות: `getStudentAssignments`, `getSubmissionById` לשני התפקידים), `assignments.service.ts::getAssignmentSubmissions` (דוח הגשות למורה). **בונוס — נמצאה ותוקנה תקלה קשורה שלא דווחה:** [ai-review.worker.ts](../backend/src/workers/ai-review.worker.ts) הוריד קבצי zip/docx של תלמידות לבדיקת AI ישירות דרך `fetch(submission.fileUrl)` הגולמי — גם זה היה נכשל ב-401 על כל הגשה שאינה תמונה, כלומר **בדיקת AI על הגשות docx/zip הייתה שבורה בשקט** לפני התיקון.
+
+**אימות:** `tsc --noEmit` נקי (backend). `vitest run` — עודכן טסט אחד (`getSubmissionById` ADMIN, `toBe`→`toMatchObject` כי הפונקציה עכשיו תמיד מחזירה עותק חדש עם `fileUrl` חתום ולא את ה-reference המקורי — שינוי התנהגות מכוון). 268/274 עוברים; 6 הכשלים שנותרו **אומתו כקיימים-מראש** (courses/email/grades/groups/quizzes) — נבדק עם `git stash` שהם נכשלים גם על הקוד המקורי, כולל אחד (`courses.service`) שלא היה ברשימת "5 הכשלים" הידועה, ואומת שהוא נכשל בבידוד גם ללא השינוי (mock סדר-תלוי, לא regression).
+
+**⚠️ לא אומת מול Cloudinary אמיתי** (אין credentials/רשת בסביבת הסוכן) — צריך בדיקה ידנית בפרודקשן/staging: להעלות קובץ docx/zip לשיעור או הגשה, לוודא שהצפייה/הורדה עובדת ושה-URL בתגובת ה-API מכיל `s--...--` (חתימה).
+
+**נשאר לעשות:**
+- **לבדוק בפועל** (דפדפן, אחרי דיפלוי) שההורדה/צפייה בקבצי docx/xlsx/zip עובדת.
+- **לבדוק שבדיקת AI על הגשות zip/docx עובדת** אחרי התיקון (הייתה שבורה בשקט קודם).
+- ⚠️ **פרצה שנמצאה ע"י סוכן אבטחה (טרם תוקנה):** ל-`toDeliveryUrl()` אין `expires_at` — ה-URL החתום תקף **לצמיתות**, כלומר מי שתפס אותו יכול לגשת לקובץ תמיד, לא רק לזמן קצר. צריך להוסיף `expires_at` קצר (60-120 שניות) כתיקון מיידי, ובנוסף לבנות endpoint משלנו (`GET /api/files/:type/:id`) שעושה 302 redirect אחרי בדיקת הרשאה אמיתית (authn+authz דרך `verifyAccessTokenMiddleware`+`getSubmissionById`/`assertLessonAccess`/`assertCourseAccess` הקיימים) — כרגע כל מי שמחזיק את ה-URL הגולמי נכנס בלי שום בדיקה מול המערכת שלנו. **המשתמשת ביקשה לדחות את זה לשיחה הבאה** ("תזכיר בהמשך").
+
+**דווח בשיחה זו (המשך אותה שיחה, 2026-09-14) — עוד 3 נושאים:**
+
+1. **תוקן:** דוח ציונים (`/teacher/reports`, `ReportsPage.tsx`) היה **טבלה read-only בלבד** — אין שום דרך ללחוץ ולפתוח הגשה ספציפית לבדיקה/ציון/AI review, למרות שזה בדיוק המסך שנקרא "ציונים" בתפריט וזה איפה שמורה מצפה לבדוק הגשה. ה-UI האמיתי לבדיקה (`GradeModal`) קיים רק בתוך `teacher/LessonDetailPage.tsx` דרך שיעור→מטלה→`AssignmentSubmissionsTable`. **תוקן:** נוסף כפתור "בדיקה" לכל שורה בדוח שמנווט ל-`/teacher/lessons/:lessonId?assignmentId=...&submissionId=...`; `LessonDetailPage` קורא את הפרמטרים, בוחר את המטלה הנכונה, ומעביר `autoOpenSubmissionId` ל-`AssignmentSubmissionsTable` שפותח את `GradeModal` אוטומטית ברגע שההגשה נטענת (ref שמונע פתיחה חוזרת). דרש הוספת `submissionId`/`lessonId`/`assignmentId` ל-`ReportRow` וללולאת המיפוי ב-`grades.service.ts::getReport` (השדות כבר נטענו דרך `include`, רק לא הוחזרו). `tsc --noEmit` נקי בשני הצדדים.
+
+2. **תוקן:** `DevSignature.tsx` — שתי המפתחות הוצגו עם roles שונים ("Backend Engineer"/"Frontend Engineer"); שונה לשתיהן ל-"Developer" אחיד. אנימציית ה-typewriter (`globals.css`, `.dev-signature-text`) הייתה `forwards` (רצה פעם אחת, נעצרת בסוף, דורשת רענון דף כדי לרוץ שוב) — שונתה ל-`infinite` עם keyframes שמקלידות, עוצרות (קריא), מוחקות, עוצרות ריק, וחוזרות בלולאה.
+
+3. **אובחן (טרם תוקן — מחכה להחלטת המשתמשת):** תלונה "כל פעם שאני מתחברת כתוב שהשרת מתעורר, למרות שהוא אמור להיות ער". **נבדק בפועל מול GitHub API:** ל-`.github/workflows/keep-alive.yml` יש cron של כל 10 דקות בחלון שעות פעיל (04:00-20:59 UTC רוב הימים) — אבל **בפועל הוא לא רץ כל 10 דקות**: נבדקו 30 הרצות אחרונות (`GET /repos/.../actions/workflows/keep-alive.yml/runs`) והפער בין הרצות הוא **2-12 שעות**, לא 10 דקות. זה תואם תיעוד ידוע של GitHub Actions: cron מתוזמן הוא "best-effort" ומתעכב/נזרק משמעותית ב-repos בפעילות נמוכה — **גם ב-repo ציבורי**, לא רק בגלל מכסת דקות של repo פרטי. **המסקנה: ה-keep-alive הנוכחי לא אמין**, ולכן Render כן נרדם בפועל גם בתוך "שעות הפעילות" המוגדרות, וכל התחברות אחרי פער כזה נתקלת ב-cold start אמיתי (לא false positive של הבאנר — הבאנר עובד נכון, השרת באמת ישן).
+   - **המלצה שהוצגה למשתמשת:** להחליף (או להוסיף כגיבוי) שירות ping חיצוני ייעודי (UptimeRobot / cron-job.org) שפונה ל-`https://homework-system-3haq.onrender.com/api/health` כל 5-10 דקות — שירותים כאלה בנויים ספציפית למרווחים אמינים, בניגוד ל-cron של GitHub Actions. **לא בוצע** — דורש יצירת חשבון בשירות חיצוני, וזו פעולה שהמשתמשת צריכה לעשות בעצמה (לא פעולה שסוכן AI יכול/צריך לבצע). **המשתמשת ביקשה לדחות גם את זה** ("תדחוף... וחכה עם האבטחה" התייחס לפרצת ה-URL, אבל נושא ה-keep-alive עדיין פתוח ולא סוכם מפורשות).
+   - **הופעלו 2 סוכני ארכיטקטורה ברקע** (טרם חזרו בזמן כתיבת שורות אלה) לבדוק פריסה/עיצוב של **כל** העמודים (מורה+תלמידה) מול פרקטיקות מקובלות — ראה תוצאות בהמשך הקובץ כשיעודכנו.
+
+**קומיט:** התיקון המקורי (toDeliveryUrl) + 3 התיקונים החדשים למעלה **נדחפו יחד** בקומיט נפרד (ראה `git log`) — לא כולל את שאר הקבצים שהיו כבר ב-working tree לפני השיחה הזו (controllers/services/frontend pages אחרים, `.env.example`, `SPEC_business_rules.md`) — אלה עדיין ממתינים, לא נגעתי בהם.
+
+---
+
+## 2026-09-08 — Supabase השתעה (עצמאית מ-Render), פיצ'ר AI שבור בפרודקשן + 3 באגים נוספים תוקנו
+
+**רקע:** האתר חזר לעבוד אחרי איפוס מכסת ה-bandwidth של Render (חודש חדש), אבל התגלה **גורם השעיה שני, עצמאי לגמרי**: **פרויקט Supabase (Postgres) בתוכנית החינמית נכנס למצב Paused** מחוסר פעילות (מכסה נפרדת לגמרי מ-Render). זה גרם ל-loop אינסופי של נסיונות migration ב-Render עם `FATAL: (ENOTFOUND) tenant/user ... not found`. **המשתמשת שחזרה את הפרויקט ידנית** בדשבורד של Supabase — אחרי זה ה-deploy הבא הצליח מיד. **לקח:** כשה-DB הוא Supabase free-tier, יש **שתי** מכסות עצמאיות שיכולות להשעות את האתר (Render bandwidth/hours + Supabase project pause) — כדאי לבדוק את שתיהן באבחון עתידי, לא רק את Render.
+
+**🐛 באג אמיתי שנמצא בבדיקת "כל הפיצ'רים": פיצ'ר ה-AI כולו שבור בפרודקשן.** ניסיון ליצור בוחן AI (`/teacher/lessons/:id/quiz/new`) נכשל עם `Gemini API error: 404 — the model "gemini-2.0-flash" is not available`. **שורש הבעיה:** משתנה הסביבה `GEMINI_MODEL` ב-Render היה מוגדר ידנית ל-`gemini-2.0-flash` (גוגל הוציאה אותו משימוש), **דורס** את ברירת המחדל בקוד. גוגל עצמה המליצה ב-הודעת השגיאה על `gemini-3.6-flash`. **תוקן בקוד** (ברירת המחדל ב-[gemini.service.ts](../backend/src/services/gemini.service.ts) ובכל קבצי `.env.example`/מפרט) — **אבל עדיין צריך לעדכן ידנית את `GEMINI_MODEL=gemini-3.6-flash` ב-Environment Variables של Render** (המשתמשת טרם אישרה שעשתה זאת). זה משפיע גם על **בדיקת AI של הגשות תלמידות** — שני הפיצ'רים חולקים את אותו `GEMINI_MODEL`/`callGemini`.
+
+**הבהרה על ה-UI:** בדיקת AI על הגשה **מופעלת ע"י התלמידה** (`POST /submissions/:id/request-ai-review`, `requireRole('STUDENT')` בכוונה) — **אין ואסור שיהיה** כפתור "הרץ בדיקת AI" בצד המורה; המורה רק מאשר/מאפשר-נוסף/מחזיר לציון AI קיים (ב-`GradeModal.tsx`). זה עיצוב מכוון, לא באג.
+
+**עוד 2 באגים תוקנו (זוהו לפני התיקון, לפי דרישת המשתמשת "עדכני לפני שינויים"):**
+1. **שמות קבצים בעברית → ג'יבריש (`×××.png`).** Multer מפענח `filename` מרובה-חלקים כ-latin1 כברירת מחדל. תוקן: פונקציה חדשה `fixMulterFilename()` ב-[storage.ts](../backend/src/utils/storage.ts) (latin1→utf8), מופעלת ב-3 הקונטרולרים שקוראים `req.file.originalname` (`submissions`, `lessons`, `courses`). אומת (ע"י סוכן) שאין מקום נוסף שקורא originalname, ושראוטים של ייבוא Excel (`groups`/`assignments`/`submissions` import) לא חשופים כי הם קוראים רק buffer, לא originalname.
+2. **"0MB מתוך 0MB" ב-`/teacher/ai-usage`.** שורש: Cloudinary Admin API על תוכניות מבוססות-קרדיטים (free tier נוכחי) **לא מחזיר `storage.limit`** בכלל (רק `credits.limit`/`credits.used_percent`), ושם השדה לבייטים הוא `storage.usage`, לא `storage.used_bytes` (אומת מול תיעוד/מאמרי-עומק של Cloudinary דרך WebSearch). תוקן ב-[ai-usage.service.ts](../backend/src/services/ai-usage.service.ts) וב-[storage-check.ts](../backend/src/workers/storage-check.ts) — `usedBytes` מ-`storage.usage`, `limitBytes` נגזר מ-`credits.limit * 1GB` כשאין `storage.limit` ישיר, `percent` מ-`credits.used_percent`.
+
+**אחידות עיצוב מורה/תלמידה — סבב שני (סוכן ארכיטקטורה נפרד):** אחרי שסוכן קודם תיקן גריד 2→3 עמודות ב-`CoursesPage.tsx` (להתאים ל-`GroupsPage`/`student/HomePage`), הופעל סוכן חדש שעבר על **כל** 18 העמודים תחת `teacher/`+`student/` וכל קומפוננטות ה-UI המשותפות. מצא ותיקן: כותרות `font-bold` שהיו צריכות להיות `font-black` (5 קבצים, לא עקביים עם `PageHeader` המשותף), `teacher/LessonDetailPage.tsx` היה היחיד בלי בלוק-כותרת `border-b` נפרד (היה בתוך Card, ראה [git diff](../frontend/src/pages/teacher/LessonDetailPage.tsx) — הועבר לפי התבנית של שאר עמודי הפרטים), badge-ספירה לא-עקבי ב-`ReportsPage` (הוחלף לספירה inline כמו בכל שאר הכרטיסים), `space-y-4` יחיד בשני עמודי הודעות (הוחלף ל-`space-y-5` הסטנדרטי). **לא נגע**: הבדל breakpoint ב-`AiUsagePage` מול `HomePage` (נשקל מכוון, לא drift), `EmptyState` לא-אחיד בכמה עמודי טופס (לא הפרת-דפוס אמיתית). `tsc --noEmit` נקי בשני הצדדים אחרי כל התיקונים.
+
+**נשאר לעשות:**
+- **המשתמשת צריכה לעדכן `GEMINI_MODEL=gemini-3.6-flash` ב-Render** (Environment Variables) — עד אז פיצ'ר ה-AI (בוחנים + בדיקת הגשות) עדיין שבור בפרודקשן.
+- שום דבר מהתיקונים בשיחה הזו **לא בוצע commit/push** — הכל עדיין ב-working tree בלבד (frontend: 9 קבצים, backend: 6 קבצים, + 3 קבצי `.env.example`/מפרט). לתאם עם המשתמשת מתי לעשות commit ולפרוס.
+- לא נבדק אם קיים migration תלוי (`prisma migrate`) — השינויים בשיחה הזו הם קוד בלבד, לא נגעו ב-schema.
+
+---
+
+## 2026-08-25 — השרת מושעה: אבחון (Render, לא רק Redis) + מיזוג ענק + תיקון bandwidth
+
+**התסמין:** האתר לא עבד (`https://homework-system-3haq.onrender.com` מחזיר 503). המשתמשת שאלה גם "למה נגמרה המכסה, זה היה אמור להספיק".
+
+**אבחון בשני שלבים — טעות ראשונה שתוקנה בעזרת המשתמשת:**
+1. בהתחלה חשבתי שזו מכסת **750 שעות instance/חודש** (Render Free) שנגמרה בגלל `.github/workflows/keep-alive.yml` (פינג כל 10 דק' 24/7 מאז 24/07 — ראה [[git-workflow]]). זה תיקון אמיתי ונחוץ, **אבל לא היה הגורם בפועל** — המשתמשת בדקה בעצמה בדשבורד: 323.77/750 שעות, פחות ממחצית.
+2. המשתמשת הדביקה את הודעת השגיאה האמיתית מ-Render: `"You've used the 5 GB of free bandwidth in your Hobby workspace"`. גיליתי (WebFetch על render.com/docs) ש-Render שינתה תוכניות ב-**23/04/2026** ("New Workspace Plans") — **הורידה את מכסת ה-bandwidth החינמית מ-100GB ל-5GB/חודש**. זו מכסה **נפרדת** מהשעות, וזו שגרמה בפועל להשעיה.
+3. **אישור סופי מהדשבורד** (צילום מסך מהמשתמשת): `6.85GB/5GB` נוצל, מתוכו **`HTTP Responses` (תעבורה אמיתית למשתמשות) רק 4MB** — כל השאר (`Service-Initiated`, 6.85GB) זו תעבורה שה**שרת עצמו יוזם** כלפי שירותים חיצוניים.
+
+**שורש ה-bandwidth — אומת בקוד:** `uploadBuffer()` ב-[storage.ts](../backend/src/utils/storage.ts) בונה את הקובץ כ-base64 (גדול ב-33%) ושולחת POST **מ-Render עצמו** ל-Cloudinary — זו בדיוק "Service-Initiated". רק זרימת **וידאו בהגשות** תוקנה ב-31/07 לעקוף את זה (upload ישיר מהדפדפן). קבצי **שיעור/קורס** (`lessons.service.ts`/`courses.service.ts`) עדיין עברו במלואם דרך Render — קובץ גדול אחד (מצגת/וידאו) יכול לבד להסביר את כל ה-6.85GB.
+
+**✅ תוקן (קומיט נפרד `1e3811e`):** `lessons.service.uploadLessonFile`/`courses.service.uploadCourseFile` מקבלים עכשיו גם `{url,bytes,originalName}` (מדלגים על `uploadBuffer`), route חדש `POST /lessons(courses)/:id/upload-signature` (ADMIN, `createUploadSignature` הקיים), ו-`lessonsApi.uploadFile`/`coursesApi.uploadFile` בפרונט עברו ל-upload ישיר לדפדפן→Cloudinary (מראה זהה ל-`submitVideo`). **לא נגעתי** בהגשות לא-וידאו/ייבוא אקסל (groups/assignments/submissions) — קבצים קטנים, לא הגורם.
+
+**✅ תוקן (קומיט נפרד ב-keep-alive.yml):** חלון שעות מוגבל (04:00-20:59 UTC ברוב הימים) **+ שינה מלאה בשבת** (שישי מ-04:00-12:59 UTC, שבת חוזר לפעילות רק ב-17:00 UTC — לפי בקשת המשתמשת) — מוריד משימוש כמעט-מקסימלי (~744 שעות) ל-~400-430 שעות/חודש. זה תיקון למכסת השעות (סיכון משני, לא הגורם להשעיה הפעם) — **לא נבדק עדיין אם 5GB יתאפס בעצמו בתחילת המחזור הבא, או אם צריך כרטיס אשראי/שדרוג ל-Pro (25GB) כדי להחזיר את השירות עכשיו**.
+
+---
+
+## מיזוג `origin/main` (26 קומיטים) ← `main` המקומי (קומיט `f14fb72`, רפקטורינג 16/08) — קומיט `7255f15`
+
+git pull יצר קונפליקט ב-15 קבצים (local היה קומיט אחד מאחורי origin שהתקדם 26 קומיטים: בוחן בבעלות מורה, תיקון Redis idle-commands נוסף, איפוס סיסמה+תעודות נטפרי, טעינה איטית quiz). **עקרון עבודה: לשלב את שני הצדדים, לא לבחור אחד ולזרוק את השני** (המשתמשת ביקשה זאת מפורשות תוך כדי) — פירוט מלא בהיסטוריית הקומיט `7255f15`, תמצית:
+
+- **`students.*`/`quizzes.api.ts`**: שני הצדדים הוסיפו endpoint/פיצ'ר **שונה** על אותו קובץ חדש (חיפוש-לפי-email מול חיפוש-לפי-שם; מודל בוחן ישן מול בוחן-בבעלות-מורה) — שולבו שניהם, לא נבחר צד.
+- **⚠️ גילוי חשוב: git מיזג "בלי קונפליקט" לפעמים באופן שגוי** — ב-`gemini.service.ts` ו-`types/index.ts` שני הצדדים הוסיפו פונקציה/טיפוס **באותו שם** (`callGemini`, `QuizResultsDTO`) במיקום קרוב אך לא חופף, וגיט שילב את שניהם **ברצף בלי לסמן קונפליקט** — קוד כפול שלא היה מתקמפל בכלל. זוהה רק ע"י `grep` לזיהוי הצהרות כפולות אחרי כל מיזוג נקי-לכאורה. **לקח לשיחות הבאות: אחרי כל מיזוג, לבדוק גם קבצים שמוזגו "בלי קונפליקט" אם יש בהם שמות כפולים.**
+- **`LessonAccessPanel.tsx`/`LessonEditModal.tsx`/`QuizResultsCard.tsx`**: הקומפוננטות שפוצלו ב-16/08 היו מבוססות על מודל **ישן** (גישה לפי email יחיד, `githubUrl` יחיד, בוחן ללא בעלות-מורה) — לא רק "לקחתי צד", **עדכנתי את הקומפוננטות** להכיל את הפיצ'רים החדשים של origin (טאבים תלמידה/קבוצה/קובץ, `MultiUrlInput`+`githubUrls`, כרטיס בוחן שמפנה ל-`/teacher/quiz/:id`) — אחרת היה אובדן פיצ'רים אמיתי בשקט.
+- **`messages.service.ts`**: `EmailJobMap` קיבל `messageId`/`studentEmail` חדשים (חובה) מ-origin (פיצ'ר `?highlight=`) — תוקן אחרי `tsc` (לא היה קונפליקט git על זה, רק type error).
+- **אימות:** `prisma generate` נדרש אחרי המיזוג (schema השתנה, client היה מיושן — כל שגיאות ה-tsc הראשוניות בבאקנד נעלמו אחרי זה). `tsc` נקי בשני הצדדים. בדיקות: backend 269/274 (5 כשלים קיימים-מראש, לא קשור), frontend — כשל אמיתי אחד נמצא ותוקן (`TeacherLessonDetailPage.test.tsx` — mock עם `githubUrl` ישן במקום `githubUrls`), שאר הכשלים תואמים בדיוק לתיעוד הקיים מ-16/08 (Badge/Button/Card/Layouts/ReportsPage וכו').
+- **טרם נדחף** ל-origin — `main` המקומי 2 קומיטים לפני origin (`7255f15` מיזוג + `1e3811e` תיקון bandwidth).
+
 ## 20 תיקונים מ"תיקונים ותוספות.txt" (2026-07-31, branch `feature/homework-fixes-batch`, worktree נפרד — טרם מוזג ל-main)
 **⚠️ שוב התנגשות בין-סשנים (כמו למטה):** עבודה על branch נמשך נסחפה ל-stash כשעברו branch בתיקייה הראשית. שוחזר במלואו ב-worktree ייעודי (`homework-fixes-batch-worktree`), tsc נקי backend+frontend.
 **כל 20 הסעיפים מומשו:** ErrorBoundary גלובלי; `FileGallery` (רשת קבצים+preview בחלון צף, גם בהעלאה); הרשאה חריגה לשיעור לפי קבוצה/קובץ-מיילים + directory `/api/students` עם autocomplete; Google OAuth `prompt=select_account`; **forgot-password מלא** (token+email, `User.resetTokenHash/Expires` **שדה DB חדש**) + הצג-סיסמא בכל שדה; מחיקה מרובה+עריכת תלמידה+ConfirmDialog במקום `confirm()`; תוקן באג חסימת הוספת תלמידה שכבר בקבוצה אחרת; תוקן "[object Object]" בייבוא אקסל (hyperlink cells) + ולידציית מייל; קובץ-דוגמה להורדה בייבוא; קבצי Cloudinary נשמרים עם שם+סיומת אמיתיים; `Lesson.githubUrls String[]` **שדה DB חדש** (כמה קישורים) + גרירה לסידור שיעורים; טולטיפ נושא+רענון מיידי; תאריך דיפולטיבי+תאריך עברי (Intl, בלי ספרייה); מיון/סינון רשימת תלמידות; מיילים עם קישור ישיר להודעה (`?highlight=`) + mailto.

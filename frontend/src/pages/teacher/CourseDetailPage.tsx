@@ -72,7 +72,7 @@ export default function CourseDetailPage() {
       <div className="flex items-start justify-between border-b border-rule pb-3">
         <div>
           <BackLink className="mb-2" />
-          <h1 className="font-display text-2xl font-bold text-ink md:text-3xl">{course.name}</h1>
+          <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{course.name}</h1>
           <p className="text-ink/70 text-sm mt-0.5">{course.groupName} · {course.year}</p>
           {course.description && <p className="text-ink/70 text-sm mt-1">{course.description}</p>}
         </div>

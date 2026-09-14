@@ -1,6 +1,6 @@
 const DEVELOPERS = [
-  { name: 'Chani Pappenheim', role: 'Backend Engineer', email: 'c0556741517@gmail.com' },
-  { name: 'Tehila Aizental', role: 'Frontend Engineer', email: 't0556742276@gmail.com' },
+  { name: 'Chani Pappenheim', role: 'Developer', email: 'c0556741517@gmail.com' },
+  { name: 'Tehila Aizental', role: 'Developer', email: 't0556742276@gmail.com' },
 ] as const;
 
 /** A small typewriter-style credit line — light register only, no dark card. */

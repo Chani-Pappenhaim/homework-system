@@ -74,7 +74,7 @@ export default function StudentMessagesPage() {
   }, [searchParams, messages]);
 
   return (
-    <div className="space-y-4" dir="rtl">
+    <div className="space-y-5" dir="rtl">
       <PageHeader title="הודעה למורה" meta="חדר מורה · צ׳אט" />
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
       <Card accent="indigo">

@@ -21,9 +21,12 @@ function noContentMessage(role: string): string {
     : 'חסרים נתונים ליצירת הבוחן לשיעור זה. פני למורה כדי שתוסיף את תוכן השיעור.';
 }
 
-function failedMessage(role: string, reason?: string): string {
+// The real reason (provider errors, stack traces) is a developer-facing detail —
+// it goes to the server console (see worker-events.ts / the catch block below),
+// never to the client. Both roles get the same generic, actionable message.
+function failedMessage(role: string): string {
   return role === 'ADMIN'
-    ? `יצירת הבוחן נכשלה: ${reason || 'שגיאה לא ידועה'}`
+    ? 'יצירת הבוחן נכשלה. נסי שוב מאוחר יותר; אם זה נמשך, פני לתמיכה הטכנית.'
     : 'יצירת הבוחן נכשלה. פני למורה.';
 }
 
@@ -139,17 +142,19 @@ export async function getQuiz(lessonId: string, userId: string, role: string) {
 
       const state = await job.getState();
       if (state === 'failed') {
-        const reason = job.failedReason;
+        // job.failedReason (the provider's raw error) already reached the server
+        // console via attachLifecycleLogging's 'failed' listener — no need to log it
+        // again here, and it must never reach the client (see failedMessage above).
         // Clear the id so the next generate request starts a fresh attempt.
         await job.remove().catch(() => {});
-        return { status: 'failed' as const, message: failedMessage(role, reason) };
+        return { status: 'failed' as const, message: failedMessage(role) };
       }
       if (state !== 'completed') return { status: 'generating' as const };
       await job.remove().catch(() => {});
     }
   } catch (err: any) {
     console.error('[quiz] could not read generation state for lesson', lessonId, err);
-    return { status: 'failed' as const, message: failedMessage(role, err?.message) };
+    return { status: 'failed' as const, message: failedMessage(role) };
   }
 
   return { status: 'none' as const };
@@ -189,7 +194,7 @@ export async function requestQuizGeneration(lessonId: string, role: string) {
     await quizQueue.add('generate', { lessonId, lessonContent: lesson.contentMd }, { jobId });
   } catch (err: any) {
     console.error('[quiz] could not enqueue generation for lesson', lessonId, err);
-    throw Object.assign(new Error(failedMessage(role, err?.message)), { status: 502 });
+    throw Object.assign(new Error(failedMessage(role)), { status: 502 });
   }
 
   return { status: 'generating' as const };

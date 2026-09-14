@@ -7,12 +7,22 @@ export interface StorageUsage {
   percent: number;
 }
 
-/** Returns current storage usage from the Cloudinary account. */
+/**
+ * Returns current storage usage from the Cloudinary account.
+ *
+ * Cloudinary's `usage()` response reports storage bytes under `storage.usage`
+ * (not `used_bytes`), and current (credit-based) plans don't report a
+ * storage-specific `storage.limit` at all — only a unified `credits.limit`
+ * shared across storage/bandwidth/transformations. 1 credit ≈ 1 GB storage,
+ * so we approximate the storage limit from the credits quota when a plan
+ * doesn't expose one directly.
+ */
 export async function getStorageUsage(): Promise<StorageUsage> {
   const usage = await cloudinary.api.usage();
-  const usedBytes = usage.storage?.used_bytes ?? 0;
-  const limitBytes = usage.storage?.limit ?? 0;
-  const percent = limitBytes > 0 ? (usedBytes / limitBytes) * 100 : 0;
+  const usedBytes = usage.storage?.usage ?? usage.storage?.used_bytes ?? 0;
+  const BYTES_PER_CREDIT = 1024 ** 3; // 1 credit ≈ 1 GB
+  const limitBytes = usage.storage?.limit ?? (usage.credits?.limit ? usage.credits.limit * BYTES_PER_CREDIT : 0);
+  const percent = usage.credits?.used_percent ?? (limitBytes > 0 ? (usedBytes / limitBytes) * 100 : 0);
   return { usedBytes, limitBytes, percent };
 }
 

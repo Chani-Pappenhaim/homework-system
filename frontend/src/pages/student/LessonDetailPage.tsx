@@ -57,7 +57,7 @@ export default function StudentLessonDetailPage() {
         <BackLink to={`/student/courses/${lesson.courseId}`} label="חזרה לקורס" className="mb-2" />
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="font-display text-2xl font-bold text-ink md:text-3xl">{lesson.topic}</h1>
+            <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{lesson.topic}</h1>
             {lesson.lessonDate && (
               <p className="mt-1 font-sans text-xs text-ink/60">{formatDate(lesson.lessonDate)}</p>
             )}

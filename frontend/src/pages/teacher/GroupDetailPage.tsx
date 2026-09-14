@@ -44,7 +44,7 @@ export default function GroupDetailPage() {
               <Users size={20} className="text-ink" />
             </div>
             <div>
-              <h1 className="font-display text-2xl font-bold text-ink md:text-3xl">{group.name}</h1>
+              <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{group.name}</h1>
             <p className="text-ink/70 text-sm mt-0.5">
               {group.seminar && <span>{group.seminar} · </span>}
               שנה"ל {group.year} · {group.students.length} תלמידות

@@ -33,6 +33,9 @@ export async function getReport(filters: { groupId?: string; courseId?: string }
   });
 
   return submissions.map((s) => ({
+    submissionId: s.id,
+    lessonId: s.assignment.lessonId,
+    assignmentId: s.assignmentId,
     studentName: s.student.name,
     studentEmail: s.student.email,
     groupName: s.student.studentGroups[0]?.group.name ?? '',

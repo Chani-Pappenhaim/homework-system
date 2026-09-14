@@ -240,6 +240,9 @@ export interface PendingAssignment {
 }
 
 export interface ReportRow {
+  submissionId: string;
+  lessonId: string;
+  assignmentId: string;
   studentName: string;
   studentEmail: string;
   groupName: string;
