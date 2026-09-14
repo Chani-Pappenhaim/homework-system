@@ -63,6 +63,13 @@ export function teacherReplyHtml(data: EmailJobMap['teacher-reply']): string {
   );
 }
 
+export function gradeApprovedHtml(data: EmailJobMap['grade-approved']): string {
+  const systemUrl = `${process.env.FRONTEND_URL}/student/assignments`;
+  return wrapRtl(
+    `<p>שלום ${data.studentName},</p><p>המורה אישרה ופרסמה ציון תוכן עבור המטלה <strong>${data.assignmentTitle}</strong>:</p><p style="font-size: 20px; font-weight: bold; color: #4f46e5;">${data.contentScore}</p><p><a href="${systemUrl}" style="color:#4f46e5;">צפי בציון ובמשוב במערכת</a></p>`
+  );
+}
+
 export function deadlineReportHtml(data: EmailJobMap['deadline-report']): string {
   const counts = { submitted: 0, late: 0, missing: 0 };
   for (const row of data.rows) counts[row.status]++;

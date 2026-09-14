@@ -62,7 +62,8 @@ Primary: #C2185B | Secondary: #7C3AED
 - **QuizPanel** — "צרי בוחן בעזרת AI" (רק כשאין בוחן ויש `contentMd`), עריכת שאלה/אפשרויות/תשובה נכונה, `פרסמי לתלמידות` / `החזירי לטיוטה`. פרסום חסום כל עוד יש שינויים לא שמורים
 - **QuizDashboard** — אריחי סיכום (כמה ענו, ממוצע, השאלה הקשה ביותר) + שורה לכל שאלה מסודרת מהחלשה, עם פילוח כמה בחרו בכל אפשרות + טבלת ציונים
 - **צבע:** אין קידוד בצבע. הפלטה של הפרויקט נמוכת-רוויה ו-sage↔coral נכשלים בבדיקת עיוורון-צבעים (ΔE 14.4 מול רף 15). כל העמודות בגוון אחד, האורך נושא את הגודל, והנכונות מסומנת ב-✓, במילים ובמספר מודפס
-- Modal בדיקה: קישור לקובץ/GitHub | checklist | שני שדות ציון (submissionScore + contentScore) | feedback Markdown | כפתור "אשר AI" | **כפתור "החזר לציון AI"** (contentScore=aiScore ללא בקשה חדשה) | **כפתור "אפשרי בדיקת AI נוספת"** (`aiExtraAllowed=true`) | **טוגל "הצגי הערות קוד"** (aiCodeReview, מוסתר כברירת מחדל)
+- Modal בדיקה: קישור לקובץ/GitHub | checklist | שני שדות ציון (submissionScore + contentScore) | feedback Markdown | כפתור "אשר AI" | **כפתור "החזר לציון AI"** (contentScore=aiScore ללא בקשה חדשה) | **כפתור "אפשרי בדיקת AI נוספת"** (`aiExtraAllowed=true`) | **טוגל "הצגי הערות קוד"** (aiCodeReview, מוסתר כברירת מחדל) | **כפתורי שמירה**: "שמור ציון" (בלבד) מול "שמרי ואשרי לתלמידה" (שומר + מאשר `contentApproved` + שולח מייל) | תגית מצב אישור ליד שדה contentScore
+- **AssignmentSubmissionsTable** — checkbox לכל שורה שיש לה `contentScore` וטרם `contentApproved`, checkbox "בחר הכל", וכפתור פעולה מרוכזת "אשרי ושלחי ציונים נבחרים" (קורא ל-`bulk-approve-content`)
 
 ### Student — LessonDetailPage `/student/lessons/:id`
 - Layout: `max-w-5xl`, grid — עמודת קריאה (תוכן/GitHub/קבצים/חידון) לצד עמודת מטלות כשיש מטלות; שיעור בלי מטלות נשאר טור יחיד

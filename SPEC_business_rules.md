@@ -8,10 +8,14 @@
 | ציון | שדה | מקור | נראה לתלמידה? |
 |---|---|---|---|
 | ציון הגשה | `Grade.submissionScore` | אוטומטי (100 − איחור − checklist) | **מיד** |
-| ציון תוכן | `Grade.contentScore` | מה-AI, עריכה ידנית | **רק אחרי aiApproved=true** |
+| ציון תוכן | `Grade.contentScore` | מה-AI, עריכה ידנית | **רק אחרי `Grade.contentApproved=true`** |
 
 - מורה יכולה לשנות שניהם
 - **כפתור "החזר לציון AI"**: `contentScore = aiScore` ללא בקשה חדשה (aiScore נשמר תמיד)
+- **אישור ציון תוכן** (`Grade.contentApproved`) — שדה עצמאי, נפרד מ-`aiApproved`, כדי שגם הגשה שלא עברה בדיקת AI תוכל לקבל ציון תוכן מאושר:
+  - `POST /submissions/:id/approve-content` — מאשרת ומפרסמת ציון תוכן להגשה בודדת, שולחת מייל 'grade-approved' לתלמידה
+  - `POST /submissions/bulk-approve-content` — אישור מרובה (best-effort: הגשות בלי ציון תוכן פשוט מדולגות, לא נכשלות)
+  - לתאימות לאחור: `approveAiReview()` (כפתור "אשרי ציון AI לתלמידה") ממשיכה גם היא להדליק את `contentApproved=true`, בדיוק כמו ההתנהגות הישנה
 
 ### AI Review
 - **Opt-in בלבד** — תלמידה לוחצת "בקשי בדיקת AI", לא אוטומטי

@@ -28,6 +28,13 @@ export interface EmailJobMap {
     deadline?: string | Date | null;
     rows: DeadlineReportRow[];
   };
+  'grade-approved': {
+    submissionId: string;
+    studentEmail: string;
+    studentName: string;
+    assignmentTitle: string;
+    contentScore: number;
+  };
 }
 
 export type EmailJobName = keyof EmailJobMap;

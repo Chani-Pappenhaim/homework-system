@@ -71,4 +71,10 @@ export const submissionsApi = {
 
   restoreAiScore: (submissionId: string) =>
     api.post(`/submissions/${submissionId}/restore-ai-score`),
+
+  approveContent: (submissionId: string) =>
+    api.post(`/submissions/${submissionId}/approve-content`),
+
+  bulkApproveContent: (submissionIds: string[]) =>
+    api.post<{ success: true; data: { approved: number; skipped: number } }>(`/submissions/bulk-approve-content`, { submissionIds }),
 };

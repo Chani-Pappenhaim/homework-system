@@ -92,8 +92,10 @@
 | GET | `/assignments/:id/submissions` | ADMIN | כל הגשות למטלה |
 | POST | `/submissions/import` | ADMIN | Excel: assignmentTitle\|studentEmail\|repoName |
 | POST | `/submissions/:id/request-ai-review` | STUDENT | בקשת בדיקת AI (מוגבל לפעם אחת) |
-| POST | `/submissions/:id/approve-ai` | ADMIN | `aiApproved=true` → תלמידה רואה ציון תוכן |
+| POST | `/submissions/:id/approve-ai` | ADMIN | `aiApproved=true` וגם `Grade.contentApproved=true` (לתאימות לאחור) |
 | POST | `/submissions/:id/allow-extra-ai` | ADMIN | `aiExtraAllowed=true` → בקשה נוספת |
+| POST | `/submissions/:id/approve-content` | ADMIN | `Grade.contentApproved=true` → תלמידה רואה ציון תוכן, שולח מייל 'grade-approved' |
+| POST | `/submissions/bulk-approve-content` | ADMIN | body: `{ submissionIds: string[] }` — אישור מרובה, best-effort (מדלג על הגשות ללא ציון תוכן) |
 
 ---
 

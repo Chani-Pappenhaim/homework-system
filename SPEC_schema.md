@@ -36,7 +36,8 @@
 
 **Grade — שני ציונים נפרדים (לעולם אל תערבב):**
 - `submissionScore Float? @default(100)` — ציון הגשה: אוטומטי (100 − איחור − checklist)
-- `contentScore Float?` — ציון תוכן: מה-AI, עריכה ידנית ע"י מורה, מוסתר עד aiApproved
+- `contentScore Float?` — ציון תוכן: מה-AI, עריכה ידנית ע"י מורה, מוסתר עד `contentApproved`
+- `contentApproved Boolean @default(false)` — מורה אישרה שהציון גלוי לתלמידה (עצמאי מ-`Submission.aiApproved`, כל הגשה יכולה לקבל אישור, לא רק כאלה שעברו בדיקת AI)
 
 **AiUsageLog:** `type` ("homework_review" | "quiz_generation"), `tokensInput`, `tokensOutput`, `costUsd`
 
@@ -181,6 +182,7 @@ model Grade {
   submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   submissionScore Float? @default(100)   // ציון הגשה — אוטומטי
   contentScore Float?                    // ציון תוכן — מAI, עריכה ידנית
+  contentApproved Boolean @default(false) // מורה אישרה שהציון גלוי לתלמידה
   feedback String?
   gradedAt DateTime @default(now())
   gradedById String

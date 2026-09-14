@@ -197,6 +197,7 @@ export interface QuizStateDTO {
 export interface GradeDTO {
   submissionScore?: number | null;
   contentScore?: number | null;
+  contentApproved?: boolean;
   feedback?: string;
   checklist?: ChecklistResult[];
   gradedAt: string;

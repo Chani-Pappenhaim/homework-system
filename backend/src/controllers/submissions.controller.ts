@@ -122,3 +122,22 @@ export async function allowExtraAiReview(req: Request, res: Response) {
     sendError(res, err);
   }
 }
+
+export async function approveContentScore(req: Request, res: Response) {
+  try {
+    const grade = await submissionsService.approveContentScore(req.params.id as string);
+    res.json({ success: true, data: { grade } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function bulkApproveContentScore(req: Request, res: Response) {
+  try {
+    const { submissionIds } = req.body as { submissionIds: string[] };
+    const result = await submissionsService.bulkApproveContentScore(submissionIds ?? []);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}

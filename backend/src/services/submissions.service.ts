@@ -2,9 +2,18 @@ import { prisma } from '../config/prisma';
 import { uploadBuffer, createUploadSignature, toDeliveryUrl } from '../utils/storage';
 import { assertLessonAccess } from '../utils/access';
 import { computeSubmissionScore } from '../utils/grading';
-import { aiReviewQueue } from '../infrastructure/queues/queues';
+import { aiReviewQueue, emailQueue } from '../infrastructure/queues/queues';
+import type { EmailJobMap } from '../infrastructure/queues/job-types';
 import { cellText } from '../utils/excel';
 import ExcelJS from 'exceljs';
+
+async function enqueueEmail<T extends keyof EmailJobMap>(jobName: T, data: EmailJobMap[T]) {
+  try {
+    await emailQueue.add(jobName, data);
+  } catch (err) {
+    console.error(`[submissions] Failed to enqueue ${jobName} email:`, err);
+  }
+}
 
 export async function submitAssignment(
   assignmentId: string, studentId: string,
@@ -172,7 +181,7 @@ export async function getMySubmissions(studentId: string) {
         checklist: sub.checklist,
         githubUrl: sub.githubUrl, fileUrl: sub.fileUrl ? toDeliveryUrl(sub.fileUrl) : sub.fileUrl, fileName: sub.fileName,
         ...toStudentAiView(sub),
-        grade: grade ? { submissionScore: grade.submissionScore, contentScore: sub.aiApproved ? grade.contentScore : null, feedback: grade.feedback, checklist: grade.checklist } : null,
+        grade: grade ? { submissionScore: grade.submissionScore, contentScore: grade.contentApproved ? grade.contentScore : null, contentApproved: grade.contentApproved, feedback: grade.feedback, checklist: grade.checklist } : null,
       });
     }
   }
@@ -198,9 +207,9 @@ export async function getSubmissionById(id: string, userId: string, role: string
   const fileUrl = submission.fileUrl ? toDeliveryUrl(submission.fileUrl) : submission.fileUrl;
   if (role === 'ADMIN') return { ...submission, fileUrl };
   // The content score is the teacher's call and stays hidden until she approves
-  // the AI review; the submission score is always the student's to see.
+  // it; the submission score is always the student's to see.
   const grade = submission.grade
-    ? { ...submission.grade, contentScore: submission.aiApproved ? submission.grade.contentScore : null }
+    ? { ...submission.grade, contentScore: submission.grade.contentApproved ? submission.grade.contentScore : null }
     : submission.grade;
   return { ...submission, fileUrl, grade, ...toStudentAiView(submission) };
 }
@@ -230,10 +239,61 @@ export async function requestAiReview(submissionId: string, studentId: string) {
 }
 
 export async function approveAiReview(submissionId: string) {
+  // Also publishes the content score, matching the previous single-flag
+  // behavior (aiApproved used to gate both the AI fields and contentScore).
+  await prisma.grade.upsert({
+    where: { submissionId },
+    create: { submissionId, contentApproved: true },
+    update: { contentApproved: true },
+  });
   return prisma.submission.update({
     where: { id: submissionId },
     data: { aiApproved: true },
   });
+}
+
+/**
+ * Approves and publishes the content score to the student for ANY submission,
+ * not just ones that went through AI review — sends a notification email.
+ */
+export async function approveContentScore(submissionId: string) {
+  const submission = await prisma.submission.findUnique({
+    where: { id: submissionId },
+    include: { grade: true, student: { select: { name: true, email: true } }, assignment: { select: { title: true } } },
+  });
+  if (!submission) throw Object.assign(new Error('Submission not found'), { status: 404 });
+  if (submission.grade?.contentScore == null) {
+    throw Object.assign(new Error('אין ציון תוכן לאשר'), { status: 400 });
+  }
+
+  const grade = await prisma.grade.update({
+    where: { submissionId },
+    data: { contentApproved: true },
+  });
+
+  await enqueueEmail('grade-approved', {
+    submissionId,
+    studentEmail: submission.student.email,
+    studentName: submission.student.name,
+    assignmentTitle: submission.assignment.title,
+    contentScore: grade.contentScore!,
+  });
+
+  return grade;
+}
+
+/** Best-effort bulk approve — submissions without a content score are skipped, not failed. */
+export async function bulkApproveContentScore(submissionIds: string[]) {
+  let approved = 0;
+  for (const id of submissionIds) {
+    try {
+      await approveContentScore(id);
+      approved++;
+    } catch {
+      // no content score yet, or submission not found — skip it
+    }
+  }
+  return { approved, skipped: submissionIds.length - approved };
 }
 
 // Restores the grade's content score to the AI's score without a new AI

@@ -7,6 +7,7 @@ import {
   studentMessageHtml,
   teacherReplyHtml,
   deadlineReportHtml,
+  gradeApprovedHtml,
 } from './email.templates';
 
 // Decides *who* receives each email and *which* template renders it, then hands
@@ -67,6 +68,16 @@ export async function handleEmailJob(name: EmailJobName, data: EmailJobData): Pr
         to: adminEmail,
         subject: `דוח הגשות: ${d.assignmentTitle}`,
         html: deadlineReportHtml(d),
+      });
+      return;
+    }
+
+    case 'grade-approved': {
+      const d = data as EmailJobMap['grade-approved'];
+      await sendMail({
+        to: d.studentEmail,
+        subject: `הציון עבור "${d.assignmentTitle}" פורסם`,
+        html: gradeApprovedHtml(d),
       });
       return;
     }

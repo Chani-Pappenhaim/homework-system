@@ -51,17 +51,31 @@ export function GradeModal({ submission, assignment, onClose }: {
 
   const invalidateSubmissions = () => qc.invalidateQueries({ queryKey: ['submissions', assignment?.id] });
 
+  const gradePayload = () => ({
+    submissionScore: submissionScore ? Number(submissionScore) : undefined,
+    contentScore: contentScore ? Number(contentScore) : undefined,
+    feedback: feedback || undefined,
+    checklist,
+  });
+
   const gradeMutation = useMutation({
-    mutationFn: () => gradesApi.grade(local!.id, {
-      submissionScore: submissionScore ? Number(submissionScore) : undefined,
-      contentScore: contentScore ? Number(contentScore) : undefined,
-      feedback: feedback || undefined,
-      checklist,
-    }),
+    mutationFn: () => gradesApi.grade(local!.id, gradePayload()),
     onSuccess: () => {
       invalidateSubmissions();
       onClose();
       toast.success('הציון נשמר בהצלחה');
+    },
+  });
+
+  const gradeAndApproveMutation = useMutation({
+    mutationFn: async () => {
+      await gradesApi.grade(local!.id, gradePayload());
+      await submissionsApi.approveContent(local!.id);
+    },
+    onSuccess: () => {
+      invalidateSubmissions();
+      onClose();
+      toast.success('הציון נשמר ואושר לתלמידה');
     },
   });
 
@@ -199,6 +213,11 @@ export function GradeModal({ submission, assignment, onClose }: {
 
             <div>
               <Input label="ציון תוכן (0–100)" type="number" min={0} max={100} value={contentScore} onChange={(e) => setContentScore(e.target.value)} placeholder="90" />
+              {local.grade?.contentApproved ? (
+                <p className="mt-1 flex items-center gap-1 text-xs text-sage"><CheckCircle size={11} /> מאושר וגלוי לתלמידה</p>
+              ) : (
+                <p className="mt-1 text-xs text-ink/50">הציון מוסתר מהתלמידה עד שיאושר</p>
+              )}
             </div>
 
             <div className="flex flex-col gap-1">
@@ -213,9 +232,24 @@ export function GradeModal({ submission, assignment, onClose }: {
               />
             </div>
 
-            <Button loading={gradeMutation.isPending} onClick={() => gradeMutation.mutate()} className="w-full">
-              שמור ציון
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                loading={gradeMutation.isPending}
+                onClick={() => gradeMutation.mutate()}
+                className="flex-1"
+              >
+                שמור ציון
+              </Button>
+              <Button
+                loading={gradeAndApproveMutation.isPending}
+                onClick={() => gradeAndApproveMutation.mutate()}
+                disabled={!contentScore}
+                className="flex-1"
+              >
+                <CheckCircle size={14} /> שמרי ואשרי לתלמידה
+              </Button>
+            </div>
           </DialogBody>
         )}
       </DialogContent>

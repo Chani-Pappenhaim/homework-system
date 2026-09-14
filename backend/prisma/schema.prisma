@@ -188,7 +188,8 @@ model Grade {
   submissionId String     @unique
   submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   submissionScore Float?  @default(100)   // ציון הגשה — אוטומטי (100 − איחור − checklist)
-  contentScore    Float?                  // ציון תוכן — מ-AI/מורה, מוסתר עד aiApproved
+  contentScore    Float?                  // ציון תוכן — מ-AI/מורה, מוסתר עד contentApproved
+  contentApproved Boolean @default(false) // מורה אישרה שהציון גלוי לתלמידה (כל הגשה, לא רק AI)
   feedback     String?
   checklist    Json?
   gradedAt     DateTime   @default(now())
