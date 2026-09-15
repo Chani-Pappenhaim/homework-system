@@ -140,22 +140,24 @@ export default function StudentMessagesPage() {
                 className="flex w-full items-center gap-3 px-4 py-3 text-right transition-colors hover:bg-butter/10"
               >
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className={cn('truncate text-sm', unread ? 'font-bold text-ink' : 'font-medium text-ink')}>{msg.content}</p>
                     {msg.fromTeacher && <Badge variant="secondary" className="shrink-0">מהמורה</Badge>}
                     {msg.assignmentId && (
                       <Badge variant="warning" className="shrink-0"><Clock size={9} className="ml-1" /> בקשת הגשה</Badge>
                     )}
                   </div>
-                  <p className="text-[11px] text-ink-soft">{formatDateTime(msg.createdAt)}</p>
+                  <p className="text-[11px] text-ink-soft mt-1">{formatDateTime(msg.createdAt)}</p>
                 </div>
-                {unread && (
-                  <span className="size-2 shrink-0 rounded-full bg-coral" />
-                )}
-                {msg.replyContent
-                  ? <Badge variant="success">נענתה</Badge>
-                  : <Badge variant="warning">ממתינה</Badge>}
-                <ChevronLeft size={16} className="shrink-0 text-ink-soft" />
+                <div className="flex shrink-0 items-center gap-2 ml-4">
+                  {unread && (
+                    <span className="size-2 shrink-0 rounded-full bg-coral" />
+                  )}
+                  {msg.replyContent
+                    ? <Badge variant="success">נענתה</Badge>
+                    : <Badge variant="warning">ממתינה</Badge>}
+                  <ChevronLeft size={16} className="shrink-0 text-ink-soft" />
+                </div>
               </button>
             );})}
           </div>

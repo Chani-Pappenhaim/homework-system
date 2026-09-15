@@ -102,13 +102,21 @@ function FileTile({
           isSelected ? 'border-indigo' : 'border-rule'
         )}
       >
-        <div className="flex h-16 w-full items-center justify-center overflow-hidden rounded-sm bg-ground/50">
+        <div className="flex h-24 w-full items-center justify-center overflow-hidden rounded-sm bg-ground/50">
           {kind === 'image' ? (
             <img src={url} alt={file.name} className="h-full w-full object-cover" loading="lazy" />
           ) : kind === 'audio' ? (
-            <Music size={26} className="text-coral" />
+            <audio src={url} className="w-full" controls />
           ) : kind === 'video' ? (
-            <Video size={26} className="text-indigo" />
+            <video src={url} className="h-full w-full object-cover" />
+          ) : kind === 'pdf' ? (
+            <iframe src={url} title={file.name} className="h-full w-full border-0" />
+          ) : kind === 'doc' ? (
+            <iframe
+              src={`https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`}
+              title={file.name}
+              className="h-full w-full border-0 bg-sheet"
+            />
           ) : (
             <Icon size={26} className="text-ink/50" />
           )}

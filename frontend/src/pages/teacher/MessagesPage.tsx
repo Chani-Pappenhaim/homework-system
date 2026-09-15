@@ -126,21 +126,21 @@ export default function TeacherMessagesPage() {
           {messages.map((msg) => {
             const unread = isUnread(msg);
             return (
-            <div key={msg.id} className="flex w-full items-center transition-colors hover:bg-butter/10">
+            <div key={msg.id} className="flex w-full items-stretch transition-colors hover:bg-butter/10">
               <button
                 onClick={() => openMessage(msg)}
                 className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-right"
               >
                 <span
                   className={cn(
-                    'grid size-9 shrink-0 place-items-center rounded-full text-xs font-semibold',
+                    'grid size-10 shrink-0 place-items-center rounded-full text-sm font-semibold',
                     unread ? 'bg-clay text-sheet' : 'bg-ground text-ink-soft',
                   )}
                 >
                   {msg.student?.name?.[0] ?? '?'}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className={cn('truncate text-sm', unread ? 'font-bold text-ink' : 'font-medium text-ink')}>
                       {msg.student?.name}
                     </span>
@@ -150,9 +150,9 @@ export default function TeacherMessagesPage() {
                       <Badge variant="warning" className="shrink-0"><Clock size={9} className="ml-1" /> בקשת הגשה</Badge>
                     )}
                   </div>
-                  <p className="truncate text-[13px] text-ink-soft">{msg.content}</p>
+                  <p className="truncate text-[13px] text-ink-soft mt-1">{msg.content}</p>
                 </div>
-                <div className="flex shrink-0 flex-col items-end gap-1">
+                <div className="flex shrink-0 flex-col items-end gap-1 ml-4">
                   <span className="text-[11px] text-ink-soft">{formatDateTime(msg.createdAt)}</span>
                   {msg.replyContent
                     ? <Badge variant="success">{msg.fromTeacher ? 'הגיבה' : 'נענתה'}</Badge>
@@ -166,9 +166,9 @@ export default function TeacherMessagesPage() {
                     deleteMutation.mutate(msg.id);
                   }
                 }}
-                className="ml-1 mr-2 shrink-0 rounded-input p-1.5 text-ink-soft transition-colors hover:bg-coral/10 hover:text-coral"
+                className="shrink-0 px-3 py-4 text-ink-soft transition-colors hover:bg-coral/10 hover:text-coral flex items-center justify-center"
               >
-                <Trash2 size={14} />
+                <Trash2 size={16} />
               </button>
             </div>
           );})}
