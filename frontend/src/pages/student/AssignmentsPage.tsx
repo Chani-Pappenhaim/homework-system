@@ -16,7 +16,8 @@ export default function AssignmentsPage() {
   const pending: PendingAssignment[] = mine?.pending ?? [];
   const submitted: MySubmission[] = mine?.submitted ?? [];
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
+  const [assignmentSearch, setAssignmentSearch] = useState('');
+  const [courseSearch, setCourseSearch] = useState('');
 
   const sortedPending = [...pending].sort((a, b) => {
     if (!a.deadline) return 1;
@@ -24,9 +25,12 @@ export default function AssignmentsPage() {
     return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
   });
 
-  const q = search.trim().toLowerCase();
+  const qAssignment = assignmentSearch.trim().toLowerCase();
+  const qCourse = courseSearch.trim().toLowerCase();
   const matches = (item: { assignmentTitle: string; courseName: string }) =>
-    !q || [item.assignmentTitle, item.courseName].some((f) => f?.toLowerCase().includes(q));
+    (!qAssignment || item.assignmentTitle?.toLowerCase().includes(qAssignment)) &&
+    (!qCourse || item.courseName?.toLowerCase().includes(qCourse));
+  const noResultsLabel = [assignmentSearch.trim(), courseSearch.trim()].filter(Boolean).join(' / ');
 
   const filteredPending = sortedPending.filter(matches);
   const filteredSubmitted = submitted.filter(matches);
@@ -35,18 +39,32 @@ export default function AssignmentsPage() {
     <div className="space-y-5" dir="rtl">
       <PageHeader title="המטלות שלי" meta="מחברת · מטלות" />
 
-      {/* Filters both lists below by assignment title or course name */}
-      <div className="flex items-center gap-2 rounded-input border border-rule bg-sheet px-3 py-1.5 transition-colors focus-within:border-clay sm:max-w-sm">
-        <Search size={15} className="text-ink-soft" />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink-soft"
-          placeholder="חיפוש מטלה או קורס"
-        />
-        {search && (
-          <button onClick={() => setSearch('')} className="text-xs text-ink-soft hover:text-coral">✕</button>
-        )}
+      {/* Two independent filters — narrows both lists together (AND) */}
+      <div className="flex flex-wrap gap-2">
+        <div className="flex items-center gap-2 rounded-input border border-rule bg-sheet px-3 py-1.5 transition-colors focus-within:border-clay sm:max-w-xs sm:flex-1">
+          <Search size={15} className="text-ink-soft" />
+          <input
+            value={assignmentSearch}
+            onChange={(e) => setAssignmentSearch(e.target.value)}
+            className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink-soft"
+            placeholder="חיפוש לפי מטלה"
+          />
+          {assignmentSearch && (
+            <button onClick={() => setAssignmentSearch('')} className="text-xs text-ink-soft hover:text-coral">✕</button>
+          )}
+        </div>
+        <div className="flex items-center gap-2 rounded-input border border-rule bg-sheet px-3 py-1.5 transition-colors focus-within:border-clay sm:max-w-xs sm:flex-1">
+          <Search size={15} className="text-ink-soft" />
+          <input
+            value={courseSearch}
+            onChange={(e) => setCourseSearch(e.target.value)}
+            className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink-soft"
+            placeholder="חיפוש לפי קורס"
+          />
+          {courseSearch && (
+            <button onClick={() => setCourseSearch('')} className="text-xs text-ink-soft hover:text-coral">✕</button>
+          )}
+        </div>
       </div>
 
       {/* Two independent lists, side by side on wide screens */}
@@ -59,7 +77,7 @@ export default function AssignmentsPage() {
             {sortedPending.length === 0 ? (
               <p className="px-5 py-4 text-sm text-ink/50">אין מטלות פתוחות 🎉</p>
             ) : filteredPending.length === 0 ? (
-              <p className="px-5 py-4 text-sm text-ink/50">{`אין תוצאות ל"${search.trim()}"`}</p>
+              <p className="px-5 py-4 text-sm text-ink/50">{`אין תוצאות ל"${noResultsLabel}"`}</p>
             ) : null}
             {filteredPending.map((p) => (
               <div key={p.assignmentId} className="px-5 py-3 flex items-center justify-between">
@@ -85,7 +103,7 @@ export default function AssignmentsPage() {
             {submitted.length === 0 ? (
               <p className="px-5 py-4 text-sm text-ink/50">לא הוגשו מטלות עדיין</p>
             ) : filteredSubmitted.length === 0 ? (
-              <p className="px-5 py-4 text-sm text-ink/50">{`אין תוצאות ל"${search.trim()}"`}</p>
+              <p className="px-5 py-4 text-sm text-ink/50">{`אין תוצאות ל"${noResultsLabel}"`}</p>
             ) : null}
             {filteredSubmitted.map((s) => (
               <div key={s.submissionId}>

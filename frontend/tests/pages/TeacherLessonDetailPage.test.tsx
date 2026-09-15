@@ -181,6 +181,7 @@ describe('TeacherLessonDetailPage', () => {
     renderPage();
 
     await screen.findByRole('heading', { name: 'שיעור בדיקה' });
+    await userEvent.click(screen.getByRole('button', { name: 'קבצים מצורפים' }));
     await userEvent.click(screen.getByRole('button', { name: 'סימון כקובץ חובה' }));
     await waitFor(() => expect(setFileRequired).toHaveBeenCalledWith('l1', 'f1', true));
   });

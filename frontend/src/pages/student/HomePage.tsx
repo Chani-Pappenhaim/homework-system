@@ -115,9 +115,11 @@ export default function StudentHomePage() {
                 onClick={() => navigate(`/student/courses/${c.id}`)}
                 className="sheet lift relative overflow-hidden p-0 text-right"
               >
-                <div className={cn('h-2 w-full', ACCENT_CLASSES[accent].bar)} />
+                <div className={cn('relative h-2 w-full opacity-70', ACCENT_CLASSES[accent].bar)}>
+                  <Tape color={tape} rotate={-6} className="-top-1 right-2 w-9" />
+                  <Tape color={tape} rotate={6} className="-top-1 left-2 w-9" />
+                </div>
                 <div className="relative p-4 pr-5">
-                  <Tape color={tape} rotate={i % 2 ? 4 : -4} className="-top-2 left-6 w-14" />
                   <div className="flex items-center gap-3">
                     <span
                       className={cn(

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Github, Edit, Trash2, Plus, BookOpen, Lock, ClipboardList } from 'lucide-react';
+import { Github, Edit, Trash2, Plus, BookOpen, Lock, ClipboardList, Paperclip } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
 import { assignmentsApi } from '@/api/assignments.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -31,7 +31,7 @@ export default function LessonDetailPage() {
   const [gradeModal, setGradeModal] = useState<SubmissionDTO | null>(null);
   const [assignmentModal, setAssignmentModal] = useState<AssignmentDTO | null | 'new'>(null);
   const [lessonEditOpen, setLessonEditOpen] = useState(false);
-  const [tab, setTab] = useState<'content' | 'assignments' | 'access'>('content');
+  const [tab, setTab] = useState<'files' | 'content' | 'assignments' | 'access'>('content');
 
   const { data: lessonData, isLoading } = useQuery({
     queryKey: ['lesson', id],
@@ -123,6 +123,15 @@ export default function LessonDetailPage() {
       {/* Content / Access — tab toggle on wide screens instead of a permanent 3-col split */}
       <div className="flex items-center gap-2">
         <button
+          onClick={() => setTab('files')}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
+            tab === 'files' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
+          )}
+        >
+          <Paperclip size={15} /> קבצים מצורפים
+        </button>
+        <button
           onClick={() => setTab('content')}
           className={cn(
             'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
@@ -152,28 +161,9 @@ export default function LessonDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:items-start">
-      {tab === 'content' && (
-      <div className="space-y-5 lg:col-span-3">
-      {/* Lesson content */}
-      <Card>
-        <CardContent className="space-y-4">
-          {lesson.contentMd
-            ? <MarkdownRenderer content={lesson.contentMd} />
-            : <p className="text-sm text-ink/50">אין תוכן לשיעור עדיין — לחצי על "ערוך שיעור" כדי להוסיף חומר לימוד.</p>}
-          {lesson.githubUrls.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {lesson.githubUrls.map((url, i) => (
-                <a key={i} href={toExternalUrl(url)} target="_blank" rel="noreferrer"
-                  className="inline-flex items-center gap-2 text-sm text-ink border border-rule/20 rounded-input px-3 py-1.5 hover:bg-ground/60 transition">
-                  <Github size={14} /> {lesson.githubUrls.length > 1 ? `קוד השיעור #${i + 1}` : 'קוד השיעור ב-GitHub'}
-                </a>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Files management — its own card, separate from the lesson-content material above */}
+      {tab === 'files' && (
+      <div className="lg:col-span-3">
+      {/* Files management — its own tab, so it stays reachable even when the lesson content is long */}
       <Card>
         <CardHeader>
           <h2 className="font-display text-base font-bold">קבצים מצורפים</h2>
@@ -194,6 +184,29 @@ export default function LessonDetailPage() {
             label={uploadFileMutation.isPending ? 'מעלה...' : 'גרור קובץ להעלאה או לחצי לבחירה'}
             className="mt-1"
           />
+        </CardContent>
+      </Card>
+      </div>
+      )}
+
+      {tab === 'content' && (
+      <div className="space-y-5 lg:col-span-3">
+      {/* Lesson content */}
+      <Card>
+        <CardContent className="space-y-4">
+          {lesson.contentMd
+            ? <MarkdownRenderer content={lesson.contentMd} />
+            : <p className="text-sm text-ink/50">אין תוכן לשיעור עדיין — לחצי על "ערוך שיעור" כדי להוסיף חומר לימוד.</p>}
+          {lesson.githubUrls.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {lesson.githubUrls.map((url, i) => (
+                <a key={i} href={toExternalUrl(url)} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-2 text-sm text-ink border border-rule/20 rounded-input px-3 py-1.5 hover:bg-ground/60 transition">
+                  <Github size={14} /> {lesson.githubUrls.length > 1 ? `קוד השיעור #${i + 1}` : 'קוד השיעור ב-GitHub'}
+                </a>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
       </div>

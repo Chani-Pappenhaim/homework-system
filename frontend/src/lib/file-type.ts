@@ -3,7 +3,8 @@ export type FileKind = 'image' | 'video' | 'pdf' | 'audio' | 'archive' | 'doc' |
 const EXT_MAP: Record<string, FileKind> = {
   png: 'image', jpg: 'image', jpeg: 'image', gif: 'image', webp: 'image', svg: 'image', bmp: 'image',
   mp4: 'video', mov: 'video', avi: 'video', mkv: 'video', webm: 'video', wmv: 'video', m4v: 'video',
-  mp3: 'audio', wav: 'audio', m4a: 'audio', ogg: 'audio',
+  mp3: 'audio', wav: 'audio', m4a: 'audio', ogg: 'audio', oga: 'audio',
+  aac: 'audio', flac: 'audio', wma: 'audio', opus: 'audio', amr: 'audio',
   pdf: 'pdf',
   zip: 'archive', rar: 'archive', '7z': 'archive',
   doc: 'doc', docx: 'doc', ppt: 'doc', pptx: 'doc', xls: 'doc', xlsx: 'doc', txt: 'doc', md: 'doc',
