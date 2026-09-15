@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Image, Video, FileText, Music, Archive, File as FileIcon, Download, Pencil, X } from 'lucide-react';
+import { Image, Video, FileText, Music, Archive, File as FileIcon, Download, Pencil, X, Star } from 'lucide-react';
 import { cn, formatBytes } from '@/lib/utils';
 import { getFileKindByExtension } from '@/lib/file-type';
 import { API_URL } from '@/lib/config';
@@ -13,6 +13,8 @@ export interface GalleryFile {
   url: string;
   extension?: string;
   sizeBytes?: string | null;
+  required?: boolean;
+  viewed?: boolean;
 }
 
 function resolveFileUrl(url: string): string {
@@ -33,6 +35,10 @@ interface FileGalleryProps {
   files: GalleryFile[];
   onDelete?: (fileId: string) => void;
   onRename?: (fileId: string, name: string) => void;
+  /** Teacher-only — toggles whether a file is mandatory viewing for students. */
+  onToggleRequired?: (fileId: string, required: boolean) => void;
+  /** Student-only — marks a required file as seen/read. */
+  onMarkViewed?: (fileId: string) => void;
   className?: string;
 }
 
@@ -40,14 +46,14 @@ interface FileGalleryProps {
  * Grid of file cards with inline preview below — click to expand a specific file's
  * preview on the page (image/video/audio/text/PDF), not in a modal.
  */
-export function FileGallery({ files, onDelete, onRename, className }: FileGalleryProps) {
+export function FileGallery({ files, onDelete, onRename, onToggleRequired, onMarkViewed, className }: FileGalleryProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = files.find((f) => f.id === selectedId);
 
   if (files.length === 0) return null;
 
   return (
-    <div className={cn('flex flex-col gap-4', selected && 'lg:flex-row-reverse lg:items-start')}>
+    <div className={cn('flex flex-col gap-4', selected && 'lg:flex-row lg:items-start')}>
       <div className={cn('grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4', selected && 'lg:flex-1', className)}>
         {files.map((f) => (
           <FileTile
@@ -57,6 +63,8 @@ export function FileGallery({ files, onDelete, onRename, className }: FileGaller
             onOpen={() => setSelectedId(f.id)}
             onDelete={onDelete}
             onRename={onRename}
+            onToggleRequired={onToggleRequired}
+            onMarkViewed={onMarkViewed}
           />
         ))}
       </div>
@@ -75,12 +83,16 @@ function FileTile({
   onOpen,
   onDelete,
   onRename,
+  onToggleRequired,
+  onMarkViewed,
 }: {
   file: GalleryFile;
   isSelected: boolean;
   onOpen: () => void;
   onDelete?: (id: string) => void;
   onRename?: (id: string, name: string) => void;
+  onToggleRequired?: (id: string, required: boolean) => void;
+  onMarkViewed?: (id: string) => void;
 }) {
   const kind = getFileKindByExtension(file.extension ?? '');
   const Icon = KIND_ICON[kind];
@@ -125,7 +137,44 @@ function FileTile({
           {file.name}
         </p>
         {file.sizeBytes != null && <p className="text-[10px] text-ink/40">{formatBytes(file.sizeBytes)}</p>}
+        {file.required && !onToggleRequired && (
+          <span className={cn(
+            'rounded-full px-2 py-0.5 text-[10px] font-semibold',
+            file.viewed ? 'bg-sage/20 text-sage' : 'bg-coral/15 text-coral'
+          )}>
+            {file.viewed ? 'חובה — נצפה ✓' : 'חובה לצפייה'}
+          </span>
+        )}
       </button>
+      {onMarkViewed && file.required && !file.viewed && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onMarkViewed(file.id);
+          }}
+          className="mt-1.5 w-full rounded-input border border-rule/30 bg-butter/30 py-1 text-[11px] font-semibold text-clay hover:bg-butter/50"
+        >
+          סימני שראית/קראת
+        </button>
+      )}
+      {onToggleRequired && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleRequired(file.id, !file.required);
+          }}
+          className={cn(
+            'absolute -top-2 start-14 rounded-full p-1 shadow-soft transition',
+            file.required ? 'bg-clay text-sheet opacity-100' : 'bg-ink text-sheet opacity-0 group-hover:opacity-100'
+          )}
+          aria-label={file.required ? 'ביטול סימון חובה' : 'סימון כקובץ חובה'}
+          title={file.required ? 'קובץ חובה — לחצי לביטול' : 'סימני כקובץ חובה לצפייה'}
+        >
+          <Star size={12} strokeWidth={2.5} fill={file.required ? 'currentColor' : 'none'} />
+        </button>
+      )}
       {onRename && (
         <button
           type="button"

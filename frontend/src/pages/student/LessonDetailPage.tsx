@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Github, CheckCircle, Clock, Bot, Check } from 'lucide-react';
+import { Github, CheckCircle, Clock, Bot, Check, BookOpen, ClipboardList } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
 import { submissionsApi, isVideoFile } from '@/api/submissions.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -23,6 +23,7 @@ export default function StudentLessonDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const [tab, setTab] = useState<'content' | 'assignments'>('content');
 
   const { data, isLoading } = useQuery({
     queryKey: ['lesson', id],
@@ -37,19 +38,29 @@ export default function StudentLessonDetailPage() {
   const lesson = data?.data.data.lesson;
   const submitted: MySubmission[] = unwrap(mineData)?.submitted ?? [];
 
+  const [progressError, setProgressError] = useState('');
+
   const progressMutation = useMutation({
     mutationFn: (completed: boolean) => lessonsApi.setProgress(id!, completed),
     onSuccess: () => {
+      setProgressError('');
       qc.invalidateQueries({ queryKey: ['lesson', id] });
       qc.invalidateQueries({ queryKey: ['courses'] });
       qc.invalidateQueries({ queryKey: ['course'] });
     },
+    onError: (e: any) => setProgressError(e?.response?.data?.error ?? 'לא ניתן לסמן שהשיעור הושלם'),
+  });
+
+  const viewFileMutation = useMutation({
+    mutationFn: (fileId: string) => lessonsApi.markFileViewed(id!, fileId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['lesson', id] }),
   });
 
   if (isLoading) return <div className="p-6 text-ink/50">טוען...</div>;
   if (!lesson) return <div className="p-6 text-coral">שיעור לא נמצא</div>;
 
   const hasAssignments = lesson.assignments.length > 0;
+  const pendingRequiredFiles = lesson.files.filter((f) => f.required && !f.viewed);
 
   return (
     <div className="space-y-5" dir="rtl">
@@ -59,24 +70,52 @@ export default function StudentLessonDetailPage() {
         back={`/student/courses/${lesson.courseId}`}
         backLabel="חזרה לקורס"
         actions={
-          <button
-            onClick={() => progressMutation.mutate(!lesson.completed)}
-            disabled={progressMutation.isPending}
-            className={cn(
-              'lift flex shrink-0 items-center gap-1.5 rounded-input border border-rule px-3 py-2 text-sm font-semibold shadow-soft disabled:opacity-50',
-              lesson.completed ? 'bg-sage text-sheet' : 'bg-butter/40 text-clay',
+          <div className="flex flex-col items-end gap-1">
+            <button
+              onClick={() => progressMutation.mutate(!lesson.completed)}
+              disabled={progressMutation.isPending || (!lesson.completed && pendingRequiredFiles.length > 0)}
+              title={!lesson.completed && pendingRequiredFiles.length > 0 ? 'יש לסמן קודם את כל קבצי החובה כנצפו' : undefined}
+              className={cn(
+                'lift flex shrink-0 items-center gap-1.5 rounded-input border border-rule px-3 py-2 text-sm font-semibold shadow-soft disabled:opacity-50',
+                lesson.completed ? 'bg-sage text-sheet' : 'bg-butter/40 text-clay',
+              )}
+            >
+              <Check size={15} strokeWidth={3} />
+              {lesson.completed ? 'הושלם — בטלי סימון' : 'סיימתי את השיעור'}
+            </button>
+            {!lesson.completed && pendingRequiredFiles.length > 0 && (
+              <p className="text-xs text-coral">נותרו {pendingRequiredFiles.length} קבצי חובה לצפייה</p>
             )}
-          >
-            <Check size={15} strokeWidth={3} />
-            {lesson.completed ? 'הושלם — בטלי סימון' : 'סיימתי את השיעור'}
-          </button>
+            {progressError && <p className="text-xs text-coral">{progressError}</p>}
+          </div>
         }
       />
 
-      {/* Reading column sits beside the assignments column on wide screens and stacks
-          into a single column on narrow screens, keeping the same read order either way. */}
-      <div className={cn('grid grid-cols-1 gap-5', hasAssignments && 'lg:grid-cols-5')}>
-        <div className={cn('space-y-5', hasAssignments && 'lg:col-span-3')}>
+      {hasAssignments && (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setTab('content')}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
+              tab === 'content' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
+            )}
+          >
+            <BookOpen size={15} /> תוכן שיעור
+          </button>
+          <button
+            onClick={() => setTab('assignments')}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
+              tab === 'assignments' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
+            )}
+          >
+            <ClipboardList size={15} /> מטלות
+          </button>
+        </div>
+      )}
+
+      {(!hasAssignments || tab === 'content') && (
+        <div className="space-y-5">
           {lesson.contentMd && (
             <Card>
               <CardContent>
@@ -100,7 +139,7 @@ export default function StudentLessonDetailPage() {
             <Card>
               <CardHeader><h2 className="font-display text-base font-bold">חומרי עזר</h2></CardHeader>
               <CardContent>
-                <FileGallery files={lesson.files} />
+                <FileGallery files={lesson.files} onMarkViewed={(fileId) => viewFileMutation.mutate(fileId)} />
               </CardContent>
             </Card>
           )}
@@ -115,16 +154,16 @@ export default function StudentLessonDetailPage() {
             </button>
           )}
         </div>
+      )}
 
-        {hasAssignments && (
-          <div className="space-y-5 lg:col-span-2">
-            {lesson.assignments.map((a) => {
-              const sub = submitted.find((s) => s.assignmentId === a.id);
-              return <AssignmentCard key={a.id} assignment={a} submission={sub} />;
-            })}
-          </div>
-        )}
-      </div>
+      {hasAssignments && tab === 'assignments' && (
+        <div className="space-y-5">
+          {lesson.assignments.map((a) => {
+            const sub = submitted.find((s) => s.assignmentId === a.id);
+            return <AssignmentCard key={a.id} assignment={a} submission={sub} />;
+          })}
+        </div>
+      )}
     </div>
   );
 }

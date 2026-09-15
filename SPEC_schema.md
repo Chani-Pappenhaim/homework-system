@@ -9,9 +9,13 @@
 | Group | קבוצת תלמידות + סמינר + שנה |
 | StudentGroup | many-to-many: User ↔ Group |
 | Course | קורס השייך לקבוצה אחת |
+| CourseLink | קישור חיצוני בקורס |
+| CourseFile | קובץ חומר עזר ברמת הקורס |
 | Lesson | שיעור בתוך קורס |
+| LessonFile | קובץ חומר עזר בשיעור ספציפי (אפשר לסמן `required`) |
+| LessonFileView | סימון עצמי של תלמידה שצפתה/קראה קובץ חובה בשיעור |
 | LessonAccess | גישה חריגה לשיעור לתלמידה ספציפית |
-| LessonProgress | סימון עצמי של תלמידה שסיימה שיעור (בסיס למד ההתקדמות) |
+| LessonProgress | סימון עצמי של תלמידה שסיימה שיעור (בסיס למד ההתקדמות) — חסום אם יש קבצי חובה שלא סומנו כנצפו |
 | Assignment | מטלה בתוך שיעור |
 | Submission | הגשה של תלמידה למטלה (אחת בלבד) |
 | Grade | ציון להגשה — שני ציונים נפרדים |
@@ -23,6 +27,12 @@
 ## Key Fields to Remember
 
 **User:** `githubUsername String?` — נדרש לבנות URL להגשה
+
+**Lesson:** `githubUrl String?` הוא legacy; `githubUrls String[]` הוא מקור האמת (ה-service נופל חזרה ל-`githubUrl` כשה-array ריק)
+
+**LessonFile:** `required Boolean @default(false)` — המורה מסמנת קובץ כחובה לצפייה; שולט בשער ההשלמה של `LessonProgress`
+
+**LessonFileView:** קיום שורה = התלמידה סימנה שצפתה/קראה קובץ חובה (אותה תבנית כמו `LessonProgress`/`LessonAccess`). `setLessonProgress(completed: true)` בודקת שכל קבצי ה-`required` של השיעור נצפו לפני שמאפשרת השלמה — אחרת זורקת 400 עם שמות הקבצים החסרים
 
 **Assignment:**
 - `requirements Json?` — תבנית checklist שהמורה מגדירה
@@ -58,12 +68,16 @@ model User {
   githubUsername String?
   oauthProvider String?
   oauthId String?
+  resetTokenHash String?
+  resetTokenExpiresAt DateTime?
   createdAt DateTime @default(now())
   studentGroups StudentGroup[]
   submissions Submission[]
   quizAttempts QuizAttempt[]
   gradesGiven Grade[]
   lessonAccess LessonAccess[]
+  lessonProgress LessonProgress[]
+  lessonFileViews LessonFileView[]
   teacherMessages TeacherMessage[]
 }
 
@@ -100,12 +114,23 @@ model Course {
   files CourseFile[]
 }
 
-model LessonAccess {
-  studentId String
-  lessonId String
-  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  @@id([studentId, lessonId])
+model CourseLink {
+  id String @id @default(uuid())
+  courseId String
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  label String
+  url String
+  order Int @default(0)
+}
+
+model CourseFile {
+  id String @id @default(uuid())
+  courseId String
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  name String
+  url String
+  sizeBytes BigInt?
+  uploadedAt DateTime @default(now())
 }
 
 model Lesson {
@@ -116,6 +141,7 @@ model Lesson {
   lessonDate DateTime?
   contentMd String?
   githubUrl String?
+  githubUrls String[] @default([])
   hidden Boolean @default(false)
   order Int @default(0)
   createdAt DateTime @default(now())
@@ -134,6 +160,36 @@ model LessonProgress {
   student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
   lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   @@id([studentId, lessonId])
+}
+
+model LessonAccess {
+  studentId String
+  lessonId String
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  @@id([studentId, lessonId])
+}
+
+model LessonFile {
+  id String @id @default(uuid())
+  lessonId String
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  name String
+  url String
+  sizeBytes BigInt?
+  uploadedAt DateTime @default(now())
+  required Boolean @default(false)
+  views LessonFileView[]
+}
+
+// קיום שורה = התלמידה סימנה שצפתה/קראה קובץ חובה
+model LessonFileView {
+  studentId String
+  fileId String
+  viewedAt DateTime @default(now())
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  file LessonFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  @@id([studentId, fileId])
 }
 
 model Assignment {

@@ -59,6 +59,12 @@ export const lessonsApi = {
   renameFile: (id: string, fileId: string, name: string) =>
     api.patch(`/lessons/${id}/files/${fileId}`, { name }),
 
+  setFileRequired: (id: string, fileId: string, required: boolean) =>
+    api.patch(`/lessons/${id}/files/${fileId}/required`, { required }),
+
+  markFileViewed: (id: string, fileId: string) =>
+    api.post(`/lessons/${id}/files/${fileId}/view`),
+
   importMd: (id: string, file: File) => {
     const form = new FormData();
     form.append('file', file);

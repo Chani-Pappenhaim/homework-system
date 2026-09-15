@@ -78,6 +78,9 @@ export interface LessonFile {
   url: string;
   extension?: string;
   sizeBytes?: string;
+  required?: boolean;
+  /** Present only in the student's view of a lesson — has she marked this file as seen? */
+  viewed?: boolean;
 }
 
 export interface ChecklistItem {

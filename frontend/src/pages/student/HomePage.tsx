@@ -17,12 +17,12 @@ const TAPES = ['clay', 'sage', 'indigo', 'butter'] as const;
 // Every class Tailwind's production build needs to see must appear as a
 // literal string somewhere in source — `` `bg-${accent}` `` is invisible to
 // the scanner and gets purged. This map makes each combination literal.
-const ACCENT_CLASSES: Record<(typeof CARD_ACCENTS)[number], { bar: string; text: string; bg: string }> = {
-  clay: { bar: 'before:bg-clay', text: 'text-clay', bg: 'bg-clay' },
-  indigo: { bar: 'before:bg-indigo', text: 'text-indigo', bg: 'bg-indigo' },
-  sage: { bar: 'before:bg-sage', text: 'text-sage', bg: 'bg-sage' },
-  butter: { bar: 'before:bg-butter', text: 'text-butter', bg: 'bg-butter' },
-  coral: { bar: 'before:bg-coral', text: 'text-coral', bg: 'bg-coral' },
+const ACCENT_CLASSES: Record<(typeof CARD_ACCENTS)[number], { bar: string; text: string; bg: string; wash: string; ring: string }> = {
+  clay: { bar: 'bg-clay', text: 'text-clay', bg: 'bg-clay', wash: 'bg-clay/[0.06]', ring: 'bg-clay/15' },
+  indigo: { bar: 'bg-indigo', text: 'text-indigo', bg: 'bg-indigo', wash: 'bg-indigo/[0.06]', ring: 'bg-indigo/15' },
+  sage: { bar: 'bg-sage', text: 'text-sage', bg: 'bg-sage', wash: 'bg-sage/[0.06]', ring: 'bg-sage/15' },
+  butter: { bar: 'bg-butter', text: 'text-butter', bg: 'bg-butter', wash: 'bg-butter/[0.06]', ring: 'bg-butter/15' },
+  coral: { bar: 'bg-coral', text: 'text-coral', bg: 'bg-coral', wash: 'bg-coral/[0.06]', ring: 'bg-coral/15' },
 };
 
 export default function StudentHomePage() {
@@ -49,13 +49,31 @@ export default function StudentHomePage() {
       <section className="sheet relative p-5">
         <Tape color="clay" rotate={-4} className="-top-2.5 right-8 w-20" />
         <Tape color="sage" rotate={3} className="-top-2 right-28 w-14" />
-        <div className="label mb-1">המחברת שלי · {dateMeta}</div>
-        <h1 className="font-display text-2xl font-bold text-ink">שלום, {(user?.name ?? 'תלמידה').split(' ')[0]}</h1>
-        {groupNames.length > 0 && (
-          <p className="mt-0.5 text-xs text-ink-soft">
-            {groupNames.length > 1 ? 'קבוצות: ' : 'קבוצה: '}{groupNames.join(', ')}
-          </p>
-        )}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="label mb-1">המחברת שלי · {dateMeta}</div>
+            <h1 className="font-display text-2xl font-bold text-ink">שלום, {(user?.name ?? 'תלמידה').split(' ')[0]}</h1>
+            {groupNames.length > 0 && (
+              <p className="mt-0.5 text-xs text-ink-soft">
+                {groupNames.length > 1 ? 'קבוצות: ' : 'קבוצה: '}{groupNames.join(', ')}
+              </p>
+            )}
+          </div>
+          {courses.length > 0 && (
+            <div className="flex items-center gap-2 rounded-input border border-rule bg-ground/60 px-3 py-1.5 transition-colors focus-within:border-clay sm:w-56">
+              <Search size={15} className="text-ink-soft" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink-soft"
+                placeholder="חיפוש קורס"
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="text-xs text-ink-soft hover:text-coral">✕</button>
+              )}
+            </div>
+          )}
+        </div>
         <div className="mt-3 flex items-center gap-2">
           <span className="label flex items-center gap-1"><Flame size={13} className="text-coral" /> רצף</span>
           <div className="flex items-center gap-1">
@@ -77,20 +95,6 @@ export default function StudentHomePage() {
         </div>
       </section>
 
-      {courses.length > 0 && (
-        <div className="flex items-center gap-2 rounded-input border border-rule bg-sheet px-3 py-1.5 transition-colors focus-within:border-clay sm:max-w-sm">
-          <Search size={15} className="text-ink-soft" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink-soft"
-            placeholder="חיפוש קורס"
-          />
-          {search && (
-            <button onClick={() => setSearch('')} className="text-xs text-ink-soft hover:text-coral">✕</button>
-          )}
-        </div>
-      )}
       {coursesLoading ? (
         <div className="sheet p-8 text-center text-sm text-ink-soft">טוען…</div>
       ) : courses.length === 0 ? (
@@ -109,22 +113,34 @@ export default function StudentHomePage() {
               <button
                 key={c.id}
                 onClick={() => navigate(`/student/courses/${c.id}`)}
-                className={cn(
-                  'sheet lift relative p-4 pr-5 text-right',
-                  'before:absolute before:inset-y-3 before:right-0 before:w-1 before:rounded-full',
-                  ACCENT_CLASSES[accent].bar,
-                )}
+                className={cn('sheet lift relative overflow-hidden p-0 text-right', ACCENT_CLASSES[accent].wash)}
               >
-                <Tape color={tape} rotate={i % 2 ? 4 : -4} className="-top-2 left-6 w-14" />
-                <h2 className="font-display text-base font-bold leading-snug text-ink">{c.name}</h2>
-                <p className="mt-0.5 text-[11px] text-ink-soft">{total} שיעורים</p>
-                <div className="mt-4">
-                  <div className="mb-1 flex items-center justify-between text-[11px]">
-                    <span className="text-ink-soft">{done}/{total} הושלמו</span>
-                    <span className={cn('font-semibold tabular', ACCENT_CLASSES[accent].text)}>{pct}%</span>
+                <div className={cn('h-2 w-full', ACCENT_CLASSES[accent].bar)} />
+                <div className="relative p-4 pr-5">
+                  <Tape color={tape} rotate={i % 2 ? 4 : -4} className="-top-2 left-6 w-14" />
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={cn(
+                        'grid size-9 shrink-0 place-items-center rounded-full font-display text-sm font-bold',
+                        ACCENT_CLASSES[accent].ring,
+                        ACCENT_CLASSES[accent].text,
+                      )}
+                    >
+                      {(c.name ?? '?').trim().charAt(0)}
+                    </span>
+                    <div className="min-w-0">
+                      <h2 className="truncate font-display text-base font-bold leading-snug text-ink">{c.name}</h2>
+                      <p className="mt-0.5 text-[11px] text-ink-soft">{total} שיעורים</p>
+                    </div>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-ground">
-                    <div className={cn('h-full rounded-full transition-all', ACCENT_CLASSES[accent].bg)} style={{ width: `${pct}%` }} />
+                  <div className="mt-4">
+                    <div className="mb-1 flex items-center justify-between text-[11px]">
+                      <span className="text-ink-soft">{done}/{total} הושלמו</span>
+                      <span className={cn('font-semibold tabular', ACCENT_CLASSES[accent].text)}>{pct}%</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-ground">
+                      <div className={cn('h-full rounded-full transition-all', ACCENT_CLASSES[accent].bg)} style={{ width: `${pct}%` }} />
+                    </div>
                   </div>
                 </div>
               </button>

@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import StudentLessonDetailPage from '@/pages/student/LessonDetailPage';
 import { renderWithProviders } from '../utils/render';
 
-vi.mock('@/api/lessons.api', () => ({ lessonsApi: { get: vi.fn() } }));
+vi.mock('@/api/lessons.api', () => ({ lessonsApi: { get: vi.fn(), setProgress: vi.fn(), markFileViewed: vi.fn() } }));
 vi.mock('@/api/submissions.api', () => ({
   submissionsApi: { mine: vi.fn(), submitRepo: vi.fn(), submitFile: vi.fn(), requestAiReview: vi.fn() },
 }));
@@ -15,6 +15,8 @@ import { submissionsApi } from '@/api/submissions.api';
 import { messagesApi } from '@/api/messages.api';
 
 const getLesson = lessonsApi.get as unknown as ReturnType<typeof vi.fn>;
+const setProgress = lessonsApi.setProgress as unknown as ReturnType<typeof vi.fn>;
+const markFileViewed = lessonsApi.markFileViewed as unknown as ReturnType<typeof vi.fn>;
 const mine = submissionsApi.mine as unknown as ReturnType<typeof vi.fn>;
 const submitRepo = submissionsApi.submitRepo as unknown as ReturnType<typeof vi.fn>;
 const requestAiReview = submissionsApi.requestAiReview as unknown as ReturnType<typeof vi.fn>;
@@ -23,7 +25,7 @@ const sendMessage = messagesApi.send as unknown as ReturnType<typeof vi.fn>;
 const FUTURE = '2999-01-01T00:00:00Z';
 const PAST = '2000-01-01T00:00:00Z';
 
-function lessonWith(assignments: any[]) {
+function lessonWith(assignments: any[], overrides: Record<string, any> = {}) {
   return {
     data: {
       data: {
@@ -31,9 +33,10 @@ function lessonWith(assignments: any[]) {
           id: 'l1',
           topic: 'שיעור מבוא',
           contentMd: '## תוכן',
-          githubUrl: '',
+          githubUrls: [],
           files: [],
           assignments,
+          ...overrides,
         },
       },
     },
@@ -45,6 +48,11 @@ function renderPage() {
     path: '/student/lesson/:id',
     initialEntries: ['/student/lesson/l1'],
   });
+}
+
+async function openAssignmentsTab(lessonTopic: string) {
+  await screen.findByRole('heading', { name: lessonTopic });
+  await userEvent.click(screen.getByRole('button', { name: 'מטלות' }));
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -66,6 +74,7 @@ describe('StudentLessonDetailPage', () => {
     mine.mockResolvedValue({ data: { data: { submitted: [] } } });
     submitRepo.mockResolvedValue({ data: {} });
     renderPage();
+    await openAssignmentsTab('שיעור מבוא');
 
     const input = await screen.findByPlaceholderText('שם הפרויקט ב-GitHub');
     await userEvent.type(input, 'my-repo');
@@ -99,6 +108,7 @@ describe('StudentLessonDetailPage', () => {
     });
     requestAiReview.mockResolvedValue({ data: {} });
     renderPage();
+    await openAssignmentsTab('שיעור מבוא');
 
     const btn = await screen.findByRole('button', { name: 'בקשי בדיקה' });
     await userEvent.click(btn);
@@ -119,6 +129,7 @@ describe('StudentLessonDetailPage', () => {
       ] } },
     });
     renderPage();
+    await openAssignmentsTab('שיעור מבוא');
     expect(await screen.findByText(/ציון הגשה: 91/)).toBeInTheDocument();
     expect(screen.queryByText(/ציון תוכן/)).not.toBeInTheDocument();
   });
@@ -130,6 +141,7 @@ describe('StudentLessonDetailPage', () => {
     mine.mockResolvedValue({ data: { data: { submitted: [] } } });
     sendMessage.mockResolvedValue({ data: {} });
     renderPage();
+    await openAssignmentsTab('שיעור מבוא');
 
     // "פג תוקף" badge indicates overdue
     expect(await screen.findByText('פג תוקף')).toBeInTheDocument();
@@ -138,5 +150,55 @@ describe('StudentLessonDetailPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'שלחי בקשה' }));
     await waitFor(() => expect(sendMessage).toHaveBeenCalled());
     expect(sendMessage.mock.calls[0][0]).toContain('מטלה מאוחרת');
+  });
+
+  it('disables lesson completion while a required file is unviewed, and shows how many remain', async () => {
+    getLesson.mockResolvedValue(
+      lessonWith([], {
+        completed: false,
+        files: [{ id: 'f1', name: 'סרטון חובה', url: '/f1', required: true, viewed: false }],
+      })
+    );
+    mine.mockResolvedValue({ data: { data: { submitted: [] } } });
+    renderPage();
+
+    await screen.findByRole('heading', { name: 'שיעור מבוא' });
+    const finishBtn = screen.getByRole('button', { name: 'סיימתי את השיעור' });
+    expect(finishBtn).toBeDisabled();
+    expect(await screen.findByText('נותרו 1 קבצי חובה לצפייה')).toBeInTheDocument();
+  });
+
+  it('marks a required file as viewed and re-enables completion once none remain', async () => {
+    getLesson.mockResolvedValueOnce(
+      lessonWith([], {
+        completed: false,
+        files: [{ id: 'f1', name: 'סרטון חובה', url: '/f1', required: true, viewed: false }],
+      })
+    );
+    getLesson.mockResolvedValue(
+      lessonWith([], {
+        completed: false,
+        files: [{ id: 'f1', name: 'סרטון חובה', url: '/f1', required: true, viewed: true }],
+      })
+    );
+    mine.mockResolvedValue({ data: { data: { submitted: [] } } });
+    markFileViewed.mockResolvedValue({ data: {} });
+    renderPage();
+
+    await screen.findByRole('heading', { name: 'שיעור מבוא' });
+    await userEvent.click(screen.getByRole('button', { name: 'סימני שראית/קראת' }));
+    await waitFor(() => expect(markFileViewed).toHaveBeenCalledWith('l1', 'f1'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'סיימתי את השיעור' })).not.toBeDisabled());
+  });
+
+  it('surfaces the server error when finishing the lesson is rejected for missing required files', async () => {
+    getLesson.mockResolvedValue(lessonWith([], { completed: false, files: [] }));
+    mine.mockResolvedValue({ data: { data: { submitted: [] } } });
+    setProgress.mockRejectedValue({ response: { data: { error: 'יש לסמן את הקבצים הבאים כנצפו' } } });
+    renderPage();
+
+    await screen.findByRole('heading', { name: 'שיעור מבוא' });
+    await userEvent.click(screen.getByRole('button', { name: 'סיימתי את השיעור' }));
+    expect(await screen.findByText('יש לסמן את הקבצים הבאים כנצפו')).toBeInTheDocument();
   });
 });

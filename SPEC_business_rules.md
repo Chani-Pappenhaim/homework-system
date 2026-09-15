@@ -36,6 +36,12 @@
 - `hidden=true` על שיעור → בלתי נראה לחלוטין לתלמידות
 - גישה חריגה לשיעור: `LessonAccess` (לא `CourseAccess`)
 
+### קבצי חובה בשיעור (LessonFile.required / LessonFileView)
+- המורה מסמנת קובץ בשיעור כ-`required` (`PATCH /lessons/:id/files/:fileId/required`)
+- תלמידה מסמנת שצפתה/קראה קובץ חובה (`POST /lessons/:id/files/:fileId/view`) — יוצר שורת `LessonFileView`
+- סימון שיעור כמושלם (`POST /lessons/:id/progress` עם `completed: true`) חסום אם יש קבצי `required` בשיעור שהתלמידה לא סימנה כנצפו — במקרה כזה 400 עם רשימת שמות הקבצים החסרים
+- ביטול השלמת שיעור (`completed: false`) **לא** בודק קבצי חובה — עוקף את הבדיקה תמיד
+
 ### כללים נוספים
 - סיסמא ברירת מחדל: `"12345678"`, `mustChangePassword=true` חוסם כל routes
 - חידון נוצר פעם אחת לשיעור; הניסיון הראשון של כל תלמידה הוא הרשמי (`isOfficial=true`) וקובע את הציון לצמיתות — ניסיון חוזר (`נסי שוב`) נשמר כשורה נפרדת לתרגול אישי בלבד (`isOfficial=false`) ולא משנה את הציון. תלמידה יכולה לראות את היסטוריית הניסיונות שלה (`GET /lessons/:id/quiz/attempts`). תוצאות כל התלמידות מוצגות למורה בדף השיעור לפי הניסיון הרשמי בלבד (`GET /lessons/:id/quiz/results`)

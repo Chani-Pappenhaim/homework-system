@@ -4,8 +4,9 @@ vi.mock('../../src/config/prisma', () => ({
   prisma: {
     lesson: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
     lessonAccess: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), delete: vi.fn() },
-    lessonFile: { findUnique: vi.fn(), create: vi.fn(), delete: vi.fn() },
+    lessonFile: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
     lessonProgress: { findUnique: vi.fn(), upsert: vi.fn(), deleteMany: vi.fn() },
+    lessonFileView: { findMany: vi.fn().mockResolvedValue([]), upsert: vi.fn() },
   },
 }));
 const { uploadMock, destroyMock, assertLessonAccessMock, assertCourseAccessMock } = vi.hoisted(() => ({
@@ -39,6 +40,9 @@ import {
   uploadLessonFile,
   deleteLessonFile,
   deleteLesson,
+  markLessonFileViewed,
+  setLessonFileRequired,
+  setLessonProgress,
 } from '../../src/services/lessons.service';
 
 const p = prisma as any;
@@ -179,18 +183,22 @@ describe('lessons.service create / update / markdown', () => {
 });
 
 describe('lessons.service file upload/delete', () => {
-  it('uploadLessonFile uploads a buffer and stores the result', async () => {
+  it('uploadLessonFile uploads a buffer, stores the real Cloudinary url in the DB row, and returns a download-link DTO', async () => {
     uploadMock.mockResolvedValue({ url: 'https://cdn/x.pdf', bytes: 99, resourceType: 'image', publicId: 'p' });
     p.lessonFile.create.mockImplementation(({ data }: any) => Promise.resolve(data));
-    const r: any = await uploadLessonFile('l1', { buffer: Buffer.from('x'), mimeType: 'application/pdf', originalName: 'x.pdf' });
-    expect(r).toMatchObject({ lessonId: 'l1', name: 'x.pdf', url: 'https://cdn/x.pdf' });
+    const r: any = await uploadLessonFile('l1', { buffer: Buffer.from('x'), mimeType: 'application/pdf', originalName: 'x.pdf' }, undefined, 'u1');
+    expect(p.lessonFile.create).toHaveBeenCalledWith({ data: expect.objectContaining({ lessonId: 'l1', name: 'x.pdf', url: 'https://cdn/x.pdf' }) });
+    expect(r).toMatchObject({ lessonId: 'l1', name: 'x.pdf', extension: 'pdf' });
+    expect(r.url).toMatch(/^\/files\/download\//);
   });
 
   it('uploadLessonFile stores an already-uploaded url without calling Cloudinary again', async () => {
     p.lessonFile.create.mockImplementation(({ data }: any) => Promise.resolve(data));
-    const r: any = await uploadLessonFile('l1', { url: 'https://cdn/x.pdf', bytes: 99, originalName: 'x.pdf' });
+    const r: any = await uploadLessonFile('l1', { url: 'https://cdn/x.pdf', bytes: 99, originalName: 'x.pdf' }, undefined, 'u1');
     expect(uploadMock).not.toHaveBeenCalled();
-    expect(r).toMatchObject({ lessonId: 'l1', name: 'x.pdf', url: 'https://cdn/x.pdf' });
+    expect(p.lessonFile.create).toHaveBeenCalledWith({ data: expect.objectContaining({ lessonId: 'l1', name: 'x.pdf', url: 'https://cdn/x.pdf' }) });
+    expect(r).toMatchObject({ lessonId: 'l1', name: 'x.pdf', extension: 'pdf' });
+    expect(r.url).toMatch(/^\/files\/download\//);
   });
 
   it('uploadLessonFile uses the given display name over the original filename', async () => {
@@ -218,6 +226,88 @@ describe('lessons.service file upload/delete', () => {
     await deleteLessonFile('l1', 'f1');
     expect(destroyMock).toHaveBeenCalled();
     expect(p.lessonFile.delete).toHaveBeenCalledWith({ where: { id: 'f1' } });
+  });
+});
+
+describe('lessons.service mandatory files', () => {
+  describe('markLessonFileViewed', () => {
+    it('propagates an access refusal without touching the DB', async () => {
+      assertLessonAccessMock.mockRejectedValue(Object.assign(new Error('Forbidden'), { status: 403 }));
+      await expect(markLessonFileViewed('s1', 'STUDENT', 'l1', 'f1')).rejects.toMatchObject({ status: 403 });
+      expect(p.lessonFileView.upsert).not.toHaveBeenCalled();
+    });
+
+    it('throws 404 when the file does not belong to the lesson', async () => {
+      p.lessonFile.findUnique.mockResolvedValue(null);
+      await expect(markLessonFileViewed('s1', 'STUDENT', 'l1', 'f1')).rejects.toMatchObject({ status: 404 });
+      expect(p.lessonFileView.upsert).not.toHaveBeenCalled();
+    });
+
+    it('upserts the view record on the composite key', async () => {
+      p.lessonFile.findUnique.mockResolvedValue({ id: 'f1', lessonId: 'l1' });
+      p.lessonFileView.upsert.mockResolvedValue({});
+      await markLessonFileViewed('s1', 'STUDENT', 'l1', 'f1');
+      expect(p.lessonFileView.upsert).toHaveBeenCalledWith({
+        where: { studentId_fileId: { studentId: 's1', fileId: 'f1' } },
+        create: { studentId: 's1', fileId: 'f1' },
+        update: {},
+      });
+    });
+  });
+
+  describe('setLessonFileRequired', () => {
+    it('throws 404 when the file does not belong to the lesson', async () => {
+      p.lessonFile.findUnique.mockResolvedValue(null);
+      await expect(setLessonFileRequired('l1', 'f1', true)).rejects.toMatchObject({ status: 404 });
+      expect(p.lessonFile.update).not.toHaveBeenCalled();
+    });
+
+    it('toggles the required flag', async () => {
+      p.lessonFile.findUnique.mockResolvedValue({ id: 'f1', lessonId: 'l1' });
+      p.lessonFile.update.mockResolvedValue({ id: 'f1', required: true });
+      await setLessonFileRequired('l1', 'f1', true);
+      expect(p.lessonFile.update).toHaveBeenCalledWith({ where: { id: 'f1' }, data: { required: true } });
+    });
+  });
+
+  describe('setLessonProgress gating on required files', () => {
+    it('marks completion directly when the lesson has no required files', async () => {
+      p.lessonFile.findMany.mockResolvedValue([]);
+      p.lessonProgress.upsert.mockResolvedValue({});
+      const r = await setLessonProgress('s1', 'l1', true);
+      expect(p.lessonFileView.findMany).not.toHaveBeenCalled();
+      expect(p.lessonProgress.upsert).toHaveBeenCalled();
+      expect(r).toEqual({ lessonId: 'l1', completed: true });
+    });
+
+    it('blocks completion and names the unviewed required files', async () => {
+      p.lessonFile.findMany.mockResolvedValue([{ id: 'f1', name: 'סרטון חובה' }, { id: 'f2', name: 'מסמך חובה' }]);
+      p.lessonFileView.findMany.mockResolvedValue([{ fileId: 'f1' }]);
+      await expect(setLessonProgress('s1', 'l1', true)).rejects.toMatchObject({
+        status: 400,
+        message: expect.stringContaining('מסמך חובה'),
+      });
+      expect(p.lessonProgress.upsert).not.toHaveBeenCalled();
+    });
+
+    it('allows completion once every required file has been viewed', async () => {
+      p.lessonFile.findMany.mockResolvedValue([{ id: 'f1', name: 'סרטון חובה' }]);
+      p.lessonFileView.findMany.mockResolvedValue([{ fileId: 'f1' }]);
+      p.lessonProgress.upsert.mockResolvedValue({});
+      await setLessonProgress('s1', 'l1', true);
+      expect(p.lessonProgress.upsert).toHaveBeenCalledWith({
+        where: { studentId_lessonId: { studentId: 's1', lessonId: 'l1' } },
+        create: { studentId: 's1', lessonId: 'l1' },
+        update: {},
+      });
+    });
+
+    it('un-completing a lesson never checks required files', async () => {
+      p.lessonProgress.deleteMany.mockResolvedValue({});
+      await setLessonProgress('s1', 'l1', false);
+      expect(p.lessonFile.findMany).not.toHaveBeenCalled();
+      expect(p.lessonProgress.deleteMany).toHaveBeenCalledWith({ where: { studentId: 's1', lessonId: 'l1' } });
+    });
   });
 });
 

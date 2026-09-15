@@ -31,6 +31,7 @@ model User {
   gradesGiven      Grade[]
   lessonAccess     LessonAccess[]
   lessonProgress   LessonProgress[]
+  lessonFileViews  LessonFileView[]
   teacherMessages  TeacherMessage[]
 }
 
@@ -138,6 +139,20 @@ model LessonFile {
   url        String
   sizeBytes  BigInt?
   uploadedAt DateTime @default(now())
+  required   Boolean  @default(false)
+
+  views      LessonFileView[]
+}
+
+// A student's self-marked "seen/read" of a required file (presence of row = viewed)
+model LessonFileView {
+  studentId String
+  fileId    String
+  viewedAt  DateTime   @default(now())
+  student   User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  file      LessonFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, fileId])
 }
 
 model Assignment {

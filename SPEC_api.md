@@ -60,12 +60,14 @@
 |---|---|---|---|
 | GET | `/courses/:courseId/lessons` | ✓ | STUDENT: ללא hidden |
 | POST | `/courses/:courseId/lessons` | ADMIN | `{ topic, lessonDate?, contentMd?, githubUrl?, hidden?, order? }` |
-| GET | `/lessons/:id` | ✓ | פרטי שיעור + files + assignments + `completed` (סימון התלמידה). **תלמידה: 403 אם השיעור לא בקבוצה שלה ואין LessonAccess** |
-| POST | `/lessons/:id/progress` | ✓ | `{ completed: boolean }` — התלמידה מסמנת שסיימה שיעור (בסיס למד ההתקדמות) |
+| GET | `/lessons/:id` | ✓ | פרטי שיעור + files (כל קובץ כולל `required`, ולתלמידה גם `viewed`) + assignments + `completed` (סימון התלמידה). **תלמידה: 403 אם השיעור לא בקבוצה שלה ואין LessonAccess** |
+| POST | `/lessons/:id/progress` | ✓ | `{ completed: boolean }` — התלמידה מסמנת שסיימה שיעור (בסיס למד ההתקדמות). אם `completed: true` וקיימים קבצי `required` שלא סומנו כנצפו → 400 עם שמות הקבצים החסרים |
 | PUT | `/lessons/:id` | ADMIN | עדכון |
 | PATCH | `/lessons/reorder` | ADMIN | `{ lessons: [{ id, order }] }` |
 | POST | `/lessons/:id/files` | ADMIN | multipart |
 | DELETE | `/lessons/:id/files/:fileId` | ADMIN | |
+| PATCH | `/lessons/:id/files/:fileId/required` | ADMIN | `{ required: boolean }` — סימון/ביטול קובץ כחובה לצפייה |
+| POST | `/lessons/:id/files/:fileId/view` | ✓ | התלמידה מסמנת שצפתה/קראה קובץ חובה (יוצר/מוודא שורת `LessonFileView`) |
 | POST | `/lessons/:id/import-md` | ADMIN | קובץ .md → contentMd |
 | GET | `/lessons/:id/access` | ADMIN | תלמידות עם גישה חריגה |
 | POST | `/lessons/:id/access` | ADMIN | `{ studentId }` — מתן גישה |

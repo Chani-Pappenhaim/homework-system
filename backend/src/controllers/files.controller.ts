@@ -74,7 +74,15 @@ export async function download(req: Request, res: Response) {
   // correct Content-Type/Content-Disposition (Cloudinary's own headers can't be
   // trusted for either — resource_type 'auto' doesn't guarantee it).
   const deliveryUrl = toDeliveryUrl(file.url);
-  const upstream = await fetch(deliveryUrl);
+  // <audio>/<video> elements probe with a Range request before they'll play
+  // anything (needed to read duration/seek without pulling the whole file) —
+  // forwarding the browser's own Range header to Cloudinary and mirroring back
+  // whatever partial-content response it gives is required, not optional:
+  // advertising Accept-Ranges without actually honoring Range requests makes
+  // several browsers refuse to play the media at all instead of falling back
+  // to a full download.
+  const rangeHeader = req.headers.range;
+  const upstream = await fetch(deliveryUrl, rangeHeader ? { headers: { Range: rangeHeader } } : undefined);
   if (!upstream.ok || !upstream.body) {
     res.status(502).json({ success: false, error: 'שגיאה בטעינת הקובץ' });
     return;
@@ -91,6 +99,12 @@ export async function download(req: Request, res: Response) {
   const contentLength = upstream.headers.get('content-length');
   if (contentLength) res.setHeader('Content-Length', contentLength);
   res.setHeader('Accept-Ranges', 'bytes');
+
+  if (upstream.status === 206) {
+    res.status(206);
+    const contentRange = upstream.headers.get('content-range');
+    if (contentRange) res.setHeader('Content-Range', contentRange);
+  }
 
   const { Readable } = await import('node:stream');
   Readable.fromWeb(upstream.body as never).pipe(res);

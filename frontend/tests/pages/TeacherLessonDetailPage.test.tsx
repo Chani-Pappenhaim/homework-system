@@ -5,7 +5,7 @@ import TeacherLessonDetailPage from '@/pages/teacher/LessonDetailPage';
 import { renderWithProviders } from '../utils/render';
 
 vi.mock('@/api/lessons.api', () => ({
-  lessonsApi: { get: vi.fn(), getAccess: vi.fn(), grantAccess: vi.fn(), revokeAccess: vi.fn() },
+  lessonsApi: { get: vi.fn(), getAccess: vi.fn(), grantAccess: vi.fn(), revokeAccess: vi.fn(), setFileRequired: vi.fn() },
 }));
 vi.mock('@/api/assignments.api', () => ({
   assignmentsApi: { getSubmissions: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
@@ -23,6 +23,7 @@ import { gradesApi } from '@/api/grades.api';
 
 const getLesson = lessonsApi.get as unknown as ReturnType<typeof vi.fn>;
 const getAccess = lessonsApi.getAccess as unknown as ReturnType<typeof vi.fn>;
+const setFileRequired = lessonsApi.setFileRequired as unknown as ReturnType<typeof vi.fn>;
 const getSubmissions = assignmentsApi.getSubmissions as unknown as ReturnType<typeof vi.fn>;
 const approveAi = submissionsApi.approveAi as unknown as ReturnType<typeof vi.fn>;
 const grade = gradesApi.grade as unknown as ReturnType<typeof vi.fn>;
@@ -60,6 +61,11 @@ function renderPage() {
   });
 }
 
+async function openAssignmentsTab() {
+  await screen.findByRole('heading', { name: 'שיעור בדיקה' });
+  await userEvent.click(screen.getByRole('button', { name: 'מטלות' }));
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   getLesson.mockResolvedValue({ data: { data: { lesson } } });
@@ -75,7 +81,7 @@ describe('TeacherLessonDetailPage', () => {
       ] } },
     });
     renderPage();
-    expect(await screen.findByRole('heading', { name: 'שיעור בדיקה' })).toBeInTheDocument();
+    await openAssignmentsTab();
     expect(await screen.findByText('רותי')).toBeInTheDocument();
   });
 
@@ -87,6 +93,7 @@ describe('TeacherLessonDetailPage', () => {
       ] } },
     });
     renderPage();
+    await openAssignmentsTab();
     await userEvent.click(await screen.findByRole('button', { name: 'בדוק עכשיו' }));
 
     const dialogHeading = await screen.findByText(/ציון — רותי/);
@@ -102,6 +109,7 @@ describe('TeacherLessonDetailPage', () => {
       ] } },
     });
     renderPage();
+    await openAssignmentsTab();
     // Exact name: /ערוך/ also matches the "ערוך שיעור" button and would open
     // the lesson editor instead of the grade modal.
     await userEvent.click(await screen.findByRole('button', { name: 'ערוך' }));
@@ -119,6 +127,7 @@ describe('TeacherLessonDetailPage', () => {
     });
     grade.mockResolvedValue({ data: {} });
     renderPage();
+    await openAssignmentsTab();
     await userEvent.click(await screen.findByRole('button', { name: 'בדוק עכשיו' }));
 
     // Both inputs render; submissionScore prefilled to the suggestion (95), content empty.
@@ -143,6 +152,7 @@ describe('TeacherLessonDetailPage', () => {
     });
     approveAi.mockResolvedValue({ data: {} });
     renderPage();
+    await openAssignmentsTab();
     await userEvent.click(await screen.findByRole('button', { name: 'בדוק עכשיו' }));
 
     expect(await screen.findByText(/בדיקת AI — ציון: 88/)).toBeInTheDocument();
@@ -157,8 +167,21 @@ describe('TeacherLessonDetailPage', () => {
   it('opens the new-assignment modal from the "new assignment" button', async () => {
     getSubmissions.mockResolvedValue({ data: { data: { submissions: [] } } });
     renderPage();
-    await screen.findByRole('heading', { name: 'שיעור בדיקה' });
+    await openAssignmentsTab();
     await userEvent.click(screen.getByRole('button', { name: /מטלה חדשה/ }));
     expect(await screen.findByText('כותרת המטלה')).toBeInTheDocument();
+  });
+
+  it('toggles a file as mandatory viewing via the star button', async () => {
+    getLesson.mockResolvedValue({
+      data: { data: { lesson: { ...lesson, files: [{ id: 'f1', name: 'סרטון', url: '/f1', required: false }] } } },
+    });
+    getSubmissions.mockResolvedValue({ data: { data: { submissions: [] } } });
+    setFileRequired.mockResolvedValue({ data: {} });
+    renderPage();
+
+    await screen.findByRole('heading', { name: 'שיעור בדיקה' });
+    await userEvent.click(screen.getByRole('button', { name: 'סימון כקובץ חובה' }));
+    await waitFor(() => expect(setFileRequired).toHaveBeenCalledWith('l1', 'f1', true));
   });
 });

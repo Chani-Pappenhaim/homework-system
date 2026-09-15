@@ -48,6 +48,9 @@ vi.mock('../../src/services/lessons.service', () => ({
   reorderLessons: vi.fn(),
   uploadLessonFile: vi.fn(),
   deleteLessonFile: vi.fn(),
+  renameLessonFile: vi.fn(),
+  setLessonFileRequired: vi.fn(),
+  markLessonFileViewed: vi.fn(),
   getLessonAccess: vi.fn(),
   grantLessonAccess: vi.fn(),
   revokeLessonAccess: vi.fn(),
@@ -170,6 +173,54 @@ describe('lessons controller', () => {
     expect(res.status).toBe(200);
     expect(lessonsService.setLessonProgress).toHaveBeenCalledWith('stud1', 'l1', true);
   });
+
+  it('POST /api/lessons/:id/progress maps a blocked completion (missing required files) to a 400 envelope', async () => {
+    (lessonsService.setLessonProgress as any).mockRejectedValue(
+      Object.assign(new Error('יש לסמן את הקבצים הבאים כנצפו לפני סיום השיעור: סרטון חובה'), { status: 400 })
+    );
+    const res = await request(app).post('/api/lessons/l1/progress').set(...bearer(student)).send({ completed: true });
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('PATCH /api/lessons/:id/files/:fileId/required is admin-only', async () => {
+    const res = await request(app)
+      .patch('/api/lessons/l1/files/f1/required')
+      .set(...bearer(student))
+      .send({ required: true });
+    expect(res.status).toBe(403);
+    expect(lessonsService.setLessonFileRequired).not.toHaveBeenCalled();
+  });
+
+  it('PATCH /api/lessons/:id/files/:fileId/required toggles the flag for an admin', async () => {
+    (lessonsService.setLessonFileRequired as any).mockResolvedValue({ id: 'f1', required: true });
+    const res = await request(app)
+      .patch('/api/lessons/l1/files/f1/required')
+      .set(...bearer(admin))
+      .send({ required: true });
+    expect(res.status).toBe(200);
+    expect(lessonsService.setLessonFileRequired).toHaveBeenCalledWith('l1', 'f1', true);
+  });
+
+  it('POST /api/lessons/:id/files/:fileId/view marks a file as viewed for the caller', async () => {
+    (lessonsService.markLessonFileViewed as any).mockResolvedValue(undefined);
+    const res = await request(app)
+      .post('/api/lessons/l1/files/f1/view')
+      .set(...bearer(student));
+    expect(res.status).toBe(200);
+    expect(lessonsService.markLessonFileViewed).toHaveBeenCalledWith('stud1', 'STUDENT', 'l1', 'f1');
+  });
+
+  it('POST /api/lessons/:id/files/:fileId/view maps a missing file to a 404 envelope', async () => {
+    (lessonsService.markLessonFileViewed as any).mockRejectedValue(
+      Object.assign(new Error('File not found'), { status: 404 })
+    );
+    const res = await request(app)
+      .post('/api/lessons/l1/files/f1/view')
+      .set(...bearer(student));
+    expect(res.status).toBe(404);
+    expect(res.body.success).toBe(false);
+  });
 });
 
 describe('assignments controller', () => {
@@ -280,10 +331,10 @@ describe('messages controller', () => {
     expect(p.teacherMessage.update).toHaveBeenCalled();
   });
 
-  it('GET /api/messages/unread-count counts unread for an admin', async () => {
-    p.teacherMessage.count.mockResolvedValue(3);
+  it('GET /api/messages/unread-count sums unread-from-students and unseen-replies-to-teacher for an admin', async () => {
+    p.teacherMessage.count.mockResolvedValueOnce(3).mockResolvedValueOnce(2);
     const res = await request(app).get('/api/messages/unread-count').set(...bearer(admin));
     expect(res.status).toBe(200);
-    expect(res.body.data.count).toBe(3);
+    expect(res.body.data.count).toBe(5);
   });
 });

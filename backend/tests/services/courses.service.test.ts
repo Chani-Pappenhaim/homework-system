@@ -185,18 +185,22 @@ describe('courses.service create/update + links + files', () => {
     await deleteCourseLink('c1', 'lk1');
     expect(p.courseLink.delete).toHaveBeenCalledWith({ where: { id: 'lk1', courseId: 'c1' } });
   });
-  it('uploadCourseFile uploads a buffer then stores the record', async () => {
+  it('uploadCourseFile uploads a buffer, stores the real Cloudinary url in the DB row, and returns a download-link DTO', async () => {
     uploadMock.mockResolvedValue({ url: 'https://cdn/x.pdf', bytes: 42, resourceType: 'image', publicId: 'p' });
     p.courseFile.create.mockImplementation(({ data }: any) => Promise.resolve(data));
-    const r: any = await uploadCourseFile('c1', { buffer: Buffer.from('x'), mimeType: 'application/pdf', originalName: 'x.pdf' });
-    expect(r).toMatchObject({ courseId: 'c1', url: 'https://cdn/x.pdf', name: 'x.pdf' });
+    const r: any = await uploadCourseFile('c1', { buffer: Buffer.from('x'), mimeType: 'application/pdf', originalName: 'x.pdf' }, undefined, 'u1');
+    expect(p.courseFile.create).toHaveBeenCalledWith({ data: expect.objectContaining({ courseId: 'c1', name: 'x.pdf', url: 'https://cdn/x.pdf' }) });
+    expect(r).toMatchObject({ courseId: 'c1', name: 'x.pdf', extension: 'pdf' });
+    expect(r.url).toMatch(/^\/files\/download\//);
   });
 
   it('uploadCourseFile stores an already-uploaded url without calling Cloudinary again', async () => {
     p.courseFile.create.mockImplementation(({ data }: any) => Promise.resolve(data));
-    const r: any = await uploadCourseFile('c1', { url: 'https://cdn/x.pdf', bytes: 42, originalName: 'x.pdf' });
+    const r: any = await uploadCourseFile('c1', { url: 'https://cdn/x.pdf', bytes: 42, originalName: 'x.pdf' }, undefined, 'u1');
     expect(uploadMock).not.toHaveBeenCalled();
-    expect(r).toMatchObject({ courseId: 'c1', url: 'https://cdn/x.pdf', name: 'x.pdf' });
+    expect(p.courseFile.create).toHaveBeenCalledWith({ data: expect.objectContaining({ courseId: 'c1', name: 'x.pdf', url: 'https://cdn/x.pdf' }) });
+    expect(r).toMatchObject({ courseId: 'c1', name: 'x.pdf', extension: 'pdf' });
+    expect(r.url).toMatch(/^\/files\/download\//);
   });
 
   it('uploadCourseFile uses the given display name over the original filename', async () => {

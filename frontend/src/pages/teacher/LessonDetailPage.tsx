@@ -77,6 +77,11 @@ export default function LessonDetailPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['lesson', id] }),
   });
 
+  const requiredFileMutation = useMutation({
+    mutationFn: ({ fileId, required }: { fileId: string; required: boolean }) => lessonsApi.setFileRequired(id!, fileId, required),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['lesson', id] }),
+  });
+
   const deleteAssignmentMutation = useMutation({
     mutationFn: (aId: string) => assignmentsApi.delete(aId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['lesson', id] }); toast.success('המטלה נמחקה'); },
@@ -165,21 +170,30 @@ export default function LessonDetailPage() {
               ))}
             </div>
           )}
+        </CardContent>
+      </Card>
 
-          {/* Files management */}
-          <div className="space-y-2 pt-2 border-t border-rule/20">
-            <p className="text-xs text-ink/50 font-medium">קבצים מצורפים</p>
-            <FileGallery files={lesson.files} onDelete={(fileId) => deleteFileMutation.mutate(fileId)} onRename={(fileId, name) => renameFileMutation.mutate({ fileId, name })} />
-            {lesson.files.length === 0 && (
-              <p className="text-xs text-ink/50">אין קבצים מצורפים</p>
-            )}
-            <FileUpload
-              withName
-              onFile={(file, name) => uploadFileMutation.mutate({ file, name })}
-              label={uploadFileMutation.isPending ? 'מעלה...' : 'גרור קובץ להעלאה או לחצי לבחירה'}
-              className="mt-1"
-            />
-          </div>
+      {/* Files management — its own card, separate from the lesson-content material above */}
+      <Card>
+        <CardHeader>
+          <h2 className="font-display text-base font-bold">קבצים מצורפים</h2>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <FileGallery
+            files={lesson.files}
+            onDelete={(fileId) => deleteFileMutation.mutate(fileId)}
+            onRename={(fileId, name) => renameFileMutation.mutate({ fileId, name })}
+            onToggleRequired={(fileId, required) => requiredFileMutation.mutate({ fileId, required })}
+          />
+          {lesson.files.length === 0 && (
+            <p className="text-xs text-ink/50">אין קבצים מצורפים</p>
+          )}
+          <FileUpload
+            withName
+            onFile={(file, name) => uploadFileMutation.mutate({ file, name })}
+            label={uploadFileMutation.isPending ? 'מעלה...' : 'גרור קובץ להעלאה או לחצי לבחירה'}
+            className="mt-1"
+          />
         </CardContent>
       </Card>
       </div>

@@ -68,18 +68,68 @@ export async function getLessonById(id: string, userId: string, role: string) {
     ? { exists: Boolean(quiz), published: quiz?.published ?? false }
     : { exists: Boolean(quiz?.published), published: Boolean(quiz?.published) };
 
+  // Students need to know which required files they've already marked as seen,
+  // so the "finish lesson" gate can be shown accurately before they even try it.
+  const viewedFileIds = role === 'ADMIN'
+    ? new Set<string>()
+    : new Set(
+        (await prisma.lessonFileView.findMany({
+          where: { studentId: userId, fileId: { in: lesson.files.map((f) => f.id) } },
+          select: { fileId: true },
+        })).map((v) => v.fileId)
+      );
+
   return {
     ...lessonFields,
     assignments,
     githubUrls: effectiveGithubUrls(lesson),
     completed: Boolean(progress),
-    files: lesson.files.map((f) => toFileDTO(f, 'lesson', userId)),
+    files: lesson.files.map((f) => ({ ...toFileDTO(f, 'lesson', userId), viewed: viewedFileIds.has(f.id) })),
     quiz: quizState,
   };
 }
 
+async function assertRequiredFilesViewed(studentId: string, lessonId: string) {
+  const requiredFiles = await prisma.lessonFile.findMany({
+    where: { lessonId, required: true },
+    select: { id: true, name: true },
+  });
+  if (requiredFiles.length === 0) return;
+
+  const viewed = await prisma.lessonFileView.findMany({
+    where: { studentId, fileId: { in: requiredFiles.map((f) => f.id) } },
+    select: { fileId: true },
+  });
+  const viewedIds = new Set(viewed.map((v) => v.fileId));
+  const missing = requiredFiles.filter((f) => !viewedIds.has(f.id));
+  if (missing.length > 0) {
+    throw Object.assign(
+      new Error(`יש לסמן את הקבצים הבאים כנצפו לפני סיום השיעור: ${missing.map((f) => f.name).join(', ')}`),
+      { status: 400 }
+    );
+  }
+}
+
+export async function markLessonFileViewed(studentId: string, role: string, lessonId: string, fileId: string) {
+  await assertLessonAccess(studentId, role, lessonId);
+  const file = await prisma.lessonFile.findUnique({ where: { id: fileId, lessonId } });
+  if (!file) throw Object.assign(new Error('File not found'), { status: 404 });
+  await prisma.lessonFileView.upsert({
+    where: { studentId_fileId: { studentId, fileId } },
+    create: { studentId, fileId },
+    update: {},
+  });
+}
+
+export async function setLessonFileRequired(lessonId: string, fileId: string, required: boolean) {
+  const file = await prisma.lessonFile.findUnique({ where: { id: fileId, lessonId } });
+  if (!file) throw Object.assign(new Error('File not found'), { status: 404 });
+  return prisma.lessonFile.update({ where: { id: fileId }, data: { required } });
+}
+
 export async function setLessonProgress(studentId: string, lessonId: string, completed: boolean) {
   if (completed) {
+    await assertRequiredFilesViewed(studentId, lessonId);
     await prisma.lessonProgress.upsert({
       where: { studentId_lessonId: { studentId, lessonId } },
       create: { studentId, lessonId },
