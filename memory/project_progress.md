@@ -16,7 +16,14 @@
 
 **✅ Docker הורץ ישירות על ידי הסוכן**, באישור מפורש וחד-פעמי של המשתמשת (חריגה מהכלל הקבוע "אל תריץ פקודות Docker בעצמך"): `docker compose -p homework-app build --no-cache frontend` ו-`up -d`. גם `prisma migrate dev --name quiz_attempt_official` הורץ ישירות (אותו אישור מפורש).
 
-**⏸️ בדיקת DB בענן — בעיכוב, לא בוצעה.** המשתמשת ניסתה פעמיים והדביקה בטעות את טקסט ה-placeholder שלי (`<...>`) במקום ערך אמיתי. הוסבר לה בפירוש. **חשוב לזכור להלן:** ה-DB יושב ב-**Supabase** (לא Vercel — Vercel מארח רק frontend; backend ב-Render). המשתמשת התבקשה (ואישרה "תעצור עם הבדיקות") שלא להמשיך לדחוף על זה כרגע — היא מנווטת ב-Supabase dashboard לבד (Database Settings → Connection string) כדי להשיג את המחרוזת בעצמה.
+**✅ בדיקת DB בענן הושלמה בהצלחה — אבל לא דרך הסקריפט.** ניסיונות חוזרים להריץ `scratch-check-group.js` מול production נכשלו (placeholder שהודבק בטעות פעמיים, `$` חסר בפקודת PowerShell, ולבסוף "Connection terminated unexpectedly" למרות ש-`Test-NetConnection` לפורט 5432 הצליח — כנראה תו מיוחד בסיסמה שדורש URL encoding, לא נחקר עד הסוף כי נמצאה חלופה טובה יותר). **הפתרון שעבד:** שימוש ישיר ב-**SQL Editor** של Supabase (דרך הדפדפן, בלי סקריפט/מחרוזת חיבור בכלל):
+```sql
+select u.name, u.email, u."createdAt"
+from "User" u join "StudentGroup" sg on sg."studentId" = u.id
+join "Group" g on g.id = sg."groupId"
+where g.name = 'יג'
+```
+תוצאה: קבוצה יג ב-**production** מכילה תלמידות אמיתיות (הרט נחמה, בודנשטיין אפרת, בורשטיין אפרת, ברקו מרים, בשארי רחל ועוד, כולן נוצרו ~30.7.2026, פרט למורה עצמה Chani Pappenhaim שנוצרה 23.7.2026) — **שונה לגמרי** מקבוצת הטסט המקומית (רק 2: רבקה לוי, יהודית כהן). זה תקין וצפוי — dev ו-production הם DB-ים נפרדים לגמרי. ה-DB יושב ב-**Supabase** (לא Vercel — Vercel מארח רק frontend; backend ב-Render). ניתן למחוק את `backend/scratch-check-group.js` — כבר לא נחוץ, ה-SQL Editor עדיף (אין סיכון של להדביק סיסמה בטרמינל).
 
 ## 2026-09-15 (המשך 3) — נמצא ותוקן שורש בעיית התצוגה המקדימה + נדחף הכל + בדיקת DB
 
