@@ -54,7 +54,7 @@ export function FileGallery({ files, onDelete, onRename, className }: FileGaller
 }
 
 function FileTile({ file, onOpen, onDelete, onRename }: { file: GalleryFile; onOpen: () => void; onDelete?: (id: string) => void; onRename?: (id: string, name: string) => void }) {
-  const kind = getFileKind(file.name);
+  const kind = getFileKind(file.url);
   const Icon = KIND_ICON[kind];
 
   const handleRename = (e: React.MouseEvent) => {
@@ -107,8 +107,8 @@ function FileTile({ file, onOpen, onDelete, onRename }: { file: GalleryFile; onO
 }
 
 function FilePreviewDialog({ file, onClose }: { file: GalleryFile | null; onClose: () => void }) {
-  const kind = file ? getFileKind(file.name) : 'other';
-  const ext = file ? getExtension(file.name) : '';
+  const kind = file ? getFileKind(file.url) : 'other';
+  const ext = file ? getExtension(file.url) : '';
   const isOffice = OFFICE_EXTENSIONS.has(ext);
   const isText = TEXT_EXTENSIONS.has(ext);
 
