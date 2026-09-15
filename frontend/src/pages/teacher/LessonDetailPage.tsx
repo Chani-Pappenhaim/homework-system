@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Github, Edit, Trash2, Plus, BookOpen, Lock, ClipboardList, Paperclip } from 'lucide-react';
+import { Github, Edit, Trash2, Plus, BookOpen, Lock, ClipboardList, Paperclip, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
 import { assignmentsApi } from '@/api/assignments.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -28,10 +28,12 @@ export default function LessonDetailPage() {
   const qc = useQueryClient();
   const toast = useToast();
   const [selectedAssignment, setSelectedAssignment] = useState(0);
+  const [viewingAssignment, setViewingAssignment] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
   const [gradeModal, setGradeModal] = useState<SubmissionDTO | null>(null);
   const [assignmentModal, setAssignmentModal] = useState<AssignmentDTO | null | 'new'>(null);
   const [lessonEditOpen, setLessonEditOpen] = useState(false);
-  const [tab, setTab] = useState<'files' | 'content' | 'assignments' | 'access'>('content');
+  const [tab, setTab] = useState<'files' | 'content' | 'assignments' | 'access' | 'quiz'>('content');
 
   const { data: lessonData, isLoading } = useQuery({
     queryKey: ['lesson', id],
@@ -48,8 +50,11 @@ export default function LessonDetailPage() {
   useEffect(() => {
     if (!lesson || !targetAssignmentId) return;
     const i = lesson.assignments.findIndex((a) => a.id === targetAssignmentId);
-    if (i >= 0) { setSelectedAssignment(i); setTab('assignments'); }
+    if (i >= 0) { setSelectedAssignment(i); setViewingAssignment(true); setTab('assignments'); }
   }, [lesson, targetAssignmentId]);
+
+  // Switching assignments shouldn't carry over an expanded description from the previous one.
+  useEffect(() => setDescExpanded(false), [selectedAssignment]);
 
   const uploadFileMutation = useMutation({
     mutationFn: (vars: { file: File; name?: string }) => lessonsApi.uploadFile(id!, vars.file, vars.name),
@@ -156,7 +161,16 @@ export default function LessonDetailPage() {
             tab === 'access' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
           )}
         >
-          <Lock size={15} /> הרשאות וחידון AI
+          <Lock size={15} /> הרשאות
+        </button>
+        <button
+          onClick={() => setTab('quiz')}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
+            tab === 'quiz' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
+          )}
+        >
+          <Sparkles size={15} /> חידון AI
         </button>
       </div>
 
@@ -214,80 +228,117 @@ export default function LessonDetailPage() {
 
       {tab === 'assignments' && (
       <div className="lg:col-span-3">
-      {/* Assignments + submissions */}
-      <Card>
+      {/* Assignments + submissions: a compact clickable list, drilling into one assignment at a time */}
+      {!viewingAssignment && (
+        <Card>
           <CardHeader>
             <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex gap-2 flex-wrap">
-                {lesson.assignments.map((a, i) => (
-                  <button key={a.id} onClick={() => setSelectedAssignment(i)}
-                    className={`rounded-input border px-3 py-1.5 text-sm font-bold transition-colors ${i === selectedAssignment ? 'border-rule bg-ink text-sheet' : 'border-rule/30 text-ink/70 hover:border-rule hover:bg-ground/60'}`}>
-                    {a.title}
-                  </button>
-                ))}
-                {lesson.assignments.length === 0 && (
-                  <span className="text-sm text-ink/50">אין מטלות עדיין</span>
-                )}
-              </div>
+              <h2 className="font-display text-base font-bold">מטלות</h2>
               <Button size="sm" variant="secondary" onClick={() => setAssignmentModal('new')}>
                 <Plus size={13} /> מטלה חדשה
               </Button>
             </div>
           </CardHeader>
+          <CardContent className="space-y-2">
+            {lesson.assignments.length === 0 && (
+              <p className="text-sm text-ink/50">אין מטלות עדיין</p>
+            )}
+            {lesson.assignments.map((a, i) => (
+              <button
+                key={a.id}
+                onClick={() => { setSelectedAssignment(i); setViewingAssignment(true); }}
+                className="flex w-full items-center justify-between gap-2 rounded-input border border-rule/30 px-4 py-2.5 text-right transition-colors hover:border-rule hover:bg-ground/60"
+              >
+                <span className="text-sm font-bold text-ink">{a.title}</span>
+                <ChevronLeft size={16} className="shrink-0 text-ink/40" />
+              </button>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
-          {assignment && (
-            <div>
-              {/* Assignment info */}
-              <div className="px-5 py-3 bg-ground/60 border-b border-rule/20">
-                <div className="flex items-start justify-between gap-2">
-                  <dl className="grid flex-1 grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
-                    {assignment.description && (
-                      <>
-                        <dt className="text-xs font-medium text-ink/50">תיאור</dt>
-                        <dd className="text-ink/80">{assignment.description}</dd>
-                      </>
-                    )}
-                    {assignment.deadline && (
-                      <>
-                        <dt className="text-xs font-medium text-ink/50">מועד אחרון</dt>
-                        <dd className="font-medium text-ink">{formatDate(assignment.deadline)}</dd>
-                      </>
-                    )}
-                    {assignment.aiInstructions && (
-                      <>
-                        <dt className="text-xs font-medium text-ink/50">הנחיות AI</dt>
-                        <dd className="text-xs text-ink/60">{assignment.aiInstructions}</dd>
-                      </>
-                    )}
-                  </dl>
-                  <div className="flex gap-1 shrink-0">
-                    <Button size="sm" variant="outline" onClick={() => setAssignmentModal(assignment)}>
-                      <Edit size={12} />
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => {
-                      if (confirm('למחוק מטלה זו?')) deleteAssignmentMutation.mutate(assignment.id);
-                    }}>
-                      <Trash2 size={12} />
-                    </Button>
-                  </div>
+      {viewingAssignment && assignment && (
+        <Card>
+          <CardHeader>
+            <button
+              onClick={() => setViewingAssignment(false)}
+              className="flex items-center gap-1 text-sm font-semibold text-ink-soft hover:text-ink"
+            >
+              <ChevronRight size={15} /> חזרה לרשימת המטלות
+            </button>
+          </CardHeader>
+
+          <div>
+            {/* Assignment info */}
+            <div className="px-5 py-3 bg-ground/60 border-b border-rule/20">
+              <div className="flex items-start justify-between gap-2">
+                <dl className="grid flex-1 grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
+                  <dt className="text-xs font-medium text-ink/50">מטלה</dt>
+                  <dd className="font-bold text-ink">{assignment.title}</dd>
+                  {assignment.description && (
+                    <>
+                      <dt className="text-xs font-medium text-ink/50">תיאור</dt>
+                      <dd className="text-ink/80">
+                        <p className={cn('whitespace-pre-wrap', !descExpanded && 'line-clamp-2')}>
+                          {assignment.description}
+                        </p>
+                        {assignment.description.length > 120 && (
+                          <button
+                            onClick={() => setDescExpanded((v) => !v)}
+                            className="mt-1 text-xs font-semibold text-clay hover:underline"
+                          >
+                            {descExpanded ? 'הצג פחות' : 'הצג עוד'}
+                          </button>
+                        )}
+                      </dd>
+                    </>
+                  )}
+                  {assignment.deadline && (
+                    <>
+                      <dt className="text-xs font-medium text-ink/50">מועד אחרון</dt>
+                      <dd className="font-medium text-ink">{formatDate(assignment.deadline)}</dd>
+                    </>
+                  )}
+                  {assignment.aiInstructions && (
+                    <>
+                      <dt className="text-xs font-medium text-ink/50">הנחיות AI</dt>
+                      <dd className="text-xs text-ink/60">{assignment.aiInstructions}</dd>
+                    </>
+                  )}
+                </dl>
+                <div className="flex gap-1 shrink-0">
+                  <Button size="sm" variant="outline" onClick={() => setAssignmentModal(assignment)}>
+                    <Edit size={12} />
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => {
+                    if (confirm('למחוק מטלה זו?')) { deleteAssignmentMutation.mutate(assignment.id); setViewingAssignment(false); }
+                  }}>
+                    <Trash2 size={12} />
+                  </Button>
                 </div>
               </div>
-
-              <AssignmentSubmissionsTable
-                assignmentId={assignment.id}
-                onGrade={setGradeModal}
-                autoOpenSubmissionId={assignment.id === targetAssignmentId ? targetSubmissionId : undefined}
-                onAutoOpenHandled={() => setSearchParams((p) => { p.delete('assignmentId'); p.delete('submissionId'); return p; }, { replace: true })}
-              />
             </div>
-          )}
+
+            <AssignmentSubmissionsTable
+              assignmentId={assignment.id}
+              onGrade={setGradeModal}
+              autoOpenSubmissionId={assignment.id === targetAssignmentId ? targetSubmissionId : undefined}
+              onAutoOpenHandled={() => setSearchParams((p) => { p.delete('assignmentId'); p.delete('submissionId'); return p; }, { replace: true })}
+            />
+          </div>
         </Card>
+      )}
       </div>
       )}
 
       {tab === 'access' && (
       <div className="space-y-5 lg:col-span-3">
         <LessonAccessPanel lessonId={lesson.id} />
+      </div>
+      )}
+
+      {tab === 'quiz' && (
+      <div className="space-y-5 lg:col-span-3">
         <QuizResultsCard lesson={lesson} />
       </div>
       )}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Github, CheckCircle, Clock, Bot, Check, BookOpen, ClipboardList, Paperclip, Sparkles } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
@@ -13,6 +13,7 @@ import { FileUpload } from '@/components/ui/file-upload';
 import { FileGallery } from '@/components/ui/file-gallery';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
+import QuizContent from '@/components/student/QuizContent';
 import { cn, formatDate, formatDateTime, isOverdue, toExternalUrl } from '@/lib/utils';
 import { getApiErrorMessage } from '@/lib/errors';
 import { useTeacherRequest } from '@/hooks/useTeacherRequest';
@@ -21,9 +22,8 @@ import type { AssignmentDTO, MySubmission } from '@/types';
 
 export default function StudentLessonDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<'content' | 'files' | 'assignments'>('content');
+  const [tab, setTab] = useState<'content' | 'files' | 'quiz' | 'assignments'>('content');
 
   const { data, isLoading } = useQuery({
     queryKey: ['lesson', id],
@@ -119,14 +119,6 @@ export default function StudentLessonDetailPage() {
           )}
         </button>
         <button
-          onClick={() => hasQuiz && navigate(`/student/quiz/${lesson.id}`)}
-          disabled={!hasQuiz}
-          title={hasQuiz ? undefined : 'אין חידון זמין לשיעור זה'}
-          className="flex items-center gap-1.5 rounded-lg border border-rule bg-sheet px-4 py-2 text-sm font-semibold text-ink-soft transition-colors hover:bg-ground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-sheet"
-        >
-          <Sparkles size={15} /> חידון
-        </button>
-        <button
           onClick={() => setTab('assignments')}
           className={cn(
             'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
@@ -134,6 +126,17 @@ export default function StudentLessonDetailPage() {
           )}
         >
           <ClipboardList size={15} /> מטלות
+        </button>
+        <button
+          onClick={() => hasQuiz && setTab('quiz')}
+          disabled={!hasQuiz}
+          title={hasQuiz ? undefined : 'אין חידון זמין לשיעור זה'}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-sheet',
+            tab === 'quiz' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
+          )}
+        >
+          <Sparkles size={15} /> חידון
         </button>
       </div>
 
@@ -186,6 +189,10 @@ export default function StudentLessonDetailPage() {
             <p className="text-sm text-ink/50">אין מטלות לשיעור זה</p>
           )}
         </div>
+      )}
+
+      {tab === 'quiz' && (
+        hasQuiz ? <QuizContent lessonId={lesson.id} /> : <p className="text-sm text-ink/50">אין חידון זמין לשיעור זה</p>
       )}
     </div>
   );

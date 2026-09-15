@@ -66,6 +66,11 @@ async function openAssignmentsTab() {
   await userEvent.click(screen.getByRole('button', { name: 'מטלות' }));
 }
 
+async function openAssignment(title = 'מטלה ראשית') {
+  await openAssignmentsTab();
+  await userEvent.click(await screen.findByRole('button', { name: new RegExp(title) }));
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   getLesson.mockResolvedValue({ data: { data: { lesson } } });
@@ -81,7 +86,7 @@ describe('TeacherLessonDetailPage', () => {
       ] } },
     });
     renderPage();
-    await openAssignmentsTab();
+    await openAssignment();
     expect(await screen.findByText('רותי')).toBeInTheDocument();
   });
 
@@ -93,7 +98,7 @@ describe('TeacherLessonDetailPage', () => {
       ] } },
     });
     renderPage();
-    await openAssignmentsTab();
+    await openAssignment();
     await userEvent.click(await screen.findByRole('button', { name: 'בדוק עכשיו' }));
 
     const dialogHeading = await screen.findByText(/ציון — רותי/);
@@ -109,7 +114,7 @@ describe('TeacherLessonDetailPage', () => {
       ] } },
     });
     renderPage();
-    await openAssignmentsTab();
+    await openAssignment();
     // Exact name: /ערוך/ also matches the "ערוך שיעור" button and would open
     // the lesson editor instead of the grade modal.
     await userEvent.click(await screen.findByRole('button', { name: 'ערוך' }));
@@ -127,7 +132,7 @@ describe('TeacherLessonDetailPage', () => {
     });
     grade.mockResolvedValue({ data: {} });
     renderPage();
-    await openAssignmentsTab();
+    await openAssignment();
     await userEvent.click(await screen.findByRole('button', { name: 'בדוק עכשיו' }));
 
     // Both inputs render; submissionScore prefilled to the suggestion (95), content empty.
@@ -152,7 +157,7 @@ describe('TeacherLessonDetailPage', () => {
     });
     approveAi.mockResolvedValue({ data: {} });
     renderPage();
-    await openAssignmentsTab();
+    await openAssignment();
     await userEvent.click(await screen.findByRole('button', { name: 'בדוק עכשיו' }));
 
     expect(await screen.findByText(/בדיקת AI — ציון: 88/)).toBeInTheDocument();

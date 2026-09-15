@@ -1,7 +1,7 @@
-import { toExternalUrl, todayISO, formatDate } from '@/lib/utils';
+import { toExternalUrl, todayISO, formatDate, cn } from '@/lib/utils';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Edit, Lock, ExternalLink, Plus, Trash2, ClipboardCheck, ChevronLeft } from 'lucide-react';
+import { Edit, Lock, ExternalLink, Plus, Trash2, ClipboardCheck } from 'lucide-react';
 import { FileGallery } from '@/components/ui/file-gallery';
 import { MultiUrlInput } from '@/components/ui/multi-url-input';
 import { DateField } from '@/components/ui/date-field';
@@ -131,36 +131,40 @@ export default function CourseDetailPage() {
         <CardHeader>
           <h2 className="font-display text-base font-bold">שיעורים ({course.lessons.length})</h2>
         </CardHeader>
-        <CardContent className="space-y-2">
-          {course.lessons.map((l, i) => (
-            <button
-              key={l.id}
-              onClick={() => navigate(`/teacher/lessons/${l.id}`)}
-              className={`flex w-full items-center gap-3 rounded-card border border-rule px-4 py-3 text-right transition-colors hover:bg-butter/10
-                ${l.hidden ? 'bg-ground/40' : 'bg-sheet'}`}
-            >
-              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-ground font-display text-sm font-bold tabular text-ink/60">
-                {i + 1}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-1.5 truncate text-sm font-bold text-ink">
-                  {l.hidden && <Lock size={11} className="shrink-0 text-ink/40" />}
+        <CardContent>
+          <div className="flex flex-wrap gap-3">
+            {course.lessons.map((l, i) => (
+              <button
+                key={l.id}
+                onClick={() => navigate(`/teacher/lessons/${l.id}`)}
+                title={l.topic}
+                className={cn(
+                  'lift flex w-36 flex-col items-center gap-1.5 rounded-lg border border-rule p-3 text-center shadow-soft transition-colors hover:bg-butter/10',
+                  l.hidden ? 'bg-ground/40' : 'bg-sheet',
+                )}
+              >
+                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-ground font-display text-sm font-bold tabular text-ink/60">
+                  {i + 1}
+                </span>
+                <p className="flex items-center justify-center gap-1 text-xs font-bold text-ink line-clamp-2">
+                  {l.hidden && <Lock size={10} className="shrink-0 text-ink/40" />}
                   {l.topic}
                 </p>
-                <p className="mt-0.5 text-[11px] text-ink-soft">
+                <p className="text-[10px] text-ink-soft">
                   {l.lessonDate ? formatDate(l.lessonDate) : 'ללא תאריך'}
-                  {Boolean(l.groupStudentCount) && ` · ${l.completedCount ?? 0}/${l.groupStudentCount} סיימו`}
                 </p>
-              </div>
-              <ChevronLeft size={14} className="shrink-0 text-ink-soft" />
+                {Boolean(l.groupStudentCount) && (
+                  <p className="text-[10px] text-ink-soft">{l.completedCount ?? 0}/{l.groupStudentCount} סיימו</p>
+                )}
+              </button>
+            ))}
+            <button
+              onClick={() => { setNewTopic(''); setNewDate(todayISO()); setNewContent(''); setNewGithubUrls(['']); setNewLessonModal(true); }}
+              className="flex w-36 flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-rule p-3 text-sm text-ink-soft transition-colors hover:border-clay/50 hover:text-clay"
+            >
+              <Plus size={16} /> שיעור חדש
             </button>
-          ))}
-          <button
-            onClick={() => { setNewTopic(''); setNewDate(todayISO()); setNewContent(''); setNewGithubUrls(['']); setNewLessonModal(true); }}
-            className="flex w-full items-center justify-center gap-1.5 rounded-card border border-dashed border-rule px-4 py-3 text-sm text-ink-soft transition-colors hover:border-clay/50 hover:text-clay"
-          >
-            <Plus size={16} /> שיעור חדש
-          </button>
+          </div>
         </CardContent>
       </Card>
 

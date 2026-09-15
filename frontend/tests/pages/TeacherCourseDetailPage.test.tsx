@@ -54,8 +54,8 @@ describe('TeacherCourseDetailPage', () => {
   it('navigates to a lesson when its bubble is clicked', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'קורס React' });
-    // Lesson bubbles are numbered buttons 1..n
-    await userEvent.click(screen.getByRole('button', { name: '1' }));
+    // Lesson bubbles show the topic as their visible text.
+    await userEvent.click(screen.getByRole('button', { name: /שיעור ראשון/ }));
     expect(navigate).toHaveBeenCalledWith('/teacher/lessons/l1');
   });
 
