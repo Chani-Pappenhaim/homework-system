@@ -47,8 +47,8 @@ export function FileGallery({ files, onDelete, onRename, className }: FileGaller
   if (files.length === 0) return null;
 
   return (
-    <div className="space-y-4">
-      <div className={cn('grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4', className)}>
+    <div className={cn('flex flex-col gap-4', selected && 'lg:flex-row-reverse lg:items-start')}>
+      <div className={cn('grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4', selected && 'lg:flex-1', className)}>
         {files.map((f) => (
           <FileTile
             key={f.id}
@@ -61,9 +61,9 @@ export function FileGallery({ files, onDelete, onRename, className }: FileGaller
         ))}
       </div>
 
-      {/* Inline preview — displayed on the page, not in a modal */}
+      {/* Preview — beside the grid on wide screens, stacked below it on narrow ones */}
       {selected && (
-        <FilePreviewInline file={selected} onClose={() => setSelectedId(null)} />
+        <FilePreviewInline file={selected} onClose={() => setSelectedId(null)} className="lg:sticky lg:top-4 lg:w-80 lg:shrink-0" />
       )}
     </div>
   );
@@ -153,7 +153,7 @@ function FileTile({
   );
 }
 
-function FilePreviewInline({ file, onClose }: { file: GalleryFile; onClose: () => void }) {
+function FilePreviewInline({ file, onClose, className }: { file: GalleryFile; onClose: () => void; className?: string }) {
   const ext = file.extension ?? '';
   const kind = getFileKindByExtension(ext);
   const isOffice = OFFICE_EXTENSIONS.has(ext);
@@ -162,10 +162,10 @@ function FilePreviewInline({ file, onClose }: { file: GalleryFile; onClose: () =
   const downloadUrl = `${url}${url.includes('?') ? '&' : '?'}dl=1`;
 
   return (
-    <div className="rounded-input border border-rule bg-ground/30 p-4">
+    <div className={cn('rounded-input border border-rule bg-ground/30 p-4', className)}>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-ink">{file.name}</h3>
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-semibold text-ink">{file.name}</h3>
           {file.sizeBytes && <p className="text-xs text-ink/50">{formatBytes(file.sizeBytes)}</p>}
         </div>
         <div className="flex shrink-0 gap-2">
@@ -185,7 +185,7 @@ function FilePreviewInline({ file, onClose }: { file: GalleryFile; onClose: () =
         </div>
       </div>
 
-      <div className="flex min-h-96 items-center justify-center overflow-auto rounded-sm bg-sheet p-3">
+      <div className="flex min-h-72 items-center justify-center overflow-auto rounded-sm bg-sheet p-3">
         {kind === 'image' && (
           <img src={url} alt={file.name} className="max-h-full max-w-full rounded-sm object-contain" />
         )}

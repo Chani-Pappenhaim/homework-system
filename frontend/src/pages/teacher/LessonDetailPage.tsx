@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Github, Edit, Trash2, Plus, BookOpen, Lock } from 'lucide-react';
+import { Github, Edit, Trash2, Plus, BookOpen, Lock, ClipboardList } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
 import { assignmentsApi } from '@/api/assignments.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -31,7 +31,7 @@ export default function LessonDetailPage() {
   const [gradeModal, setGradeModal] = useState<SubmissionDTO | null>(null);
   const [assignmentModal, setAssignmentModal] = useState<AssignmentDTO | null | 'new'>(null);
   const [lessonEditOpen, setLessonEditOpen] = useState(false);
-  const [tab, setTab] = useState<'content' | 'access'>('content');
+  const [tab, setTab] = useState<'content' | 'assignments' | 'access'>('content');
 
   const { data: lessonData, isLoading } = useQuery({
     queryKey: ['lesson', id],
@@ -48,7 +48,7 @@ export default function LessonDetailPage() {
   useEffect(() => {
     if (!lesson || !targetAssignmentId) return;
     const i = lesson.assignments.findIndex((a) => a.id === targetAssignmentId);
-    if (i >= 0) setSelectedAssignment(i);
+    if (i >= 0) { setSelectedAssignment(i); setTab('assignments'); }
   }, [lesson, targetAssignmentId]);
 
   const uploadFileMutation = useMutation({
@@ -127,13 +127,22 @@ export default function LessonDetailPage() {
           <BookOpen size={15} /> תוכן שיעור
         </button>
         <button
+          onClick={() => setTab('assignments')}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
+            tab === 'assignments' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
+          )}
+        >
+          <ClipboardList size={15} /> מטלות
+        </button>
+        <button
           onClick={() => setTab('access')}
           className={cn(
             'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
             tab === 'access' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
           )}
         >
-          <Lock size={15} /> הרשאות גישה
+          <Lock size={15} /> הרשאות וחידון AI
         </button>
       </div>
 
@@ -173,7 +182,11 @@ export default function LessonDetailPage() {
           </div>
         </CardContent>
       </Card>
+      </div>
+      )}
 
+      {tab === 'assignments' && (
+      <div className="lg:col-span-3">
       {/* Assignments + submissions */}
       <Card>
           <CardHeader>
@@ -242,14 +255,13 @@ export default function LessonDetailPage() {
             </div>
           )}
         </Card>
-
-        <QuizResultsCard lesson={lesson} />
       </div>
       )}
 
       {tab === 'access' && (
-      <div className="lg:col-span-3">
+      <div className="space-y-5 lg:col-span-3">
         <LessonAccessPanel lessonId={lesson.id} />
+        <QuizResultsCard lesson={lesson} />
       </div>
       )}
       </div>
