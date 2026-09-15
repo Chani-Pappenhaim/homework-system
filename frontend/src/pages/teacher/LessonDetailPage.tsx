@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Github, Edit, Trash2, Plus } from 'lucide-react';
+import { Github, Edit, Trash2, Plus, BookOpen, Lock } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
 import { assignmentsApi } from '@/api/assignments.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -18,7 +18,7 @@ import { AssignmentSubmissionsTable } from '@/components/lesson/AssignmentSubmis
 import { GradeModal } from '@/components/lesson/GradeModal';
 import { LessonAccessPanel } from '@/components/lesson/LessonAccessPanel';
 import { QuizResultsCard } from '@/components/lesson/QuizResultsCard';
-import { formatDate, toExternalUrl } from '@/lib/utils';
+import { cn, formatDate, toExternalUrl } from '@/lib/utils';
 import type { AssignmentDTO, SubmissionDTO } from '@/types';
 
 export default function LessonDetailPage() {
@@ -31,6 +31,7 @@ export default function LessonDetailPage() {
   const [gradeModal, setGradeModal] = useState<SubmissionDTO | null>(null);
   const [assignmentModal, setAssignmentModal] = useState<AssignmentDTO | null | 'new'>(null);
   const [lessonEditOpen, setLessonEditOpen] = useState(false);
+  const [tab, setTab] = useState<'content' | 'access'>('content');
 
   const { data: lessonData, isLoading } = useQuery({
     queryKey: ['lesson', id],
@@ -113,8 +114,32 @@ export default function LessonDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Content / Access — tab toggle on wide screens instead of a permanent 3-col split */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setTab('content')}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
+            tab === 'content' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
+          )}
+        >
+          <BookOpen size={15} /> תוכן שיעור
+        </button>
+        <button
+          onClick={() => setTab('access')}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
+            tab === 'access' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
+          )}
+        >
+          <Lock size={15} /> הרשאות גישה
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:items-start">
-      <div className="space-y-5 lg:col-span-2">
+      {tab === 'content' && (
+      <div className="space-y-5 lg:col-span-3">
       {/* Lesson content */}
       <Card>
         <CardContent className="space-y-4">
@@ -220,11 +245,13 @@ export default function LessonDetailPage() {
 
         <QuizResultsCard lesson={lesson} />
       </div>
+      )}
 
-      {/* Lesson Access — sits alongside the main lesson content as a sidebar on wide screens */}
-      <div className="lg:col-span-1">
+      {tab === 'access' && (
+      <div className="lg:col-span-3">
         <LessonAccessPanel lessonId={lesson.id} />
       </div>
+      )}
       </div>
 
       <LessonEditModal lesson={lesson} open={lessonEditOpen} onClose={() => setLessonEditOpen(false)} />
