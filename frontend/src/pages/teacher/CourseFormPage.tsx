@@ -141,14 +141,20 @@ export default function CourseFormPage() {
     <div className="space-y-5" dir="rtl">
       <div className="border-b border-rule pb-3">
         <BackLink className="mb-2" />
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{isEdit ? 'עריכת קורס' : 'קורס חדש'}</h1>
-          {isEdit && (
-            <Button variant="outline" size="sm" onClick={() => setCopyModal(true)}>
-              <Copy size={13} /> העתק לקבוצה אחרת
+          <div className="flex items-center gap-2">
+            {isEdit && (
+              <Button variant="outline" size="sm" onClick={() => setCopyModal(true)}>
+                <Copy size={13} /> העתק לקבוצה אחרת
+              </Button>
+            )}
+            <Button loading={saveMutation.isPending} onClick={() => saveMutation.mutate()} disabled={!name || !groupId}>
+              {isEdit ? 'שמור שינויים' : 'צור קורס'}
             </Button>
-          )}
+          </div>
         </div>
+        {error && <p className="mt-2 text-sm text-coral">{error}</p>}
       </div>
 
       {/* Details / Links tab toggle — splits the busy edit screen into focused sections instead of one long page */}
@@ -203,10 +209,6 @@ export default function CourseFormPage() {
                 placeholder="תיאור קצר של הקורס..."
               />
             </div>
-            {error && <p className="text-coral text-sm">{error}</p>}
-            <Button loading={saveMutation.isPending} onClick={() => saveMutation.mutate()} disabled={!name || !groupId}>
-              {isEdit ? 'שמור שינויים' : 'צור קורס'}
-            </Button>
           </CardContent>
         </Card>
 
