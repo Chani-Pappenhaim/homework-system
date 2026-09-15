@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Image, Video, FileText, Music, Archive, File as FileIcon, Download, ExternalLink, X, Pencil } from 'lucide-react';
 import { cn, formatBytes } from '@/lib/utils';
-import { getExtension, getFileKind } from '@/lib/file-type';
+import { getFileKindByExtension } from '@/lib/file-type';
+import { API_URL } from '@/lib/config';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 const OFFICE_EXTENSIONS = new Set(['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx']);
@@ -11,7 +12,15 @@ export interface GalleryFile {
   id: string;
   name: string;
   url: string;
+  extension?: string;
   sizeBytes?: string | null;
+}
+
+// A file's `url` is a relative, short-lived download-redirect path (see
+// backend/src/utils/storage.ts::toFileDTO), not a directly usable address —
+// it has to be resolved against the API origin before use as a src/href.
+function resolveFileUrl(url: string): string {
+  return `${API_URL}${url}`;
 }
 
 const KIND_ICON: Record<string, typeof FileIcon> = {
@@ -54,8 +63,9 @@ export function FileGallery({ files, onDelete, onRename, className }: FileGaller
 }
 
 function FileTile({ file, onOpen, onDelete, onRename }: { file: GalleryFile; onOpen: () => void; onDelete?: (id: string) => void; onRename?: (id: string, name: string) => void }) {
-  const kind = getFileKind(file.url);
+  const kind = getFileKindByExtension(file.extension ?? '');
   const Icon = KIND_ICON[kind];
+  const url = resolveFileUrl(file.url);
 
   const handleRename = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -72,7 +82,7 @@ function FileTile({ file, onOpen, onDelete, onRename }: { file: GalleryFile; onO
       >
         <div className="flex h-16 w-full items-center justify-center overflow-hidden rounded-sm bg-ground/50">
           {kind === 'image' ? (
-            <img src={file.url} alt={file.name} className="h-full w-full object-cover" loading="lazy" />
+            <img src={url} alt={file.name} className="h-full w-full object-cover" loading="lazy" />
           ) : (
             <Icon size={26} className="text-ink/50" />
           )}
@@ -107,10 +117,11 @@ function FileTile({ file, onOpen, onDelete, onRename }: { file: GalleryFile; onO
 }
 
 function FilePreviewDialog({ file, onClose }: { file: GalleryFile | null; onClose: () => void }) {
-  const kind = file ? getFileKind(file.url) : 'other';
-  const ext = file ? getExtension(file.url) : '';
+  const ext = file?.extension ?? '';
+  const kind = getFileKindByExtension(ext);
   const isOffice = OFFICE_EXTENSIONS.has(ext);
   const isText = TEXT_EXTENSIONS.has(ext);
+  const url = file ? resolveFileUrl(file.url) : '';
 
   const [textContent, setTextContent] = useState<string | null>(null);
   const [textError, setTextError] = useState(false);
@@ -120,12 +131,12 @@ function FilePreviewDialog({ file, onClose }: { file: GalleryFile | null; onClos
     setTextError(false);
     if (!file || !isText) return;
     let cancelled = false;
-    fetch(file.url)
+    fetch(url)
       .then((r) => { if (!r.ok) throw new Error(); return r.text(); })
       .then((t) => { if (!cancelled) setTextContent(t); })
       .catch(() => { if (!cancelled) setTextError(true); });
     return () => { cancelled = true; };
-  }, [file, isText]);
+  }, [file, isText, url]);
 
   return (
     <Dialog open={!!file} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -135,7 +146,7 @@ function FilePreviewDialog({ file, onClose }: { file: GalleryFile | null; onClos
             <DialogTitle className="truncate">{file.name}</DialogTitle>
             <div className="flex shrink-0 items-center gap-2">
               <a
-                href={file.url}
+                href={url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1 rounded-input border border-rule px-2.5 py-1.5 text-xs font-semibold text-ink hover:bg-ground/60"
@@ -143,7 +154,7 @@ function FilePreviewDialog({ file, onClose }: { file: GalleryFile | null; onClos
                 <ExternalLink size={12} /> פתיחה בכרטיסייה חדשה
               </a>
               <a
-                href={file.url}
+                href={url}
                 download={file.name}
                 className="flex items-center gap-1 rounded-input border border-rule px-2.5 py-1.5 text-xs font-semibold text-ink hover:bg-ground/60"
               >
@@ -153,18 +164,18 @@ function FilePreviewDialog({ file, onClose }: { file: GalleryFile | null; onClos
           </div>
           <div className="flex items-center justify-center overflow-auto p-4">
             {kind === 'image' && (
-              <img src={file.url} alt={file.name} className="max-h-[70vh] max-w-full rounded-sm object-contain" />
+              <img src={url} alt={file.name} className="max-h-[70vh] max-w-full rounded-sm object-contain" />
             )}
             {kind === 'video' && (
-              <video src={file.url} controls autoPlay className="max-h-[70vh] max-w-full rounded-sm" />
+              <video src={url} controls autoPlay className="max-h-[70vh] max-w-full rounded-sm" />
             )}
-            {kind === 'audio' && <audio src={file.url} controls className="w-full" />}
+            {kind === 'audio' && <audio src={url} controls className="w-full" />}
             {kind === 'pdf' && (
-              <iframe src={file.url} title={file.name} className="h-[70vh] w-full rounded-sm border border-rule" />
+              <iframe src={url} title={file.name} className="h-[70vh] w-full rounded-sm border border-rule" />
             )}
             {kind === 'doc' && isOffice && (
               <iframe
-                src={`https://docs.google.com/gview?url=${encodeURIComponent(file.url)}&embedded=true`}
+                src={`https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`}
                 title={file.name}
                 className="h-[70vh] w-full rounded-sm border border-rule bg-sheet"
               />
@@ -186,7 +197,7 @@ function FilePreviewDialog({ file, onClose }: { file: GalleryFile | null; onClos
                 <p className="text-sm text-ink/70">אין תצוגה מקדימה זמינה לסוג קובץ זה</p>
                 <div className="flex items-center gap-2">
                   <a
-                    href={file.url}
+                    href={url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="lift rounded-input border border-rule px-4 py-2 text-sm font-semibold text-ink shadow-soft"
@@ -194,7 +205,7 @@ function FilePreviewDialog({ file, onClose }: { file: GalleryFile | null; onClos
                     פתיחה בכרטיסייה חדשה
                   </a>
                   <a
-                    href={file.url}
+                    href={url}
                     download={file.name}
                     className="lift rounded-input bg-ink px-4 py-2 text-sm font-semibold text-sheet shadow-soft"
                   >

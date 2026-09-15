@@ -17,3 +17,7 @@ export function getExtension(name: string): string {
 export function getFileKind(name: string): FileKind {
   return EXT_MAP[getExtension(name)] ?? 'other';
 }
+
+export function getFileKindByExtension(ext: string): FileKind {
+  return EXT_MAP[ext.toLowerCase()] ?? 'other';
+}

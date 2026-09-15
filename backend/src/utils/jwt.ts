@@ -36,3 +36,22 @@ export function verifyAccessToken(token: string): TokenPayload {
 export function verifyRefreshToken(token: string): TokenPayload {
   return jwt.verify(token, REFRESH_SECRET) as TokenPayload;
 }
+
+export interface FileTokenPayload {
+  fileId: string;
+  kind: 'lesson' | 'course';
+}
+
+/**
+ * A study-material download link carries this instead of the browser's normal
+ * Authorization header (an <a>/<img>/<iframe> navigation can't send one), so it
+ * has to be its own short-lived, single-file credential rather than a signed
+ * Cloudinary URL that — once handed out — stays valid forever.
+ */
+export function signFileToken(payload: FileTokenPayload): string {
+  return jwt.sign(payload, ACCESS_SECRET, { expiresIn: '15m' });
+}
+
+export function verifyFileToken(token: string): FileTokenPayload {
+  return jwt.verify(token, ACCESS_SECRET) as FileTokenPayload;
+}

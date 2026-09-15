@@ -73,7 +73,7 @@ export async function getLessonById(id: string, userId: string, role: string) {
     assignments,
     githubUrls: effectiveGithubUrls(lesson),
     completed: Boolean(progress),
-    files: lesson.files.map(toFileDTO),
+    files: lesson.files.map((f) => toFileDTO(f, 'lesson')),
     quiz: quizState,
   };
 }
@@ -128,7 +128,7 @@ export async function uploadLessonFile(
   const created = await prisma.lessonFile.create({
     data: { lessonId, name: displayName?.trim() || file.originalName, url, sizeBytes: bytes },
   });
-  return toFileDTO(created);
+  return toFileDTO(created, 'lesson');
 }
 
 export async function deleteLessonFile(lessonId: string, fileId: string) {
@@ -144,7 +144,7 @@ export async function renameLessonFile(lessonId: string, fileId: string, name: s
   const trimmed = name.trim();
   if (!trimmed) throw Object.assign(new Error('Name is required'), { status: 400 });
   const updated = await prisma.lessonFile.update({ where: { id: fileId }, data: { name: trimmed } });
-  return toFileDTO(updated);
+  return toFileDTO(updated, 'lesson');
 }
 
 // Deletes a lesson and its children (assignments, submissions, files, quiz,

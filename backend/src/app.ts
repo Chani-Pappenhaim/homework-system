@@ -19,6 +19,7 @@ import quizRoutes from './routes/quizzes.routes';
 import messageRoutes from './routes/messages.routes';
 import aiUsageRoutes from './routes/ai-usage.routes';
 import studentRoutes from './routes/students.routes';
+import filesRoutes from './routes/files.routes';
 
 export function createApp() {
   const app = express();
@@ -60,6 +61,7 @@ export function createApp() {
   app.use('/api/messages', messageRoutes);
   app.use('/api/ai-usage', aiUsageRoutes);
   app.use('/api/students', studentRoutes);
+  app.use('/api/files', filesRoutes);
 
   // Safety net: anything that escapes a controller's try/catch (or is thrown
   // synchronously by a route) lands here. Log the real error, return a generic

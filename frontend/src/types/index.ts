@@ -48,6 +48,7 @@ export interface CourseFile {
   id: string;
   name: string;
   url: string;
+  extension?: string;
   sizeBytes?: string;
   uploadedAt: string;
 }
@@ -75,6 +76,7 @@ export interface LessonFile {
   id: string;
   name: string;
   url: string;
+  extension?: string;
   sizeBytes?: string;
 }
 

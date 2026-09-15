@@ -1,4 +1,5 @@
 import { cloudinary } from '../config/cloudinary';
+import { signFileToken } from './jwt';
 
 /**
  * Multer/busboy decode multipart `filename` headers as latin1, not utf8, so a
@@ -85,12 +86,32 @@ export function createUploadSignature(folder: string) {
   };
 }
 
-/** Prisma returns sizeBytes as BigInt, which JSON.stringify throws on. */
-export function toFileDTO<T extends { sizeBytes?: bigint | null; url?: string }>(file: T) {
+function urlExtension(url: string): string {
+  const match = url.match(/\.([a-zA-Z0-9]+)$/);
+  return match ? match[1]!.toLowerCase() : '';
+}
+
+/**
+ * Prisma returns sizeBytes as BigInt, which JSON.stringify throws on.
+ *
+ * `url` is replaced with a link to our own short-lived download redirect
+ * (see files.controller) instead of a permanently-valid signed Cloudinary URL —
+ * `extension` ships alongside it so the client can still tell a PDF from a
+ * video without an extension to parse out of that URL.
+ */
+export function toFileDTO<T extends { id: string; sizeBytes?: bigint | null; url?: string }>(
+  file: T,
+  kind: 'lesson' | 'course'
+) {
   return {
     ...file,
     sizeBytes: file.sizeBytes?.toString() ?? null,
-    ...(file.url ? { url: toDeliveryUrl(file.url) } : {}),
+    ...(file.url
+      ? {
+          url: `/files/download/${file.id}?token=${signFileToken({ fileId: file.id, kind })}`,
+          extension: urlExtension(file.url),
+        }
+      : {}),
   };
 }
 

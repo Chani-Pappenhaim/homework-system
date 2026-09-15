@@ -100,7 +100,7 @@ export async function getCourseById(id: string, userId: string, role: string) {
     description: course.description, imageUrl: course.imageUrl,
     hidden: course.hidden, groupId: course.groupId,
     links: course.links,
-    files: course.files.map(toFileDTO),
+    files: course.files.map((f) => toFileDTO(f, 'course')),
     lessons,
   };
 }
@@ -169,7 +169,7 @@ export async function uploadCourseFile(
   const created = await prisma.courseFile.create({
     data: { courseId, name: displayName?.trim() || file.originalName, url, sizeBytes: bytes },
   });
-  return toFileDTO(created);
+  return toFileDTO(created, 'course');
 }
 
 export async function deleteCourseFile(courseId: string, fileId: string) {
@@ -185,7 +185,7 @@ export async function renameCourseFile(courseId: string, fileId: string, name: s
   const trimmed = name.trim();
   if (!trimmed) throw Object.assign(new Error('Name is required'), { status: 400 });
   const updated = await prisma.courseFile.update({ where: { id: fileId }, data: { name: trimmed } });
-  return toFileDTO(updated);
+  return toFileDTO(updated, 'course');
 }
 
 // Deletes a course and everything under it. The DB rows cascade automatically,
