@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Edit, Users, BookOpen, Plus, Github, Trash2 } from 'lucide-react';
@@ -6,12 +7,14 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { BackLink } from '@/components/ui/back-link';
 import { useToast } from '@/components/ui/toast';
+import { cn } from '@/lib/utils';
 
 export default function GroupDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
+  const [tab, setTab] = useState<'courses' | 'students'>('courses');
 
   const { data, isLoading } = useQuery({
     queryKey: ['group', id],
@@ -74,11 +77,32 @@ export default function GroupDetailPage() {
         </div>
       </div>
 
-      {/* Courses (main, wider) + Students (narrow rail, capped height with its
-          own scroll) side by side — the rail's scroll cap keeps its height in
-          proportion to the main card regardless of how many students it holds. */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:items-start">
-        <Card accent="indigo" className="lg:col-span-2">
+      {/* Courses / Students — a single toggle instead of a permanent split,
+          so the section on screen is always the full width and never looks
+          lopsided regardless of how much content either side has. */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setTab('courses')}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
+            tab === 'courses' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
+          )}
+        >
+          <BookOpen size={15} /> קורסים ({group.courses.length})
+        </button>
+        <button
+          onClick={() => setTab('students')}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
+            tab === 'students' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
+          )}
+        >
+          <Users size={15} /> תלמידות ({group.students.length})
+        </button>
+      </div>
+
+      {tab === 'courses' ? (
+        <Card accent="indigo">
           <CardHeader>
             <div className="flex items-center justify-between">
               <h2 className="font-display text-base font-bold flex items-center gap-1.5">
@@ -108,13 +132,12 @@ export default function GroupDetailPage() {
             )}
           </CardContent>
         </Card>
-
-        {/* Students (read-only) — narrow rail, scrolls internally past a cap */}
+      ) : (
         <Card>
           <CardHeader>
             <h2 className="font-display text-base font-bold">תלמידות ({group.students.length})</h2>
           </CardHeader>
-          <div className="max-h-[420px] divide-y divide-rule/20 overflow-y-auto">
+          <div className="divide-y divide-rule/20">
             {group.students.length === 0 && (
               <p className="px-5 py-4 text-sm text-ink/50">אין תלמידות עדיין</p>
             )}
@@ -122,16 +145,14 @@ export default function GroupDetailPage() {
               <div key={s.id} className="px-5 py-3">
                 <p className="text-sm font-medium text-ink">{s.name}</p>
                 <p className="text-xs text-ink/50">{s.email}</p>
-                {s.githubUsername && (
-                  <p className="text-xs text-ink/50 flex items-center gap-1 mt-0.5">
-                    <Github size={11} /> {s.githubUsername}
-                  </p>
-                )}
+                <p className="text-xs text-ink/50 flex items-center gap-1 mt-0.5">
+                  <Github size={11} /> {s.githubUsername || 'לא הוזן שם משתמש GitHub'}
+                </p>
               </div>
             ))}
           </div>
         </Card>
-      </div>
+      )}
     </div>
   );
 }

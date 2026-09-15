@@ -233,7 +233,7 @@ export default function GroupFormPage() {
                     <div>
                       <p className="text-sm font-medium">{s.name}</p>
                       <p className="text-xs text-ink/50">{s.email}</p>
-                      {s.githubUsername && <p className="text-xs text-ink/50">GitHub: {s.githubUsername}</p>}
+                      <p className="text-xs text-ink/50">GitHub: {s.githubUsername || 'לא הוזן'}</p>
                     </div>
                   </div>
                   <div className="flex gap-2">

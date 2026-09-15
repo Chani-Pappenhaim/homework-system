@@ -55,8 +55,8 @@ export default function AiUsagePage() {
         <StatCard icon={<DollarSign size={18} />} tile="mustard" label="עלות מצטברת $" value={`$${(summary?.totalCostUsd ?? 0).toFixed(2)}`} />
       </div>
 
-      {/* Cloudinary storage + Monthly breakdown — independent, equal-weight sections side by side on wide screens */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
+      {/* Cloudinary storage, then monthly breakdown below it — both full width, stacked */}
+      <div className="space-y-5">
         <Card accent="indigo">
           <CardHeader>
             <div className="flex items-center justify-between">
