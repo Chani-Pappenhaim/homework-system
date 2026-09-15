@@ -2,6 +2,31 @@
 
 > קובץ זה עוקב אחרי מה שהושלם ומה שנשאר. יש לעדכן אותו בסוף כל שיחה שבה נעשתה עבודה.
 
+## 2026-09-15 (המשך 2) — אבחון תצוגה מקדימה/הורדת קבצים + פיצ'ר שינוי שם קובץ + תקלות Docker/Prisma
+
+**אבחון 401 בהורדת קבצים (חוברות/PDF):** אומת בקוד ([storage.ts](../backend/src/utils/storage.ts)) שה-URL כבר חתום (`sign_url: true`, מאז קומיט `7484e73`) — כלומר לא באג קוד. שורש הבעיה: הגדרת **חשבון** Cloudinary — checkbox "Allow delivery of PDF and ZIP files" (בעמוד Security, לא "Restricted image types" שזה משהו אחר לגמרי — קשור למקורות תמונה חיצוניים כמו פייסבוק/אינסטגרם) היה כבוי. המשתמשת סימנה אותו — **טרם אומת בפועל שההורדה עובדת עכשיו**.
+
+**עדיין פתוח, לא אובחן:** קובץ שיר (אין תצוגה מקדימה ואין קישור הורדה עובד בכלל) וקובץ וידאו (נפתח בקישור ישיר אבל נכשל בתצוגה מקדימה בדיאלוג). ביקשתי מהמשתמשת: קוד סטטוס מ-Network tab עבור השיר, ותיאור מדויק של איך נכשל הווידאו (מסך שחור/spinner אינסופי/הודעת שגיאה) — טרם ענתה.
+
+**✅ פיצ'ר חדש: שינוי שם קובץ אחרי העלאה (בקשת המשתמשת).** מימוש מלא, תואם בדיוק לתבנית deleteFile הקיימת:
+- Backend: `renameLessonFile`/`renameCourseFile` ב-[lessons.service.ts](../backend/src/services/lessons.service.ts)/[courses.service.ts](../backend/src/services/courses.service.ts) (בדיקת בעלות דרך `findUnique({id, lessonId/courseId})`, 404 אם לא נמצא, ולידציית שם לא-ריק), קונטרולרים תואמים, route חדש `PATCH /lessons(courses)/:id/files/:fileId` (ADMIN).
+- Frontend: `renameFile()` ב-`lessons.api.ts`/`courses.api.ts`; `onRename` prop חדש על `FileGallery`/`FileTile` ([file-gallery.tsx](../frontend/src/components/ui/file-gallery.tsx)) — אייקון עיפרון ליד ה-X הקיים, `window.prompt()` עם השם הנוכחי (תבנית קלה, תואמת ל-`confirm()` הקיים לפעולות הרסניות). מחובר ב-`teacher/LessonDetailPage.tsx` וב-`teacher/CourseFormPage.tsx` (שם, לא ב-`CourseDetailPage.tsx` — ניהול קבצי קורס נמצא בטופס העריכה, לא בדף הפרטים). `tsc --noEmit` נקי בשני הצדדים.
+
+**⚠️ טרם commit/push** — הפיצ'ר + כל שאר הקבצים שכבר היו ב-working tree (ראה `git status`) עדיין מקומיים בלבד.
+
+**תקלות Docker/Prisma שנפתרו בעזרת המשתמשת (כדי להריץ בדיקת DB ידנית):**
+- Docker Desktop לא היה פתוח כלל (שגיאת pipe) — המשתמשת פתחה אותו.
+- `npx prisma migrate dev` נכשל עם הצעה להתקין `prisma@8.0.0-rc.15` — כי רץ מ-root במקום מ-`backend/` (npx לא מצא את הגרסה המוצמדת 7.8.0 מקומית ופנה לרשת).
+- סקריפט אבחון (`check-group-students.js`) נכשל עם `Cannot find module '@prisma/client'` כי היה בתיקיית scratch זמנית בלי `node_modules` — הועבר ל-`backend/scratch-check-group.js` (⚠️ untracked, יש למחוק אחרי שהבדיקה תצליח).
+- **⚠️ עדיין לא נפתר בפועל:** גם אחרי שהמשתמשת אישרה "Docker רץ", גם הרצת הסקריפט וגם ניסיון אבחון עצמאי (`docker compose ps`) מהסביבה של הסוכן נכשלים ב-`ECONNREFUSED`/שגיאת pipe זהה. לא ברור אם זו בעיית סביבה של הסוכן בלבד (ולא של המשתמשת בפועל) — **יש לבקש מהמשתמשת להריץ בעצמה `docker compose -p homework-app ps` ולשלוח את הפלט** כדי להבחין.
+
+**לא התחיל:**
+- עדכון עיצוב/מראה הדשבורד (המשתמשת שלחה תמונות השראה בעבר) — עדיין דורש הצגת תוכנית וקבלת אישור **לפני** קוד, לפי הכלל הקבוע בפרויקט.
+- תלונה חדשה: "התצוגה של המורה בכל שיעור לא מאוזנת ונוחה" (טרם נבדק עם תלמידה) — נבדק קוד [LessonDetailPage.tsx](../frontend/src/pages/teacher/LessonDetailPage.tsx): יש grid `lg:grid-cols-3` (2/3 תוכן ראשי + 1/3 `LessonAccessPanel`) שעלול ליצור חוסר איזון גובה (אותו דפוס שתוקן בעבר ב-`GroupDetailPage`) — לא בוצע שינוי, ממתין לצילום מסך/אישור מהמשתמשת.
+- סוכן ארכיטקטורה (מבוסס על סקיל `architecture-standards` הגלובלי של המשתמשת) הופעל ברקע לבדוק את מבנה הפרויקט מול הסקיל — תוצאה תתועד בהמשך הקובץ כשתחזור.
+
+---
+
 ## 2026-09-15 (המשך) — תוקנו 9 כשלי הבדיקות "הקיימים מראש" (branch fix/pre-existing-grade-test-failures → מוזג ל-main, קומיט `8722a51`)
 
 בעקבות הבקשה "תתקן את מה שנמצא" (מתייחסת ל-9 הכשלים שסומנו קודם כ"לא רגרסיה, מחוץ לסקופ").
