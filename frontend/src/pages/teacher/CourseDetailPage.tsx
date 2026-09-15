@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { BackLink } from '@/components/ui/back-link';
-import { CourseAccessPanel } from '@/components/course/CourseAccessPanel';
 import {
   Dialog,
   DialogBody,
@@ -220,9 +219,6 @@ export default function CourseDetailPage() {
       </div>
       )}
 
-      {tab === 'access' && (
-        <CourseAccessPanel courseId={course.id} />
-      )}
 
       {/* New lesson modal */}
       <Dialog open={newLessonModal} onOpenChange={setNewLessonModal}>
