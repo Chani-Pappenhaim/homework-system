@@ -1,7 +1,7 @@
-import { toExternalUrl, todayISO, formatDate, cn } from '@/lib/utils';
+import { toExternalUrl, todayISO, formatDate } from '@/lib/utils';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Edit, Lock, ExternalLink, Plus, Trash2, ClipboardCheck, ChevronLeft, BookOpen } from 'lucide-react';
+import { Edit, Lock, ExternalLink, Plus, Trash2, ClipboardCheck, ChevronLeft } from 'lucide-react';
 import { FileGallery } from '@/components/ui/file-gallery';
 import { MultiUrlInput } from '@/components/ui/multi-url-input';
 import { DateField } from '@/components/ui/date-field';
@@ -37,7 +37,6 @@ export default function CourseDetailPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
-  const [tab, setTab] = useState<'content' | 'access'>('content');
   const [newLessonModal, setNewLessonModal] = useState(false);
   const [newTopic, setNewTopic] = useState('');
   const [newDate, setNewDate] = useState(todayISO());
@@ -118,30 +117,6 @@ export default function CourseDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Content / Access — tab toggle */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => setTab('content')}
-          className={cn(
-            'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
-            tab === 'content' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
-          )}
-        >
-          <BookOpen size={15} /> תוכן קורס
-        </button>
-        <button
-          onClick={() => setTab('access')}
-          className={cn(
-            'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
-            tab === 'access' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
-          )}
-        >
-          <Lock size={15} /> הרשאות גישה
-        </button>
-      </div>
-
-      {tab === 'content' && (
-      <div className="space-y-5">
       {/* Stats */}
       {studentCount > 0 && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -215,8 +190,6 @@ export default function CourseDetailPage() {
             </Card>
           )}
         </div>
-      )}
-      </div>
       )}
 
 

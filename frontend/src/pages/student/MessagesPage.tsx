@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, Clock, Trash2, Reply } from 'lucide-react';
+import { ChevronLeft, Clock, Trash2, Reply, MessageSquarePlus } from 'lucide-react';
 import { messagesApi } from '@/api/messages.api';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
+import { MessageSkeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
   DialogBody,
@@ -24,13 +25,13 @@ import type { MessageDTO } from '@/types';
 export default function StudentMessagesPage() {
   const qc = useQueryClient();
   const [searchParams] = useSearchParams();
+  const [composeOpen, setComposeOpen] = useState(false);
   const [content, setContent] = useState('');
-  const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
 
-  const { data } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['my-messages'],
     queryFn: () => messagesApi.getMine(),
   });
@@ -38,7 +39,7 @@ export default function StudentMessagesPage() {
   const mutation = useMutation({
     mutationFn: () => messagesApi.send(content),
     onSuccess: () => {
-      setSent(true); setContent(''); setError('');
+      setContent(''); setError(''); setComposeOpen(false);
       qc.invalidateQueries({ queryKey: ['my-messages'] });
     },
     onError: (e: any) => setError(getApiErrorMessage(e, 'שגיאה בשליחה')),
@@ -102,34 +103,24 @@ export default function StudentMessagesPage() {
 
   return (
     <div className="space-y-5" dir="rtl">
-      <PageHeader title="הודעה למורה" meta="חדר מורה · צ׳אט" />
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
-      <Card accent="indigo">
-        <CardHeader><h2 className="font-display text-base font-bold">שלחי הודעה</h2></CardHeader>
-        <CardContent className="space-y-3">
-          {sent && (
-            <div className="border border-sage bg-sage/15 p-3 text-sm font-bold text-sage">
-              ההודעה נשלחה בהצלחה ✓
-            </div>
-          )}
-          <Textarea
-            className="resize-none"
-            rows={5}
-            placeholder="כתבי את ההודעה שלך..."
-            value={content}
-            onChange={(e) => { setContent(e.target.value); setSent(false); }}
-          />
-          {error && <p className="text-coral text-xs">{error}</p>}
-          <Button loading={mutation.isPending} onClick={() => mutation.mutate()} disabled={!content.trim()}>
-            שלחי
+      <PageHeader
+        title="הודעה למורה"
+        meta="חדר מורה · צ׳אט"
+        actions={
+          <Button onClick={() => { setContent(''); setError(''); setComposeOpen(true); }}>
+            <MessageSquarePlus size={15} /> הודעה חדשה
           </Button>
-        </CardContent>
-      </Card>
+        }
+      />
 
-      {/* Message history — list opens the full thread in a floating overlay, like the teacher's inbox */}
-      {messages.length > 0 && (
+      {isLoading ? (
+        <div className="sheet divide-y divide-rule overflow-hidden">
+          {[...Array(4)].map((_, i) => <MessageSkeleton key={i} />)}
+        </div>
+      ) : messages.length === 0 ? (
+        <EmptyState icon={<MessageSquarePlus size={22} />}>אין הודעות עדיין</EmptyState>
+      ) : (
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-ink/70">ההודעות שלי</h2>
           <div className="sheet divide-y divide-rule overflow-hidden">
             {messages.map((msg) => {
               const unread = isUnread(msg);
@@ -137,7 +128,7 @@ export default function StudentMessagesPage() {
               <button
                 key={msg.id}
                 onClick={() => openMessage(msg)}
-                className="flex w-full items-center gap-3 px-4 py-3 text-right transition-colors hover:bg-butter/10"
+                className="flex w-full items-stretch gap-3 px-4 py-3 text-right transition-colors hover:bg-butter/10"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -163,7 +154,34 @@ export default function StudentMessagesPage() {
           </div>
         </div>
       )}
-      </div>
+
+      {/* Compose — floating dialog, like the teacher's "הודעה חדשה" flow */}
+      <Dialog open={composeOpen} onOpenChange={(o) => { setComposeOpen(o); if (!o) { setContent(''); setError(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>הודעה חדשה למורה</DialogTitle>
+          </DialogHeader>
+          <DialogBody className="space-y-3">
+            <Textarea
+              className="resize-none"
+              rows={5}
+              placeholder="כתבי את ההודעה שלך..."
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              autoFocus
+            />
+            {error && <p className="text-coral text-xs">{error}</p>}
+          </DialogBody>
+          <DialogFooter>
+            <Button loading={mutation.isPending} onClick={() => mutation.mutate()} disabled={!content.trim()}>
+              שלחי
+            </Button>
+            <Button variant="outline" onClick={() => setComposeOpen(false)}>
+              ביטול
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Overlay: full message + reply, floating above everything — mirrors the teacher's message overlay */}
       <Dialog open={Boolean(openId)} onOpenChange={(o) => { if (!o) { setOpenId(null); setReplyText(''); } }}>

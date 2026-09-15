@@ -159,6 +159,7 @@ function FilePreviewInline({ file, onClose }: { file: GalleryFile; onClose: () =
   const isOffice = OFFICE_EXTENSIONS.has(ext);
   const isText = TEXT_EXTENSIONS.has(ext);
   const url = resolveFileUrl(file.url);
+  const downloadUrl = `${url}${url.includes('?') ? '&' : '?'}dl=1`;
 
   return (
     <div className="rounded-input border border-rule bg-ground/30 p-4">
@@ -169,7 +170,7 @@ function FilePreviewInline({ file, onClose }: { file: GalleryFile; onClose: () =
         </div>
         <div className="flex shrink-0 gap-2">
           <a
-            href={url}
+            href={downloadUrl}
             download={file.name}
             className="flex items-center gap-1.5 rounded-input bg-indigo px-3 py-1.5 text-xs font-semibold text-sheet hover:bg-indigo/90"
           >
@@ -210,7 +211,7 @@ function FilePreviewInline({ file, onClose }: { file: GalleryFile; onClose: () =
             <FileIcon size={40} className="text-ink/40" />
             <p className="text-sm text-ink/70">אין תצוגה מקדימה זמינה לסוג קובץ זה</p>
             <a
-              href={url}
+              href={downloadUrl}
               download={file.name}
               className="rounded-input bg-indigo px-4 py-2 text-sm font-semibold text-sheet hover:bg-indigo/90"
             >

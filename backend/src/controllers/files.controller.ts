@@ -65,5 +65,33 @@ export async function download(req: Request, res: Response) {
     return;
   }
 
-  res.redirect(toDeliveryUrl(file.url));
+  // Proxied through our own origin instead of a bare redirect to the Cloudinary
+  // CDN: a cross-origin redirect target makes the browser ignore <a download>
+  // (it just navigates/opens the file instead of saving it), and some browsers'
+  // stricter CORS/referrer policies block <audio>/<video> from a redirected
+  // cross-origin source outright. Streaming the bytes ourselves gives one
+  // reliable behavior for both preview and download, and lets us always send a
+  // correct Content-Type/Content-Disposition (Cloudinary's own headers can't be
+  // trusted for either — resource_type 'auto' doesn't guarantee it).
+  const deliveryUrl = toDeliveryUrl(file.url);
+  const upstream = await fetch(deliveryUrl);
+  if (!upstream.ok || !upstream.body) {
+    res.status(502).json({ success: false, error: 'שגיאה בטעינת הקובץ' });
+    return;
+  }
+
+  const asAttachment = req.query.dl === '1';
+  const encodedName = encodeURIComponent(file.name);
+  res.setHeader(
+    'Content-Disposition',
+    `${asAttachment ? 'attachment' : 'inline'}; filename="${encodedName}"; filename*=UTF-8''${encodedName}`
+  );
+  const contentType = upstream.headers.get('content-type');
+  if (contentType) res.setHeader('Content-Type', contentType);
+  const contentLength = upstream.headers.get('content-length');
+  if (contentLength) res.setHeader('Content-Length', contentLength);
+  res.setHeader('Accept-Ranges', 'bytes');
+
+  const { Readable } = await import('node:stream');
+  Readable.fromWeb(upstream.body as never).pipe(res);
 }
