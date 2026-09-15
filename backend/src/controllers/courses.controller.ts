@@ -81,7 +81,7 @@ export async function uploadFile(req: Request, res: Response) {
       ? { buffer: req.file.buffer, mimeType: req.file.mimetype, originalName: fixMulterFilename(req.file.originalname) }
       : req.body.uploadedFile as { url: string; bytes: number; originalName: string } | undefined;
     if (!source) { res.status(400).json({ success: false, error: 'No file provided' }); return; }
-    const file = await coursesService.uploadCourseFile(req.params.id as string, source, req.body.name);
+    const file = await coursesService.uploadCourseFile(req.params.id as string, source, req.body.name, req.user!.userId);
     res.status(201).json({ success: true, data: { file } });
   } catch (err: any) {
     sendError(res, err);
@@ -108,7 +108,7 @@ export async function deleteFile(req: Request, res: Response) {
 
 export async function renameFile(req: Request, res: Response) {
   try {
-    const file = await coursesService.renameCourseFile(req.params.id as string, req.params.fileId as string, req.body.name);
+    const file = await coursesService.renameCourseFile(req.params.id as string, req.params.fileId as string, req.body.name, req.user!.userId);
     res.json({ success: true, data: { file } });
   } catch (err: any) {
     sendError(res, err);

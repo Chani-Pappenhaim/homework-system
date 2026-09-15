@@ -278,6 +278,7 @@ export interface MessageDTO {
   id: string;
   studentId: string;
   content: string;
+  fromTeacher: boolean;
   assignmentId?: string | null;
   isRead: boolean;
   replyContent?: string | null;

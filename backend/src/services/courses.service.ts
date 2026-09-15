@@ -100,7 +100,7 @@ export async function getCourseById(id: string, userId: string, role: string) {
     description: course.description, imageUrl: course.imageUrl,
     hidden: course.hidden, groupId: course.groupId,
     links: course.links,
-    files: course.files.map((f) => toFileDTO(f, 'course')),
+    files: course.files.map((f) => toFileDTO(f, 'course', userId)),
     lessons,
   };
 }
@@ -161,7 +161,8 @@ export function getCourseUploadSignature() {
 export async function uploadCourseFile(
   courseId: string,
   file: { buffer: Buffer; mimeType: string; originalName: string } | { url: string; bytes: number; originalName: string },
-  displayName?: string
+  displayName: string | undefined,
+  userId: string
 ) {
   const { url, bytes } = 'buffer' in file
     ? await uploadBuffer(file.buffer, file.mimeType, 'courses', file.originalName)
@@ -169,7 +170,7 @@ export async function uploadCourseFile(
   const created = await prisma.courseFile.create({
     data: { courseId, name: displayName?.trim() || file.originalName, url, sizeBytes: bytes },
   });
-  return toFileDTO(created, 'course');
+  return toFileDTO(created, 'course', userId);
 }
 
 export async function deleteCourseFile(courseId: string, fileId: string) {
@@ -179,13 +180,13 @@ export async function deleteCourseFile(courseId: string, fileId: string) {
   await prisma.courseFile.delete({ where: { id: fileId } });
 }
 
-export async function renameCourseFile(courseId: string, fileId: string, name: string) {
+export async function renameCourseFile(courseId: string, fileId: string, name: string, userId: string) {
   const file = await prisma.courseFile.findUnique({ where: { id: fileId, courseId } });
   if (!file) throw Object.assign(new Error('File not found'), { status: 404 });
   const trimmed = name.trim();
   if (!trimmed) throw Object.assign(new Error('Name is required'), { status: 400 });
   const updated = await prisma.courseFile.update({ where: { id: fileId }, data: { name: trimmed } });
-  return toFileDTO(updated, 'course');
+  return toFileDTO(updated, 'course', userId);
 }
 
 // Deletes a course and everything under it. The DB rows cascade automatically,

@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Reply, Mail, ChevronLeft, Clock, Trash2 } from 'lucide-react';
+import { Reply, Mail, ChevronLeft, Clock, Trash2, Plus, Send, X } from 'lucide-react';
 import { messagesApi } from '@/api/messages.api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
+import { StudentAutocomplete } from '@/components/ui/student-autocomplete';
+import type { StudentSearchResult } from '@/api/students.api';
 import {
   Dialog,
   DialogBody,
@@ -25,6 +27,9 @@ export default function TeacherMessagesPage() {
   const [searchParams] = useSearchParams();
   const [openId, setOpenId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [composeStudent, setComposeStudent] = useState<StudentSearchResult | null>(null);
+  const [composeText, setComposeText] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['teacher-messages'],
@@ -33,6 +38,11 @@ export default function TeacherMessagesPage() {
 
   const markReadMutation = useMutation({
     mutationFn: (id: string) => messagesApi.markRead(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['teacher-messages'] }),
+  });
+
+  const markReplySeenByTeacherMutation = useMutation({
+    mutationFn: (id: string) => messagesApi.markReplySeenByTeacher(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['teacher-messages'] }),
   });
 
@@ -62,13 +72,30 @@ export default function TeacherMessagesPage() {
     },
   });
 
+  const composeMutation = useMutation({
+    mutationFn: () => messagesApi.sendTeacher(composeStudent!.id, composeText),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['teacher-messages'] });
+      setComposeOpen(false);
+      setComposeStudent(null);
+      setComposeText('');
+    },
+  });
+
   const messages: MessageDTO[] = unwrap(data)?.messages ?? [];
   const openMsg = messages.find((m) => m.id === openId) ?? null;
 
   function openMessage(msg: MessageDTO) {
     setOpenId(msg.id);
-    setReplyText(msg.replyContent ?? '');
-    if (!msg.isRead) markReadMutation.mutate(msg.id);
+    setReplyText(msg.fromTeacher ? '' : (msg.replyContent ?? ''));
+    if (!msg.fromTeacher && !msg.isRead) markReadMutation.mutate(msg.id);
+    if (msg.fromTeacher && msg.replyContent && !msg.replySeen) markReplySeenByTeacherMutation.mutate(msg.id);
+  }
+
+  // Unread from the teacher's perspective: a student's own message not yet read,
+  // or (for a teacher-initiated thread) a student reply not yet seen.
+  function isUnread(msg: MessageDTO) {
+    return msg.fromTeacher ? Boolean(msg.replyContent) && !msg.replySeen : !msg.isRead;
   }
 
   // The reply-notification email links straight to the relevant message
@@ -83,7 +110,11 @@ export default function TeacherMessagesPage() {
 
   return (
     <div className="space-y-5" dir="rtl">
-      <PageHeader title="הודעות מתלמידות" meta="תיבת דואר · נכנס" />
+      <PageHeader
+        title="הודעות מתלמידות"
+        meta="תיבת דואר · נכנס"
+        actions={<Button onClick={() => setComposeOpen(true)}><Plus size={14} /> הודעה חדשה</Button>}
+      />
 
       {isLoading ? (
         <div className="p-6 font-sans text-ink-soft">טוען…</div>
@@ -92,7 +123,9 @@ export default function TeacherMessagesPage() {
       ) : (
         /* External list — sender + one-line preview + status. Full thread opens in an overlay. */
         <div className="sheet divide-y divide-rule overflow-hidden">
-          {messages.map((msg) => (
+          {messages.map((msg) => {
+            const unread = isUnread(msg);
+            return (
             <div key={msg.id} className="flex w-full items-center transition-colors hover:bg-butter/10">
               <button
                 onClick={() => openMessage(msg)}
@@ -101,17 +134,18 @@ export default function TeacherMessagesPage() {
                 <span
                   className={cn(
                     'grid size-9 shrink-0 place-items-center rounded-full text-xs font-semibold',
-                    msg.isRead ? 'bg-ground text-ink-soft' : 'bg-clay text-sheet',
+                    unread ? 'bg-clay text-sheet' : 'bg-ground text-ink-soft',
                   )}
                 >
                   {msg.student?.name?.[0] ?? '?'}
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className={cn('truncate text-sm', msg.isRead ? 'font-medium text-ink' : 'font-bold text-ink')}>
+                    <span className={cn('truncate text-sm', unread ? 'font-bold text-ink' : 'font-medium text-ink')}>
                       {msg.student?.name}
                     </span>
-                    {!msg.isRead && <span className="size-2 shrink-0 rounded-full bg-coral" />}
+                    {unread && <span className="size-2 shrink-0 rounded-full bg-coral" />}
+                    {msg.fromTeacher && <Badge variant="secondary" className="shrink-0">שלחת</Badge>}
                     {msg.assignmentId && (
                       <Badge variant="warning" className="shrink-0"><Clock size={9} className="ml-1" /> בקשת הגשה</Badge>
                     )}
@@ -121,7 +155,7 @@ export default function TeacherMessagesPage() {
                 <div className="flex shrink-0 flex-col items-end gap-1">
                   <span className="text-[11px] text-ink-soft">{formatDateTime(msg.createdAt)}</span>
                   {msg.replyContent
-                    ? <Badge variant="success">נענתה</Badge>
+                    ? <Badge variant="success">{msg.fromTeacher ? 'הגיבה' : 'נענתה'}</Badge>
                     : <ChevronLeft size={16} className="text-ink-soft" />}
                 </div>
               </button>
@@ -137,7 +171,7 @@ export default function TeacherMessagesPage() {
                 <Trash2 size={14} />
               </button>
             </div>
-          ))}
+          );})}
         </div>
       )}
 
@@ -158,51 +192,59 @@ export default function TeacherMessagesPage() {
 
               <DialogBody className="space-y-4">
                 <div>
-                  <div className="label mb-1">ההודעה</div>
+                  <div className="label mb-1">{openMsg.fromTeacher ? 'ההודעה ששלחת' : 'ההודעה'}</div>
                   <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-ink">{openMsg.content}</p>
                 </div>
 
                 {openMsg.replyContent && (
                   <div className="rounded-input border-r-2 border-indigo bg-ground/60 px-3 py-2">
                     <div className="flex items-center justify-between">
-                      <div className="label mb-0.5">התגובה שלך · {formatDateTime(openMsg.repliedAt)}</div>
-                      <button
-                        title="מחקי תגובה"
-                        onClick={() => {
-                          if (confirm('למחוק את התגובה? ההודעה המקורית תישאר, ותוחזר למצב ממתין.')) {
-                            deleteReplyMutation.mutate(openMsg.id);
-                          }
-                        }}
-                        className="shrink-0 text-ink-soft transition-colors hover:text-coral"
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      <div className="label mb-0.5">
+                        {openMsg.fromTeacher ? 'התגובה של התלמידה' : 'התגובה שלך'} · {formatDateTime(openMsg.repliedAt)}
+                      </div>
+                      {!openMsg.fromTeacher && (
+                        <button
+                          title="מחקי תגובה"
+                          onClick={() => {
+                            if (confirm('למחוק את התגובה? ההודעה המקורית תישאר, ותוחזר למצב ממתין.')) {
+                              deleteReplyMutation.mutate(openMsg.id);
+                            }
+                          }}
+                          className="shrink-0 text-ink-soft transition-colors hover:text-coral"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </div>
                     <p className="whitespace-pre-wrap break-words text-sm text-ink">{openMsg.replyContent}</p>
                   </div>
                 )}
 
-                <div>
-                  <div className="label mb-1">{openMsg.replyContent ? 'עריכת התגובה' : 'כתיבת תגובה'}</div>
-                  <Textarea
-                    rows={5}
-                    className="resize-y"
-                    placeholder="כתבי תגובה לתלמידה…"
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    autoFocus
-                  />
-                </div>
+                {!openMsg.fromTeacher && (
+                  <div>
+                    <div className="label mb-1">{openMsg.replyContent ? 'עריכת התגובה' : 'כתיבת תגובה'}</div>
+                    <Textarea
+                      rows={5}
+                      className="resize-y"
+                      placeholder="כתבי תגובה לתלמידה…"
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      autoFocus
+                    />
+                  </div>
+                )}
               </DialogBody>
 
               <DialogFooter>
-                <Button
-                  loading={replyMutation.isPending}
-                  disabled={!replyText.trim()}
-                  onClick={() => replyMutation.mutate({ id: openMsg.id, reply: replyText })}
-                >
-                  <Reply size={14} /> {openMsg.replyContent ? 'עדכני תגובה' : 'שלחי תגובה'}
-                </Button>
+                {!openMsg.fromTeacher && (
+                  <Button
+                    loading={replyMutation.isPending}
+                    disabled={!replyText.trim()}
+                    onClick={() => replyMutation.mutate({ id: openMsg.id, reply: replyText })}
+                  >
+                    <Reply size={14} /> {openMsg.replyContent ? 'עדכני תגובה' : 'שלחי תגובה'}
+                  </Button>
+                )}
                 <Button variant="outline" onClick={() => { setOpenId(null); setReplyText(''); }}>
                   סגירה
                 </Button>
@@ -220,6 +262,57 @@ export default function TeacherMessagesPage() {
               </DialogFooter>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Compose: teacher starting a new conversation with a student */}
+      <Dialog open={composeOpen} onOpenChange={(o) => { setComposeOpen(o); if (!o) { setComposeStudent(null); setComposeText(''); } }}>
+        <DialogContent size="lg">
+          <DialogHeader>
+            <DialogTitle>הודעה חדשה לתלמידה</DialogTitle>
+          </DialogHeader>
+          <DialogBody className="space-y-4">
+            <div>
+              <div className="label mb-1">תלמידה</div>
+              {composeStudent ? (
+                <div className="flex items-center justify-between rounded-input border border-rule bg-ground/40 px-3 py-2">
+                  <span className="text-sm text-ink">
+                    <span className="font-medium">{composeStudent.name}</span>
+                    <span className="text-ink/50"> · {composeStudent.email}</span>
+                  </span>
+                  <button
+                    onClick={() => setComposeStudent(null)}
+                    className="shrink-0 text-ink-soft transition-colors hover:text-coral"
+                    title="הסרה"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <StudentAutocomplete onSelect={setComposeStudent} />
+              )}
+            </div>
+            <div>
+              <div className="label mb-1">תוכן ההודעה</div>
+              <Textarea
+                rows={5}
+                className="resize-y"
+                placeholder="כתבי הודעה לתלמידה…"
+                value={composeText}
+                onChange={(e) => setComposeText(e.target.value)}
+              />
+            </div>
+          </DialogBody>
+          <DialogFooter>
+            <Button
+              loading={composeMutation.isPending}
+              disabled={!composeStudent || !composeText.trim()}
+              onClick={() => composeMutation.mutate()}
+            >
+              <Send size={14} /> שליחה
+            </Button>
+            <Button variant="outline" onClick={() => setComposeOpen(false)}>ביטול</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

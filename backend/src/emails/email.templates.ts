@@ -63,6 +63,20 @@ export function teacherReplyHtml(data: EmailJobMap['teacher-reply']): string {
   );
 }
 
+export function teacherMessageHtml(data: EmailJobMap['teacher-message']): string {
+  const systemUrl = `${process.env.FRONTEND_URL}/student/messages?highlight=${data.messageId}`;
+  return wrapRtl(
+    `<p>שלום ${data.studentName},</p><p>התקבלה הודעה חדשה מהמורה:</p><blockquote style="border-right: 3px solid #4f46e5; padding-right: 12px; margin: 12px 0; color: #333;">${data.content}</blockquote><p><a href="${systemUrl}" style="color:#4f46e5;">צפי בהודעה במערכת</a></p>`
+  );
+}
+
+export function studentReplyHtml(data: EmailJobMap['student-reply']): string {
+  const systemUrl = `${process.env.FRONTEND_URL}/teacher/messages?highlight=${data.messageId}`;
+  return wrapRtl(
+    `<p>התקבלה תגובה מ<strong>${data.studentName}</strong> להודעה ששלחת:</p><blockquote style="border-right: 3px solid #ccc; padding-right: 12px; margin: 12px 0; color: #666;">${data.originalContent}</blockquote><p><strong>התגובה:</strong></p><blockquote style="border-right: 3px solid #4f46e5; padding-right: 12px; margin: 12px 0; color: #333;">${data.replyContent}</blockquote>${replyButtons(systemUrl, data.studentEmail)}`
+  );
+}
+
 export function gradeApprovedHtml(data: EmailJobMap['grade-approved']): string {
   const systemUrl = `${process.env.FRONTEND_URL}/student/assignments`;
   return wrapRtl(

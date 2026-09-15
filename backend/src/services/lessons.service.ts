@@ -73,7 +73,7 @@ export async function getLessonById(id: string, userId: string, role: string) {
     assignments,
     githubUrls: effectiveGithubUrls(lesson),
     completed: Boolean(progress),
-    files: lesson.files.map((f) => toFileDTO(f, 'lesson')),
+    files: lesson.files.map((f) => toFileDTO(f, 'lesson', userId)),
     quiz: quizState,
   };
 }
@@ -120,7 +120,8 @@ export function getLessonUploadSignature() {
 export async function uploadLessonFile(
   lessonId: string,
   file: { buffer: Buffer; mimeType: string; originalName: string } | { url: string; bytes: number; originalName: string },
-  displayName?: string
+  displayName: string | undefined,
+  userId: string
 ) {
   const { url, bytes } = 'buffer' in file
     ? await uploadBuffer(file.buffer, file.mimeType, 'lessons', file.originalName)
@@ -128,7 +129,7 @@ export async function uploadLessonFile(
   const created = await prisma.lessonFile.create({
     data: { lessonId, name: displayName?.trim() || file.originalName, url, sizeBytes: bytes },
   });
-  return toFileDTO(created, 'lesson');
+  return toFileDTO(created, 'lesson', userId);
 }
 
 export async function deleteLessonFile(lessonId: string, fileId: string) {
@@ -138,13 +139,13 @@ export async function deleteLessonFile(lessonId: string, fileId: string) {
   await prisma.lessonFile.delete({ where: { id: fileId } });
 }
 
-export async function renameLessonFile(lessonId: string, fileId: string, name: string) {
+export async function renameLessonFile(lessonId: string, fileId: string, name: string, userId: string) {
   const file = await prisma.lessonFile.findUnique({ where: { id: fileId, lessonId } });
   if (!file) throw Object.assign(new Error('File not found'), { status: 404 });
   const trimmed = name.trim();
   if (!trimmed) throw Object.assign(new Error('Name is required'), { status: 400 });
   const updated = await prisma.lessonFile.update({ where: { id: fileId }, data: { name: trimmed } });
-  return toFileDTO(updated, 'lesson');
+  return toFileDTO(updated, 'lesson', userId);
 }
 
 // Deletes a lesson and its children (assignments, submissions, files, quiz,

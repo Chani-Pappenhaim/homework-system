@@ -13,6 +13,18 @@ export async function sendMessage(req: Request, res: Response) {
   }
 }
 
+export async function sendTeacherMessage(req: Request, res: Response) {
+  try {
+    const { studentId, content, assignmentId } = req.body;
+    if (!studentId) { res.status(400).json({ success: false, error: 'יש לבחור תלמידה' }); return; }
+    if (!content?.trim()) { res.status(400).json({ success: false, error: 'תוכן ההודעה נדרש' }); return; }
+    const message = await messagesService.sendTeacherMessage(studentId, content, assignmentId);
+    res.status(201).json({ success: true, data: { message } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
 export async function getMessages(req: Request, res: Response) {
   try {
     const messages = await messagesService.getAllMessages();
@@ -75,6 +87,37 @@ export async function getUnreadReplyCount(req: Request, res: Response) {
 export async function markReplySeen(req: Request, res: Response) {
   try {
     await messagesService.markReplySeen(req.params.id as string, req.user!.userId);
+    res.json({ success: true, data: null });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+// Student replying to a conversation the teacher started
+export async function studentReply(req: Request, res: Response) {
+  try {
+    const { reply } = req.body;
+    if (!reply?.trim()) { res.status(400).json({ success: false, error: 'תגובה נדרשת' }); return; }
+    const message = await messagesService.studentReplyMessage(req.params.id as string, req.user!.userId, reply);
+    res.json({ success: true, data: { message } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+// Restricted to the message's own student
+export async function markMineRead(req: Request, res: Response) {
+  try {
+    await messagesService.markMineRead(req.params.id as string, req.user!.userId);
+    res.json({ success: true, data: null });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function markReplySeenByTeacher(req: Request, res: Response) {
+  try {
+    await messagesService.markReplySeenByTeacher(req.params.id as string);
     res.json({ success: true, data: null });
   } catch (err: any) {
     sendError(res, err);

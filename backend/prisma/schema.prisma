@@ -211,11 +211,12 @@ model TeacherMessage {
   studentId    String
   student      User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
   content      String
+  fromTeacher  Boolean   @default(false) // true = the teacher started this conversation, not the student
   assignmentId String?   // אם קיים → בקשת הגשה מאוחרת למטלה ספציפית
-  isRead       Boolean   @default(false)
+  isRead       Boolean   @default(false) // has `content`'s recipient seen it? (teacher if fromTeacher=false, student if fromTeacher=true)
   replyContent String?
   repliedAt    DateTime?
-  replySeen    Boolean   @default(false) // has the student opened the teacher's reply?
+  replySeen    Boolean   @default(false) // has replyContent's recipient seen it? (student if fromTeacher=false, teacher if fromTeacher=true)
   createdAt    DateTime  @default(now())
 }
 

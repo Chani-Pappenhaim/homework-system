@@ -6,6 +6,8 @@ import {
   storageAlertHtml,
   studentMessageHtml,
   teacherReplyHtml,
+  teacherMessageHtml,
+  studentReplyHtml,
   deadlineReportHtml,
   gradeApprovedHtml,
 } from './email.templates';
@@ -57,6 +59,27 @@ export async function handleEmailJob(name: EmailJobName, data: EmailJobData): Pr
         to: d.studentEmail,
         subject: 'התקבלה תשובה מהמורה',
         html: teacherReplyHtml(d),
+      });
+      return;
+    }
+
+    case 'teacher-message': {
+      const d = data as EmailJobMap['teacher-message'];
+      await sendMail({
+        to: d.studentEmail,
+        subject: 'התקבלה הודעה חדשה מהמורה',
+        html: teacherMessageHtml(d),
+      });
+      return;
+    }
+
+    case 'student-reply': {
+      if (!adminEmail) { console.warn('[email] ADMIN_EMAIL not set — skipping student-reply'); return; }
+      const d = data as EmailJobMap['student-reply'];
+      await sendMail({
+        to: adminEmail,
+        subject: `תגובה חדשה מ${d.studentName}`,
+        html: studentReplyHtml(d),
       });
       return;
     }

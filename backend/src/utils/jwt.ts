@@ -40,6 +40,7 @@ export function verifyRefreshToken(token: string): TokenPayload {
 export interface FileTokenPayload {
   fileId: string;
   kind: 'lesson' | 'course';
+  userId: string;
 }
 
 /**

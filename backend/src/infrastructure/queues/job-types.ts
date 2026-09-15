@@ -22,6 +22,14 @@ export interface EmailJobMap {
     originalContent: string;
     replyContent: string;
   };
+  'teacher-message': { messageId: string; studentName: string; studentEmail: string; content: string };
+  'student-reply': {
+    messageId: string;
+    studentName: string;
+    studentEmail: string;
+    originalContent: string;
+    replyContent: string;
+  };
   'deadline-report': {
     assignmentTitle: string;
     courseName: string;

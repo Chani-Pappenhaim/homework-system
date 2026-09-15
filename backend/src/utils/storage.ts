@@ -101,14 +101,15 @@ function urlExtension(url: string): string {
  */
 export function toFileDTO<T extends { id: string; sizeBytes?: bigint | null; url?: string }>(
   file: T,
-  kind: 'lesson' | 'course'
+  kind: 'lesson' | 'course',
+  userId: string
 ) {
   return {
     ...file,
     sizeBytes: file.sizeBytes?.toString() ?? null,
     ...(file.url
       ? {
-          url: `/files/download/${file.id}?token=${signFileToken({ fileId: file.id, kind })}`,
+          url: `/files/download/${file.id}?token=${signFileToken({ fileId: file.id, kind, userId })}`,
           extension: urlExtension(file.url),
         }
       : {}),
