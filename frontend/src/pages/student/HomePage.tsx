@@ -17,12 +17,12 @@ const TAPES = ['clay', 'sage', 'indigo', 'butter'] as const;
 // Every class Tailwind's production build needs to see must appear as a
 // literal string somewhere in source — `` `bg-${accent}` `` is invisible to
 // the scanner and gets purged. This map makes each combination literal.
-const ACCENT_CLASSES: Record<(typeof CARD_ACCENTS)[number], { bar: string; text: string; bg: string; wash: string; ring: string }> = {
-  clay: { bar: 'bg-clay', text: 'text-clay', bg: 'bg-clay', wash: 'bg-clay/[0.06]', ring: 'bg-clay/15' },
-  indigo: { bar: 'bg-indigo', text: 'text-indigo', bg: 'bg-indigo', wash: 'bg-indigo/[0.06]', ring: 'bg-indigo/15' },
-  sage: { bar: 'bg-sage', text: 'text-sage', bg: 'bg-sage', wash: 'bg-sage/[0.06]', ring: 'bg-sage/15' },
-  butter: { bar: 'bg-butter', text: 'text-butter', bg: 'bg-butter', wash: 'bg-butter/[0.06]', ring: 'bg-butter/15' },
-  coral: { bar: 'bg-coral', text: 'text-coral', bg: 'bg-coral', wash: 'bg-coral/[0.06]', ring: 'bg-coral/15' },
+const ACCENT_CLASSES: Record<(typeof CARD_ACCENTS)[number], { bar: string; text: string; bg: string; ring: string }> = {
+  clay: { bar: 'bg-clay', text: 'text-clay', bg: 'bg-clay', ring: 'bg-clay/15' },
+  indigo: { bar: 'bg-indigo', text: 'text-indigo', bg: 'bg-indigo', ring: 'bg-indigo/15' },
+  sage: { bar: 'bg-sage', text: 'text-sage', bg: 'bg-sage', ring: 'bg-sage/15' },
+  butter: { bar: 'bg-butter', text: 'text-butter', bg: 'bg-butter', ring: 'bg-butter/15' },
+  coral: { bar: 'bg-coral', text: 'text-coral', bg: 'bg-coral', ring: 'bg-coral/15' },
 };
 
 export default function StudentHomePage() {
@@ -113,7 +113,7 @@ export default function StudentHomePage() {
               <button
                 key={c.id}
                 onClick={() => navigate(`/student/courses/${c.id}`)}
-                className={cn('sheet lift relative overflow-hidden p-0 text-right', ACCENT_CLASSES[accent].wash)}
+                className="sheet lift relative overflow-hidden p-0 text-right"
               >
                 <div className={cn('h-2 w-full', ACCENT_CLASSES[accent].bar)} />
                 <div className="relative p-4 pr-5">

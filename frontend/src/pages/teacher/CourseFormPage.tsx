@@ -2,7 +2,7 @@ import { toExternalUrl, cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, GripVertical, EyeOff, Copy } from 'lucide-react';
+import { Plus, Trash2, GripVertical, EyeOff, Copy, Settings, Link2 } from 'lucide-react';
 import { coursesApi } from '@/api/courses.api';
 import { groupsApi } from '@/api/groups.api';
 import { lessonsApi } from '@/api/lessons.api';
@@ -39,6 +39,7 @@ export default function CourseFormPage() {
   const [copyModal, setCopyModal] = useState(false);
   const [copyGroupId, setCopyGroupId] = useState('');
   const [newLink, setNewLink] = useState({ label: '', url: '' });
+  const [tab, setTab] = useState<'details' | 'links'>('details');
 
   const { data: courseData } = useQuery({
     queryKey: ['course', id],
@@ -150,9 +151,34 @@ export default function CourseFormPage() {
         </div>
       </div>
 
+      {/* Details / Links tab toggle — splits the busy edit screen into focused sections instead of one long page */}
+      {isEdit && course && (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setTab('details')}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
+              tab === 'details' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
+            )}
+          >
+            <Settings size={15} /> פרטי הקורס ושיעורים
+          </button>
+          <button
+            onClick={() => setTab('links')}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
+              tab === 'links' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
+            )}
+          >
+            <Link2 size={15} /> קישורים וקבצים
+          </button>
+        </div>
+      )}
+
       {/* Basic info + Lessons — form beside the lesson order list on wide edit screens; a plain narrow form when creating */}
-      <div className={isEdit && course ? 'grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start' : 'mx-auto max-w-2xl'}>
-        <Card>
+      {(!isEdit || !course || tab === 'details') && (
+      <div className={isEdit && course ? 'grid grid-cols-1 gap-5 lg:grid-cols-2' : 'mx-auto max-w-2xl'}>
+        <Card className="h-full">
           <CardContent className="space-y-4">
             <Input label="שם הקורס *" value={name} onChange={(e) => setName(e.target.value)} placeholder="React מתקדם" />
             <Input label='שנה"ל' value={year} onChange={(e) => setYear(e.target.value)} placeholder='תשפ"ו' />
@@ -186,11 +212,14 @@ export default function CourseFormPage() {
 
         {/* Lessons table — edit only */}
         {isEdit && course && (
-          <Card>
+          <Card className="h-full">
             <CardHeader>
               <h2 className="font-display text-base font-bold">שיעורים ({course.lessons.length})</h2>
             </CardHeader>
             <div className="divide-y divide-rule/20">
+              {course.lessons.length === 0 && (
+                <p className="px-5 py-4 text-sm text-ink-soft">אין שיעורים עדיין</p>
+              )}
               {course.lessons.map((l, i) => (
                 <div
                   key={l.id}
@@ -221,9 +250,10 @@ export default function CourseFormPage() {
           </Card>
         )}
       </div>
+      )}
 
       {/* Links + Files — edit only, independent equal-weight sections side by side */}
-      {isEdit && course && (
+      {isEdit && course && tab === 'links' && (
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <Card>
             <CardHeader><h2 className="font-display text-base font-bold">קישורים שימושיים</h2></CardHeader>

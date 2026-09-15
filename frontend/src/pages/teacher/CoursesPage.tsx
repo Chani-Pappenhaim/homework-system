@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Plus, Lock } from 'lucide-react';
+import { BookOpen, Plus, Lock, EyeOff } from 'lucide-react';
 import { coursesApi } from '@/api/courses.api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,10 +25,17 @@ const ICON_TINT: Record<(typeof ACCENTS)[number], string> = {
 
 export default function CoursesPage() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ['courses'],
     queryFn: () => coursesApi.list(),
+  });
+
+  const toggleHiddenMutation = useMutation({
+    mutationFn: (course: { id: string; hidden: boolean }) =>
+      coursesApi.update(course.id, { hidden: !course.hidden }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['courses'] }),
   });
 
   const courses: CourseDTO[] = unwrap(data)?.courses ?? [];
@@ -79,9 +86,20 @@ export default function CoursesPage() {
                 </div>
                 <div className="flex items-center justify-between border-t border-dashed border-rule/25 pt-2">
                   <p className="font-sans text-[11px] text-ink/70">{c.lessonCount} שיעורים</p>
-                  <Button size="sm" variant="outline" onClick={() => navigate(`/teacher/courses/${c.id}`)}>
-                    פתח קורס ←
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => toggleHiddenMutation.mutate(c)}
+                      disabled={toggleHiddenMutation.isPending}
+                    >
+                      {c.hidden ? <Lock size={12} /> : <EyeOff size={12} />}
+                      {c.hidden ? 'הצג' : 'הסתר'}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => navigate(`/teacher/courses/${c.id}`)}>
+                      פתח קורס ←
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
