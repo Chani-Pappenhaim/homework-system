@@ -146,7 +146,7 @@ export default function CourseDetailPage() {
                 <span className="grid size-8 shrink-0 place-items-center rounded-full bg-ground font-display text-sm font-bold tabular text-ink/60">
                   {i + 1}
                 </span>
-                <p className="flex items-center justify-center gap-1 text-xs font-bold text-ink line-clamp-2">
+                <p className="flex min-h-[2lh] w-full items-center justify-center gap-1 text-xs font-bold text-ink line-clamp-2">
                   {l.hidden && <Lock size={10} className="shrink-0 text-ink/40" />}
                   {l.topic}
                 </p>

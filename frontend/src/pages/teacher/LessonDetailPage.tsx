@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Github, Edit, Trash2, Plus, BookOpen, Lock, ClipboardList, Paperclip, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
 import { assignmentsApi } from '@/api/assignments.api';
+import { quizzesApi } from '@/api/quizzes.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,8 +19,10 @@ import { AssignmentSubmissionsTable } from '@/components/lesson/AssignmentSubmis
 import { GradeModal } from '@/components/lesson/GradeModal';
 import { LessonAccessPanel } from '@/components/lesson/LessonAccessPanel';
 import { QuizResultsCard } from '@/components/lesson/QuizResultsCard';
+import QuizPanel from '@/components/teacher/QuizPanel';
+import QuizDashboard from '@/components/teacher/QuizDashboard';
 import { cn, formatDate, toExternalUrl } from '@/lib/utils';
-import type { AssignmentDTO, SubmissionDTO } from '@/types';
+import type { AssignmentDTO, SubmissionDTO, QuizResultsDTO } from '@/types';
 
 export default function LessonDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -29,6 +32,7 @@ export default function LessonDetailPage() {
   const toast = useToast();
   const [selectedAssignment, setSelectedAssignment] = useState(0);
   const [viewingAssignment, setViewingAssignment] = useState(false);
+  const [viewingQuiz, setViewingQuiz] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
   const [gradeModal, setGradeModal] = useState<SubmissionDTO | null>(null);
   const [assignmentModal, setAssignmentModal] = useState<AssignmentDTO | null | 'new'>(null);
@@ -42,6 +46,14 @@ export default function LessonDetailPage() {
 
   const lesson = lessonData?.data.data.lesson;
   const assignment = lesson?.assignments[selectedAssignment];
+
+  const { data: quizResultsData } = useQuery({
+    queryKey: ['quiz-results', id],
+    queryFn: () => quizzesApi.results(id!),
+    enabled: Boolean(id) && viewingQuiz,
+    retry: false,
+  });
+  const quizResults = (quizResultsData?.data as any)?.data as QuizResultsDTO | undefined;
 
   // Deep-link from the grades report ("open for review"): land straight on the
   // right assignment tab instead of making the teacher hunt for it manually.
@@ -128,15 +140,6 @@ export default function LessonDetailPage() {
       {/* Content / Access — tab toggle on wide screens instead of a permanent 3-col split */}
       <div className="flex items-center gap-2">
         <button
-          onClick={() => setTab('files')}
-          className={cn(
-            'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
-            tab === 'files' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
-          )}
-        >
-          <Paperclip size={15} /> קבצים מצורפים
-        </button>
-        <button
           onClick={() => setTab('content')}
           className={cn(
             'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
@@ -144,6 +147,15 @@ export default function LessonDetailPage() {
           )}
         >
           <BookOpen size={15} /> תוכן שיעור
+        </button>
+        <button
+          onClick={() => setTab('files')}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
+            tab === 'files' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
+          )}
+        >
+          <Paperclip size={15} /> קבצים מצורפים
         </button>
         <button
           onClick={() => setTab('assignments')}
@@ -339,7 +351,26 @@ export default function LessonDetailPage() {
 
       {tab === 'quiz' && (
       <div className="space-y-5 lg:col-span-3">
-        <QuizResultsCard lesson={lesson} />
+        {!viewingQuiz && (
+          <QuizResultsCard lesson={lesson} onManage={() => setViewingQuiz(true)} />
+        )}
+
+        {viewingQuiz && (
+          <>
+            <button
+              onClick={() => setViewingQuiz(false)}
+              className="flex items-center gap-1 text-sm font-semibold text-ink-soft hover:text-ink"
+            >
+              <ChevronRight size={15} /> חזרה לפרטי החידון
+            </button>
+            <QuizPanel
+              lessonId={lesson.id}
+              hasContent={Boolean(lesson.contentMd?.trim())}
+              hasFiles={lesson.files.length > 0}
+            />
+            {quizResults && <QuizDashboard data={quizResults} />}
+          </>
+        )}
       </div>
       )}
       </div>

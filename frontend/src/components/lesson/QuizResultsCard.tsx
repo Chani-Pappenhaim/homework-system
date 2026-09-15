@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ListChecks } from 'lucide-react';
 import { quizzesApi } from '@/api/quizzes.api';
@@ -9,12 +8,12 @@ import { unwrap } from '@/lib/api-utils';
 import type { LessonDetailDTO } from '@/types';
 
 /**
- * Shows quiz status for a lesson and links to the full editor/results page.
- * Not every lesson has a quiz, so a 404 on the results fetch is expected
- * and just means none has been created yet.
+ * Shows quiz status for a lesson and opens the full editor/results view
+ * (via onManage, rendered inline in the same tab). Not every lesson has a
+ * quiz, so a 404 on the results fetch is expected and just means none has
+ * been created yet.
  */
-export function QuizResultsCard({ lesson }: { lesson: LessonDetailDTO }) {
-  const navigate = useNavigate();
+export function QuizResultsCard({ lesson, onManage }: { lesson: LessonDetailDTO; onManage: () => void }) {
   const { data: quizResultsData } = useQuery({
     queryKey: ['quiz-results', lesson.id],
     queryFn: () => quizzesApi.results(lesson.id),
@@ -52,7 +51,7 @@ export function QuizResultsCard({ lesson }: { lesson: LessonDetailDTO }) {
             </p>
           )}
         </div>
-        <Button variant={quizState.exists ? 'secondary' : 'clay'} onClick={() => navigate(`/teacher/quiz/${lesson.id}`)}>
+        <Button variant={quizState.exists ? 'secondary' : 'clay'} onClick={onManage}>
           {quizState.exists ? 'ניהול החידון' : 'ליצירת חידון'}
         </Button>
       </CardContent>
