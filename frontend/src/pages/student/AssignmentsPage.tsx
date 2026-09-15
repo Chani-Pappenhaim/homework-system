@@ -6,7 +6,7 @@ import { Card, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { PageHeader } from '@/components/ui/page-header';
-import { formatDate, formatDateTime, isOverdue } from '@/lib/utils';
+import { cn, formatDate, formatDateTime, isOverdue } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import type { MySubmission, PendingAssignment } from '@/types';
 
@@ -16,8 +16,8 @@ export default function AssignmentsPage() {
   const pending: PendingAssignment[] = mine?.pending ?? [];
   const submitted: MySubmission[] = mine?.submitted ?? [];
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [assignmentSearch, setAssignmentSearch] = useState('');
-  const [courseSearch, setCourseSearch] = useState('');
+  const [searchMode, setSearchMode] = useState<'assignment' | 'course'>('assignment');
+  const [search, setSearch] = useState('');
 
   const sortedPending = [...pending].sort((a, b) => {
     if (!a.deadline) return 1;
@@ -25,47 +25,56 @@ export default function AssignmentsPage() {
     return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
   });
 
-  const qAssignment = assignmentSearch.trim().toLowerCase();
-  const qCourse = courseSearch.trim().toLowerCase();
+  const q = search.trim().toLowerCase();
   const matches = (item: { assignmentTitle: string; courseName: string }) =>
-    (!qAssignment || item.assignmentTitle?.toLowerCase().includes(qAssignment)) &&
-    (!qCourse || item.courseName?.toLowerCase().includes(qCourse));
-  const noResultsLabel = [assignmentSearch.trim(), courseSearch.trim()].filter(Boolean).join(' / ');
+    !q || (searchMode === 'assignment' ? item.assignmentTitle : item.courseName)?.toLowerCase().includes(q);
+  const noResultsLabel = search.trim();
 
   const filteredPending = sortedPending.filter(matches);
   const filteredSubmitted = submitted.filter(matches);
 
   return (
     <div className="space-y-5" dir="rtl">
-      <PageHeader title="המטלות שלי" meta="מחברת · מטלות" />
-
-      {/* Two independent filters — narrows both lists together (AND) */}
-      <div className="flex flex-wrap gap-2">
-        <div className="flex items-center gap-2 rounded-input border border-rule bg-sheet px-3 py-1.5 transition-colors focus-within:border-clay sm:max-w-xs sm:flex-1">
-          <Search size={15} className="text-ink-soft" />
-          <input
-            value={assignmentSearch}
-            onChange={(e) => setAssignmentSearch(e.target.value)}
-            className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink-soft"
-            placeholder="חיפוש לפי מטלה"
-          />
-          {assignmentSearch && (
-            <button onClick={() => setAssignmentSearch('')} className="text-xs text-ink-soft hover:text-coral">✕</button>
-          )}
-        </div>
-        <div className="flex items-center gap-2 rounded-input border border-rule bg-sheet px-3 py-1.5 transition-colors focus-within:border-clay sm:max-w-xs sm:flex-1">
-          <Search size={15} className="text-ink-soft" />
-          <input
-            value={courseSearch}
-            onChange={(e) => setCourseSearch(e.target.value)}
-            className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink-soft"
-            placeholder="חיפוש לפי קורס"
-          />
-          {courseSearch && (
-            <button onClick={() => setCourseSearch('')} className="text-xs text-ink-soft hover:text-coral">✕</button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="המטלות שלי"
+        meta="מחברת · מטלות"
+        actions={
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-input border border-rule bg-sheet p-0.5">
+              <button
+                onClick={() => setSearchMode('assignment')}
+                className={cn(
+                  'rounded-[6px] px-2.5 py-1 text-xs font-semibold transition-colors',
+                  searchMode === 'assignment' ? 'bg-ink text-sheet' : 'text-ink-soft hover:bg-ground',
+                )}
+              >
+                מטלה
+              </button>
+              <button
+                onClick={() => setSearchMode('course')}
+                className={cn(
+                  'rounded-[6px] px-2.5 py-1 text-xs font-semibold transition-colors',
+                  searchMode === 'course' ? 'bg-ink text-sheet' : 'text-ink-soft hover:bg-ground',
+                )}
+              >
+                קורס
+              </button>
+            </div>
+            <div className="flex items-center gap-2 rounded-input border border-rule bg-sheet px-3 py-1.5 transition-colors focus-within:border-clay">
+              <Search size={15} className="text-ink-soft" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-40 bg-transparent text-sm text-ink outline-none placeholder:text-ink-soft"
+                placeholder={searchMode === 'assignment' ? 'חיפוש לפי מטלה' : 'חיפוש לפי קורס'}
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="text-xs text-ink-soft hover:text-coral">✕</button>
+              )}
+            </div>
+          </div>
+        }
+      />
 
       {/* Two independent lists, side by side on wide screens */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">

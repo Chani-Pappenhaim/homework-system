@@ -186,6 +186,7 @@ describe('StudentLessonDetailPage', () => {
     renderPage();
 
     await screen.findByRole('heading', { name: 'שיעור מבוא' });
+    await userEvent.click(screen.getByRole('button', { name: /^חומרי עזר/ }));
     await userEvent.click(screen.getByRole('button', { name: 'סימני שראית/קראת' }));
     await waitFor(() => expect(markFileViewed).toHaveBeenCalledWith('l1', 'f1'));
     await waitFor(() => expect(screen.getByRole('button', { name: 'סיימתי את השיעור' })).not.toBeDisabled());

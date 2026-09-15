@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Github, CheckCircle, Clock, Bot, Check, BookOpen, ClipboardList } from 'lucide-react';
+import { Github, CheckCircle, Clock, Bot, Check, BookOpen, ClipboardList, Paperclip, Sparkles } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
 import { submissionsApi, isVideoFile } from '@/api/submissions.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -23,7 +23,7 @@ export default function StudentLessonDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<'content' | 'assignments'>('content');
+  const [tab, setTab] = useState<'content' | 'files' | 'assignments'>('content');
 
   const { data, isLoading } = useQuery({
     queryKey: ['lesson', id],
@@ -60,6 +60,9 @@ export default function StudentLessonDetailPage() {
   if (!lesson) return <div className="p-6 text-coral">שיעור לא נמצא</div>;
 
   const hasAssignments = lesson.assignments.length > 0;
+  const hasFiles = lesson.files.length > 0;
+  // `exists` already means "published and available to take" — a draft quiz reads as false.
+  const hasQuiz = !!lesson.quiz?.exists;
   const pendingRequiredFiles = lesson.files.filter((f) => f.required && !f.viewed);
 
   return (
@@ -91,37 +94,59 @@ export default function StudentLessonDetailPage() {
         }
       />
 
-      {hasAssignments && (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setTab('content')}
-            className={cn(
-              'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
-              tab === 'content' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
-            )}
-          >
-            <BookOpen size={15} /> תוכן שיעור
-          </button>
-          <button
-            onClick={() => setTab('assignments')}
-            className={cn(
-              'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
-              tab === 'assignments' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
-            )}
-          >
-            <ClipboardList size={15} /> מטלות
-          </button>
-        </div>
-      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => setTab('content')}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
+            tab === 'content' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
+          )}
+        >
+          <BookOpen size={15} /> תוכן שיעור
+        </button>
+        <button
+          onClick={() => setTab('files')}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
+            tab === 'files' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
+          )}
+        >
+          <Paperclip size={15} /> חומרי עזר
+          {pendingRequiredFiles.length > 0 && (
+            <span className="rounded-full bg-coral px-1.5 py-0.5 text-[10px] font-bold text-sheet">
+              {pendingRequiredFiles.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => hasQuiz && navigate(`/student/quiz/${lesson.id}`)}
+          disabled={!hasQuiz}
+          title={hasQuiz ? undefined : 'אין חידון זמין לשיעור זה'}
+          className="flex items-center gap-1.5 rounded-lg border border-rule bg-sheet px-4 py-2 text-sm font-semibold text-ink-soft transition-colors hover:bg-ground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-sheet"
+        >
+          <Sparkles size={15} /> חידון
+        </button>
+        <button
+          onClick={() => setTab('assignments')}
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
+            tab === 'assignments' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
+          )}
+        >
+          <ClipboardList size={15} /> מטלות
+        </button>
+      </div>
 
-      {(!hasAssignments || tab === 'content') && (
+      {tab === 'content' && (
         <div className="space-y-5">
-          {lesson.contentMd && (
+          {lesson.contentMd ? (
             <Card>
               <CardContent>
                 <MarkdownRenderer content={lesson.contentMd} />
               </CardContent>
             </Card>
+          ) : (
+            <p className="text-sm text-ink/50">אין תוכן כתוב לשיעור זה</p>
           )}
 
           {lesson.githubUrls.length > 0 && (
@@ -134,34 +159,32 @@ export default function StudentLessonDetailPage() {
               ))}
             </div>
           )}
-
-          {lesson.files.length > 0 && (
-            <Card>
-              <CardHeader><h2 className="font-display text-base font-bold">חומרי עזר</h2></CardHeader>
-              <CardContent>
-                <FileGallery files={lesson.files} onMarkViewed={(fileId) => viewFileMutation.mutate(fileId)} />
-              </CardContent>
-            </Card>
-          )}
-
-          {/* `exists` already means "published and available to take" — a draft quiz reads as false. */}
-          {lesson.quiz?.exists && (
-            <button
-              onClick={() => navigate(`/student/quiz/${lesson.id}`)}
-              className="lift w-full rounded-input border border-rule bg-butter/40 py-3 text-sm font-semibold text-clay shadow-soft"
-            >
-              פתחי חידון לשיעור זה ←
-            </button>
-          )}
         </div>
       )}
 
-      {hasAssignments && tab === 'assignments' && (
+      {tab === 'files' && (
+        <Card>
+          <CardHeader><h2 className="font-display text-base font-bold">חומרי עזר</h2></CardHeader>
+          <CardContent>
+            {hasFiles ? (
+              <FileGallery files={lesson.files} onMarkViewed={(fileId) => viewFileMutation.mutate(fileId)} />
+            ) : (
+              <p className="text-sm text-ink/50">אין חומרי עזר לשיעור זה</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {tab === 'assignments' && (
         <div className="space-y-5">
-          {lesson.assignments.map((a) => {
-            const sub = submitted.find((s) => s.assignmentId === a.id);
-            return <AssignmentCard key={a.id} assignment={a} submission={sub} />;
-          })}
+          {hasAssignments ? (
+            lesson.assignments.map((a) => {
+              const sub = submitted.find((s) => s.assignmentId === a.id);
+              return <AssignmentCard key={a.id} assignment={a} submission={sub} />;
+            })
+          ) : (
+            <p className="text-sm text-ink/50">אין מטלות לשיעור זה</p>
+          )}
         </div>
       )}
     </div>
