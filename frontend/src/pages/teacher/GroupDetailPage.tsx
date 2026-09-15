@@ -117,15 +117,15 @@ export default function GroupDetailPage() {
             {group.courses.length === 0 ? (
               <p className="text-sm text-ink/50">אין קורסים בקבוצה זו עדיין</p>
             ) : (
-              <div className="flex flex-wrap gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {group.courses.map((c) => (
                   <button
                     key={c.id}
                     onClick={() => navigate(`/teacher/courses/${c.id}`)}
-                    className="lift flex items-center gap-2 rounded-lg border border-rule bg-sheet px-4 py-3 text-right shadow-soft"
+                    className="lift flex items-center gap-2 rounded-lg border border-rule bg-sheet px-4 py-3 text-right shadow-soft transition-colors hover:bg-ground/60"
                   >
                     <BookOpen size={16} className="shrink-0 text-ink" />
-                    <span className="text-sm font-medium text-ink">{c.name}</span>
+                    <span className="text-sm font-medium text-ink truncate">{c.name}</span>
                   </button>
                 ))}
               </div>

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
+import { CourseSkeleton } from '@/components/ui/skeleton';
 import { Tape } from '@/components/decor';
 import { cn } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
@@ -32,7 +33,15 @@ export default function CoursesPage() {
 
   const courses: CourseDTO[] = unwrap(data)?.courses ?? [];
 
-  if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
+  if (isLoading)
+    return (
+      <div className="space-y-5" dir="rtl">
+        <PageHeader title="קורסים" meta="ניהול · קורסים" />
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {[...Array(6)].map((_, i) => <CourseSkeleton key={i} />)}
+        </div>
+      </div>
+    );
 
   return (
     <div className="space-y-5" dir="rtl">

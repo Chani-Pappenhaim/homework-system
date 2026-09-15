@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
+import { MessageSkeleton } from '@/components/ui/skeleton';
 import { StudentAutocomplete } from '@/components/ui/student-autocomplete';
 import type { StudentSearchResult } from '@/api/students.api';
 import {
@@ -117,7 +118,9 @@ export default function TeacherMessagesPage() {
       />
 
       {isLoading ? (
-        <div className="p-6 font-sans text-ink-soft">טוען…</div>
+        <div className="sheet divide-y divide-rule overflow-hidden">
+          {[...Array(5)].map((_, i) => <MessageSkeleton key={i} />)}
+        </div>
       ) : messages.length === 0 ? (
         <EmptyState icon={<Mail size={22} />}>אין הודעות</EmptyState>
       ) : (

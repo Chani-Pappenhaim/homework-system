@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
+import { CourseSkeleton } from '@/components/ui/skeleton';
 import { Tape } from '@/components/decor';
 import { cn } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
@@ -30,7 +31,15 @@ export default function GroupsPage() {
 
   const groups: GroupDTO[] = unwrap(data)?.groups ?? [];
 
-  if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
+  if (isLoading)
+    return (
+      <div className="space-y-5" dir="rtl">
+        <PageHeader title="קבוצות" meta="ניהול · קבוצות" />
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {[...Array(6)].map((_, i) => <CourseSkeleton key={i} />)}
+        </div>
+      </div>
+    );
 
   return (
     <div className="space-y-5" dir="rtl">
