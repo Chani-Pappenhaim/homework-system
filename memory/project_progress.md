@@ -2,6 +2,22 @@
 
 > קובץ זה עוקב אחרי מה שהושלם ומה שנשאר. יש לעדכן אותו בסוף כל שיחה שבה נעשתה עבודה.
 
+## 2026-09-15 (המשך 4) — נסגר פער האבטחה (קישורי הורדה), נדחף, Docker/migration הורצו
+
+**✅ נסגר פער האבטחה של `expires_at`/redirect endpoint** (הפער שדווח פתוח בהמשך 3). ארכיטקטורה: קישור קובץ חוזר כעת כ-`/files/download/:fileId?token=...` (route חדש, לא מאחורי session auth — הטוקן עצמו הוא ההרשאה) במקום Cloudinary URL חתום שתקף לצמיתות.
+- [backend/src/utils/jwt.ts](../backend/src/utils/jwt.ts): `FileTokenPayload{fileId, kind:'lesson'|'course'}`, `signFileToken`/`verifyFileToken` — JWT בן 15 דקות, על אותו `ACCESS_SECRET`.
+- [backend/src/utils/storage.ts](../backend/src/utils/storage.ts): `toFileDTO(file, kind)` עכשיו מחייב פרמטר `kind` שני, מחזיר `url` יחסי (מסלול ה-redirect+טוקן) ושדה `extension` נפרד (מחושב מה-URL האמיתי המאוחסן ב-DB) — כי ל-URL החדש אין סיומת אמיתית לפרסר יותר.
+- [backend/src/controllers/files.controller.ts](../backend/src/controllers/files.controller.ts) + [backend/src/routes/files.routes.ts](../backend/src/routes/files.routes.ts) (חדשים): מאמתים את הטוקן, מוודאים `fileId` תואם, שולפים lessonFile/courseFile לפי `kind`, ומפנים (302) ל-`toDeliveryUrl` טרי. מחובר ב-`app.ts` בתור `/api/files`.
+- עודכנו 4 קריאות ל-`toFileDTO` (ב-`lessons.service.ts`/`courses.service.ts`) להעביר `'lesson'`/`'course'`.
+- [frontend/src/components/ui/file-gallery.tsx](../frontend/src/components/ui/file-gallery.tsx): מוסיף `resolveFileUrl()` שמצרף את ה-`url` היחסי ל-`API_URL`; הסיווג (`getFileKindByExtension`, חדש ב-[file-type.ts](../frontend/src/lib/file-type.ts)) עובר לעבוד על שדה `file.extension` החדש במקום לפרסר את ה-URL/השם. `GalleryFile`/`CourseFile`/`LessonFile` (ב-`types/index.ts`) קיבלו שדה `extension?` אופציונלי.
+- **⚠️ מגבלה ידועה, לא נסגרה:** ה-endpoint מאמת רק החזקת טוקן+תוקף, לא בדיקת הרשאה חיה (`assertLessonAccess`/`assertCourseAccess`) בזמן ההפניה עצמה — אם גישה של תלמיד נשללת באמצע חלון ה-15 דקות, הקישור עדיין עובד עד לפקיעתו. אם רוצים לסגור את זה לגמרי — צריך להוסיף בדיקה חיה בתוך `files.controller.ts`.
+- `tsc --noEmit` נקי בשני הצדדים. Commit `e9b92a3`, נדחף (כולל גם את migration `quiz_attempt_official` שהיה untracked).
+- **פעולה נדרשת בפריסה:** צריך שהריצה הבאה של `prisma migrate deploy` על production (Render) תרוץ, כדי שה-migration `quiz_attempt_official` יחול גם שם.
+
+**✅ Docker הורץ ישירות על ידי הסוכן**, באישור מפורש וחד-פעמי של המשתמשת (חריגה מהכלל הקבוע "אל תריץ פקודות Docker בעצמך"): `docker compose -p homework-app build --no-cache frontend` ו-`up -d`. גם `prisma migrate dev --name quiz_attempt_official` הורץ ישירות (אותו אישור מפורש).
+
+**⏸️ בדיקת DB בענן — בעיכוב, לא בוצעה.** המשתמשת ניסתה פעמיים והדביקה בטעות את טקסט ה-placeholder שלי (`<...>`) במקום ערך אמיתי. הוסבר לה בפירוש. **חשוב לזכור להלן:** ה-DB יושב ב-**Supabase** (לא Vercel — Vercel מארח רק frontend; backend ב-Render). המשתמשת התבקשה (ואישרה "תעצור עם הבדיקות") שלא להמשיך לדחוף על זה כרגע — היא מנווטת ב-Supabase dashboard לבד (Database Settings → Connection string) כדי להשיג את המחרוזת בעצמה.
+
 ## 2026-09-15 (המשך 3) — נמצא ותוקן שורש בעיית התצוגה המקדימה + נדחף הכל + בדיקת DB
 
 **✅ נמצא ותוקן: שורש בעיית "שום קובץ חוץ מתמונה לא נפתח בתצוגה מקדימה".** לא היה קשור בכלל ל-CSP/Cloudinary headers כפי שנוחש קודם. הבאג: [file-gallery.tsx](../frontend/src/components/ui/file-gallery.tsx) קבע את סוג הקובץ (`getFileKind`) לפי `file.name` — שם **התצוגה** של הקובץ (הלייבל שהמורה הקלידה בהעלאה, או השם אחרי שימוש בפיצ'ר שינוי-השם החדש) — ולא לפי הקובץ בפועל. כל שם תצוגה בלי סיומת (למשל "HTTP methods") נפל ל-`kind: 'other'`, וה-UI הציג "אין תצוגה מקדימה זמינה" בלי אפילו לנסות לטעון את הקובץ (Network tab ריק — זה מה שחשף את זה). מסביר גם את הבעיה עם קובץ השיר. **תיקון:** `getFileKind`/`getExtension` עכשיו מקבלים `file.url` (שתמיד כולל את הסיומת האמיתית דרך Cloudinary) במקום `file.name`, גם ב-`FileTile` וגם ב-`FilePreviewDialog`. `tsc --noEmit` נקי. Commit `bb94e11`, נדחף.
