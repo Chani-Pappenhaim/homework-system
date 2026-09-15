@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
-import { Image, Video, FileText, Music, Archive, File as FileIcon, Download, ExternalLink, X, Pencil } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Image, Video, FileText, Music, Archive, File as FileIcon, Download, Pencil, X } from 'lucide-react';
 import { cn, formatBytes } from '@/lib/utils';
 import { getFileKindByExtension } from '@/lib/file-type';
 import { API_URL } from '@/lib/config';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 const OFFICE_EXTENSIONS = new Set(['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx']);
 const TEXT_EXTENSIONS = new Set(['txt', 'md']);
@@ -16,9 +15,6 @@ export interface GalleryFile {
   sizeBytes?: string | null;
 }
 
-// A file's `url` is a relative, short-lived download-redirect path (see
-// backend/src/utils/storage.ts::toFileDTO), not a directly usable address —
-// it has to be resolved against the API origin before use as a src/href.
 function resolveFileUrl(url: string): string {
   return `${API_URL}${url}`;
 }
@@ -41,28 +37,51 @@ interface FileGalleryProps {
 }
 
 /**
- * Grid of file cards (thumbnail for images, icon otherwise) that open in an
- * in-page preview dialog, falling back to a direct download link for file
- * types that can't be rendered inline.
+ * Grid of file cards with inline preview below — click to expand a specific file's
+ * preview on the page (image/video/audio/text/PDF), not in a modal.
  */
 export function FileGallery({ files, onDelete, onRename, className }: FileGalleryProps) {
-  const [preview, setPreview] = useState<GalleryFile | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = files.find((f) => f.id === selectedId);
 
   if (files.length === 0) return null;
 
   return (
-    <>
+    <div className="space-y-4">
       <div className={cn('grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4', className)}>
         {files.map((f) => (
-          <FileTile key={f.id} file={f} onOpen={() => setPreview(f)} onDelete={onDelete} onRename={onRename} />
+          <FileTile
+            key={f.id}
+            file={f}
+            isSelected={f.id === selectedId}
+            onOpen={() => setSelectedId(f.id)}
+            onDelete={onDelete}
+            onRename={onRename}
+          />
         ))}
       </div>
-      <FilePreviewDialog file={preview} onClose={() => setPreview(null)} />
-    </>
+
+      {/* Inline preview — displayed on the page, not in a modal */}
+      {selected && (
+        <FilePreviewInline file={selected} onClose={() => setSelectedId(null)} />
+      )}
+    </div>
   );
 }
 
-function FileTile({ file, onOpen, onDelete, onRename }: { file: GalleryFile; onOpen: () => void; onDelete?: (id: string) => void; onRename?: (id: string, name: string) => void }) {
+function FileTile({
+  file,
+  isSelected,
+  onOpen,
+  onDelete,
+  onRename,
+}: {
+  file: GalleryFile;
+  isSelected: boolean;
+  onOpen: () => void;
+  onDelete?: (id: string) => void;
+  onRename?: (id: string, name: string) => void;
+}) {
   const kind = getFileKindByExtension(file.extension ?? '');
   const Icon = KIND_ICON[kind];
   const url = resolveFileUrl(file.url);
@@ -78,19 +97,26 @@ function FileTile({ file, onOpen, onDelete, onRename }: { file: GalleryFile; onO
       <button
         type="button"
         onClick={onOpen}
-        className="lift flex w-full flex-col items-center gap-2 rounded-input border border-rule bg-sheet p-3 text-center shadow-soft transition hover:bg-ground/40"
+        className={cn(
+          'lift flex w-full flex-col items-center gap-2 rounded-input border-2 bg-sheet p-3 text-center shadow-soft transition hover:bg-ground/40',
+          isSelected ? 'border-indigo' : 'border-rule'
+        )}
       >
         <div className="flex h-16 w-full items-center justify-center overflow-hidden rounded-sm bg-ground/50">
           {kind === 'image' ? (
             <img src={url} alt={file.name} className="h-full w-full object-cover" loading="lazy" />
+          ) : kind === 'audio' ? (
+            <Music size={26} className="text-coral" />
+          ) : kind === 'video' ? (
+            <Video size={26} className="text-indigo" />
           ) : (
             <Icon size={26} className="text-ink/50" />
           )}
         </div>
-        <p className="w-full truncate text-xs font-medium text-ink" title={file.name}>{file.name}</p>
-        {file.sizeBytes != null && (
-          <p className="text-[10px] text-ink/40">{formatBytes(file.sizeBytes)}</p>
-        )}
+        <p className="w-full truncate text-xs font-medium text-ink" title={file.name}>
+          {file.name}
+        </p>
+        {file.sizeBytes != null && <p className="text-[10px] text-ink/40">{formatBytes(file.sizeBytes)}</p>}
       </button>
       {onRename && (
         <button
@@ -105,7 +131,10 @@ function FileTile({ file, onOpen, onDelete, onRename }: { file: GalleryFile; onO
       {onDelete && (
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); onDelete(file.id); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(file.id);
+          }}
           className="absolute -top-2 -start-2 rounded-full bg-coral p-1 text-sheet opacity-0 shadow-soft transition group-hover:opacity-100"
           aria-label="מחיקת קובץ"
         >
@@ -116,107 +145,104 @@ function FileTile({ file, onOpen, onDelete, onRename }: { file: GalleryFile; onO
   );
 }
 
-function FilePreviewDialog({ file, onClose }: { file: GalleryFile | null; onClose: () => void }) {
-  const ext = file?.extension ?? '';
+function FilePreviewInline({ file, onClose }: { file: GalleryFile; onClose: () => void }) {
+  const ext = file.extension ?? '';
   const kind = getFileKindByExtension(ext);
   const isOffice = OFFICE_EXTENSIONS.has(ext);
   const isText = TEXT_EXTENSIONS.has(ext);
-  const url = file ? resolveFileUrl(file.url) : '';
-
-  const [textContent, setTextContent] = useState<string | null>(null);
-  const [textError, setTextError] = useState(false);
-
-  useEffect(() => {
-    setTextContent(null);
-    setTextError(false);
-    if (!file || !isText) return;
-    let cancelled = false;
-    fetch(url)
-      .then((r) => { if (!r.ok) throw new Error(); return r.text(); })
-      .then((t) => { if (!cancelled) setTextContent(t); })
-      .catch(() => { if (!cancelled) setTextError(true); });
-    return () => { cancelled = true; };
-  }, [file, isText, url]);
+  const url = resolveFileUrl(file.url);
 
   return (
-    <Dialog open={!!file} onOpenChange={(open) => { if (!open) onClose(); }}>
-      {file && (
-        <DialogContent size="lg" className="max-h-[85vh]">
-          <div className="flex items-center justify-between gap-3 border-b border-rule px-5 py-3.5 pe-12">
-            <DialogTitle className="truncate">{file.name}</DialogTitle>
-            <div className="flex shrink-0 items-center gap-2">
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 rounded-input border border-rule px-2.5 py-1.5 text-xs font-semibold text-ink hover:bg-ground/60"
-              >
-                <ExternalLink size={12} /> פתיחה בכרטיסייה חדשה
-              </a>
-              <a
-                href={url}
-                download={file.name}
-                className="flex items-center gap-1 rounded-input border border-rule px-2.5 py-1.5 text-xs font-semibold text-ink hover:bg-ground/60"
-              >
-                <Download size={12} /> הורדה
-              </a>
-            </div>
+    <div className="rounded-input border border-rule bg-ground/30 p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-ink">{file.name}</h3>
+          {file.sizeBytes && <p className="text-xs text-ink/50">{formatBytes(file.sizeBytes)}</p>}
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <a
+            href={url}
+            download={file.name}
+            className="flex items-center gap-1.5 rounded-input bg-indigo px-3 py-1.5 text-xs font-semibold text-sheet hover:bg-indigo/90"
+          >
+            <Download size={12} /> הורדה
+          </a>
+          <button
+            onClick={onClose}
+            className="rounded-input border border-rule px-3 py-1.5 text-xs font-semibold text-ink hover:bg-sheet/60"
+          >
+            סגירה
+          </button>
+        </div>
+      </div>
+
+      <div className="flex min-h-96 items-center justify-center overflow-auto rounded-sm bg-sheet p-3">
+        {kind === 'image' && (
+          <img src={url} alt={file.name} className="max-h-full max-w-full rounded-sm object-contain" />
+        )}
+        {kind === 'video' && (
+          <video src={url} controls className="max-h-full max-w-full rounded-sm" />
+        )}
+        {kind === 'audio' && <audio src={url} controls className="w-full" />}
+        {kind === 'pdf' && (
+          <iframe src={url} title={file.name} className="h-full w-full rounded-sm border border-rule" />
+        )}
+        {kind === 'doc' && isOffice && (
+          <iframe
+            src={`https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`}
+            title={file.name}
+            className="h-full w-full rounded-sm border border-rule bg-sheet"
+          />
+        )}
+        {kind === 'doc' && isText && (
+          <TextFilePreview url={url} />
+        )}
+        {(kind === 'archive' || kind === 'other') && (
+          <div className="flex flex-col items-center gap-3 text-center">
+            <FileIcon size={40} className="text-ink/40" />
+            <p className="text-sm text-ink/70">אין תצוגה מקדימה זמינה לסוג קובץ זה</p>
+            <a
+              href={url}
+              download={file.name}
+              className="rounded-input bg-indigo px-4 py-2 text-sm font-semibold text-sheet hover:bg-indigo/90"
+            >
+              הורדת הקובץ
+            </a>
           </div>
-          <div className="flex items-center justify-center overflow-auto p-4">
-            {kind === 'image' && (
-              <img src={url} alt={file.name} className="max-h-[70vh] max-w-full rounded-sm object-contain" />
-            )}
-            {kind === 'video' && (
-              <video src={url} controls autoPlay className="max-h-[70vh] max-w-full rounded-sm" />
-            )}
-            {kind === 'audio' && <audio src={url} controls className="w-full" />}
-            {kind === 'pdf' && (
-              <iframe src={url} title={file.name} className="h-[70vh] w-full rounded-sm border border-rule" />
-            )}
-            {kind === 'doc' && isOffice && (
-              <iframe
-                src={`https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`}
-                title={file.name}
-                className="h-[70vh] w-full rounded-sm border border-rule bg-sheet"
-              />
-            )}
-            {kind === 'doc' && isText && (
-              textError ? (
-                <p className="py-10 text-sm text-ink/70">שגיאה בטעינת תוכן הקובץ</p>
-              ) : textContent === null ? (
-                <p className="py-10 text-sm text-ink/50">טוען…</p>
-              ) : (
-                <pre className="max-h-[70vh] w-full overflow-auto whitespace-pre-wrap break-words rounded-sm border border-rule bg-ground/40 p-4 text-right text-xs text-ink">
-                  {textContent}
-                </pre>
-              )
-            )}
-            {(kind === 'archive' || kind === 'other') && (
-              <div className="flex flex-col items-center gap-3 py-10 text-center">
-                <FileText size={40} className="text-ink/40" />
-                <p className="text-sm text-ink/70">אין תצוגה מקדימה זמינה לסוג קובץ זה</p>
-                <div className="flex items-center gap-2">
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="lift rounded-input border border-rule px-4 py-2 text-sm font-semibold text-ink shadow-soft"
-                  >
-                    פתיחה בכרטיסייה חדשה
-                  </a>
-                  <a
-                    href={url}
-                    download={file.name}
-                    className="lift rounded-input bg-ink px-4 py-2 text-sm font-semibold text-sheet shadow-soft"
-                  >
-                    הורדת הקובץ
-                  </a>
-                </div>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      )}
-    </Dialog>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TextFilePreview({ url }: { url: string }) {
+  const [content, setContent] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(url)
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.text();
+      })
+      .then((t) => {
+        if (!cancelled) setContent(t);
+      })
+      .catch(() => {
+        if (!cancelled) setError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
+
+  if (error) return <p className="text-sm text-ink/70">שגיאה בטעינת תוכן הקובץ</p>;
+  if (content === null) return <p className="text-sm text-ink/50">טוען…</p>;
+
+  return (
+    <pre className="max-h-96 w-full overflow-auto whitespace-pre-wrap break-words rounded-sm border border-rule bg-ground/40 p-4 text-right text-xs text-ink">
+      {content}
+    </pre>
   );
 }
