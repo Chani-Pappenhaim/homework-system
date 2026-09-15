@@ -159,11 +159,11 @@ describe('groups.service', () => {
       p.group.findUnique.mockResolvedValue({
         id: 'g1', name: 'G', seminar: null, year: '2026', createdAt: new Date(),
         students: [{ student: { id: 's1', name: 'A', email: 'a@x.com', githubUsername: 'gh', createdAt: new Date() } }],
-        courses: [{ id: 'c1', name: 'C' }],
+        courses: [{ id: 'c1', name: 'C', hidden: false, _count: { lessons: 3 } }],
       });
       const r = await getGroupById('g1');
       expect(r!.students).toEqual([expect.objectContaining({ id: 's1', githubUsername: 'gh' })]);
-      expect(r!.courses).toEqual([{ id: 'c1', name: 'C' }]);
+      expect(r!.courses).toEqual([{ id: 'c1', name: 'C', hidden: false, lessonCount: 3 }]);
     });
   });
 

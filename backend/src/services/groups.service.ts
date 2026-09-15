@@ -26,7 +26,7 @@ export async function getGroupById(id: string) {
     where: { id },
     include: {
       students: { include: { student: { select: { id: true, name: true, email: true, githubUsername: true, createdAt: true } } } },
-      courses: { select: { id: true, name: true } },
+      courses: { select: { id: true, name: true, hidden: true, _count: { select: { lessons: true } } } },
     },
   });
   if (!group) return null;
@@ -34,7 +34,7 @@ export async function getGroupById(id: string) {
     id: group.id, name: group.name, seminar: group.seminar,
     year: group.year, createdAt: group.createdAt,
     students: group.students.map((sg) => sg.student),
-    courses: group.courses,
+    courses: group.courses.map((c) => ({ id: c.id, name: c.name, hidden: c.hidden, lessonCount: c._count.lessons })),
   };
 }
 

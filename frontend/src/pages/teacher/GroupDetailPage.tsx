@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Edit, Users, BookOpen, Plus, Github, Trash2 } from 'lucide-react';
+import { Edit, Users, BookOpen, Plus, Github, Trash2, Lock, EyeOff } from 'lucide-react';
 import { groupsApi } from '@/api/groups.api';
+import { coursesApi } from '@/api/courses.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { BackLink } from '@/components/ui/back-link';
 import { useToast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
@@ -22,6 +24,12 @@ export default function GroupDetailPage() {
   });
 
   const group = data?.data.data.group;
+
+  const toggleHiddenMutation = useMutation({
+    mutationFn: (course: { id: string; hidden: boolean }) =>
+      coursesApi.update(course.id, { hidden: !course.hidden }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['group', id] }),
+  });
 
   const deleteGroupMutation = useMutation({
     mutationFn: () => groupsApi.delete(id!),
@@ -119,14 +127,28 @@ export default function GroupDetailPage() {
             ) : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {group.courses.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => navigate(`/teacher/courses/${c.id}`)}
-                    className="lift flex items-center gap-2 rounded-lg border border-rule bg-sheet px-4 py-3 text-right shadow-soft transition-colors hover:bg-ground/60"
-                  >
-                    <BookOpen size={16} className="shrink-0 text-ink" />
-                    <span className="text-sm font-medium text-ink truncate">{c.name}</span>
-                  </button>
+                  <div key={c.id} className="lift rounded-lg border border-rule bg-sheet px-4 py-3 shadow-soft">
+                    <button
+                      onClick={() => navigate(`/teacher/courses/${c.id}`)}
+                      className="flex w-full items-center gap-2 text-right transition-colors hover:text-clay"
+                    >
+                      <BookOpen size={16} className="shrink-0 text-ink" />
+                      <span className="text-sm font-medium text-ink truncate">{c.name}</span>
+                      {c.hidden && <Badge variant="warning"><Lock size={10} className="ml-1" /> מוסתר</Badge>}
+                    </button>
+                    <div className="mt-2 flex items-center justify-between border-t border-dashed border-rule/25 pt-2">
+                      <p className="font-sans text-[11px] text-ink/70">{c.lessonCount} שיעורים</p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => toggleHiddenMutation.mutate(c)}
+                        disabled={toggleHiddenMutation.isPending}
+                      >
+                        {c.hidden ? <Lock size={12} /> : <EyeOff size={12} />}
+                        {c.hidden ? 'הצג' : 'הסתר'}
+                      </Button>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}

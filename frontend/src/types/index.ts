@@ -20,7 +20,7 @@ export interface GroupDTO {
 
 export interface GroupDetailDTO extends GroupDTO {
   students: { id: string; name: string; email: string; githubUsername?: string; createdAt: string }[];
-  courses: { id: string; name: string }[];
+  courses: { id: string; name: string; hidden: boolean; lessonCount: number }[];
 }
 
 export interface CourseDTO {
