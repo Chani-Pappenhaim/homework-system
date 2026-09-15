@@ -138,6 +138,15 @@ export async function deleteLessonFile(lessonId: string, fileId: string) {
   await prisma.lessonFile.delete({ where: { id: fileId } });
 }
 
+export async function renameLessonFile(lessonId: string, fileId: string, name: string) {
+  const file = await prisma.lessonFile.findUnique({ where: { id: fileId, lessonId } });
+  if (!file) throw Object.assign(new Error('File not found'), { status: 404 });
+  const trimmed = name.trim();
+  if (!trimmed) throw Object.assign(new Error('Name is required'), { status: 400 });
+  const updated = await prisma.lessonFile.update({ where: { id: fileId }, data: { name: trimmed } });
+  return toFileDTO(updated);
+}
+
 // Deletes a lesson and its children (assignments, submissions, files, quiz,
 // access, progress) via cascade. Stored file assets are cleaned up first,
 // best-effort, so a storage failure can't block the delete.

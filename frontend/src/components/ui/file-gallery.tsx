@@ -1,8 +1,11 @@
-import { useState } from 'react';
-import { Image, Video, FileText, Music, Archive, File as FileIcon, Download, ExternalLink, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Image, Video, FileText, Music, Archive, File as FileIcon, Download, ExternalLink, X, Pencil } from 'lucide-react';
 import { cn, formatBytes } from '@/lib/utils';
-import { getFileKind } from '@/lib/file-type';
+import { getExtension, getFileKind } from '@/lib/file-type';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+
+const OFFICE_EXTENSIONS = new Set(['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx']);
+const TEXT_EXTENSIONS = new Set(['txt', 'md']);
 
 export interface GalleryFile {
   id: string;
@@ -24,6 +27,7 @@ const KIND_ICON: Record<string, typeof FileIcon> = {
 interface FileGalleryProps {
   files: GalleryFile[];
   onDelete?: (fileId: string) => void;
+  onRename?: (fileId: string, name: string) => void;
   className?: string;
 }
 
@@ -32,7 +36,7 @@ interface FileGalleryProps {
  * in-page preview dialog, falling back to a direct download link for file
  * types that can't be rendered inline.
  */
-export function FileGallery({ files, onDelete, className }: FileGalleryProps) {
+export function FileGallery({ files, onDelete, onRename, className }: FileGalleryProps) {
   const [preview, setPreview] = useState<GalleryFile | null>(null);
 
   if (files.length === 0) return null;
@@ -41,7 +45,7 @@ export function FileGallery({ files, onDelete, className }: FileGalleryProps) {
     <>
       <div className={cn('grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4', className)}>
         {files.map((f) => (
-          <FileTile key={f.id} file={f} onOpen={() => setPreview(f)} onDelete={onDelete} />
+          <FileTile key={f.id} file={f} onOpen={() => setPreview(f)} onDelete={onDelete} onRename={onRename} />
         ))}
       </div>
       <FilePreviewDialog file={preview} onClose={() => setPreview(null)} />
@@ -49,9 +53,15 @@ export function FileGallery({ files, onDelete, className }: FileGalleryProps) {
   );
 }
 
-function FileTile({ file, onOpen, onDelete }: { file: GalleryFile; onOpen: () => void; onDelete?: (id: string) => void }) {
+function FileTile({ file, onOpen, onDelete, onRename }: { file: GalleryFile; onOpen: () => void; onDelete?: (id: string) => void; onRename?: (id: string, name: string) => void }) {
   const kind = getFileKind(file.name);
   const Icon = KIND_ICON[kind];
+
+  const handleRename = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const name = window.prompt('שם חדש לקובץ', file.name);
+    if (name && name.trim() && name.trim() !== file.name) onRename?.(file.id, name.trim());
+  };
 
   return (
     <div className="group relative">
@@ -72,6 +82,16 @@ function FileTile({ file, onOpen, onDelete }: { file: GalleryFile; onOpen: () =>
           <p className="text-[10px] text-ink/40">{formatBytes(file.sizeBytes)}</p>
         )}
       </button>
+      {onRename && (
+        <button
+          type="button"
+          onClick={handleRename}
+          className="absolute -top-2 start-6 rounded-full bg-ink p-1 text-sheet opacity-0 shadow-soft transition group-hover:opacity-100"
+          aria-label="שינוי שם קובץ"
+        >
+          <Pencil size={12} strokeWidth={2.5} />
+        </button>
+      )}
       {onDelete && (
         <button
           type="button"
@@ -88,6 +108,24 @@ function FileTile({ file, onOpen, onDelete }: { file: GalleryFile; onOpen: () =>
 
 function FilePreviewDialog({ file, onClose }: { file: GalleryFile | null; onClose: () => void }) {
   const kind = file ? getFileKind(file.name) : 'other';
+  const ext = file ? getExtension(file.name) : '';
+  const isOffice = OFFICE_EXTENSIONS.has(ext);
+  const isText = TEXT_EXTENSIONS.has(ext);
+
+  const [textContent, setTextContent] = useState<string | null>(null);
+  const [textError, setTextError] = useState(false);
+
+  useEffect(() => {
+    setTextContent(null);
+    setTextError(false);
+    if (!file || !isText) return;
+    let cancelled = false;
+    fetch(file.url)
+      .then((r) => { if (!r.ok) throw new Error(); return r.text(); })
+      .then((t) => { if (!cancelled) setTextContent(t); })
+      .catch(() => { if (!cancelled) setTextError(true); });
+    return () => { cancelled = true; };
+  }, [file, isText]);
 
   return (
     <Dialog open={!!file} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -124,7 +162,25 @@ function FilePreviewDialog({ file, onClose }: { file: GalleryFile | null; onClos
             {kind === 'pdf' && (
               <iframe src={file.url} title={file.name} className="h-[70vh] w-full rounded-sm border border-rule" />
             )}
-            {(kind === 'doc' || kind === 'archive' || kind === 'other') && (
+            {kind === 'doc' && isOffice && (
+              <iframe
+                src={`https://docs.google.com/gview?url=${encodeURIComponent(file.url)}&embedded=true`}
+                title={file.name}
+                className="h-[70vh] w-full rounded-sm border border-rule bg-sheet"
+              />
+            )}
+            {kind === 'doc' && isText && (
+              textError ? (
+                <p className="py-10 text-sm text-ink/70">שגיאה בטעינת תוכן הקובץ</p>
+              ) : textContent === null ? (
+                <p className="py-10 text-sm text-ink/50">טוען…</p>
+              ) : (
+                <pre className="max-h-[70vh] w-full overflow-auto whitespace-pre-wrap break-words rounded-sm border border-rule bg-ground/40 p-4 text-right text-xs text-ink">
+                  {textContent}
+                </pre>
+              )
+            )}
+            {(kind === 'archive' || kind === 'other') && (
               <div className="flex flex-col items-center gap-3 py-10 text-center">
                 <FileText size={40} className="text-ink/40" />
                 <p className="text-sm text-ink/70">אין תצוגה מקדימה זמינה לסוג קובץ זה</p>

@@ -64,4 +64,7 @@ export const coursesApi = {
 
   deleteFile: (id: string, fileId: string) =>
     api.delete(`/courses/${id}/files/${fileId}`),
+
+  renameFile: (id: string, fileId: string, name: string) =>
+    api.patch(`/courses/${id}/files/${fileId}`, { name }),
 };

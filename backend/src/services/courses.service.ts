@@ -179,6 +179,15 @@ export async function deleteCourseFile(courseId: string, fileId: string) {
   await prisma.courseFile.delete({ where: { id: fileId } });
 }
 
+export async function renameCourseFile(courseId: string, fileId: string, name: string) {
+  const file = await prisma.courseFile.findUnique({ where: { id: fileId, courseId } });
+  if (!file) throw Object.assign(new Error('File not found'), { status: 404 });
+  const trimmed = name.trim();
+  if (!trimmed) throw Object.assign(new Error('Name is required'), { status: 400 });
+  const updated = await prisma.courseFile.update({ where: { id: fileId }, data: { name: trimmed } });
+  return toFileDTO(updated);
+}
+
 // Deletes a course and everything under it. The DB rows cascade automatically,
 // so this only needs to clean up stored assets first, best-effort — a storage
 // hiccup must not block the delete.

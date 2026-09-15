@@ -104,6 +104,11 @@ export default function CourseFormPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['course', id] }),
   });
 
+  const renameFileMutation = useMutation({
+    mutationFn: ({ fileId, name }: { fileId: string; name: string }) => coursesApi.renameFile(id!, fileId, name),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['course', id] }),
+  });
+
   const copyMutation = useMutation({
     mutationFn: () => coursesApi.copy(id!, copyGroupId),
     onSuccess: () => { setCopyModal(false); qc.invalidateQueries({ queryKey: ['courses'] }); toast.success('הקורס הועתק בהצלחה'); },
@@ -244,7 +249,7 @@ export default function CourseFormPage() {
           <Card>
             <CardHeader><h2 className="font-display text-base font-bold">קבצים</h2></CardHeader>
             <CardContent className="space-y-3">
-              <FileGallery files={course.files} onDelete={(fileId) => deleteFileMutation.mutate(fileId)} />
+              <FileGallery files={course.files} onDelete={(fileId) => deleteFileMutation.mutate(fileId)} onRename={(fileId, name) => renameFileMutation.mutate({ fileId, name })} />
               <FileUpload withName onFile={(file, name) => uploadFileMutation.mutate({ file, name })} label="העלה קובץ לקורס" />
             </CardContent>
           </Card>

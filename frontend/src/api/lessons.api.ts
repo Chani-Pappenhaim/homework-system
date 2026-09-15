@@ -56,6 +56,9 @@ export const lessonsApi = {
   deleteFile: (id: string, fileId: string) =>
     api.delete(`/lessons/${id}/files/${fileId}`),
 
+  renameFile: (id: string, fileId: string, name: string) =>
+    api.patch(`/lessons/${id}/files/${fileId}`, { name }),
+
   importMd: (id: string, file: File) => {
     const form = new FormData();
     form.append('file', file);

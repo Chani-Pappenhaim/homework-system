@@ -20,5 +20,6 @@ router.post('/:id/files', requireRole('ADMIN'), upload.single('file'), coursesCo
 // comment on submissions.routes for why the file never touches this server.
 router.post('/:id/upload-signature', requireRole('ADMIN'), coursesController.getUploadSignature);
 router.delete('/:id/files/:fileId', requireRole('ADMIN'), coursesController.deleteFile);
+router.patch('/:id/files/:fileId', requireRole('ADMIN'), coursesController.renameFile);
 
 export default router;

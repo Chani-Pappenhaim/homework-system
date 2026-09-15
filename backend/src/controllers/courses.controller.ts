@@ -106,3 +106,12 @@ export async function deleteFile(req: Request, res: Response) {
   }
 }
 
+export async function renameFile(req: Request, res: Response) {
+  try {
+    const file = await coursesService.renameCourseFile(req.params.id as string, req.params.fileId as string, req.body.name);
+    res.json({ success: true, data: { file } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+

@@ -71,6 +71,11 @@ export default function LessonDetailPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['lesson', id] }),
   });
 
+  const renameFileMutation = useMutation({
+    mutationFn: ({ fileId, name }: { fileId: string; name: string }) => lessonsApi.renameFile(id!, fileId, name),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['lesson', id] }),
+  });
+
   const deleteAssignmentMutation = useMutation({
     mutationFn: (aId: string) => assignmentsApi.delete(aId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['lesson', id] }); toast.success('המטלה נמחקה'); },
@@ -130,7 +135,7 @@ export default function LessonDetailPage() {
           {/* Files management */}
           <div className="space-y-2 pt-2 border-t border-rule/20">
             <p className="text-xs text-ink/50 font-medium">קבצים מצורפים</p>
-            <FileGallery files={lesson.files} onDelete={(fileId) => deleteFileMutation.mutate(fileId)} />
+            <FileGallery files={lesson.files} onDelete={(fileId) => deleteFileMutation.mutate(fileId)} onRename={(fileId, name) => renameFileMutation.mutate({ fileId, name })} />
             {lesson.files.length === 0 && (
               <p className="text-xs text-ink/50">אין קבצים מצורפים</p>
             )}
