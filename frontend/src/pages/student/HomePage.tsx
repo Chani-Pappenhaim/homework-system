@@ -17,12 +17,12 @@ const TAPES = ['clay', 'sage', 'indigo', 'butter'] as const;
 // Every class Tailwind's production build needs to see must appear as a
 // literal string somewhere in source — `` `bg-${accent}` `` is invisible to
 // the scanner and gets purged. This map makes each combination literal.
-const ACCENT_CLASSES: Record<(typeof CARD_ACCENTS)[number], { bar: string; text: string; bg: string; ring: string }> = {
-  clay: { bar: 'bg-clay', text: 'text-clay', bg: 'bg-clay', ring: 'bg-clay/15' },
-  indigo: { bar: 'bg-indigo', text: 'text-indigo', bg: 'bg-indigo', ring: 'bg-indigo/15' },
-  sage: { bar: 'bg-sage', text: 'text-sage', bg: 'bg-sage', ring: 'bg-sage/15' },
-  butter: { bar: 'bg-butter', text: 'text-butter', bg: 'bg-butter', ring: 'bg-butter/15' },
-  coral: { bar: 'bg-coral', text: 'text-coral', bg: 'bg-coral', ring: 'bg-coral/15' },
+const ACCENT_CLASSES: Record<(typeof CARD_ACCENTS)[number], { bar: string; text: string; bg: string; fill: string; ring: string }> = {
+  clay: { bar: 'bg-clay', text: 'text-clay', bg: 'bg-clay', fill: 'bg-clay/60', ring: 'bg-clay/15' },
+  indigo: { bar: 'bg-indigo', text: 'text-indigo', bg: 'bg-indigo', fill: 'bg-indigo/60', ring: 'bg-indigo/15' },
+  sage: { bar: 'bg-sage', text: 'text-sage', bg: 'bg-sage', fill: 'bg-sage/60', ring: 'bg-sage/15' },
+  butter: { bar: 'bg-butter', text: 'text-butter', bg: 'bg-butter', fill: 'bg-butter/60', ring: 'bg-butter/15' },
+  coral: { bar: 'bg-coral', text: 'text-coral', bg: 'bg-coral', fill: 'bg-coral/60', ring: 'bg-coral/15' },
 };
 
 export default function StudentHomePage() {
@@ -40,7 +40,11 @@ export default function StudentHomePage() {
   const filteredCourses = q ? courses.filter((c) => c.name?.toLowerCase().includes(q)) : courses;
 
   const doneTotal = courses.reduce((s, c) => s + (c.completedLessons ?? 0), 0);
-  const streak = Math.min(doneTotal, 7);
+  const totalLessons = courses.reduce((s, c) => s + (c.lessonCount ?? 0), 0);
+  // Fixed 7 slots representing overall completion ratio, not a raw lesson
+  // count — otherwise the row would need to keep growing as more lessons
+  // and courses pile up instead of staying a stable at-a-glance gauge.
+  const streak = totalLessons > 0 ? Math.round((doneTotal / totalLessons) * 7) : 0;
   const dateMeta = new Intl.DateTimeFormat('he-IL', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
   const groupNames = (user?.groups ?? []).map((g) => g.name);
 
@@ -115,10 +119,9 @@ export default function StudentHomePage() {
                 onClick={() => navigate(`/student/courses/${c.id}`)}
                 className="sheet lift relative overflow-hidden p-0 text-right"
               >
-                <div className={cn('relative h-2 w-full opacity-70', ACCENT_CLASSES[accent].bar)}>
-                  <Tape color={tape} rotate={-6} className="-top-1 right-2 w-9" />
-                  <Tape color={tape} rotate={6} className="-top-1 left-2 w-9" />
-                </div>
+                <div className={cn('h-2 w-full opacity-50', ACCENT_CLASSES[accent].bar)} />
+                <Tape color={tape} rotate={-6} className="top-0 right-2 w-9" />
+                <Tape color={tape} rotate={6} className="top-0 left-2 w-9" />
                 <div className="relative p-4 pr-5">
                   <div className="flex items-center gap-3">
                     <span
@@ -141,7 +144,7 @@ export default function StudentHomePage() {
                       <span className={cn('font-semibold tabular', ACCENT_CLASSES[accent].text)}>{pct}%</span>
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-ground">
-                      <div className={cn('h-full rounded-full transition-all', ACCENT_CLASSES[accent].bg)} style={{ width: `${pct}%` }} />
+                      <div className={cn('h-full rounded-full transition-all', ACCENT_CLASSES[accent].fill)} style={{ width: `${pct}%` }} />
                     </div>
                   </div>
                 </div>

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import TeacherHomePage from '@/pages/teacher/HomePage';
 import { renderWithProviders, setAuthUser } from '../utils/render';
@@ -12,7 +12,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
 
 vi.mock('@/api/groups.api', () => ({ groupsApi: { list: vi.fn() } }));
 vi.mock('@/api/courses.api', () => ({ coursesApi: { list: vi.fn() } }));
-vi.mock('@/api/grades.api', () => ({ gradesApi: { pending: vi.fn() } }));
+vi.mock('@/api/grades.api', () => ({ gradesApi: { pending: vi.fn(), report: vi.fn() } }));
 vi.mock('@/api/aiUsage.api', () => ({ aiUsageApi: { summary: vi.fn() } }));
 
 import { groupsApi } from '@/api/groups.api';
@@ -23,6 +23,7 @@ import { aiUsageApi } from '@/api/aiUsage.api';
 const groupsList = groupsApi.list as unknown as ReturnType<typeof vi.fn>;
 const coursesList = coursesApi.list as unknown as ReturnType<typeof vi.fn>;
 const pending = gradesApi.pending as unknown as ReturnType<typeof vi.fn>;
+const report = gradesApi.report as unknown as ReturnType<typeof vi.fn>;
 const summary = aiUsageApi.summary as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
@@ -31,6 +32,7 @@ beforeEach(() => {
   groupsList.mockResolvedValue({ data: { data: { groups: [] } } });
   coursesList.mockResolvedValue({ data: { data: { courses: [] } } });
   pending.mockResolvedValue({ data: { data: { count: 0 } } });
+  report.mockResolvedValue({ data: { data: { report: [] } } });
   summary.mockResolvedValue({ data: { data: { totalCostUsd: 0 } } });
 });
 
@@ -40,27 +42,28 @@ describe('TeacherHomePage', () => {
     expect(await screen.findByText(/שלום, שרה/)).toBeInTheDocument();
   });
 
+  // The dashboard shows KPI tiles (counts), not the groups/courses lists themselves.
   it('renders group and course counts and pending grade count', async () => {
     groupsList.mockResolvedValue({ data: { data: { groups: [{ id: 'g1', name: 'קב', year: '2026', studentCount: 3, createdAt: '' }] } } });
     coursesList.mockResolvedValue({ data: { data: { courses: [{ id: 'c1', name: 'קורס', groupName: 'קב', lessonCount: 4, createdAt: '2026-07-01T00:00:00Z', hidden: false, groupId: 'g1' }] } } });
     pending.mockResolvedValue({ data: { data: { count: 5 } } });
     renderWithProviders(<TeacherHomePage />);
-    expect(await screen.findByText('קורס')).toBeInTheDocument();
-    expect(screen.getByText('5')).toBeInTheDocument(); // pending count
+    await waitFor(() => expect(screen.getByRole('button', { name: /קבוצות/ })).toHaveTextContent('1'));
+    expect(screen.getByRole('button', { name: /קורסים/ })).toHaveTextContent('1');
+    expect(screen.getByRole('button', { name: /ממתינות לבדיקה/ })).toHaveTextContent('5');
   });
 
-  it('shows empty states when there are no groups or courses', async () => {
+  it('shows the empty review-queue message when there is nothing pending', async () => {
     renderWithProviders(<TeacherHomePage />);
-    expect(await screen.findByText('אין קבוצות עדיין')).toBeInTheDocument();
-    expect(screen.getByText('אין קורסים עדיין')).toBeInTheDocument();
+    expect(await screen.findByText('התור ריק — כל הכבוד')).toBeInTheDocument();
   });
 
-  it('navigates to new-group and new-course from the header buttons', async () => {
+  it('navigates to the groups and courses pages from the KPI tiles', async () => {
     renderWithProviders(<TeacherHomePage />);
     await screen.findByText(/שלום, שרה/);
-    await userEvent.click(screen.getByRole('button', { name: /קבוצה חדשה/ }));
-    expect(navigate).toHaveBeenCalledWith('/teacher/groups/new');
-    await userEvent.click(screen.getByRole('button', { name: /קורס חדש/ }));
-    expect(navigate).toHaveBeenCalledWith('/teacher/courses/new');
+    await userEvent.click(screen.getByRole('button', { name: /קבוצות/ }));
+    expect(navigate).toHaveBeenCalledWith('/teacher/groups');
+    await userEvent.click(screen.getByRole('button', { name: /קורסים/ }));
+    expect(navigate).toHaveBeenCalledWith('/teacher/courses');
   });
 });

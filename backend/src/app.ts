@@ -25,7 +25,13 @@ export function createApp() {
   const app = express();
 
   app.set('trust proxy', 1); // nginx reverse proxy
-  app.use(helmet());
+  // Frontend and API are on different origins in production, so the default
+  // Cross-Origin-Resource-Policy: same-origin blocks the frontend from loading
+  // this server's own resources (file previews, downloads) in <img>/<audio>/
+  // <video>/<iframe>. 'cross-origin' only relaxes that one header — every other
+  // helmet protection (including the CSP frame-ancestors clickjacking guard) is
+  // untouched.
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.use(cors({
     origin: process.env.FRONTEND_URL,
     credentials: true,

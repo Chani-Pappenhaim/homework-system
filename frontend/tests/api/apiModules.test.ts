@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock the shared axios instance used by every api module.
 vi.mock('@/api/axios', () => {
@@ -31,6 +31,19 @@ const patch = api.patch as unknown as ReturnType<typeof vi.fn>;
 const del = api.delete as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => vi.clearAllMocks());
+afterEach(() => vi.unstubAllGlobals());
+
+// uploadFile signs with the backend, uploads straight to Cloudinary via fetch,
+// then posts the resulting URL back to the backend.
+function mockUploadSignatureAndCloudinary() {
+  post.mockResolvedValueOnce({
+    data: { data: { apiKey: 'key', cloudName: 'cloud', timestamp: 1, signature: 'sig', folder: 'f' } },
+  });
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ secure_url: 'https://cdn/x', bytes: 5 }) })),
+  );
+}
 
 describe('authApi', () => {
   it('login posts credentials', () => {
@@ -116,9 +129,14 @@ describe('coursesApi', () => {
     coursesApi.deleteLink('c1', 'l1');
     expect(del).toHaveBeenCalledWith('/courses/c1/links/l1');
   });
-  it('uploadFile posts FormData / deleteFile deletes', () => {
-    coursesApi.uploadFile('c1', new File(['x'], 'f.pdf'));
-    expect(post).toHaveBeenCalledWith('/courses/c1/files', expect.any(FormData));
+  it('uploadFile signs, uploads to Cloudinary, then posts the URL / deleteFile deletes', async () => {
+    mockUploadSignatureAndCloudinary();
+    await coursesApi.uploadFile('c1', new File(['x'], 'f.pdf'));
+    expect(post).toHaveBeenCalledWith('/courses/c1/upload-signature');
+    expect(post).toHaveBeenCalledWith('/courses/c1/files', {
+      uploadedFile: { url: 'https://cdn/x', bytes: 5, originalName: 'f.pdf' },
+      name: undefined,
+    });
     coursesApi.deleteFile('c1', 'f1');
     expect(del).toHaveBeenCalledWith('/courses/c1/files/f1');
   });
@@ -139,9 +157,14 @@ describe('lessonsApi', () => {
     lessonsApi.reorder([{ id: 'l1', order: 0 }]);
     expect(patch).toHaveBeenCalledWith('/lessons/reorder', { lessons: [{ id: 'l1', order: 0 }] });
   });
-  it('uploadFile / deleteFile / importMd', () => {
-    lessonsApi.uploadFile('l1', new File(['x'], 'a'));
-    expect(post).toHaveBeenCalledWith('/lessons/l1/files', expect.any(FormData));
+  it('uploadFile / deleteFile / importMd', async () => {
+    mockUploadSignatureAndCloudinary();
+    await lessonsApi.uploadFile('l1', new File(['x'], 'a'));
+    expect(post).toHaveBeenCalledWith('/lessons/l1/upload-signature');
+    expect(post).toHaveBeenCalledWith('/lessons/l1/files', {
+      uploadedFile: { url: 'https://cdn/x', bytes: 5, originalName: 'a' },
+      name: undefined,
+    });
     lessonsApi.deleteFile('l1', 'f1');
     expect(del).toHaveBeenCalledWith('/lessons/l1/files/f1');
     lessonsApi.importMd('l1', new File(['x'], 'a.md'));

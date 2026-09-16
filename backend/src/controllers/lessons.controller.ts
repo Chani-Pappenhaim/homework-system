@@ -114,7 +114,7 @@ export async function renameFile(req: Request, res: Response) {
 
 export async function setFileRequired(req: Request, res: Response) {
   try {
-    const file = await lessonsService.setLessonFileRequired(req.params.id as string, req.params.fileId as string, Boolean(req.body.required));
+    const file = await lessonsService.setLessonFileRequired(req.params.id as string, req.params.fileId as string, Boolean(req.body.required), req.user!.userId);
     res.json({ success: true, data: { file } });
   } catch (err: any) {
     sendError(res, err);

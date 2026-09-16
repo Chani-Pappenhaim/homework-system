@@ -63,13 +63,17 @@ describe('TeacherCourseDetailPage', () => {
     createLesson.mockResolvedValue({ data: { data: { lesson: { id: 'l99' } } } });
     renderPage();
     await screen.findByRole('heading', { name: 'קורס React' });
-    // The "+" add button has no accessible name; it's the last bubble button.
-    const bubbleButtons = screen.getAllByRole('button');
-    await userEvent.click(bubbleButtons[bubbleButtons.length - 1]);
+    // Opening the modal now defaults the lesson date to today, rather than leaving it empty.
+    await userEvent.click(screen.getByRole('button', { name: /שיעור חדש/ }));
     const topicInput = await screen.findByPlaceholderText('React Hooks');
     await userEvent.type(topicInput, 'נושא חדש');
     await userEvent.click(screen.getByRole('button', { name: 'צור שיעור' }));
-    await waitFor(() => expect(createLesson).toHaveBeenCalledWith('c1', { topic: 'נושא חדש', lessonDate: undefined }));
+    await waitFor(() => expect(createLesson).toHaveBeenCalledWith('c1', {
+      topic: 'נושא חדש',
+      lessonDate: expect.any(String),
+      contentMd: undefined,
+      githubUrls: [],
+    }));
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/teacher/lessons/l99'));
   });
 

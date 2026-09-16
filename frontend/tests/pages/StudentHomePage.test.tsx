@@ -47,7 +47,8 @@ describe('StudentHomePage', () => {
       { assignmentId: 'a1', assignmentTitle: 'מטלה 1', courseName: 'קורס א', lessonTopic: 'שיעור 1', deadline: '2999-01-01T00:00:00Z' },
     ] } } });
     renderWithProviders(<StudentHomePage />);
-    expect(await screen.findByText('1 מטלות ממתינות')).toBeInTheDocument();
+    expect(await screen.findByText('מטלות ממתינות')).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
     expect(screen.getByText('מטלה 1')).toBeInTheDocument();
   });
 });

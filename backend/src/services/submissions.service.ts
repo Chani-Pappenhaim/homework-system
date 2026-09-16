@@ -218,7 +218,14 @@ export async function requestAiReview(submissionId: string, studentId: string) {
   const submission = await prisma.submission.findUnique({ where: { id: submissionId } });
   if (!submission) throw Object.assign(new Error('Submission not found'), { status: 404 });
   if (submission.studentId !== studentId) throw Object.assign(new Error('Forbidden'), { status: 403 });
-  if (!submission.githubUrl) throw Object.assign(new Error('No GitHub URL on submission'), { status: 400 });
+  const fileRef = (submission.fileName || submission.fileUrl || '').toLowerCase();
+  const hasReviewableFile = fileRef.endsWith('.zip') || fileRef.endsWith('.docx');
+  if (!submission.githubUrl && !hasReviewableFile) {
+    throw Object.assign(
+      new Error('Submission must be a GitHub URL, a .zip file, or a .docx file to request AI review'),
+      { status: 400 }
+    );
+  }
 
   const maxReviews = submission.aiExtraAllowed ? 2 : 1;
   if (submission.aiReviewCount >= maxReviews) {

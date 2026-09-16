@@ -19,10 +19,12 @@ describe('FileUpload', () => {
   });
 
   it('calls onFile when a file is selected via the input', async () => {
+    // A picked file is staged first; onFile only fires once the upload is confirmed.
     const onFile = vi.fn();
     const { container } = render(<FileUpload onFile={onFile} />);
     const file = new File(['hello'], 'hello.txt', { type: 'text/plain' });
     await userEvent.upload(getFileInput(container), file);
+    await userEvent.click(screen.getByText('העלה קובץ'));
     expect(onFile).toHaveBeenCalledTimes(1);
     expect(onFile.mock.calls[0][0]).toBe(file);
   });
@@ -32,7 +34,8 @@ describe('FileUpload', () => {
     expect(getFileInput(container)).toHaveAttribute('accept', '.pdf');
   });
 
-  it('calls onFile on drop', () => {
+  it('calls onFile on drop', async () => {
+    // A dropped file is staged first too; onFile only fires once the upload is confirmed.
     const onFile = vi.fn();
     const { container } = render(<FileUpload onFile={onFile} />);
     const dropzone = container.firstElementChild as HTMLElement;
@@ -42,7 +45,8 @@ describe('FileUpload', () => {
     dropEvent.dataTransfer = dataTransfer;
     dropEvent.preventDefault = vi.fn();
     dropzone.dispatchEvent(dropEvent);
-    expect(onFile).toHaveBeenCalledWith(file);
+    await userEvent.click(await screen.findByText('העלה קובץ'));
+    expect(onFile).toHaveBeenCalledWith(file, undefined);
   });
 
   describe('withName', () => {

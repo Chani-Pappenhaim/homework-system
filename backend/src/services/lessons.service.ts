@@ -121,10 +121,11 @@ export async function markLessonFileViewed(studentId: string, role: string, less
   });
 }
 
-export async function setLessonFileRequired(lessonId: string, fileId: string, required: boolean) {
+export async function setLessonFileRequired(lessonId: string, fileId: string, required: boolean, userId: string) {
   const file = await prisma.lessonFile.findUnique({ where: { id: fileId, lessonId } });
   if (!file) throw Object.assign(new Error('File not found'), { status: 404 });
-  return prisma.lessonFile.update({ where: { id: fileId }, data: { required } });
+  const updated = await prisma.lessonFile.update({ where: { id: fileId }, data: { required } });
+  return toFileDTO(updated, 'lesson', userId);
 }
 
 export async function setLessonProgress(studentId: string, lessonId: string, completed: boolean) {

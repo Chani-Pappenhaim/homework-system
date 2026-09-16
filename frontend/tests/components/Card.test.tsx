@@ -17,13 +17,13 @@ describe('Card', () => {
   });
 
   it('applies the primary accent border', () => {
-    render(<Card accent="primary">a</Card>);
-    expect(screen.getByText('a')).toHaveClass('border-t-primary');
+    render(<Card accent="clay">a</Card>);
+    expect(screen.getByText('a')).toHaveClass('before:bg-clay');
   });
 
   it('applies the secondary accent border', () => {
-    render(<Card accent="secondary">a</Card>);
-    expect(screen.getByText('a')).toHaveClass('border-t-secondary');
+    render(<Card accent="indigo">a</Card>);
+    expect(screen.getByText('a')).toHaveClass('before:bg-indigo');
   });
 
   it('merges a custom className', () => {

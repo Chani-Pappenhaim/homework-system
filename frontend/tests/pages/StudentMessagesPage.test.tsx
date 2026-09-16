@@ -15,9 +15,12 @@ const send = messagesApi.send as unknown as ReturnType<typeof vi.fn>;
 beforeEach(() => vi.clearAllMocks());
 
 describe('StudentMessagesPage', () => {
+  // The compose form now lives in a dialog opened via "הודעה חדשה", not an
+  // always-visible textarea on the page.
   it('renders the send form', async () => {
     getMine.mockResolvedValue({ data: { data: { messages: [] } } });
     renderWithProviders(<StudentMessagesPage />);
+    await userEvent.click(screen.getByRole('button', { name: /הודעה חדשה/ }));
     expect(screen.getByPlaceholderText('כתבי את ההודעה שלך...')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'שלחי' })).toBeInTheDocument();
   });
@@ -35,25 +38,30 @@ describe('StudentMessagesPage', () => {
     });
     renderWithProviders(<StudentMessagesPage />);
     expect(await screen.findByText('שאלה שלי')).toBeInTheDocument();
-    expect(screen.getByText('התשובה')).toBeInTheDocument();
     expect(screen.getByText('נענתה')).toBeInTheDocument();
     expect(screen.getByText('הודעה נוספת')).toBeInTheDocument();
     expect(screen.getByText('ממתינה')).toBeInTheDocument();
+
+    // The reply content itself only shows once the message is opened.
+    await userEvent.click(screen.getByText('שאלה שלי'));
+    expect(await screen.findByText('התשובה')).toBeInTheDocument();
   });
 
   it('disables the send button when the textarea is empty', async () => {
     getMine.mockResolvedValue({ data: { data: { messages: [] } } });
     renderWithProviders(<StudentMessagesPage />);
+    await userEvent.click(screen.getByRole('button', { name: /הודעה חדשה/ }));
     expect(screen.getByRole('button', { name: 'שלחי' })).toBeDisabled();
   });
 
-  it('calls messagesApi.send with the typed content and shows a success banner', async () => {
+  it('calls messagesApi.send with the typed content and closes the compose dialog', async () => {
     getMine.mockResolvedValue({ data: { data: { messages: [] } } });
     send.mockResolvedValue({ data: {} });
     renderWithProviders(<StudentMessagesPage />);
+    await userEvent.click(screen.getByRole('button', { name: /הודעה חדשה/ }));
     await userEvent.type(screen.getByPlaceholderText('כתבי את ההודעה שלך...'), 'שלום מורה');
     await userEvent.click(screen.getByRole('button', { name: 'שלחי' }));
     await waitFor(() => expect(send).toHaveBeenCalledWith('שלום מורה'));
-    expect(await screen.findByText(/ההודעה נשלחה בהצלחה/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByPlaceholderText('כתבי את ההודעה שלך...')).not.toBeInTheDocument());
   });
 });

@@ -43,7 +43,7 @@ describe('QuizPanel — creating', () => {
 
     const button = await screen.findByRole('button', { name: /צרי בוחן בעזרת AI/ });
     await userEvent.click(button);
-    await waitFor(() => expect(generate).toHaveBeenCalledWith('l1'));
+    await waitFor(() => expect(generate).toHaveBeenCalledWith('l1', false));
   });
 
   it('cannot generate from a lesson with no content', async () => {

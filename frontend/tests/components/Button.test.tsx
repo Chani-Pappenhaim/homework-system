@@ -33,17 +33,17 @@ describe('Button', () => {
 
   it('applies the brand gradient for the default variant', () => {
     render(<Button>Primary</Button>);
-    expect(screen.getByRole('button')).toHaveClass('gradient-primary');
+    expect(screen.getByRole('button')).toHaveClass('bg-ink');
   });
 
   it('applies the destructive variant classes', () => {
     render(<Button variant="destructive">Delete</Button>);
-    expect(screen.getByRole('button')).toHaveClass('bg-destructive');
+    expect(screen.getByRole('button')).toHaveClass('bg-coral');
   });
 
   it('applies the secondary variant classes', () => {
     render(<Button variant="secondary">V</Button>);
-    expect(screen.getByRole('button')).toHaveClass('bg-secondary');
+    expect(screen.getByRole('button')).toHaveClass('bg-sheet');
   });
 
   it('renders as the child element when asChild is set', () => {
@@ -53,13 +53,13 @@ describe('Button', () => {
       </Button>
     );
     const link = screen.getByRole('link', { name: 'Link' });
-    expect(link).toHaveClass('gradient-primary');
+    expect(link).toHaveClass('bg-ink');
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('applies size classes', () => {
     render(<Button size="lg">Big</Button>);
-    expect(screen.getByRole('button')).toHaveClass('px-6');
+    expect(screen.getByRole('button')).toHaveClass('px-5');
   });
 
   it('merges a custom className', () => {

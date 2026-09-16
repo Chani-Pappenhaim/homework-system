@@ -37,7 +37,7 @@ describe('Input', () => {
     render(<Input error="Required" placeholder="p" />);
     const field = screen.getByPlaceholderText('p');
     expect(screen.getByText('Required')).toBeInTheDocument();
-    expect(field).toHaveClass('border-destructive');
+    expect(field).toHaveClass('border-coral');
     expect(field).toHaveAttribute('aria-invalid', 'true');
     // The message is announced with the field rather than sitting beside it.
     expect(field).toHaveAccessibleDescription('Required');
@@ -46,7 +46,7 @@ describe('Input', () => {
   it('does not apply the error border when there is no error', () => {
     render(<Input placeholder="ok" />);
     const field = screen.getByPlaceholderText('ok');
-    expect(field).not.toHaveClass('border-destructive');
+    expect(field).not.toHaveClass('border-coral');
     expect(field).not.toHaveAttribute('aria-invalid');
   });
 

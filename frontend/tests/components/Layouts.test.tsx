@@ -32,11 +32,13 @@ describe('TeacherLayout', () => {
   it('renders the main nav links', async () => {
     getUnreadCount.mockResolvedValue({ data: { data: { count: 0 } } });
     renderWithProviders(<TeacherLayout />);
-    expect(screen.getByRole('link', { name: /לוח בקרה/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /קבוצות/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /ציונים/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /שימוש AI/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /הודעות/ })).toBeInTheDocument();
+    // Desktop sidebar and mobile bottom nav both render the same links, so
+    // each label appears twice in the DOM.
+    expect(screen.getAllByRole('link', { name: /לוח בקרה/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /קבוצות/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /ציונים/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /שימוש AI/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /הודעות/ }).length).toBeGreaterThan(0);
   });
 
   it('shows the current user name in the footer', async () => {
@@ -54,7 +56,7 @@ describe('TeacherLayout', () => {
   it('navigates home when the logo is clicked', async () => {
     getUnreadCount.mockResolvedValue({ data: { data: { count: 0 } } });
     renderWithProviders(<TeacherLayout />);
-    await userEvent.click(screen.getByText('מערכת שיעורי בית'));
+    await userEvent.click(screen.getByText('Teacher Feature'));
     expect(navigate).toHaveBeenCalledWith('/teacher');
   });
 
@@ -74,9 +76,12 @@ describe('StudentLayout', () => {
 
   it('renders the student nav links', () => {
     renderWithProviders(<StudentLayout />);
-    expect(screen.getByRole('link', { name: /בית/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /מטלות/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /הודעה למורה/ })).toBeInTheDocument();
+    // Desktop sidebar and mobile bottom nav both render the same links, so
+    // each label appears twice in the DOM.
+    expect(screen.getAllByRole('link', { name: /בית/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /קורסים/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /מטלות/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /הודעה למורה/ }).length).toBeGreaterThan(0);
   });
 
   it('shows the student name', () => {
@@ -86,7 +91,7 @@ describe('StudentLayout', () => {
 
   it('navigates home when the logo is clicked', async () => {
     renderWithProviders(<StudentLayout />);
-    await userEvent.click(screen.getByText('שיעורי בית'));
+    await userEvent.click(screen.getByText('Teacher Feature'));
     expect(navigate).toHaveBeenCalledWith('/student');
   });
 

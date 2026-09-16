@@ -10,15 +10,15 @@ describe('Badge', () => {
 
   it('defaults to the muted variant', () => {
     render(<Badge>Gray</Badge>);
-    expect(screen.getByText('Gray')).toHaveClass('bg-muted');
+    expect(screen.getByText('Gray')).toHaveClass('bg-ground');
   });
 
   it.each([
-    ['default', 'text-primary'],
-    ['secondary', 'text-secondary'],
-    ['success', 'text-emerald-600'],
-    ['warning', 'text-amber-600'],
-    ['destructive', 'text-destructive'],
+    ['default', 'text-clay'],
+    ['secondary', 'text-indigo'],
+    ['success', 'text-sage'],
+    ['warning', 'text-clay'],
+    ['destructive', 'text-coral'],
   ] as const)('applies the %s variant class', (variant, cls) => {
     render(<Badge variant={variant}>{variant}</Badge>);
     expect(screen.getByText(variant)).toHaveClass(cls);
