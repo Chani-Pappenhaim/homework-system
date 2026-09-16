@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Clock, Flame, ArrowLeft, Search } from 'lucide-react';
+import { Clock, TrendingUp, ArrowLeft, Search } from 'lucide-react';
 import useAuthStore from '@/store/authStore';
 import { coursesApi } from '@/api/courses.api';
 import { submissionsApi } from '@/api/submissions.api';
@@ -79,7 +79,7 @@ export default function StudentHomePage() {
           )}
         </div>
         <div className="mt-3 flex items-center gap-2">
-          <span className="label flex items-center gap-1"><Flame size={13} className="text-coral" /> רצף</span>
+          <span className="label flex items-center gap-1"><TrendingUp size={13} className="text-sage" /> התקדמות כוללת</span>
           <div className="flex items-center gap-1">
             {Array.from({ length: 7 }).map((_, i) => (
               <span
@@ -120,8 +120,7 @@ export default function StudentHomePage() {
                 className="sheet lift relative overflow-hidden p-0 text-right"
               >
                 <div className={cn('h-2 w-full opacity-50', ACCENT_CLASSES[accent].bar)} />
-                <Tape color={tape} rotate={-6} className="top-0 right-2 w-9" />
-                <Tape color={tape} rotate={6} className="top-0 left-2 w-9" />
+                <Tape color={tape} rotate={-2} className="-top-0.5 left-1/2 w-16 -translate-x-1/2" />
                 <div className="relative p-4 pr-5">
                   <div className="flex items-center gap-3">
                     <span
