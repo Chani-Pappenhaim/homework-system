@@ -288,7 +288,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
               )}
             </div>
 
-            {sub.githubUrl && (
+            {(sub.githubUrl || sub.fileUrl) && (
               <div className="border border-rule/15 rounded-input p-3 text-sm space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1 font-medium text-ink"><Bot size={14} /> בדיקת AI</span>

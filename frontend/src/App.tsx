@@ -24,6 +24,7 @@ import TeacherMessagesPage from '@/pages/teacher/MessagesPage';
 import AiUsagePage from '@/pages/teacher/AiUsagePage';
 
 import StudentHomePage from '@/pages/student/HomePage';
+import StudentCoursesPage from '@/pages/student/CoursesPage';
 import StudentCourseDetailPage from '@/pages/student/CourseDetailPage';
 import StudentLessonDetailPage from '@/pages/student/LessonDetailPage';
 import AssignmentsPage from '@/pages/student/AssignmentsPage';
@@ -68,6 +69,7 @@ function AppRoutes() {
           <AuthGuard><ChangePasswordGuard /></AuthGuard>
         }>
           <Route index element={<StudentHomePage />} />
+          <Route path="courses" element={<StudentCoursesPage />} />
           <Route path="courses/:id" element={<StudentCourseDetailPage />} />
           <Route path="lessons/:id" element={<StudentLessonDetailPage />} />
           <Route path="assignments" element={<AssignmentsPage />} />
