@@ -12,7 +12,6 @@ import type { PendingAssignment } from '@/types';
 
 // Slight rotation per card gives the row a hand-tacked, sheet-on-a-board look.
 const CARD_ACCENTS = ['clay', 'indigo', 'sage', 'butter', 'coral'] as const;
-const TAPES = ['clay', 'sage', 'indigo', 'butter'] as const;
 
 // Every class Tailwind's production build needs to see must appear as a
 // literal string somewhere in source — `` `bg-${accent}` `` is invisible to
@@ -51,8 +50,7 @@ export default function StudentHomePage() {
   return (
     <div className="space-y-5" dir="rtl">
       <section className="sheet relative p-5">
-        <Tape color="clay" rotate={-4} className="-top-2.5 right-8 w-20" />
-        <Tape color="sage" rotate={3} className="-top-2 right-28 w-14" />
+        <Tape color="clay" rotate={-40} className="-top-1 -right-1 w-14" />
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="label mb-1">המחברת שלי · {dateMeta}</div>
@@ -112,7 +110,6 @@ export default function StudentHomePage() {
             const total = c.lessonCount || 0;
             const pct = total > 0 ? Math.round((done / total) * 100) : 0;
             const accent = CARD_ACCENTS[i % CARD_ACCENTS.length];
-            const tape = TAPES[i % TAPES.length];
             return (
               <button
                 key={c.id}
@@ -120,7 +117,6 @@ export default function StudentHomePage() {
                 className="sheet lift relative overflow-hidden p-0 text-right"
               >
                 <div className={cn('h-2 w-full opacity-50', ACCENT_CLASSES[accent].bar)} />
-                <Tape color={tape} rotate={-2} className="-top-0.5 left-1/2 w-16 -translate-x-1/2" />
                 <div className="relative p-4 pr-5">
                   <div className="flex items-center gap-3">
                     <span

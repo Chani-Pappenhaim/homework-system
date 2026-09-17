@@ -222,7 +222,7 @@ export async function requestAiReview(submissionId: string, studentId: string) {
   const hasReviewableFile = fileRef.endsWith('.zip') || fileRef.endsWith('.docx');
   if (!submission.githubUrl && !hasReviewableFile) {
     throw Object.assign(
-      new Error('Submission must be a GitHub URL, a .zip file, or a .docx file to request AI review'),
+      new Error('בדיקת AI זמינה רק להגשות GitHub, קובץ ZIP או קובץ Word (.docx)'),
       { status: 400 }
     );
   }
