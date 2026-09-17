@@ -65,6 +65,9 @@ export const lessonsApi = {
   markFileViewed: (id: string, fileId: string) =>
     api.post(`/lessons/${id}/files/${fileId}/view`),
 
+  unmarkFileViewed: (id: string, fileId: string) =>
+    api.delete(`/lessons/${id}/files/${fileId}/view`),
+
   importMd: (id: string, file: File) => {
     const form = new FormData();
     form.append('file', file);

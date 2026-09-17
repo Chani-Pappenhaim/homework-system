@@ -39,6 +39,8 @@ interface FileGalleryProps {
   onToggleRequired?: (fileId: string, required: boolean) => void;
   /** Student-only — marks a required file as seen/read. */
   onMarkViewed?: (fileId: string) => void;
+  /** Student-only — undoes an accidental "seen" mark on a required file. */
+  onUnmarkViewed?: (fileId: string) => void;
   className?: string;
 }
 
@@ -46,7 +48,7 @@ interface FileGalleryProps {
  * Grid of file cards with inline preview below — click to expand a specific file's
  * preview on the page (image/video/audio/text/PDF), not in a modal.
  */
-export function FileGallery({ files, onDelete, onRename, onToggleRequired, onMarkViewed, className }: FileGalleryProps) {
+export function FileGallery({ files, onDelete, onRename, onToggleRequired, onMarkViewed, onUnmarkViewed, className }: FileGalleryProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = files.find((f) => f.id === selectedId);
 
@@ -65,6 +67,7 @@ export function FileGallery({ files, onDelete, onRename, onToggleRequired, onMar
             onRename={onRename}
             onToggleRequired={onToggleRequired}
             onMarkViewed={onMarkViewed}
+            onUnmarkViewed={onUnmarkViewed}
           />
         ))}
       </div>
@@ -85,6 +88,7 @@ function FileTile({
   onRename,
   onToggleRequired,
   onMarkViewed,
+  onUnmarkViewed,
 }: {
   file: GalleryFile;
   isSelected: boolean;
@@ -93,6 +97,7 @@ function FileTile({
   onRename?: (id: string, name: string) => void;
   onToggleRequired?: (id: string, required: boolean) => void;
   onMarkViewed?: (id: string) => void;
+  onUnmarkViewed?: (id: string) => void;
 }) {
   const kind = getFileKindByExtension(file.extension ?? '');
   const Icon = KIND_ICON[kind];
@@ -156,6 +161,18 @@ function FileTile({
           className="mt-1.5 w-full rounded-input border border-rule/30 bg-butter/30 py-1 text-[11px] font-semibold text-clay hover:bg-butter/50"
         >
           סימני שראית/קראת
+        </button>
+      )}
+      {onUnmarkViewed && file.required && file.viewed && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onUnmarkViewed(file.id);
+          }}
+          className="mt-1.5 w-full rounded-input border border-rule/30 bg-sage/10 py-1 text-[11px] font-semibold text-sage hover:bg-sage/20"
+        >
+          ביטול סימון צפייה
         </button>
       )}
       {onToggleRequired && (

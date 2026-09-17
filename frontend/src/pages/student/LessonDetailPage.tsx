@@ -56,6 +56,11 @@ export default function StudentLessonDetailPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['lesson', id] }),
   });
 
+  const unviewFileMutation = useMutation({
+    mutationFn: (fileId: string) => lessonsApi.unmarkFileViewed(id!, fileId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['lesson', id] }),
+  });
+
   if (isLoading) return <div className="p-6 text-ink/50">טוען...</div>;
   if (!lesson) return <div className="p-6 text-coral">שיעור לא נמצא</div>;
 
@@ -63,7 +68,9 @@ export default function StudentLessonDetailPage() {
   const hasFiles = lesson.files.length > 0;
   // `exists` already means "published and available to take" — a draft quiz reads as false.
   const hasQuiz = !!lesson.quiz?.exists;
-  const pendingRequiredFiles = lesson.files.filter((f) => f.required && !f.viewed);
+  const requiredFiles = lesson.files.filter((f) => f.required);
+  const pendingRequiredFiles = requiredFiles.filter((f) => !f.viewed);
+  const viewedRequiredCount = requiredFiles.length - pendingRequiredFiles.length;
 
   return (
     <div className="space-y-5" dir="rtl">
@@ -167,10 +174,21 @@ export default function StudentLessonDetailPage() {
 
       {tab === 'files' && (
         <Card>
-          <CardHeader><h2 className="font-display text-base font-bold">חומרי עזר</h2></CardHeader>
+          <CardHeader className="flex items-center justify-between gap-2">
+            <h2 className="font-display text-base font-bold">חומרי עזר</h2>
+            {requiredFiles.length > 1 && (
+              <span className="text-xs font-semibold text-ink-soft">
+                {viewedRequiredCount}/{requiredFiles.length} קבצי חובה נצפו
+              </span>
+            )}
+          </CardHeader>
           <CardContent>
             {hasFiles ? (
-              <FileGallery files={lesson.files} onMarkViewed={(fileId) => viewFileMutation.mutate(fileId)} />
+              <FileGallery
+                files={lesson.files}
+                onMarkViewed={(fileId) => viewFileMutation.mutate(fileId)}
+                onUnmarkViewed={(fileId) => unviewFileMutation.mutate(fileId)}
+              />
             ) : (
               <p className="text-sm text-ink/50">אין חומרי עזר לשיעור זה</p>
             )}

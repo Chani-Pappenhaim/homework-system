@@ -123,6 +123,18 @@ export async function markLessonFileViewed(studentId: string, role: string, less
   });
 }
 
+export async function unmarkLessonFileViewed(studentId: string, role: string, lessonId: string, fileId: string) {
+  await assertLessonAccess(studentId, role, lessonId);
+  const file = await prisma.lessonFile.findUnique({ where: { id: fileId, lessonId } });
+  if (!file) throw new AppError('File not found', 'הקובץ לא נמצא', 404);
+  await prisma.lessonFileView.deleteMany({ where: { studentId, fileId } });
+  // A required file being un-viewed breaks the "all required files viewed"
+  // gate the lesson was marked complete under, so completion must be undone too.
+  if (file.required) {
+    await prisma.lessonProgress.deleteMany({ where: { studentId, lessonId } });
+  }
+}
+
 export async function setLessonFileRequired(lessonId: string, fileId: string, required: boolean, userId: string) {
   const file = await prisma.lessonFile.findUnique({ where: { id: fileId, lessonId } });
   if (!file) throw new AppError('File not found', 'הקובץ לא נמצא', 404);

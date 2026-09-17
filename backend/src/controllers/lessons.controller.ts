@@ -130,6 +130,15 @@ export async function markFileViewed(req: Request, res: Response) {
   }
 }
 
+export async function unmarkFileViewed(req: Request, res: Response) {
+  try {
+    await lessonsService.unmarkLessonFileViewed(req.user!.userId, req.user!.role, req.params.id as string, req.params.fileId as string);
+    res.json({ success: true, data: null });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
 export async function getLessonAccess(req: Request, res: Response) {
   try {
     const students = await lessonsService.getLessonAccess(req.params.id as string);
