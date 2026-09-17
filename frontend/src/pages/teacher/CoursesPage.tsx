@@ -96,7 +96,13 @@ export default function CoursesPage() {
                       {c.hidden ? <Lock size={12} /> : <EyeOff size={12} />}
                       {c.hidden ? 'הצג' : 'הסתר'}
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => navigate(`/teacher/courses/${c.id}`)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigate(`/teacher/courses/${c.id}`)}
+                      onMouseEnter={() => qc.prefetchQuery({ queryKey: ['course', c.id], queryFn: () => coursesApi.get(c.id) })}
+                      onFocus={() => qc.prefetchQuery({ queryKey: ['course', c.id], queryFn: () => coursesApi.get(c.id) })}
+                    >
                       פתח קורס ←
                     </Button>
                   </div>

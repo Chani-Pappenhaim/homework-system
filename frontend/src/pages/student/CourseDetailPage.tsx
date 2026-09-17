@@ -1,8 +1,9 @@
 import { toExternalUrl } from '@/lib/utils';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, Check } from 'lucide-react';
 import { coursesApi } from '@/api/courses.api';
+import { lessonsApi } from '@/api/lessons.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { FileGallery } from '@/components/ui/file-gallery';
@@ -11,11 +12,16 @@ import { cn } from '@/lib/utils';
 export default function StudentCourseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ['course', id],
     queryFn: () => coursesApi.get(id!),
   });
+
+  function prefetchLesson(lessonId: string) {
+    qc.prefetchQuery({ queryKey: ['lesson', lessonId], queryFn: () => lessonsApi.get(lessonId) });
+  }
 
   const course = data?.data.data.course;
   if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
@@ -57,6 +63,8 @@ export default function StudentCourseDetailPage() {
               <button
                 key={l.id}
                 onClick={() => navigate(`/student/lessons/${l.id}`)}
+                onMouseEnter={() => prefetchLesson(l.id)}
+                onFocus={() => prefetchLesson(l.id)}
                 title={l.completed ? `${l.topic} (הושלם)` : l.topic}
                 className={cn(
                   'lift relative grid size-14 place-items-center rounded-lg border border-rule font-display text-lg font-bold shadow-soft',

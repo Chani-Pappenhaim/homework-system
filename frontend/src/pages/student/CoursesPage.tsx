@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { coursesApi } from '@/api/courses.api';
@@ -24,6 +24,10 @@ const ACCENT_CLASSES: Record<(typeof CARD_ACCENTS)[number], { bar: string; text:
 
 export default function StudentCoursesPage() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
+  function prefetchCourse(courseId: string) {
+    qc.prefetchQuery({ queryKey: ['course', courseId], queryFn: () => coursesApi.get(courseId) });
+  }
   const { data: coursesData, isLoading } = useQuery({ queryKey: ['courses'], queryFn: () => coursesApi.list() });
   const courses = coursesData?.data.data.courses ?? [];
   const [search, setSearch] = useState('');
@@ -71,6 +75,8 @@ export default function StudentCoursesPage() {
               <button
                 key={c.id}
                 onClick={() => navigate(`/student/courses/${c.id}`)}
+                onMouseEnter={() => prefetchCourse(c.id)}
+                onFocus={() => prefetchCourse(c.id)}
                 className="sheet lift relative overflow-hidden p-0 text-right"
               >
                 <div className={cn('relative h-2 w-full opacity-70', ACCENT_CLASSES[accent].bar)}>

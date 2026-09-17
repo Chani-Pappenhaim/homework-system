@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Clock, TrendingUp, ArrowLeft, Search } from 'lucide-react';
 import useAuthStore from '@/store/authStore';
 import { coursesApi } from '@/api/courses.api';
+import { lessonsApi } from '@/api/lessons.api';
 import { submissionsApi } from '@/api/submissions.api';
 import { Tape } from '@/components/decor';
 import { cn, formatDate, isOverdue } from '@/lib/utils';
@@ -27,6 +28,7 @@ const ACCENT_CLASSES: Record<(typeof CARD_ACCENTS)[number], { bar: string; text:
 export default function StudentHomePage() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
+  const qc = useQueryClient();
 
   const { data: coursesData, isLoading: coursesLoading } = useQuery({ queryKey: ['courses'], queryFn: () => coursesApi.list() });
   const { data: mineData } = useQuery({ queryKey: ['mine'], queryFn: () => submissionsApi.mine() });
@@ -46,6 +48,16 @@ export default function StudentHomePage() {
   const streak = totalLessons > 0 ? Math.round((doneTotal / totalLessons) * 7) : 0;
   const dateMeta = new Intl.DateTimeFormat('he-IL', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
   const groupNames = (user?.groups ?? []).map((g) => g.name);
+
+  // Fetch the destination page's data as soon as the pointer lands on the
+  // card, not after the click — so by the time the navigation completes the
+  // data is often already cached and the page doesn't sit on "טוען…".
+  function prefetchCourse(courseId: string) {
+    qc.prefetchQuery({ queryKey: ['course', courseId], queryFn: () => coursesApi.get(courseId) });
+  }
+  function prefetchLesson(lessonId: string) {
+    qc.prefetchQuery({ queryKey: ['lesson', lessonId], queryFn: () => lessonsApi.get(lessonId) });
+  }
 
   return (
     <div className="space-y-5" dir="rtl">
@@ -97,97 +109,103 @@ export default function StudentHomePage() {
         </div>
       </section>
 
-      {coursesLoading ? (
-        <div className="sheet p-8 text-center text-sm text-ink-soft">טוען…</div>
-      ) : courses.length === 0 ? (
-        <div className="sheet p-8 text-center text-sm text-ink-soft">לא שויכת לאף קורס עדיין</div>
-      ) : filteredCourses.length === 0 ? (
-        <div className="sheet p-8 text-center text-sm text-ink-soft">{`אין תוצאות ל"${search.trim()}"`}</div>
-      ) : (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredCourses.map((c, i) => {
-            const done = c.completedLessons ?? 0;
-            const total = c.lessonCount || 0;
-            const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-            const accent = CARD_ACCENTS[i % CARD_ACCENTS.length];
-            return (
-              <button
-                key={c.id}
-                onClick={() => navigate(`/student/courses/${c.id}`)}
-                className="sheet lift relative overflow-hidden p-0 text-right"
-              >
-                <div className={cn('h-2 w-full opacity-50', ACCENT_CLASSES[accent].bar)} />
-                <div className="relative p-4 pr-5">
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={cn(
-                        'grid size-9 shrink-0 place-items-center rounded-full font-display text-sm font-bold',
-                        ACCENT_CLASSES[accent].ring,
-                        ACCENT_CLASSES[accent].text,
-                      )}
-                    >
-                      {(c.name ?? '?').trim().charAt(0)}
-                    </span>
-                    <div className="min-w-0">
-                      <h2 className="truncate font-display text-base font-bold leading-snug text-ink">{c.name}</h2>
-                      <p className="mt-0.5 text-[11px] text-ink-soft">{total} שיעורים</p>
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <div className="mb-1 flex items-center justify-between text-[11px]">
-                      <span className="text-ink-soft">{done}/{total} הושלמו</span>
-                      <span className={cn('font-semibold tabular', ACCENT_CLASSES[accent].text)}>{pct}%</span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-ground">
-                      <div className={cn('h-full rounded-full transition-all', ACCENT_CLASSES[accent].fill)} style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {pending.length > 0 && (
-        <section className="sheet">
-          <div className="flex items-center gap-2 border-b border-rule px-4 py-3">
-            <Clock size={15} className="text-coral" />
-            <h2 className="font-display text-base font-bold">מטלות ממתינות</h2>
-            <span className="mr-auto rounded-full bg-coral/12 px-2 py-0.5 text-[11px] font-semibold text-coral">
-              {pending.length}
-            </span>
-          </div>
-          <div className="divide-y divide-rule">
-            {pending.map((p) => {
-              const overdue = p.deadline && isOverdue(p.deadline);
+      <div className={cn('grid gap-5', pending.length > 0 && 'lg:grid-cols-[2fr_1fr] lg:items-start')}>
+        {coursesLoading ? (
+          <div className="sheet p-8 text-center text-sm text-ink-soft">טוען…</div>
+        ) : courses.length === 0 ? (
+          <div className="sheet p-8 text-center text-sm text-ink-soft">לא שויכת לאף קורס עדיין</div>
+        ) : filteredCourses.length === 0 ? (
+          <div className="sheet p-8 text-center text-sm text-ink-soft">{`אין תוצאות ל"${search.trim()}"`}</div>
+        ) : (
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-2">
+            {filteredCourses.map((c, i) => {
+              const done = c.completedLessons ?? 0;
+              const total = c.lessonCount || 0;
+              const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+              const accent = CARD_ACCENTS[i % CARD_ACCENTS.length];
               return (
                 <button
-                  key={p.assignmentId}
-                  onClick={() => navigate(p.lessonId ? `/student/lessons/${p.lessonId}` : '/student/assignments')}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-right transition-colors hover:bg-butter/10"
+                  key={c.id}
+                  onClick={() => navigate(`/student/courses/${c.id}`)}
+                  onMouseEnter={() => prefetchCourse(c.id)}
+                  onFocus={() => prefetchCourse(c.id)}
+                  className="sheet lift relative overflow-hidden p-0 text-right"
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-ink">{p.assignmentTitle}</p>
-                    <p className="truncate text-[11px] text-ink-soft">{p.courseName} · {p.lessonTopic}</p>
+                  <div className={cn('h-2 w-full opacity-50', ACCENT_CLASSES[accent].bar)} />
+                  <div className="relative p-4 pr-5">
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={cn(
+                          'grid size-9 shrink-0 place-items-center rounded-full font-display text-sm font-bold',
+                          ACCENT_CLASSES[accent].ring,
+                          ACCENT_CLASSES[accent].text,
+                        )}
+                      >
+                        {(c.name ?? '?').trim().charAt(0)}
+                      </span>
+                      <div className="min-w-0">
+                        <h2 className="truncate font-display text-base font-bold leading-snug text-ink">{c.name}</h2>
+                        <p className="mt-0.5 text-[11px] text-ink-soft">{total} שיעורים</p>
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <div className="mb-1 flex items-center justify-between text-[11px]">
+                        <span className="text-ink-soft">{done}/{total} הושלמו</span>
+                        <span className={cn('font-semibold tabular', ACCENT_CLASSES[accent].text)}>{pct}%</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-ground">
+                        <div className={cn('h-full rounded-full transition-all', ACCENT_CLASSES[accent].fill)} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
                   </div>
-                  {p.deadline && (
-                    <span
-                      className={cn(
-                        'shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold',
-                        overdue ? 'bg-coral/12 text-coral' : 'bg-butter/30 text-clay',
-                      )}
-                    >
-                      {overdue ? 'פג תוקף' : `עד ${formatDate(p.deadline)}`}
-                    </span>
-                  )}
-                  <ArrowLeft size={14} className="shrink-0 text-ink-soft" />
                 </button>
               );
             })}
           </div>
-        </section>
-      )}
+        )}
+
+        {pending.length > 0 && (
+          <section className="sheet lg:sticky lg:top-4">
+            <div className="flex items-center gap-2 border-b border-rule px-4 py-3">
+              <Clock size={15} className="text-coral" />
+              <h2 className="font-display text-base font-bold">מטלות ממתינות</h2>
+              <span className="mr-auto rounded-full bg-coral/12 px-2 py-0.5 text-[11px] font-semibold text-coral">
+                {pending.length}
+              </span>
+            </div>
+            <div className="divide-y divide-rule max-h-[28rem] overflow-y-auto">
+              {pending.map((p) => {
+                const overdue = p.deadline && isOverdue(p.deadline);
+                return (
+                  <button
+                    key={p.assignmentId}
+                    onClick={() => navigate(p.lessonId ? `/student/lessons/${p.lessonId}` : '/student/assignments')}
+                    onMouseEnter={() => p.lessonId && prefetchLesson(p.lessonId)}
+                    onFocus={() => p.lessonId && prefetchLesson(p.lessonId)}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-right transition-colors hover:bg-butter/10"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-ink">{p.assignmentTitle}</p>
+                      <p className="truncate text-[11px] text-ink-soft">{p.courseName} · {p.lessonTopic}</p>
+                    </div>
+                    {p.deadline && (
+                      <span
+                        className={cn(
+                          'shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                          overdue ? 'bg-coral/12 text-coral' : 'bg-butter/30 text-clay',
+                        )}
+                      >
+                        {overdue ? 'פג תוקף' : `עד ${formatDate(p.deadline)}`}
+                      </span>
+                    )}
+                    <ArrowLeft size={14} className="shrink-0 text-ink-soft" />
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
+      </div>
     </div>
   );
 }

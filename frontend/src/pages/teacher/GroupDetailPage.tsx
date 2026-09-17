@@ -130,6 +130,8 @@ export default function GroupDetailPage() {
                   <div key={c.id} className="lift rounded-lg border border-rule bg-sheet px-4 py-3 shadow-soft">
                     <button
                       onClick={() => navigate(`/teacher/courses/${c.id}`)}
+                      onMouseEnter={() => qc.prefetchQuery({ queryKey: ['course', c.id], queryFn: () => coursesApi.get(c.id) })}
+                      onFocus={() => qc.prefetchQuery({ queryKey: ['course', c.id], queryFn: () => coursesApi.get(c.id) })}
                       className="flex w-full items-center gap-2 text-right transition-colors hover:text-clay"
                     >
                       <BookOpen size={16} className="shrink-0 text-ink" />

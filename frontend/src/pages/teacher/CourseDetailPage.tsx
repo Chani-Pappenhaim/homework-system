@@ -137,6 +137,8 @@ export default function CourseDetailPage() {
               <button
                 key={l.id}
                 onClick={() => navigate(`/teacher/lessons/${l.id}`)}
+                onMouseEnter={() => qc.prefetchQuery({ queryKey: ['lesson', l.id], queryFn: () => lessonsApi.get(l.id) })}
+                onFocus={() => qc.prefetchQuery({ queryKey: ['lesson', l.id], queryFn: () => lessonsApi.get(l.id) })}
                 title={l.topic}
                 className={cn(
                   'lift flex w-36 flex-col items-center gap-1.5 rounded-lg border border-rule p-3 text-center shadow-soft transition-colors hover:bg-butter/10',
