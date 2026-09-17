@@ -109,7 +109,7 @@ export default function StudentHomePage() {
         </div>
       </section>
 
-      <div className={cn('grid gap-5', pending.length > 0 && 'lg:grid-cols-[2fr_1fr]')}>
+      <div className={cn('grid gap-5', pending.length > 0 && 'lg:grid-cols-[2fr_1fr] lg:items-start')}>
         {coursesLoading ? (
           <div className="sheet p-8 text-center text-sm text-ink-soft">טוען…</div>
         ) : courses.length === 0 ? (
@@ -165,7 +165,7 @@ export default function StudentHomePage() {
         )}
 
         {pending.length > 0 && (
-          <section className="sheet flex flex-col lg:sticky lg:top-4">
+          <section className="sheet flex flex-col lg:sticky lg:top-4 lg:min-h-[9.5rem]">
             <div className="flex items-center gap-2 border-b border-rule px-4 py-3">
               <Clock size={15} className="text-coral" />
               <h2 className="font-display text-base font-bold">מטלות ממתינות</h2>
