@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { prisma } from '../config/prisma';
 import { User, Group } from '@prisma/client';
 import { emailQueue } from '../infrastructure/queues/queues';
+import { AppError } from '../utils/errors';
 
 export type UserDTO = {
   id: string;
@@ -36,11 +37,11 @@ export function toUserDTO(user: UserWithGroups): UserDTO {
 
 export async function loginWithPassword(email: string, password: string): Promise<UserWithGroups> {
   const user = await prisma.user.findUnique({ where: { email }, include: groupsInclude });
-  if (!user) throw Object.assign(new Error('Invalid credentials'), { status: 401 });
-  if (!user.password) throw Object.assign(new Error('Use OAuth to login'), { status: 403 });
+  if (!user) throw new AppError('Invalid credentials', 'אימייל או סיסמה שגויים', 401);
+  if (!user.password) throw new AppError('Use OAuth to login', 'יש להתחבר עם הכניסה החברתית (OAuth)', 403);
 
   const valid = await bcrypt.compare(password, user.password);
-  if (!valid) throw Object.assign(new Error('Invalid credentials'), { status: 401 });
+  if (!valid) throw new AppError('Invalid credentials', 'אימייל או סיסמה שגויים', 401);
 
   return user;
 }
@@ -50,13 +51,13 @@ export async function getUserById(id: string): Promise<UserWithGroups | null> {
 }
 
 export async function changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
-  if (newPassword.length < 6) throw Object.assign(new Error('Password too short (min 6 chars)'), { status: 400 });
+  if (newPassword.length < 6) throw new AppError('Password too short (min 6 chars)', 'הסיסמה החדשה קצרה מדי (מינימום 6 תווים)', 400);
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || !user.password) throw Object.assign(new Error('Cannot change password'), { status: 400 });
+  if (!user || !user.password) throw new AppError('Cannot change password', 'לא ניתן לשנות סיסמה לחשבון זה', 400);
 
   const valid = await bcrypt.compare(currentPassword, user.password);
-  if (!valid) throw Object.assign(new Error('Current password is wrong'), { status: 401 });
+  if (!valid) throw new AppError('Current password is wrong', 'הסיסמה הנוכחית שגויה', 401);
 
   const hashed = await bcrypt.hash(newPassword, 12);
   await prisma.user.update({ where: { id: userId }, data: { password: hashed, mustChangePassword: false } });
@@ -91,11 +92,11 @@ export async function requestPasswordReset(email: string): Promise<void> {
 }
 
 export async function resetPasswordWithToken(token: string, newPassword: string): Promise<void> {
-  if (newPassword.length < 6) throw Object.assign(new Error('Password too short (min 6 chars)'), { status: 400 });
+  if (newPassword.length < 6) throw new AppError('Password too short (min 6 chars)', 'הסיסמה החדשה קצרה מדי (מינימום 6 תווים)', 400);
 
   const user = await prisma.user.findFirst({ where: { resetTokenHash: hashToken(token) } });
   if (!user || !user.resetTokenExpiresAt || user.resetTokenExpiresAt < new Date()) {
-    throw Object.assign(new Error('הקישור אינו תקין או שפג תוקפו'), { status: 400 });
+    throw new AppError('Reset link invalid or expired', 'הקישור אינו תקין או שפג תוקפו', 400);
   }
 
   const hashed = await bcrypt.hash(newPassword, 12);

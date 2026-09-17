@@ -1,6 +1,7 @@
 import { prisma } from '../config/prisma';
 import { emailQueue } from '../infrastructure/queues/queues';
 import type { EmailJobMap } from '../infrastructure/queues/job-types';
+import { AppError } from '../utils/errors';
 
 async function enqueueEmail<T extends keyof EmailJobMap>(jobName: T, data: EmailJobMap[T]) {
   try {
@@ -129,7 +130,7 @@ export async function markReplySeenByTeacher(messageId: string) {
 export async function studentReplyMessage(messageId: string, studentId: string, reply: string) {
   const message = await prisma.teacherMessage.findUnique({ where: { id: messageId } });
   if (!message || message.studentId !== studentId || !message.fromTeacher) {
-    throw Object.assign(new Error('הודעה לא נמצאה'), { status: 404 });
+    throw new AppError('Message not found', 'הודעה לא נמצאה', 404);
   }
   const trimmed = reply.trim();
   const updated = await prisma.teacherMessage.update({
@@ -162,7 +163,7 @@ export async function deleteReply(messageId: string) {
 export async function deleteMyMessage(messageId: string, studentId: string) {
   const message = await prisma.teacherMessage.findUnique({ where: { id: messageId } });
   if (!message || message.studentId !== studentId) {
-    throw Object.assign(new Error('הודעה לא נמצאה'), { status: 404 });
+    throw new AppError('Message not found', 'הודעה לא נמצאה', 404);
   }
   await prisma.teacherMessage.delete({ where: { id: messageId } });
 }

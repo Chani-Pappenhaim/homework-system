@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
+import { AppError } from '../utils/errors';
 import { assertLessonAccess } from '../utils/access';
 import { quizQueue } from '../infrastructure/queues/queues';
 import { extractLessonFilesText } from '../utils/code-extraction';
@@ -50,25 +51,25 @@ export interface QuizQuestionInput {
  */
 export function validateQuestions(input: unknown): { id: string; question: string; options: string[]; correctIndex: number }[] {
   if (!Array.isArray(input) || input.length === 0) {
-    throw Object.assign(new Error('הבוחן חייב לכלול לפחות שאלה אחת'), { status: 400 });
+    throw new AppError('Quiz must have at least one question', 'הבוחן חייב לכלול לפחות שאלה אחת', 400);
   }
 
   return input.map((q: QuizQuestionInput, i: number) => {
     const question = typeof q?.question === 'string' ? q.question.trim() : '';
     if (!question) {
-      throw Object.assign(new Error(`שאלה ${i + 1}: חסר טקסט השאלה`), { status: 400 });
+      throw new AppError(`Question ${i + 1}: missing question text`, `שאלה ${i + 1}: חסר טקסט השאלה`, 400);
     }
 
     if (!Array.isArray(q.options) || q.options.length < 2) {
-      throw Object.assign(new Error(`שאלה ${i + 1}: נדרשות לפחות שתי אפשרויות`), { status: 400 });
+      throw new AppError(`Question ${i + 1}: needs at least two options`, `שאלה ${i + 1}: נדרשות לפחות שתי אפשרויות`, 400);
     }
     const options = q.options.map((o) => (typeof o === 'string' ? o.trim() : ''));
     if (options.some((o) => !o)) {
-      throw Object.assign(new Error(`שאלה ${i + 1}: כל האפשרויות חייבות להכיל טקסט`), { status: 400 });
+      throw new AppError(`Question ${i + 1}: all options must have text`, `שאלה ${i + 1}: כל האפשרויות חייבות להכיל טקסט`, 400);
     }
 
     if (!Number.isInteger(q.correctIndex) || (q.correctIndex as number) < 0 || (q.correctIndex as number) >= options.length) {
-      throw Object.assign(new Error(`שאלה ${i + 1}: יש לסמן תשובה נכונה`), { status: 400 });
+      throw new AppError(`Question ${i + 1}: must mark a correct answer`, `שאלה ${i + 1}: יש לסמן תשובה נכונה`, 400);
     }
 
     // ids double as React keys, so they must be unique whatever came in.
@@ -82,7 +83,7 @@ function toJson(questions: unknown) {
 
 async function lessonOr404(lessonId: string) {
   const lesson = await prisma.lesson.findUnique({ where: { id: lessonId } });
-  if (!lesson) throw Object.assign(new Error('Lesson not found'), { status: 404 });
+  if (!lesson) throw new AppError('Lesson not found', 'השיעור לא נמצא', 404);
   return lesson;
 }
 
@@ -170,12 +171,12 @@ export async function getQuiz(lessonId: string, userId: string, role: string) {
 export async function requestQuizGeneration(lessonId: string, role: string, includeFiles: boolean) {
   const existing = await prisma.quiz.findUnique({ where: { lessonId } });
   if (existing) {
-    throw Object.assign(new Error('כבר קיים בוחן לשיעור זה'), { status: 409 });
+    throw new AppError('Quiz already exists for this lesson', 'כבר קיים בוחן לשיעור זה', 409);
   }
 
   const lesson = await lessonOr404(lessonId);
   if (!lesson.contentMd?.trim()) {
-    throw Object.assign(new Error(noContentMessage(role)), { status: 409 });
+    throw new AppError('Lesson has no content to generate a quiz from', noContentMessage(role), 409);
   }
 
   // Files are opt-in (checkbox, default off) because feeding them to Gemini
@@ -209,7 +210,7 @@ export async function requestQuizGeneration(lessonId: string, role: string, incl
     await quizQueue.add('generate', { lessonId, lessonContent }, { jobId });
   } catch (err: any) {
     console.error('[quiz] could not enqueue generation for lesson', lessonId, err);
-    throw Object.assign(new Error(failedMessage(role)), { status: 502 });
+    throw new AppError('Failed to enqueue quiz generation', failedMessage(role), 502);
   }
 
   return { status: 'generating' as const };
@@ -224,7 +225,7 @@ export async function requestQuizGeneration(lessonId: string, role: string, incl
  */
 export async function updateQuizQuestions(lessonId: string, questions: unknown) {
   const quiz = await prisma.quiz.findUnique({ where: { lessonId } });
-  if (!quiz) throw Object.assign(new Error('Quiz not found'), { status: 404 });
+  if (!quiz) throw new AppError('Quiz not found', 'החידון לא נמצא', 404);
 
   const validated = validateQuestions(questions);
 
@@ -246,7 +247,7 @@ export async function updateQuizQuestions(lessonId: string, questions: unknown) 
 /** Teacher-only: show the quiz to students, or pull it back to a draft. */
 export async function setQuizPublished(lessonId: string, published: boolean) {
   const quiz = await prisma.quiz.findUnique({ where: { lessonId } });
-  if (!quiz) throw Object.assign(new Error('Quiz not found'), { status: 404 });
+  if (!quiz) throw new AppError('Quiz not found', 'החידון לא נמצא', 404);
 
   const questions = quiz.questions as any[];
   if (published) {
@@ -266,21 +267,21 @@ export async function submitQuizAttempt(
   await assertLessonAccess(studentId, role, lessonId);
 
   const quiz = await prisma.quiz.findUnique({ where: { lessonId } });
-  if (!quiz) throw Object.assign(new Error('Quiz not found'), { status: 404 });
+  if (!quiz) throw new AppError('Quiz not found', 'החידון לא נמצא', 404);
 
   // A draft is invisible in GET; it must be unanswerable here too, or a student
   // holding an old page could submit against questions still being edited.
   if (!quiz.published) {
-    throw Object.assign(new Error(NOT_PUBLISHED_MESSAGE), { status: 409 });
+    throw new AppError('Quiz not published', NOT_PUBLISHED_MESSAGE, 409);
   }
 
   const questions = quiz.questions as any[];
   if (!Array.isArray(questions) || questions.length === 0) {
-    throw Object.assign(new Error('Quiz has no questions'), { status: 409 });
+    throw new AppError('Quiz has no questions', 'לחידון הזה אין שאלות עדיין', 409);
   }
   if (!Array.isArray(answers) || answers.length !== questions.length
       || answers.some((a) => !Number.isInteger(a))) {
-    throw Object.assign(new Error('Answers must be one integer per question'), { status: 400 });
+    throw new AppError('Answers must be one integer per question', 'יש לענות על כל שאלות החידון', 400);
   }
 
   const correct = answers.filter((a, i) => a === questions[i]?.correctIndex).length;
@@ -336,7 +337,7 @@ export async function getQuizResults(lessonId: string) {
       attempts: { where: { isOfficial: true }, include: { student: { select: { name: true, email: true } } } },
     },
   });
-  if (!quiz) throw Object.assign(new Error('Quiz not found'), { status: 404 });
+  if (!quiz) throw new AppError('Quiz not found', 'החידון לא נמצא', 404);
 
   const questions = quiz.questions as any[];
   const attempts = quiz.attempts;

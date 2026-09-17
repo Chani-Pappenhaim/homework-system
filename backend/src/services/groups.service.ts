@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../config/prisma';
 import ExcelJS from 'exceljs';
 import { emailQueue } from '../infrastructure/queues/queues';
+import { AppError } from '../utils/errors';
 import { deleteCourse } from './courses.service';
 import { cellText, isValidEmail, normalizeGithubUsername, buildTemplateWorkbook } from '../utils/excel';
 
@@ -53,7 +54,7 @@ export async function updateGroup(id: string, data: { name?: string; seminar?: s
  */
 export async function addStudent(groupId: string, name: string, email: string, githubUsername?: string) {
   email = email.trim().toLowerCase();
-  if (!isValidEmail(email)) throw Object.assign(new Error('כתובת אימייל לא תקינה'), { status: 400 });
+  if (!isValidEmail(email)) throw new AppError('Invalid email address', 'כתובת אימייל לא תקינה', 400);
   githubUsername = githubUsername ? normalizeGithubUsername(githubUsername) : undefined;
 
   const existing = await prisma.user.findUnique({ where: { email } });
@@ -62,7 +63,7 @@ export async function addStudent(groupId: string, name: string, email: string, g
     const alreadyInGroup = await prisma.studentGroup.findUnique({
       where: { studentId_groupId: { studentId: existing.id, groupId } },
     });
-    if (alreadyInGroup) throw Object.assign(new Error('תלמידה עם המייל הזה כבר נמצאת בקבוצה זו'), { status: 409 });
+    if (alreadyInGroup) throw new AppError('Student with this email already in group', 'תלמידה עם המייל הזה כבר נמצאת בקבוצה זו', 409);
 
     await prisma.studentGroup.create({ data: { studentId: existing.id, groupId } });
     const warning = existing.name !== name
@@ -94,16 +95,16 @@ export async function updateStudent(
   data: { name?: string; email?: string; githubUsername?: string }
 ) {
   const inGroup = await prisma.studentGroup.findUnique({ where: { studentId_groupId: { studentId, groupId } } });
-  if (!inGroup) throw Object.assign(new Error('Student not found in this group'), { status: 404 });
+  if (!inGroup) throw new AppError('Student not found in this group', 'התלמידה לא נמצאה בקבוצה זו', 404);
 
   const update: { name?: string; email?: string; githubUsername?: string | null } = {};
   if (data.name !== undefined) update.name = data.name.trim();
   if (data.githubUsername !== undefined) update.githubUsername = normalizeGithubUsername(data.githubUsername) || null;
   if (data.email !== undefined) {
     const email = data.email.trim().toLowerCase();
-    if (!isValidEmail(email)) throw Object.assign(new Error('כתובת אימייל לא תקינה'), { status: 400 });
+    if (!isValidEmail(email)) throw new AppError('Invalid email address', 'כתובת אימייל לא תקינה', 400);
     const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing && existing.id !== studentId) throw Object.assign(new Error('כתובת המייל הזו כבר בשימוש'), { status: 409 });
+    if (existing && existing.id !== studentId) throw new AppError('Email already in use', 'כתובת המייל הזו כבר בשימוש', 409);
     update.email = email;
   }
 
@@ -120,7 +121,7 @@ export async function deleteGroup(id: string) {
     where: { id },
     include: { courses: { select: { id: true } } },
   });
-  if (!group) throw Object.assign(new Error('Group not found'), { status: 404 });
+  if (!group) throw new AppError('Group not found', 'הקבוצה לא נמצאה', 404);
 
   for (const course of group.courses) {
     await deleteCourse(course.id);

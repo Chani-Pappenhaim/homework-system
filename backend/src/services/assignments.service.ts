@@ -1,4 +1,5 @@
 import { prisma } from '../config/prisma';
+import { AppError } from '../utils/errors';
 import { assertLessonAccess } from '../utils/access';
 import { cellText } from '../utils/excel';
 import { toDeliveryUrl } from '../utils/storage';
@@ -69,7 +70,7 @@ export async function importAssignments(buffer: Buffer) {
 
 export async function getAssignmentSubmissions(assignmentId: string) {
   const assignment = await prisma.assignment.findUnique({ where: { id: assignmentId } });
-  if (!assignment) throw Object.assign(new Error('Assignment not found'), { status: 404 });
+  if (!assignment) throw new AppError('Assignment not found', 'המטלה לא נמצאה', 404);
 
   const submissions = await prisma.submission.findMany({
     where: { assignmentId },

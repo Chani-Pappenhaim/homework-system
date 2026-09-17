@@ -1,4 +1,5 @@
 import { prisma } from '../config/prisma';
+import { AppError } from '../utils/errors';
 import { uploadBuffer, createUploadSignature, destroyByUrl, toFileDTO } from '../utils/storage';
 import { assertCourseAccess } from '../utils/access';
 
@@ -121,7 +122,7 @@ export async function copyCourse(courseId: string, targetGroupId: string) {
       lessons: { include: { files: true, assignments: true } },
     },
   });
-  if (!source) throw Object.assign(new Error('Course not found'), { status: 404 });
+  if (!source) throw new AppError('Course not found', 'הקורס לא נמצא', 404);
 
   const newCourse = await prisma.course.create({
     data: {
@@ -175,16 +176,16 @@ export async function uploadCourseFile(
 
 export async function deleteCourseFile(courseId: string, fileId: string) {
   const file = await prisma.courseFile.findUnique({ where: { id: fileId, courseId } });
-  if (!file) throw Object.assign(new Error('File not found'), { status: 404 });
+  if (!file) throw new AppError('File not found', 'הקובץ לא נמצא', 404);
   await destroyByUrl(file.url);
   await prisma.courseFile.delete({ where: { id: fileId } });
 }
 
 export async function renameCourseFile(courseId: string, fileId: string, name: string, userId: string) {
   const file = await prisma.courseFile.findUnique({ where: { id: fileId, courseId } });
-  if (!file) throw Object.assign(new Error('File not found'), { status: 404 });
+  if (!file) throw new AppError('File not found', 'הקובץ לא נמצא', 404);
   const trimmed = name.trim();
-  if (!trimmed) throw Object.assign(new Error('Name is required'), { status: 400 });
+  if (!trimmed) throw new AppError('Name is required', 'יש להזין שם', 400);
   const updated = await prisma.courseFile.update({ where: { id: fileId }, data: { name: trimmed } });
   return toFileDTO(updated, 'course', userId);
 }
@@ -197,7 +198,7 @@ export async function deleteCourse(id: string) {
     where: { id },
     include: { files: true, lessons: { include: { files: true } } },
   });
-  if (!course) throw Object.assign(new Error('Course not found'), { status: 404 });
+  if (!course) throw new AppError('Course not found', 'הקורס לא נמצא', 404);
 
   const urls = [
     ...course.files.map((f) => f.url),

@@ -1,4 +1,5 @@
 import { prisma } from '../config/prisma';
+import { AppError } from '../utils/errors';
 import { uploadBuffer, createUploadSignature, toDeliveryUrl } from '../utils/storage';
 import { assertLessonAccess } from '../utils/access';
 import { computeSubmissionScore } from '../utils/grading';
@@ -31,7 +32,7 @@ export async function submitAssignment(
     where: { id: assignmentId },
     include: { lesson: { include: { course: true } } },
   });
-  if (!assignment) throw Object.assign(new Error('Assignment not found'), { status: 404 });
+  if (!assignment) throw new AppError('Assignment not found', 'המטלה לא נמצאה', 404);
 
   await assertLessonAccess(studentId, 'STUDENT', assignment.lessonId);
 
@@ -40,17 +41,21 @@ export async function submitAssignment(
   let githubUrl: string | undefined;
 
   if (payload.repoName) {
-    if (!assignment.allowGithub) throw Object.assign(new Error('GitHub not allowed for this assignment'), { status: 400 });
+    if (!assignment.allowGithub) throw new AppError('GitHub not allowed for this assignment', 'הגשת GitHub אינה מותרת במטלה זו', 400);
     const student = await prisma.user.findUnique({ where: { id: studentId } });
-    if (!student?.githubUsername) throw Object.assign(new Error('No GitHub username set for your account'), { status: 400 });
+    if (!student?.githubUsername) throw new AppError('No GitHub username set for your account', 'לא הוגדר שם משתמש GitHub בחשבון שלך', 400);
     githubUrl = `https://github.com/${student.githubUsername}/${payload.repoName}`;
   } else if (payload.file || payload.uploadedFile) {
-    if (!assignment.allowFile) throw Object.assign(new Error('File upload not allowed for this assignment'), { status: 400 });
+    if (!assignment.allowFile) throw new AppError('File upload not allowed for this assignment', 'העלאת קובץ אינה מותרת במטלה זו', 400);
     const originalName = payload.file ? payload.file.originalName : payload.uploadedFile!.originalName;
     if (assignment.allowedTypes.length > 0) {
       const ext = originalName.split('.').pop()?.toLowerCase() ?? '';
       if (!assignment.allowedTypes.includes(ext)) {
-        throw Object.assign(new Error(`File type not allowed. Allowed: ${assignment.allowedTypes.join(', ')}`), { status: 400 });
+        throw new AppError(
+          `File type not allowed. Allowed: ${assignment.allowedTypes.join(', ')}`,
+          `סוג הקובץ אינו מורשה. סוגים מותרים: ${assignment.allowedTypes.join(', ')}`,
+          400
+        );
       }
     }
     if (payload.file) {
@@ -61,7 +66,7 @@ export async function submitAssignment(
     }
     fileName = originalName;
   } else {
-    throw Object.assign(new Error('No file or repo name provided'), { status: 400 });
+    throw new AppError('No file or repo name provided', 'לא סופק קובץ או שם ריפו', 400);
   }
 
   const isLate = assignment.deadline ? new Date() > assignment.deadline : false;
@@ -97,10 +102,10 @@ export async function submitAssignment(
 /** Signed params so a student's browser can upload a video straight to Cloudinary. */
 export async function getVideoUploadSignature(assignmentId: string, studentId: string) {
   const assignment = await prisma.assignment.findUnique({ where: { id: assignmentId } });
-  if (!assignment) throw Object.assign(new Error('Assignment not found'), { status: 404 });
+  if (!assignment) throw new AppError('Assignment not found', 'המטלה לא נמצאה', 404);
 
   await assertLessonAccess(studentId, 'STUDENT', assignment.lessonId);
-  if (!assignment.allowFile) throw Object.assign(new Error('File upload not allowed for this assignment'), { status: 400 });
+  if (!assignment.allowFile) throw new AppError('File upload not allowed for this assignment', 'העלאת קובץ אינה מותרת במטלה זו', 400);
 
   return createUploadSignature('submissions');
 }
@@ -200,9 +205,9 @@ export async function getSubmissionById(id: string, userId: string, role: string
     where: { id },
     include: { grade: true },
   });
-  if (!submission) throw Object.assign(new Error('Submission not found'), { status: 404 });
+  if (!submission) throw new AppError('Submission not found', 'ההגשה לא נמצאה', 404);
   if (role !== 'ADMIN' && submission.studentId !== userId) {
-    throw Object.assign(new Error('Forbidden'), { status: 403 });
+    throw new AppError('Forbidden', 'אין לך הרשאה לצפות בהגשה זו', 403);
   }
   const fileUrl = submission.fileUrl ? toDeliveryUrl(submission.fileUrl) : submission.fileUrl;
   if (role === 'ADMIN') return { ...submission, fileUrl };
@@ -216,23 +221,24 @@ export async function getSubmissionById(id: string, userId: string, role: string
 
 export async function requestAiReview(submissionId: string, studentId: string) {
   const submission = await prisma.submission.findUnique({ where: { id: submissionId } });
-  if (!submission) throw Object.assign(new Error('Submission not found'), { status: 404 });
-  if (submission.studentId !== studentId) throw Object.assign(new Error('Forbidden'), { status: 403 });
+  if (!submission) throw new AppError('Submission not found', 'ההגשה לא נמצאה', 404);
+  if (submission.studentId !== studentId) throw new AppError('Forbidden', 'אין לך הרשאה לפעולה זו', 403);
   const fileRef = (submission.fileName || submission.fileUrl || '').toLowerCase();
   const hasReviewableFile = fileRef.endsWith('.zip') || fileRef.endsWith('.docx');
   if (!submission.githubUrl && !hasReviewableFile) {
-    throw Object.assign(
-      new Error('בדיקת AI זמינה רק להגשות GitHub, קובץ ZIP או קובץ Word (.docx)'),
-      { status: 400 }
+    throw new AppError(
+      'Submission must be a GitHub URL, a .zip file, or a .docx file to request AI review',
+      'בדיקת AI זמינה רק להגשות GitHub, קובץ ZIP או קובץ Word (.docx)',
+      400
     );
   }
 
   const maxReviews = submission.aiExtraAllowed ? 2 : 1;
   if (submission.aiReviewCount >= maxReviews) {
-    throw Object.assign(new Error('AI review limit reached'), { status: 400 });
+    throw new AppError('AI review limit reached', 'מכסת בדיקות ה-AI עבור הגשה זו נוצלה', 400);
   }
   if (submission.aiStatus === 'pending') {
-    throw Object.assign(new Error('Review already in progress'), { status: 400 });
+    throw new AppError('Review already in progress', 'בדיקת AI כבר מתבצעת עבור הגשה זו', 400);
   }
 
   await prisma.submission.update({ where: { id: submission.id }, data: { aiStatus: 'pending' } });
@@ -268,9 +274,9 @@ export async function approveContentScore(submissionId: string) {
     where: { id: submissionId },
     include: { grade: true, student: { select: { name: true, email: true } }, assignment: { select: { title: true } } },
   });
-  if (!submission) throw Object.assign(new Error('Submission not found'), { status: 404 });
+  if (!submission) throw new AppError('Submission not found', 'ההגשה לא נמצאה', 404);
   if (submission.grade?.contentScore == null) {
-    throw Object.assign(new Error('אין ציון תוכן לאשר'), { status: 400 });
+    throw new AppError('No content score to approve', 'אין ציון תוכן לאשר', 400);
   }
 
   const grade = await prisma.grade.update({
@@ -307,9 +313,9 @@ export async function bulkApproveContentScore(submissionIds: string[]) {
 // request, since aiScore stays on the submission even after being overridden.
 export async function restoreAiScore(submissionId: string, gradedById: string) {
   const submission = await prisma.submission.findUnique({ where: { id: submissionId } });
-  if (!submission) throw Object.assign(new Error('Submission not found'), { status: 404 });
+  if (!submission) throw new AppError('Submission not found', 'ההגשה לא נמצאה', 404);
   if (submission.aiScore == null) {
-    throw Object.assign(new Error('אין ציון AI להגשה זו'), { status: 400 });
+    throw new AppError('No AI score for this submission', 'אין ציון AI להגשה זו', 400);
   }
   return prisma.grade.upsert({
     where: { submissionId: submission.id },

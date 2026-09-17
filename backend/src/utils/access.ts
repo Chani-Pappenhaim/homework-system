@@ -1,7 +1,8 @@
 import { prisma } from '../config/prisma';
+import { AppError } from './errors';
 
 function forbidden() {
-  return Object.assign(new Error('Forbidden'), { status: 403 });
+  return new AppError('Forbidden', 'אין לך הרשאה לגשת לתוכן זה', 403);
 }
 
 /**
@@ -18,7 +19,7 @@ export async function assertLessonAccess(userId: string, role: string, lessonId:
     where: { id: lessonId },
     select: { hidden: true, course: { select: { groupId: true, hidden: true } } },
   });
-  if (!lesson) throw Object.assign(new Error('Lesson not found'), { status: 404 });
+  if (!lesson) throw new AppError('Lesson not found', 'השיעור לא נמצא', 404);
   if (lesson.hidden || lesson.course.hidden) throw forbidden();
 
   const inGroup = await prisma.studentGroup.findFirst({
@@ -40,7 +41,7 @@ export async function assertCourseAccess(userId: string, role: string, courseId:
     where: { id: courseId },
     select: { groupId: true, hidden: true },
   });
-  if (!course) throw Object.assign(new Error('Course not found'), { status: 404 });
+  if (!course) throw new AppError('Course not found', 'הקורס לא נמצא', 404);
   if (course.hidden) throw forbidden();
 
   const inGroup = await prisma.studentGroup.findFirst({

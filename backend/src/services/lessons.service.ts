@@ -1,4 +1,5 @@
 import { prisma } from '../config/prisma';
+import { AppError } from '../utils/errors';
 import { uploadBuffer, createUploadSignature, destroyByUrl, toFileDTO } from '../utils/storage';
 import { assertLessonAccess, assertCourseAccess } from '../utils/access';
 
@@ -103,9 +104,10 @@ async function assertRequiredFilesViewed(studentId: string, lessonId: string) {
   const viewedIds = new Set(viewed.map((v) => v.fileId));
   const missing = requiredFiles.filter((f) => !viewedIds.has(f.id));
   if (missing.length > 0) {
-    throw Object.assign(
-      new Error(`יש לסמן את הקבצים הבאים כנצפו לפני סיום השיעור: ${missing.map((f) => f.name).join(', ')}`),
-      { status: 400 }
+    throw new AppError(
+      `Required files not yet viewed: ${missing.map((f) => f.name).join(', ')}`,
+      `יש לסמן את הקבצים הבאים כנצפו לפני סיום השיעור: ${missing.map((f) => f.name).join(', ')}`,
+      400
     );
   }
 }
@@ -113,7 +115,7 @@ async function assertRequiredFilesViewed(studentId: string, lessonId: string) {
 export async function markLessonFileViewed(studentId: string, role: string, lessonId: string, fileId: string) {
   await assertLessonAccess(studentId, role, lessonId);
   const file = await prisma.lessonFile.findUnique({ where: { id: fileId, lessonId } });
-  if (!file) throw Object.assign(new Error('File not found'), { status: 404 });
+  if (!file) throw new AppError('File not found', 'הקובץ לא נמצא', 404);
   await prisma.lessonFileView.upsert({
     where: { studentId_fileId: { studentId, fileId } },
     create: { studentId, fileId },
@@ -123,7 +125,7 @@ export async function markLessonFileViewed(studentId: string, role: string, less
 
 export async function setLessonFileRequired(lessonId: string, fileId: string, required: boolean, userId: string) {
   const file = await prisma.lessonFile.findUnique({ where: { id: fileId, lessonId } });
-  if (!file) throw Object.assign(new Error('File not found'), { status: 404 });
+  if (!file) throw new AppError('File not found', 'הקובץ לא נמצא', 404);
   const updated = await prisma.lessonFile.update({ where: { id: fileId }, data: { required } });
   return toFileDTO(updated, 'lesson', userId);
 }
@@ -185,16 +187,16 @@ export async function uploadLessonFile(
 
 export async function deleteLessonFile(lessonId: string, fileId: string) {
   const file = await prisma.lessonFile.findUnique({ where: { id: fileId, lessonId } });
-  if (!file) throw Object.assign(new Error('File not found'), { status: 404 });
+  if (!file) throw new AppError('File not found', 'הקובץ לא נמצא', 404);
   await destroyByUrl(file.url);
   await prisma.lessonFile.delete({ where: { id: fileId } });
 }
 
 export async function renameLessonFile(lessonId: string, fileId: string, name: string, userId: string) {
   const file = await prisma.lessonFile.findUnique({ where: { id: fileId, lessonId } });
-  if (!file) throw Object.assign(new Error('File not found'), { status: 404 });
+  if (!file) throw new AppError('File not found', 'הקובץ לא נמצא', 404);
   const trimmed = name.trim();
-  if (!trimmed) throw Object.assign(new Error('Name is required'), { status: 400 });
+  if (!trimmed) throw new AppError('Name is required', 'יש להזין שם', 400);
   const updated = await prisma.lessonFile.update({ where: { id: fileId }, data: { name: trimmed } });
   return toFileDTO(updated, 'lesson', userId);
 }
@@ -207,7 +209,7 @@ export async function deleteLesson(id: string) {
     where: { id },
     include: { files: true },
   });
-  if (!lesson) throw Object.assign(new Error('Lesson not found'), { status: 404 });
+  if (!lesson) throw new AppError('Lesson not found', 'השיעור לא נמצא', 404);
 
   for (const f of lesson.files) {
     try {
@@ -236,7 +238,7 @@ export async function grantLessonAccess(lessonId: string, studentId: string) {
   const exists = await prisma.lessonAccess.findUnique({
     where: { studentId_lessonId: { studentId, lessonId } },
   });
-  if (exists) throw Object.assign(new Error('Access already exists'), { status: 409 });
+  if (exists) throw new AppError('Access already exists', 'לתלמידה כבר יש גישה לשיעור זה', 409);
   await prisma.lessonAccess.create({ data: { studentId, lessonId } });
 }
 
