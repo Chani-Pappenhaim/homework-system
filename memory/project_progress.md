@@ -2,6 +2,31 @@
 
 > קובץ זה עוקב אחרי מה שהושלם ומה שנשאר. יש לעדכן אותו בסוף כל שיחה שבה נעשתה עבודה.
 
+## 2026-09-17 — התכתבות אמיתית (thread) בהודעות מורה/תלמידה, תיקון גריד HomePage למורה, סיבוב הסלוטייפ, רענון חי ב-React Query
+
+בעקבות "שמתי לב שאחרי שמורה הגיבה לתלמידה... היא לא יכולה להוסיף ולשלוח עוד על אותו תגובה" ואז המפורש **"לא, אני רוצה שזה ישאר ככה כמו שזה נראה, אבל שיאפשר להמשיך להתכתב, להמשיך לשלוח תגובה..."** — כלומר לשמר את העיצוב הקיים (רשימה + חלון צף עם בועות הודעה) אבל לאפשר התכתבות בלתי מוגבלת קדימה-ואחורה באותה שיחה.
+
+**✅ שינוי סכימת DB — `TeacherMessage` (שיחה) + `MessageEntry` (הודעה בודדת בשיחה) חדש.** [schema.prisma](../backend/prisma/schema.prisma): `TeacherMessage` הצטמצם ל"שיחה" (id, studentId, student, assignmentId, createdAt, entries), ונוסף מודל `MessageEntry` (id, messageId, message, fromTeacher, content, isRead, createdAt, `@@index([messageId])`). נכתבה מיגרציה ידנית `20260917130000_message_threads` — **טרם הופעלה מול ה-DB האמיתי, ראי "נשאר לעשות" למטה.**
+
+**✅ Backend נכתב מחדש במלואו סביב הסכימה החדשה:**
+- [messages.service.ts](../backend/src/services/messages.service.ts) — כל הפונקציות (`sendMessage`, `sendTeacherMessage`, `getAllMessages`, `getMyMessages`, `replyMessage`, `studentReplyMessage`, `markRead`/`markMineRead`, `getUnreadCount`/`getUnreadReplyCount`, `deleteMessage`/`deleteMyMessage`) עודכנו לעבוד מול `entries` (עם `entriesInclude` משותף, ממוין `createdAt asc`). `deleteReply` הישן הוחלף ב-**`deleteLastTeacherEntry`** — מורה יכולה למחוק רק את ההודעה האחרונה שהיא עצמה שלחה בשיחה, לא "תגובה" גנרית.
+- unread פושט: לא-נקרא-למורה = יש `MessageEntry` עם `fromTeacher=false && isRead=false`; ולהפך לתלמידה.
+- [messages.controller.ts](../backend/src/controllers/messages.controller.ts) + [messages.routes.ts](../backend/src/routes/messages.routes.ts) — הוסרו `markReplySeen`/`markReplySeenByTeacher` (מיותרים במודל החדש — אין יותר "תגובה אחת" שצריך לסמן כנצפתה בנפרד).
+- אומת: `npx prisma generate` (**לא** migrate — זה רק בונה מחדש את ה-client מה-schema, לא נוגע ב-DB, מותר לי להריץ) ואז `tsc --noEmit` — נקי לגמרי אחרי שהיה תקוע על 20 שגיאות טיפוסים (ה-client הישן היה stale).
+
+**✅ Frontend נכתב מחדש, תוך שימור מלא של השפה העיצובית הקיימת (כמבוקש במפורש):**
+- [types/index.ts](../frontend/src/types/index.ts) — `MessageDTO` עכשיו כולל `entries: MessageEntryDTO[]` במקום `content`/`replyContent` שטוחים.
+- [messages.api.ts](../frontend/src/api/messages.api.ts) — הוסרו `markReplySeen`/`markReplySeenByTeacher`.
+- [student/MessagesPage.tsx](../frontend/src/pages/student/MessagesPage.tsx) ו-[teacher/MessagesPage.tsx](../frontend/src/pages/teacher/MessagesPage.tsx) — אותו מבנה ויזואלי בדיוק (רשימת שיחות עם תצוגה מקדימה של ההודעה האחרונה + Badge, חלון צף עם רצף בועות הודעה גלילי), אבל: תג "בשיחה" חדש כש-`entries.length > 1`, טקסטבוקס תגובה + כפתור "שלחי" **תמיד גלוי** (לא מותנה יותר בהיעדר תגובה קיימת) כדי לאפשר המשך התכתבות בלתי מוגבל, וגלילה אוטומטית לתחתית השיחה עם הודעה חדשה.
+
+**✅ בדיקות עודכנו והתאמו לסכימה החדשה** — [controllers.test.ts](../backend/tests/integration/controllers.test.ts) (מוקים ל-`messageEntry`, שני טסטים נכתבו מחדש), [StudentMessagesPage.test.tsx](../frontend/tests/pages/StudentMessagesPage.test.tsx) ו-[TeacherMessagesPage.test.tsx](../frontend/tests/pages/TeacherMessagesPage.test.tsx) (מבנה `entries[]` במוקים, טקסט כפתור/תג מעודכן). **תוצאה: כל 35 קבצי הבדיקות בפרונט (257 טסטים) עוברים ללא רגרסיות; בבקאנד עובר הכל חוץ מכשל אחד קיים-מראש ולא קשור** (`setLessonFileRequired` מצפה לפרמטר `userId` נוסף — לא נגעתי, לא קשור לעבודה הזו).
+
+**⚠️ נשאר לעשות — חובה לפני שהפיצ'ר יעבוד בפועל:**
+1. **המיגרציה `20260917130000_message_threads` טרם הופעלה על שום DB אמיתי.** המשתמשת צריכה להריץ בעצמה, מתיקיית `backend`, ב-PowerShell (אחרי שוידאה ש-Docker/Postgres רץ מקומית): `$env:DIRECT_URL = "postgresql://user:pass@localhost:5432/homework_db"; npx prisma migrate dev --name message_threads` (לפי הכלל הקבוע — מיגרציות רק על `DIRECT_URL`, לא `DATABASE_URL`, ורק בעצמה).
+2. שום דבר מהסבב הזה **לא נדחף/הוקומט** — התבקש לחכות לאישור מפורש.
+3. שני תיקוני UI קודמים (מהסבב שלפני זה, לא הודגשו במיוחד כאן כי כבר בוצעו) — **גריד ה-HomePage של המורה** (עמודות side-by-side) וה**סיבוב של סרט הסלוטייפ** ב-HomePage של התלמידה — עדיין לא אומתו חזותית בדפדפן/Docker חי.
+4. רענון חי ב-React Query (staleTime/refetchOnWindowFocus/refetchInterval) בוצע קודם לכן בסבב זה — גם הוא טרם אומת חזותית.
+
 ## 2026-09-15 (המשך 6) — טאב "מטלות" נפרד ב-LessonDetailPage, חידון AI עבר לטאב ההרשאות, תצוגה מקדימה של קובץ עברה לצד
 
 בעקבות שני צילומי מסך + "לא העברתי את המשימות למטה לטאב נפרד, ואת הAI לטאב של ההרשאות -תשים לזה שם מתאים", ואחרי זה "שהתצוגה המקדימה פה תהיה בצד":

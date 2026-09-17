@@ -9,7 +9,6 @@ vi.mock('@/api/messages.api', () => ({
     getAll: vi.fn(),
     reply: vi.fn(),
     markRead: vi.fn(),
-    markReplySeenByTeacher: vi.fn(),
     delete: vi.fn(),
     deleteReply: vi.fn(),
     sendTeacher: vi.fn(),
@@ -29,9 +28,10 @@ beforeEach(() => {
 const messages = [
   {
     id: 'm1',
-    content: 'שאלה מתלמידה',
     createdAt: '2026-07-01T09:00:00Z',
-    isRead: false,
+    entries: [
+      { id: 'e1', fromTeacher: false, content: 'שאלה מתלמידה', isRead: false, createdAt: '2026-07-01T09:00:00Z' },
+    ],
     student: { name: 'דנה', email: 'dana@x.com' },
   },
 ];
@@ -59,7 +59,7 @@ describe('TeacherMessagesPage', () => {
     await userEvent.click(await screen.findByRole('button', { name: /דנה/ }));
     const textarea = await screen.findByPlaceholderText('כתבי תגובה לתלמידה…');
     await userEvent.type(textarea, 'תשובה שלי');
-    await userEvent.click(screen.getByRole('button', { name: 'שלחי תגובה' }));
+    await userEvent.click(screen.getByRole('button', { name: 'שלחי' }));
 
     await waitFor(() => expect(reply).toHaveBeenCalledWith('m1', 'תשובה שלי'));
   });

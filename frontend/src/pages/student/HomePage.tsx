@@ -50,7 +50,7 @@ export default function StudentHomePage() {
   return (
     <div className="space-y-5" dir="rtl">
       <section className="sheet relative p-5">
-        <Tape color="clay" rotate={-40} className="-top-1 -right-1 w-14" />
+        <Tape color="clay" rotate={40} className="-top-1 -right-1 w-14" />
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="label mb-1">המחברת שלי · {dateMeta}</div>

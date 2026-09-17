@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, Clock, Trash2, Reply, MessageSquarePlus } from 'lucide-react';
+import { ChevronLeft, Clock, Trash2, Send, MessageSquarePlus } from 'lucide-react';
 import { messagesApi } from '@/api/messages.api';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -30,10 +30,12 @@ export default function StudentMessagesPage() {
   const [error, setError] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['my-messages'],
     queryFn: () => messagesApi.getMine(),
+    refetchInterval: 15_000,
   });
 
   const mutation = useMutation({
@@ -53,11 +55,6 @@ export default function StudentMessagesPage() {
     },
   });
 
-  const markReplySeenMutation = useMutation({
-    mutationFn: (id: string) => messagesApi.markReplySeen(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['unread-reply-count'] }),
-  });
-
   const markMineReadMutation = useMutation({
     mutationFn: (id: string) => messagesApi.markMineRead(id),
     onSuccess: () => {
@@ -70,7 +67,6 @@ export default function StudentMessagesPage() {
     mutationFn: ({ id, reply }: { id: string; reply: string }) => messagesApi.studentReply(id, reply),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-messages'] });
-      setOpenId(null);
       setReplyText('');
     },
   });
@@ -78,18 +74,14 @@ export default function StudentMessagesPage() {
   const messages: MessageDTO[] = unwrap(data)?.messages ?? [];
   const openMsg = messages.find((m) => m.id === openId) ?? null;
 
+  function isUnread(msg: MessageDTO) {
+    return msg.entries.some((e) => e.fromTeacher && !e.isRead);
+  }
+
   function openMessage(msg: MessageDTO) {
     setOpenId(msg.id);
     setReplyText('');
-    if (msg.fromTeacher) {
-      if (!msg.isRead) markMineReadMutation.mutate(msg.id);
-    } else if (msg.replyContent && !msg.replySeen) {
-      markReplySeenMutation.mutate(msg.id);
-    }
-  }
-
-  function isUnread(msg: MessageDTO) {
-    return msg.fromTeacher ? !msg.isRead : Boolean(msg.replyContent) && !msg.replySeen;
+    if (isUnread(msg)) markMineReadMutation.mutate(msg.id);
   }
 
   // The teacher-reply / teacher-message notification email links straight to this message.
@@ -100,6 +92,10 @@ export default function StudentMessagesPage() {
     if (msg) openMessage(msg);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, messages]);
+
+  useEffect(() => {
+    if (openId) bottomRef.current?.scrollIntoView({ block: 'end' });
+  }, [openId, openMsg?.entries.length]);
 
   return (
     <div className="space-y-5" dir="rtl">
@@ -124,6 +120,7 @@ export default function StudentMessagesPage() {
           <div className="sheet divide-y divide-rule overflow-hidden">
             {messages.map((msg) => {
               const unread = isUnread(msg);
+              const last = msg.entries[msg.entries.length - 1];
               return (
               <button
                 key={msg.id}
@@ -132,21 +129,19 @@ export default function StudentMessagesPage() {
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className={cn('truncate text-sm', unread ? 'font-bold text-ink' : 'font-medium text-ink')}>{msg.content}</p>
-                    {msg.fromTeacher && <Badge variant="secondary" className="shrink-0">מהמורה</Badge>}
+                    <p className={cn('truncate text-sm', unread ? 'font-bold text-ink' : 'font-medium text-ink')}>{last?.content}</p>
+                    {last?.fromTeacher && <Badge variant="secondary" className="shrink-0">מהמורה</Badge>}
                     {msg.assignmentId && (
                       <Badge variant="warning" className="shrink-0"><Clock size={9} className="ml-1" /> בקשת הגשה</Badge>
                     )}
                   </div>
-                  <p className="text-[11px] text-ink-soft mt-1">{formatDateTime(msg.createdAt)}</p>
+                  <p className="text-[11px] text-ink-soft mt-1">{formatDateTime(last?.createdAt ?? msg.createdAt)}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2 ml-4">
                   {unread && (
                     <span className="size-2 shrink-0 rounded-full bg-coral" />
                   )}
-                  {msg.replyContent
-                    ? <Badge variant="success">נענתה</Badge>
-                    : <Badge variant="warning">ממתינה</Badge>}
+                  {msg.entries.length > 1 && <Badge variant="success">בשיחה</Badge>}
                   <ChevronLeft size={16} className="shrink-0 text-ink-soft" />
                 </div>
               </button>
@@ -183,61 +178,55 @@ export default function StudentMessagesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Overlay: full message + reply, floating above everything — mirrors the teacher's message overlay */}
+      {/* Overlay: full conversation thread — mirrors the teacher's message overlay */}
       <Dialog open={Boolean(openId)} onOpenChange={(o) => { if (!o) { setOpenId(null); setReplyText(''); } }}>
         <DialogContent size="lg">
           {openMsg && (
             <>
               <DialogHeader>
-                <DialogTitle>{openMsg.fromTeacher ? 'הודעה מהמורה' : 'ההודעה שלי'}</DialogTitle>
+                <DialogTitle>השיחה שלי עם המורה</DialogTitle>
                 <p className="mt-0.5 text-xs text-ink-soft">{formatDateTime(openMsg.createdAt)}</p>
                 {openMsg.assignmentId && (
                   <span className="mt-2 inline-flex"><Badge variant="warning"><Clock size={10} className="ml-1" /> בקשת הגשה מאוחרת</Badge></span>
                 )}
               </DialogHeader>
 
-              <DialogBody className="space-y-4">
-                <div>
-                  <div className="label mb-1">{openMsg.fromTeacher ? 'ההודעה' : 'ההודעה שלי'}</div>
-                  <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-ink">{openMsg.content}</p>
-                </div>
-
-                {openMsg.replyContent ? (
-                  <div className="rounded-input border-r-2 border-indigo bg-ground/60 px-3 py-2">
-                    <div className="label mb-0.5">
-                      {openMsg.fromTeacher ? 'התגובה שלי' : 'תגובת המורה'} · {formatDateTime(openMsg.repliedAt)}
+              <DialogBody className="space-y-3 max-h-96 overflow-y-auto">
+                {openMsg.entries.map((entry) => (
+                  entry.fromTeacher ? (
+                    <div key={entry.id} className="rounded-input border-r-2 border-indigo bg-ground/60 px-3 py-2">
+                      <div className="label mb-0.5">תגובת המורה · {formatDateTime(entry.createdAt)}</div>
+                      <p className="whitespace-pre-wrap break-words text-sm text-ink">{entry.content}</p>
                     </div>
-                    <p className="whitespace-pre-wrap break-words text-sm text-ink">{openMsg.replyContent}</p>
-                  </div>
-                ) : openMsg.fromTeacher ? (
-                  <div>
-                    <div className="label mb-1">כתיבת תגובה</div>
-                    <Textarea
-                      rows={5}
-                      className="resize-y"
-                      placeholder="כתבי תגובה למורה…"
-                      value={replyText}
-                      onChange={(e) => setReplyText(e.target.value)}
-                      autoFocus
-                    />
-                  </div>
-                ) : (
-                  <div className={cn('rounded-input border border-dashed border-rule px-3 py-2 text-xs text-ink-soft')}>
-                    המורה עוד לא הגיבה להודעה זו
-                  </div>
-                )}
+                  ) : (
+                    <div key={entry.id}>
+                      <div className="label mb-0.5">ההודעה שלי · {formatDateTime(entry.createdAt)}</div>
+                      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-ink">{entry.content}</p>
+                    </div>
+                  )
+                ))}
+                <div ref={bottomRef} />
+
+                <div className="pt-1">
+                  <div className="label mb-1">כתיבת תגובה</div>
+                  <Textarea
+                    rows={4}
+                    className="resize-y"
+                    placeholder="כתבי תגובה למורה…"
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                  />
+                </div>
               </DialogBody>
 
               <DialogFooter>
-                {openMsg.fromTeacher && !openMsg.replyContent && (
-                  <Button
-                    loading={studentReplyMutation.isPending}
-                    disabled={!replyText.trim()}
-                    onClick={() => studentReplyMutation.mutate({ id: openMsg.id, reply: replyText })}
-                  >
-                    <Reply size={14} /> שלחי תגובה
-                  </Button>
-                )}
+                <Button
+                  loading={studentReplyMutation.isPending}
+                  disabled={!replyText.trim()}
+                  onClick={() => studentReplyMutation.mutate({ id: openMsg.id, reply: replyText })}
+                >
+                  <Send size={14} /> שלחי
+                </Button>
                 <Button variant="outline" onClick={() => { setOpenId(null); setReplyText(''); }}>
                   סגירה
                 </Button>
@@ -245,12 +234,12 @@ export default function StudentMessagesPage() {
                   variant="destructive"
                   loading={deleteMutation.isPending}
                   onClick={() => {
-                    if (confirm('למחוק את ההודעה? הפעולה בלתי הפיכה.')) {
+                    if (confirm('למחוק את השיחה? הפעולה בלתי הפיכה.')) {
                       deleteMutation.mutate(openMsg.id);
                     }
                   }}
                 >
-                  <Trash2 size={14} /> מחקי הודעה
+                  <Trash2 size={14} /> מחקי שיחה
                 </Button>
               </DialogFooter>
             </>

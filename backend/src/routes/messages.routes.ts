@@ -14,8 +14,6 @@ router.get('/unread-count', requireRole('ADMIN'), messagesController.getUnreadCo
 router.get('/unread-replies-count', requireRole('STUDENT'), messagesController.getUnreadReplyCount);
 router.patch('/:id/read', requireRole('ADMIN'), messagesController.markRead);
 router.patch('/:id/mine-read', requireRole('STUDENT'), messagesController.markMineRead);
-router.patch('/:id/reply-seen', requireRole('STUDENT'), messagesController.markReplySeen);
-router.patch('/:id/reply-seen-by-teacher', requireRole('ADMIN'), messagesController.markReplySeenByTeacher);
 router.post('/:id/reply', requireRole('ADMIN'), messagesController.replyMessage);
 router.post('/:id/student-reply', requireRole('STUDENT'), messagesController.studentReply);
 router.delete('/:id/reply', requireRole('ADMIN'), messagesController.deleteReply);

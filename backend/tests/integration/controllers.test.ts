@@ -12,7 +12,10 @@ vi.mock('../../src/config/prisma', () => ({
     teacherMessage: {
       create: vi.fn(),
       findMany: vi.fn(),
-      update: vi.fn(),
+      findUnique: vi.fn(),
+    },
+    messageEntry: {
+      create: vi.fn(),
       count: vi.fn(),
     },
   },
@@ -325,14 +328,17 @@ describe('messages controller', () => {
   });
 
   it('POST /api/messages/:id/reply saves the reply for an admin', async () => {
-    p.teacherMessage.update.mockResolvedValue({ id: 'm1', content: 'q', replyContent: 'a', student: { name: 'Dina', email: 'd@x' } });
+    p.teacherMessage.findUnique
+      .mockResolvedValueOnce({ id: 'm1', student: { name: 'Dina', email: 'd@x' }, entries: [{ content: 'q' }] })
+      .mockResolvedValueOnce({ id: 'm1', entries: [{ content: 'q' }, { content: 'here you go' }] });
+    p.messageEntry.create.mockResolvedValue({});
     const res = await request(app).post('/api/messages/m1/reply').set(...bearer(admin)).send({ reply: 'here you go' });
     expect(res.status).toBe(200);
-    expect(p.teacherMessage.update).toHaveBeenCalled();
+    expect(p.messageEntry.create).toHaveBeenCalled();
   });
 
-  it('GET /api/messages/unread-count sums unread-from-students and unseen-replies-to-teacher for an admin', async () => {
-    p.teacherMessage.count.mockResolvedValueOnce(3).mockResolvedValueOnce(2);
+  it('GET /api/messages/unread-count sums unread entries from students', async () => {
+    p.messageEntry.count.mockResolvedValueOnce(5);
     const res = await request(app).get('/api/messages/unread-count').set(...bearer(admin));
     expect(res.status).toBe(200);
     expect(res.body.data.count).toBe(5);

@@ -11,40 +11,43 @@ async function enqueueEmail<T extends keyof EmailJobMap>(jobName: T, data: Email
   }
 }
 
+const entriesInclude = { entries: { orderBy: { createdAt: 'asc' as const } } };
+
 export async function sendMessage(studentId: string, content: string, assignmentId?: string) {
+  const trimmed = content.trim();
   const message = await prisma.teacherMessage.create({
     data: {
       studentId,
-      content: content.trim(),
       assignmentId: typeof assignmentId === 'string' && assignmentId ? assignmentId : null,
+      entries: { create: { fromTeacher: false, content: trimmed } },
     },
-    include: { student: { select: { id: true, name: true, email: true } } },
+    include: { student: { select: { id: true, name: true, email: true } }, ...entriesInclude },
   });
   await enqueueEmail('student-message', {
     messageId: message.id,
     studentName: message.student.name,
     studentEmail: message.student.email,
-    content: message.content,
+    content: trimmed,
   });
   return message;
 }
 
 /** Lets the teacher start a new conversation with a student, instead of only ever replying to one the student started. */
 export async function sendTeacherMessage(studentId: string, content: string, assignmentId?: string) {
+  const trimmed = content.trim();
   const message = await prisma.teacherMessage.create({
     data: {
       studentId,
-      content: content.trim(),
-      fromTeacher: true,
       assignmentId: typeof assignmentId === 'string' && assignmentId ? assignmentId : null,
+      entries: { create: { fromTeacher: true, content: trimmed } },
     },
-    include: { student: { select: { id: true, name: true, email: true } } },
+    include: { student: { select: { id: true, name: true, email: true } }, ...entriesInclude },
   });
   await enqueueEmail('teacher-message', {
     messageId: message.id,
     studentName: message.student.name,
     studentEmail: message.student.email,
-    content: message.content,
+    content: trimmed,
   });
   return message;
 }
@@ -52,7 +55,7 @@ export async function sendTeacherMessage(studentId: string, content: string, ass
 export async function getAllMessages() {
   return prisma.teacherMessage.findMany({
     orderBy: { createdAt: 'desc' },
-    include: { student: { select: { id: true, name: true, email: true } } },
+    include: { student: { select: { id: true, name: true, email: true } }, ...entriesInclude },
   });
 }
 
@@ -60,104 +63,93 @@ export async function getMyMessages(studentId: string) {
   return prisma.teacherMessage.findMany({
     where: { studentId },
     orderBy: { createdAt: 'desc' },
+    include: entriesInclude,
   });
 }
 
-// Replying also marks the message as read
-export async function replyMessage(messageId: string, reply: string) {
-  const message = await prisma.teacherMessage.update({
+// The teacher adds another entry to a conversation — works whether it's brand
+// new or already has back-and-forth history, so the exchange never "locks".
+export async function replyMessage(messageId: string, content: string) {
+  const conversation = await prisma.teacherMessage.findUnique({
     where: { id: messageId },
-    data: { replyContent: reply.trim(), repliedAt: new Date(), isRead: true, replySeen: false },
-    include: { student: { select: { id: true, name: true, email: true } } },
+    include: { student: { select: { name: true, email: true } }, entries: { orderBy: { createdAt: 'asc' } } },
   });
+  if (!conversation) throw new AppError('Message not found', 'ההודעה לא נמצאה', 404);
+
+  const trimmed = content.trim();
+  await prisma.messageEntry.create({ data: { messageId, fromTeacher: true, content: trimmed } });
+  const updated = await prisma.teacherMessage.findUnique({ where: { id: messageId }, include: entriesInclude });
+
   await enqueueEmail('teacher-reply', {
-    messageId: message.id,
-    studentEmail: message.student.email,
-    studentName: message.student.name,
-    originalContent: message.content,
-    replyContent: reply.trim(),
-  });
-  return message;
-}
-
-// Restricted to fromTeacher=false: the admin only "reads" content the student wrote.
-export async function markRead(messageId: string) {
-  await prisma.teacherMessage.updateMany({ where: { id: messageId, fromTeacher: false }, data: { isRead: true } });
-}
-
-// The teacher's inbox badge: unread messages a student sent, plus unseen replies
-// students gave to a conversation the teacher started.
-export async function getUnreadCount() {
-  const [fromStudents, repliesToTeacher] = await Promise.all([
-    prisma.teacherMessage.count({ where: { fromTeacher: false, isRead: false } }),
-    prisma.teacherMessage.count({ where: { fromTeacher: true, replyContent: { not: null }, replySeen: false } }),
-  ]);
-  return fromStudents + repliesToTeacher;
-}
-
-// The student's inbox badge: unseen teacher replies to her own messages, plus
-// unseen brand-new messages the teacher started.
-export async function getUnreadReplyCount(studentId: string) {
-  const [repliesFromTeacher, newFromTeacher] = await Promise.all([
-    prisma.teacherMessage.count({ where: { studentId, fromTeacher: false, replyContent: { not: null }, replySeen: false } }),
-    prisma.teacherMessage.count({ where: { studentId, fromTeacher: true, isRead: false } }),
-  ]);
-  return repliesFromTeacher + newFromTeacher;
-}
-
-// Marks the teacher's reply (to the student's own message) as seen; restricted to that student's message.
-export async function markReplySeen(messageId: string, studentId: string) {
-  await prisma.teacherMessage.updateMany({
-    where: { id: messageId, studentId, fromTeacher: false },
-    data: { replySeen: true },
-  });
-}
-
-// Marks a teacher-initiated message as read by its recipient student.
-export async function markMineRead(messageId: string, studentId: string) {
-  await prisma.teacherMessage.updateMany({
-    where: { id: messageId, studentId, fromTeacher: true },
-    data: { isRead: true },
-  });
-}
-
-// Marks a student's reply to a teacher-initiated message as seen by the teacher.
-export async function markReplySeenByTeacher(messageId: string) {
-  await prisma.teacherMessage.updateMany({ where: { id: messageId, fromTeacher: true }, data: { replySeen: true } });
-}
-
-// The student's reply to a conversation the teacher started; restricted to her own message.
-export async function studentReplyMessage(messageId: string, studentId: string, reply: string) {
-  const message = await prisma.teacherMessage.findUnique({ where: { id: messageId } });
-  if (!message || message.studentId !== studentId || !message.fromTeacher) {
-    throw new AppError('Message not found', 'הודעה לא נמצאה', 404);
-  }
-  const trimmed = reply.trim();
-  const updated = await prisma.teacherMessage.update({
-    where: { id: messageId },
-    data: { replyContent: trimmed, repliedAt: new Date(), isRead: true, replySeen: false },
-  });
-  const student = await prisma.user.findUnique({ where: { id: studentId }, select: { name: true, email: true } });
-  await enqueueEmail('student-reply', {
-    messageId: updated.id,
-    studentName: student?.name ?? '',
-    studentEmail: student?.email ?? '',
-    originalContent: message.content,
+    messageId,
+    studentEmail: conversation.student.email,
+    studentName: conversation.student.name,
+    originalContent: conversation.entries[0]?.content ?? '',
     replyContent: trimmed,
   });
   return updated;
+}
+
+// Restricted to the teacher's own unread entries: the admin only "reads" content students wrote.
+export async function markRead(messageId: string) {
+  await prisma.messageEntry.updateMany({ where: { messageId, fromTeacher: false }, data: { isRead: true } });
+}
+
+// The teacher's inbox badge: every entry a student wrote that the teacher hasn't seen yet.
+export async function getUnreadCount() {
+  return prisma.messageEntry.count({ where: { fromTeacher: false, isRead: false } });
+}
+
+// The student's inbox badge: every entry the teacher wrote that this student hasn't seen yet.
+export async function getUnreadReplyCount(studentId: string) {
+  return prisma.messageEntry.count({ where: { fromTeacher: true, isRead: false, message: { studentId } } });
+}
+
+// The student adds another entry to one of her own conversations — whether she
+// started it or the teacher did, and however many entries already exist.
+export async function studentReplyMessage(messageId: string, studentId: string, content: string) {
+  const conversation = await prisma.teacherMessage.findUnique({
+    where: { id: messageId },
+    include: { entries: { orderBy: { createdAt: 'asc' } } },
+  });
+  if (!conversation || conversation.studentId !== studentId) {
+    throw new AppError('Message not found', 'הודעה לא נמצאה', 404);
+  }
+
+  const trimmed = content.trim();
+  await prisma.messageEntry.create({ data: { messageId, fromTeacher: false, content: trimmed } });
+  const updated = await prisma.teacherMessage.findUnique({ where: { id: messageId }, include: entriesInclude });
+
+  const student = await prisma.user.findUnique({ where: { id: studentId }, select: { name: true, email: true } });
+  await enqueueEmail('student-reply', {
+    messageId,
+    studentName: student?.name ?? '',
+    studentEmail: student?.email ?? '',
+    originalContent: conversation.entries[0]?.content ?? '',
+    replyContent: trimmed,
+  });
+  return updated;
+}
+
+// Restricted to this student's own conversations: marks every teacher-written entry as seen by her.
+export async function markMineRead(messageId: string, studentId: string) {
+  await prisma.messageEntry.updateMany({
+    where: { messageId, fromTeacher: true, message: { studentId } },
+    data: { isRead: true },
+  });
 }
 
 export async function deleteMessage(messageId: string) {
   await prisma.teacherMessage.delete({ where: { id: messageId } });
 }
 
-// Retracts a reply, leaving the original message unanswered
-export async function deleteReply(messageId: string) {
-  return prisma.teacherMessage.update({
-    where: { id: messageId },
-    data: { replyContent: null, repliedAt: null },
-  });
+// Unsends the teacher's most recent entry in a conversation, leaving everything before it intact.
+export async function deleteLastTeacherEntry(messageId: string) {
+  const last = await prisma.messageEntry.findFirst({ where: { messageId }, orderBy: { createdAt: 'desc' } });
+  if (last?.fromTeacher) {
+    await prisma.messageEntry.delete({ where: { id: last.id } });
+  }
+  return prisma.teacherMessage.findUnique({ where: { id: messageId }, include: entriesInclude });
 }
 
 export async function deleteMyMessage(messageId: string, studentId: string) {

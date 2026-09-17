@@ -277,17 +277,20 @@ export interface ReportRow {
   checklist?: ChecklistResult[];
 }
 
+export interface MessageEntryDTO {
+  id: string;
+  fromTeacher: boolean;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
 export interface MessageDTO {
   id: string;
   studentId: string;
-  content: string;
-  fromTeacher: boolean;
   assignmentId?: string | null;
-  isRead: boolean;
-  replyContent?: string | null;
-  repliedAt?: string | null;
-  replySeen: boolean;
   createdAt: string;
+  entries: MessageEntryDTO[];
   student?: { id: string; name: string; email: string };
 }
 

@@ -25,26 +25,39 @@ describe('StudentMessagesPage', () => {
     expect(screen.getByRole('button', { name: 'שלחי' })).toBeInTheDocument();
   });
 
-  it('renders message history with a teacher reply badge', async () => {
+  it('renders message history with a conversation badge', async () => {
     getMine.mockResolvedValue({
       data: {
         data: {
           messages: [
-            { id: 'm1', content: 'שאלה שלי', createdAt: '2026-07-01T10:00:00Z', replyContent: 'התשובה', repliedAt: '2026-07-02T10:00:00Z' },
-            { id: 'm2', content: 'הודעה נוספת', createdAt: '2026-07-03T10:00:00Z' },
+            {
+              id: 'm1',
+              createdAt: '2026-07-01T10:00:00Z',
+              entries: [
+                { id: 'e1', fromTeacher: false, content: 'שאלה שלי', isRead: true, createdAt: '2026-07-01T10:00:00Z' },
+                { id: 'e2', fromTeacher: true, content: 'התשובה', isRead: false, createdAt: '2026-07-02T10:00:00Z' },
+              ],
+            },
+            {
+              id: 'm2',
+              createdAt: '2026-07-03T10:00:00Z',
+              entries: [
+                { id: 'e3', fromTeacher: false, content: 'הודעה נוספת', isRead: true, createdAt: '2026-07-03T10:00:00Z' },
+              ],
+            },
           ],
         },
       },
     });
     renderWithProviders(<StudentMessagesPage />);
-    expect(await screen.findByText('שאלה שלי')).toBeInTheDocument();
-    expect(screen.getByText('נענתה')).toBeInTheDocument();
-    expect(screen.getByText('הודעה נוספת')).toBeInTheDocument();
-    expect(screen.getByText('ממתינה')).toBeInTheDocument();
-
-    // The reply content itself only shows once the message is opened.
-    await userEvent.click(screen.getByText('שאלה שלי'));
+    // The list preview shows each conversation's most recent entry.
     expect(await screen.findByText('התשובה')).toBeInTheDocument();
+    expect(screen.getByText('בשיחה')).toBeInTheDocument();
+    expect(screen.getByText('הודעה נוספת')).toBeInTheDocument();
+
+    // Opening the conversation shows the full history, including the original message.
+    await userEvent.click(screen.getByText('התשובה'));
+    expect(await screen.findByText('שאלה שלי')).toBeInTheDocument();
   });
 
   it('disables the send button when the textarea is empty', async () => {

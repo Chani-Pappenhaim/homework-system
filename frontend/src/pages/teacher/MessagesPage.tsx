@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Reply, Mail, ChevronLeft, Clock, Trash2, Plus, Send, X } from 'lucide-react';
+import { Mail, ChevronLeft, Clock, Trash2, Plus, Send, X } from 'lucide-react';
 import { messagesApi } from '@/api/messages.api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -31,10 +31,12 @@ export default function TeacherMessagesPage() {
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeStudent, setComposeStudent] = useState<StudentSearchResult | null>(null);
   const [composeText, setComposeText] = useState('');
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['teacher-messages'],
     queryFn: () => messagesApi.getAll(),
+    refetchInterval: 15_000,
   });
 
   const markReadMutation = useMutation({
@@ -42,16 +44,10 @@ export default function TeacherMessagesPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['teacher-messages'] }),
   });
 
-  const markReplySeenByTeacherMutation = useMutation({
-    mutationFn: (id: string) => messagesApi.markReplySeenByTeacher(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['teacher-messages'] }),
-  });
-
   const replyMutation = useMutation({
     mutationFn: ({ id, reply }: { id: string; reply: string }) => messagesApi.reply(id, reply),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['teacher-messages'] });
-      setOpenId(null);
       setReplyText('');
     },
   });
@@ -86,17 +82,14 @@ export default function TeacherMessagesPage() {
   const messages: MessageDTO[] = unwrap(data)?.messages ?? [];
   const openMsg = messages.find((m) => m.id === openId) ?? null;
 
-  function openMessage(msg: MessageDTO) {
-    setOpenId(msg.id);
-    setReplyText(msg.fromTeacher ? '' : (msg.replyContent ?? ''));
-    if (!msg.fromTeacher && !msg.isRead) markReadMutation.mutate(msg.id);
-    if (msg.fromTeacher && msg.replyContent && !msg.replySeen) markReplySeenByTeacherMutation.mutate(msg.id);
+  function isUnread(msg: MessageDTO) {
+    return msg.entries.some((e) => !e.fromTeacher && !e.isRead);
   }
 
-  // Unread from the teacher's perspective: a student's own message not yet read,
-  // or (for a teacher-initiated thread) a student reply not yet seen.
-  function isUnread(msg: MessageDTO) {
-    return msg.fromTeacher ? Boolean(msg.replyContent) && !msg.replySeen : !msg.isRead;
+  function openMessage(msg: MessageDTO) {
+    setOpenId(msg.id);
+    setReplyText('');
+    if (isUnread(msg)) markReadMutation.mutate(msg.id);
   }
 
   // The reply-notification email links straight to the relevant message
@@ -108,6 +101,10 @@ export default function TeacherMessagesPage() {
     if (msg) openMessage(msg);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, messages]);
+
+  useEffect(() => {
+    if (openId) bottomRef.current?.scrollIntoView({ block: 'end' });
+  }, [openId, openMsg?.entries.length]);
 
   return (
     <div className="space-y-5" dir="rtl">
@@ -128,6 +125,7 @@ export default function TeacherMessagesPage() {
         <div className="sheet divide-y divide-rule overflow-hidden">
           {messages.map((msg) => {
             const unread = isUnread(msg);
+            const last = msg.entries[msg.entries.length - 1];
             return (
             <div key={msg.id} className="flex w-full items-stretch transition-colors hover:bg-butter/10">
               <button
@@ -148,17 +146,17 @@ export default function TeacherMessagesPage() {
                       {msg.student?.name}
                     </span>
                     {unread && <span className="size-2 shrink-0 rounded-full bg-coral" />}
-                    {msg.fromTeacher && <Badge variant="secondary" className="shrink-0">שלחת</Badge>}
+                    {last?.fromTeacher && <Badge variant="secondary" className="shrink-0">שלחת</Badge>}
                     {msg.assignmentId && (
                       <Badge variant="warning" className="shrink-0"><Clock size={9} className="ml-1" /> בקשת הגשה</Badge>
                     )}
                   </div>
-                  <p className="truncate text-[13px] text-ink-soft mt-1">{msg.content}</p>
+                  <p className="truncate text-[13px] text-ink-soft mt-1">{last?.content}</p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1 ml-4">
-                  <span className="text-[11px] text-ink-soft">{formatDateTime(msg.createdAt)}</span>
-                  {msg.replyContent
-                    ? <Badge variant="success">{msg.fromTeacher ? 'הגיבה' : 'נענתה'}</Badge>
+                  <span className="text-[11px] text-ink-soft">{formatDateTime(last?.createdAt ?? msg.createdAt)}</span>
+                  {msg.entries.length > 1
+                    ? <Badge variant="success">בשיחה</Badge>
                     : <ChevronLeft size={16} className="text-ink-soft" />}
                 </div>
               </button>
@@ -178,7 +176,7 @@ export default function TeacherMessagesPage() {
         </div>
       )}
 
-      {/* Overlay: full message + reply, blocking the list behind it */}
+      {/* Overlay: full conversation thread, blocking the list behind it */}
       <Dialog open={Boolean(openId)} onOpenChange={(o) => { if (!o) { setOpenId(null); setReplyText(''); } }}>
         <DialogContent size="lg">
           {openMsg && (
@@ -193,61 +191,59 @@ export default function TeacherMessagesPage() {
                 )}
               </DialogHeader>
 
-              <DialogBody className="space-y-4">
-                <div>
-                  <div className="label mb-1">{openMsg.fromTeacher ? 'ההודעה ששלחת' : 'ההודעה'}</div>
-                  <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-ink">{openMsg.content}</p>
-                </div>
-
-                {openMsg.replyContent && (
-                  <div className="rounded-input border-r-2 border-indigo bg-ground/60 px-3 py-2">
-                    <div className="flex items-center justify-between">
-                      <div className="label mb-0.5">
-                        {openMsg.fromTeacher ? 'התגובה של התלמידה' : 'התגובה שלך'} · {formatDateTime(openMsg.repliedAt)}
+              <DialogBody className="space-y-3 max-h-96 overflow-y-auto">
+                {openMsg.entries.map((entry, i) => {
+                  const isLastTeacherEntry = entry.fromTeacher && i === openMsg.entries.length - 1;
+                  return entry.fromTeacher ? (
+                    <div key={entry.id} className="rounded-input border-r-2 border-indigo bg-ground/60 px-3 py-2">
+                      <div className="flex items-center justify-between">
+                        <div className="label mb-0.5">התגובה שלך · {formatDateTime(entry.createdAt)}</div>
+                        {isLastTeacherEntry && (
+                          <button
+                            title="מחקי תגובה"
+                            onClick={() => {
+                              if (confirm('למחוק את התגובה האחרונה שלך?')) {
+                                deleteReplyMutation.mutate(openMsg.id);
+                              }
+                            }}
+                            className="shrink-0 text-ink-soft transition-colors hover:text-coral"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
                       </div>
-                      {!openMsg.fromTeacher && (
-                        <button
-                          title="מחקי תגובה"
-                          onClick={() => {
-                            if (confirm('למחוק את התגובה? ההודעה המקורית תישאר, ותוחזר למצב ממתין.')) {
-                              deleteReplyMutation.mutate(openMsg.id);
-                            }
-                          }}
-                          className="shrink-0 text-ink-soft transition-colors hover:text-coral"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      )}
+                      <p className="whitespace-pre-wrap break-words text-sm text-ink">{entry.content}</p>
                     </div>
-                    <p className="whitespace-pre-wrap break-words text-sm text-ink">{openMsg.replyContent}</p>
-                  </div>
-                )}
+                  ) : (
+                    <div key={entry.id}>
+                      <div className="label mb-0.5">התלמידה · {formatDateTime(entry.createdAt)}</div>
+                      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-ink">{entry.content}</p>
+                    </div>
+                  );
+                })}
+                <div ref={bottomRef} />
 
-                {!openMsg.fromTeacher && (
-                  <div>
-                    <div className="label mb-1">{openMsg.replyContent ? 'עריכת התגובה' : 'כתיבת תגובה'}</div>
-                    <Textarea
-                      rows={5}
-                      className="resize-y"
-                      placeholder="כתבי תגובה לתלמידה…"
-                      value={replyText}
-                      onChange={(e) => setReplyText(e.target.value)}
-                      autoFocus
-                    />
-                  </div>
-                )}
+                <div className="pt-1">
+                  <div className="label mb-1">כתיבת תגובה</div>
+                  <Textarea
+                    rows={4}
+                    className="resize-y"
+                    placeholder="כתבי תגובה לתלמידה…"
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    autoFocus
+                  />
+                </div>
               </DialogBody>
 
               <DialogFooter>
-                {!openMsg.fromTeacher && (
-                  <Button
-                    loading={replyMutation.isPending}
-                    disabled={!replyText.trim()}
-                    onClick={() => replyMutation.mutate({ id: openMsg.id, reply: replyText })}
-                  >
-                    <Reply size={14} /> {openMsg.replyContent ? 'עדכני תגובה' : 'שלחי תגובה'}
-                  </Button>
-                )}
+                <Button
+                  loading={replyMutation.isPending}
+                  disabled={!replyText.trim()}
+                  onClick={() => replyMutation.mutate({ id: openMsg.id, reply: replyText })}
+                >
+                  <Send size={14} /> שלחי
+                </Button>
                 <Button variant="outline" onClick={() => { setOpenId(null); setReplyText(''); }}>
                   סגירה
                 </Button>

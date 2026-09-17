@@ -221,18 +221,28 @@ model AiUsageLog {
   createdAt    DateTime @default(now())
 }
 
+// A conversation between one student and the teacher. The actual messages
+// live in `entries`, so either side can keep replying indefinitely instead
+// of being limited to a single message + a single reply.
 model TeacherMessage {
-  id           String    @id @default(uuid())
+  id           String         @id @default(uuid())
   studentId    String
-  student      User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  content      String
-  fromTeacher  Boolean   @default(false) // true = the teacher started this conversation, not the student
-  assignmentId String?   // אם קיים → בקשת הגשה מאוחרת למטלה ספציפית
-  isRead       Boolean   @default(false) // has `content`'s recipient seen it? (teacher if fromTeacher=false, student if fromTeacher=true)
-  replyContent String?
-  repliedAt    DateTime?
-  replySeen    Boolean   @default(false) // has replyContent's recipient seen it? (student if fromTeacher=false, teacher if fromTeacher=true)
-  createdAt    DateTime  @default(now())
+  student      User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  assignmentId String?        // אם קיים → בקשת הגשה מאוחרת למטלה ספציפית
+  createdAt    DateTime       @default(now())
+  entries      MessageEntry[]
+}
+
+model MessageEntry {
+  id          String         @id @default(uuid())
+  messageId   String
+  message     TeacherMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  fromTeacher Boolean        // true = the teacher wrote this entry, false = the student did
+  content     String
+  isRead      Boolean        @default(false) // has the other side seen this entry?
+  createdAt   DateTime       @default(now())
+
+  @@index([messageId])
 }
 
 model Quiz {

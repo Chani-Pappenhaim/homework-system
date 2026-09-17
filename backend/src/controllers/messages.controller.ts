@@ -44,7 +44,7 @@ export async function getMyMessages(req: Request, res: Response) {
   }
 }
 
-// Sending a reply also marks the message as read
+// Teacher adding another entry to a conversation — always allowed, however many entries already exist
 export async function replyMessage(req: Request, res: Response) {
   try {
     const { reply } = req.body;
@@ -83,17 +83,7 @@ export async function getUnreadReplyCount(req: Request, res: Response) {
   }
 }
 
-// Restricted to the message's own student
-export async function markReplySeen(req: Request, res: Response) {
-  try {
-    await messagesService.markReplySeen(req.params.id as string, req.user!.userId);
-    res.json({ success: true, data: null });
-  } catch (err: any) {
-    sendError(res, err);
-  }
-}
-
-// Student replying to a conversation the teacher started
+// Student adding another entry to one of her own conversations — always allowed
 export async function studentReply(req: Request, res: Response) {
   try {
     const { reply } = req.body;
@@ -115,15 +105,6 @@ export async function markMineRead(req: Request, res: Response) {
   }
 }
 
-export async function markReplySeenByTeacher(req: Request, res: Response) {
-  try {
-    await messagesService.markReplySeenByTeacher(req.params.id as string);
-    res.json({ success: true, data: null });
-  } catch (err: any) {
-    sendError(res, err);
-  }
-}
-
 export async function deleteMessage(req: Request, res: Response) {
   try {
     await messagesService.deleteMessage(req.params.id as string);
@@ -133,10 +114,10 @@ export async function deleteMessage(req: Request, res: Response) {
   }
 }
 
-// Leaves the original message unanswered again
+// Unsends the teacher's most recent entry in the conversation
 export async function deleteReply(req: Request, res: Response) {
   try {
-    const message = await messagesService.deleteReply(req.params.id as string);
+    const message = await messagesService.deleteLastTeacherEntry(req.params.id as string);
     res.json({ success: true, data: { message } });
   } catch (err: any) {
     sendError(res, err);

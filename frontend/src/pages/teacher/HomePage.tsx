@@ -91,72 +91,74 @@ export default function TeacherHomePage() {
         </div>
       </section>
 
-      {/* Review queue */}
-      <section className="sheet">
-        <div className="flex items-center gap-2 border-b border-rule px-4 py-3">
-          <Pencil size={15} className="text-clay" />
-          <h2 className="font-display text-base font-bold">יומן בדיקה</h2>
-          <span className="label mr-auto">{queue.length} ממתינות</span>
-        </div>
-
-        <div className="bg-margin">
-          {reportLoading ? (
-            <div className="py-12 text-center text-sm text-ink-soft">טוען…</div>
-          ) : queue.length === 0 ? (
-            <div className="py-12 text-center text-sm text-ink-soft">
-              {search ? `אין תוצאות ל"${search}"` : 'התור ריק — כל הכבוד'}
-            </div>
-          ) : (
-            visible.map((r, i) => {
-              const st = rowStatus(r);
-              return (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 border-b border-rule/60 px-4 py-2.5 pr-12 transition-colors hover:bg-butter/10"
-                >
-                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-indigo/12 text-xs font-semibold text-indigo">
-                    {r.studentName?.[0] ?? '?'}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold text-ink">{r.studentName}</div>
-                    <div className="truncate text-[11px] text-ink-soft">{r.courseName} · {r.assignmentTitle}</div>
-                  </div>
-                  {r.isLate && <span className="hidden text-[10px] font-semibold text-coral sm:inline">איחור</span>}
-                  <StatusPill variant={st.variant} className="hidden sm:inline-flex">{st.label}</StatusPill>
-                  <span className="hidden w-16 text-left text-[11px] text-ink-soft md:inline">{relTime(r.submittedAt)}</span>
-                  {r.submissionScore != null && (
-                    <span className="w-8 text-left font-display text-base font-bold tabular text-clay">{r.submissionScore}</span>
-                  )}
-                  <button
-                    onClick={() => navigate('/teacher/reports')}
-                    className="rounded-input border border-rule px-2.5 py-1 text-xs font-semibold text-ink transition-colors hover:bg-ground"
-                  >
-                    סקירה
-                  </button>
-                </div>
-              );
-            })
-          )}
-        </div>
-
-        {queue.length > 8 && (
-          <div className="flex items-center justify-between px-4 py-2.5">
-            <span className="label">{visible.length}/{queue.length}</span>
-            <button onClick={() => setShowAll((v) => !v)} className="text-sm font-semibold text-clay hover:underline">
-              {showAll ? 'הצג פחות' : 'טעני הבא'}
-            </button>
+      <div className={cn('grid gap-5', graded[0]?.feedback && 'lg:grid-cols-[2fr_1fr] lg:items-start')}>
+        {/* Review queue */}
+        <section className="sheet">
+          <div className="flex items-center gap-2 border-b border-rule px-4 py-3">
+            <Pencil size={15} className="text-clay" />
+            <h2 className="font-display text-base font-bold">יומן בדיקה</h2>
+            <span className="label mr-auto">{queue.length} ממתינות</span>
           </div>
-        )}
-      </section>
 
-      {/* Last feedback */}
-      {graded[0]?.feedback && (
-        <section className="sheet relative p-5">
-          <div className="label mb-1 flex items-center gap-1.5"><Sparkles size={13} className="text-clay" /> משוב אחרון · {graded[0].assignmentTitle}</div>
-          <p className="text-sm leading-relaxed text-ink">"{graded[0].feedback}"</p>
-          <div className="mt-2 text-xs text-ink-soft">ממוצע השבוע: <span className="font-semibold text-clay tabular">{avg}</span></div>
+          <div className="bg-margin">
+            {reportLoading ? (
+              <div className="py-12 text-center text-sm text-ink-soft">טוען…</div>
+            ) : queue.length === 0 ? (
+              <div className="py-12 text-center text-sm text-ink-soft">
+                {search ? `אין תוצאות ל"${search}"` : 'התור ריק — כל הכבוד'}
+              </div>
+            ) : (
+              visible.map((r, i) => {
+                const st = rowStatus(r);
+                return (
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 border-b border-rule/60 px-4 py-2.5 pr-12 transition-colors hover:bg-butter/10"
+                  >
+                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-indigo/12 text-xs font-semibold text-indigo">
+                      {r.studentName?.[0] ?? '?'}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold text-ink">{r.studentName}</div>
+                      <div className="truncate text-[11px] text-ink-soft">{r.courseName} · {r.assignmentTitle}</div>
+                    </div>
+                    {r.isLate && <span className="hidden text-[10px] font-semibold text-coral sm:inline">איחור</span>}
+                    <StatusPill variant={st.variant} className="hidden sm:inline-flex">{st.label}</StatusPill>
+                    <span className="hidden w-16 text-left text-[11px] text-ink-soft md:inline">{relTime(r.submittedAt)}</span>
+                    {r.submissionScore != null && (
+                      <span className="w-8 text-left font-display text-base font-bold tabular text-clay">{r.submissionScore}</span>
+                    )}
+                    <button
+                      onClick={() => navigate('/teacher/reports')}
+                      className="rounded-input border border-rule px-2.5 py-1 text-xs font-semibold text-ink transition-colors hover:bg-ground"
+                    >
+                      סקירה
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {queue.length > 8 && (
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <span className="label">{visible.length}/{queue.length}</span>
+              <button onClick={() => setShowAll((v) => !v)} className="text-sm font-semibold text-clay hover:underline">
+                {showAll ? 'הצג פחות' : 'טעני הבא'}
+              </button>
+            </div>
+          )}
         </section>
-      )}
+
+        {/* Last feedback */}
+        {graded[0]?.feedback && (
+          <section className="sheet relative max-h-96 overflow-y-auto p-5">
+            <div className="label mb-1 flex items-center gap-1.5"><Sparkles size={13} className="text-clay" /> משוב אחרון · {graded[0].assignmentTitle}</div>
+            <p className="text-sm leading-relaxed text-ink">"{graded[0].feedback}"</p>
+            <div className="mt-2 text-xs text-ink-soft">ממוצע השבוע: <span className="font-semibold text-clay tabular">{avg}</span></div>
+          </section>
+        )}
+      </div>
     </div>
   );
 }
