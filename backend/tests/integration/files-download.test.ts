@@ -34,6 +34,16 @@ const p = prisma as unknown as {
 const app = express();
 app.use('/api/files', filesRoutes);
 
+// helmet is not mounted in this bare test app, so its clickjacking headers are
+// applied here instead — otherwise the route's removal of them is invisible.
+const hardenedApp = express();
+hardenedApp.use((_req, res, next) => {
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Content-Security-Policy', "default-src 'self';frame-ancestors 'self'");
+  next();
+});
+hardenedApp.use('/api/files', filesRoutes);
+
 function fakeUpstream(status: number, headers: Record<string, string>, body = 'file-bytes') {
   const bytes = new TextEncoder().encode(body);
   const allHeaders = { 'content-length': String(bytes.length), ...headers };
@@ -148,6 +158,78 @@ describe('GET /api/files/download/:fileId', () => {
     expect(fetchMock).toHaveBeenCalledWith(expect.any(String), { headers: { Range: 'bytes=0-10' } });
     expect(res.status).toBe(206);
     expect(res.headers['content-range']).toBe('bytes 0-10/11');
+  });
+
+  it('puts the extension back on a display name that lost it', async () => {
+    // What the upload form actually stores: the teacher's name, no extension,
+    // beside a url that still ends in the real one.
+    p.lessonFile.findUnique.mockResolvedValue({
+      id: 'f1', lessonId: 'l1', name: 'חוזה',
+      url: 'https://res.cloudinary.com/demo/raw/upload/v1/f1.pdf',
+    });
+    const token = signFileToken({ fileId: 'f1', kind: 'lesson', userId: 'u1' });
+    const res = await request(app).get('/api/files/download/f1').query({ token, dl: '1' });
+
+    expect(res.headers['content-disposition']).toContain(encodeURIComponent('חוזה.pdf'));
+    // The ascii fallback must carry the extension too, or the saved file opens
+    // in nothing.
+    expect(res.headers['content-disposition']).toMatch(/filename="[^"]*\.pdf"/);
+  });
+
+  it('types a raw asset from its filename when Cloudinary only says octet-stream', async () => {
+    p.lessonFile.findUnique.mockResolvedValue({
+      id: 'f1', lessonId: 'l1', name: 'עבודה.docx',
+      url: 'https://res.cloudinary.com/demo/raw/upload/v1/f1.docx',
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      fakeUpstream(200, { 'content-type': 'application/octet-stream' })
+    ));
+    const token = signFileToken({ fileId: 'f1', kind: 'lesson', userId: 'u1' });
+    const res = await request(app).get('/api/files/download/f1').query({ token });
+
+    expect(res.headers['content-type']).toBe(
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    );
+  });
+
+  it('keeps the upstream content type when it is a real one', async () => {
+    const token = signFileToken({ fileId: 'f1', kind: 'lesson', userId: 'u1' });
+    const res = await request(app).get('/api/files/download/f1').query({ token });
+    expect(res.headers['content-type']).toBe('audio/mpeg');
+  });
+
+  it('falls back to the whole file when something in between refuses the range', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(fakeUpstream(418, { 'content-type': 'text/html' }, '<html>blocked</html>'))
+      .mockResolvedValueOnce(fakeUpstream(200, { 'content-type': 'audio/mpeg' }, 'the whole clip'));
+    vi.stubGlobal('fetch', fetchMock);
+    const token = signFileToken({ fileId: 'f1', kind: 'lesson', userId: 'u1' });
+    const res = await request(app).get('/api/files/download/f1').query({ token }).set('Range', 'bytes=0-4');
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1]![1]).toBeUndefined();
+    expect(res.status).toBe(200);
+    expect(res.body.toString()).toBe('the whole clip');
+  });
+
+  it('drops the clickjacking headers so the SPA on another origin can embed the file', async () => {
+    const token = signFileToken({ fileId: 'f1', kind: 'lesson', userId: 'u1' });
+    const res = await request(hardenedApp).get('/api/files/download/f1').query({ token });
+
+    expect(res.headers['x-frame-options']).toBeUndefined();
+    expect(res.headers['content-security-policy']).toBeUndefined();
+  });
+
+  it('sandboxes a file the browser would run as a document instead', async () => {
+    p.lessonFile.findUnique.mockResolvedValue({
+      id: 'f1', lessonId: 'l1', name: 'logo.svg',
+      url: 'https://res.cloudinary.com/demo/image/upload/v1/f1.svg',
+    });
+    const token = signFileToken({ fileId: 'f1', kind: 'lesson', userId: 'u1' });
+    const res = await request(hardenedApp).get('/api/files/download/f1').query({ token });
+
+    expect(res.headers['content-security-policy']).toContain('sandbox');
+    expect(res.headers['x-frame-options']).toBeUndefined();
   });
 
   it('does not forward a Range header, and does not return 206, when the browser sent none', async () => {
