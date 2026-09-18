@@ -116,6 +116,12 @@ React 18 + TypeScript + Vite + TailwindCSS 3 + shadcn/ui + Zustand + React Query
 - `StudentLayout` — header + nav עם "הודעה למורה" + badge תגובות לא-נקראות (נקודה אדומה על האייקון, `GET /messages/unread-replies-count`)
 - `MarkdownRenderer` — react-markdown + DOMPurify
 - `FileUpload` — dropzone
+- `FileGallery` — רשת קבצים + **תצוגה מקדימה על כל המסך** (`DialogContent size="full"`).
+  - סוג הקובץ נקבע מ-`file.extension` שה-API שולח, **לא** משם התצוגה (שנשמר בלי סיומת).
+  - `file.url` הוא נתיב יחסי ל-`/files/download/:id?token=…`; `resolveFileUrl` מוסיף
+    את `API_URL`, ו-`dl=1` הופך את זה להורדה.
+  - תמונה/וידאו/אודיו/PDF מוצגים ישירות; Office דרך `docs.google.com/gview`;
+    `txt`/`md` נקראים ב-`fetch` ומוצגים כטקסט. archive ו-other → הצעת הורדה.
 
 ## Sidebar Nav — מורה
 ```

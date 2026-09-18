@@ -29,6 +29,9 @@ const sizes = {
   sm: 'max-w-sm',
   md: 'max-w-lg',
   lg: 'max-w-2xl',
+  // For content that is the point of the screen rather than a question about
+  // it — a document or an image, which is unreadable in a column-width panel.
+  full: 'max-w-none w-[calc(100vw-2rem)] h-[calc(100vh-2rem)]',
 } as const;
 
 interface DialogContentProps
@@ -51,6 +54,7 @@ const DialogContent = React.forwardRef<
       className={cn(
         'fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2',
         'mx-4 flex max-h-[90vh] flex-col rounded-card border border-border bg-card shadow-xl',
+        size === 'full' && 'mx-0 max-h-none',
         'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
         'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
         sizes[size],

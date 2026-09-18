@@ -1,8 +1,32 @@
 import { Request, Response } from 'express';
+import { Readable } from 'node:stream';
 import { prisma } from '../config/prisma';
 import { verifyFileToken } from '../utils/jwt';
 import { toDeliveryUrl } from '../utils/storage';
 import { assertLessonAccess, assertCourseAccess } from '../utils/access';
+import { contentDisposition, ensureExtension, extensionOf, resolveContentType } from '../utils/mime';
+
+// Types a browser will execute as a document if it is opened directly. The
+// files come from people we trust, but "trusted" is not "audited", and a script
+// inside one would run on the API's own origin — where the refresh cookie
+// lives. A sandbox CSP renders them without ever running their scripts.
+const SCRIPTABLE = ['svg', 'html', 'htm', 'xhtml', 'xml'];
+
+/**
+ * helmet's clickjacking guard (`X-Frame-Options: SAMEORIGIN` plus a CSP with
+ * `frame-ancestors 'self'`) is right for every JSON route here and wrong for
+ * this one: the SPA is served from another origin, so those headers stop it
+ * from putting a PDF in an <iframe> at all. A file response drops them and
+ * sandboxes the handful of types where framing would actually be dangerous.
+ */
+function applyEmbeddingHeaders(res: Response, name: string) {
+  res.removeHeader('X-Frame-Options');
+  if (SCRIPTABLE.includes(extensionOf(name))) {
+    res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:");
+  } else {
+    res.removeHeader('Content-Security-Policy');
+  }
+}
 
 /**
  * Study-material links carry their own short-lived token instead of the
@@ -82,23 +106,32 @@ export async function download(req: Request, res: Response) {
   // several browsers refuse to play the media at all instead of falling back
   // to a full download.
   const rangeHeader = req.headers.range;
-  const upstream = await fetch(deliveryUrl, rangeHeader ? { headers: { Range: rangeHeader } } : undefined);
+  let upstream = await fetch(deliveryUrl, rangeHeader ? { headers: { Range: rangeHeader } } : undefined);
+  // Some networks in between refuse a ranged request outright rather than
+  // passing it on — the Netfree filter on the developer network answers one
+  // with its block page under status 418. Falling back to the whole file costs
+  // seeking, but it beats a media element that will not play at all.
+  if (!upstream.ok && rangeHeader) {
+    console.warn('[files] ranged request refused upstream, retrying whole file', { status: upstream.status });
+    upstream = await fetch(deliveryUrl);
+  }
   if (!upstream.ok || !upstream.body) {
     res.status(502).json({ success: false, error: 'שגיאה בטעינת הקובץ' });
     return;
   }
 
   const asAttachment = req.query.dl === '1';
-  const encodedName = encodeURIComponent(file.name);
-  res.setHeader(
-    'Content-Disposition',
-    `${asAttachment ? 'attachment' : 'inline'}; filename="${encodedName}"; filename*=UTF-8''${encodedName}`
-  );
-  const contentType = upstream.headers.get('content-type');
-  if (contentType) res.setHeader('Content-Type', contentType);
+  // The upload form defaults a file's display name to the filename *without*
+  // its extension, so a file the teacher named herself is stored as "contract"
+  // while the asset behind it is a PDF. Sending that name verbatim is what
+  // produced downloads called "contract" that no program would open.
+  const downloadName = ensureExtension(file.name, file.url);
+  res.setHeader('Content-Disposition', contentDisposition(downloadName, asAttachment ? 'attachment' : 'inline'));
+  res.setHeader('Content-Type', resolveContentType(upstream.headers.get('content-type'), downloadName));
   const contentLength = upstream.headers.get('content-length');
   if (contentLength) res.setHeader('Content-Length', contentLength);
   res.setHeader('Accept-Ranges', 'bytes');
+  applyEmbeddingHeaders(res, downloadName);
 
   if (upstream.status === 206) {
     res.status(206);
@@ -106,6 +139,15 @@ export async function download(req: Request, res: Response) {
     if (contentRange) res.setHeader('Content-Range', contentRange);
   }
 
-  const { Readable } = await import('node:stream');
-  Readable.fromWeb(upstream.body as never).pipe(res);
+  // Headers are already on the wire, so a failure from here on cannot become an
+  // error response — it can only be logged and the connection cut. Both sides
+  // are wired up: a stalled upstream must not hold the socket open, and a
+  // reader who closes the tab must not leave us pulling bytes.
+  const body = Readable.fromWeb(upstream.body as never);
+  body.on('error', (streamErr) => {
+    console.error('[files] stream failed mid-response', streamErr);
+    res.destroy();
+  });
+  res.on('close', () => body.destroy());
+  body.pipe(res);
 }

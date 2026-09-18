@@ -3,6 +3,7 @@ import { Image, Video, FileText, Music, Archive, File as FileIcon, Download, Pen
 import { cn, formatBytes } from '@/lib/utils';
 import { getFileKindByExtension } from '@/lib/file-type';
 import { API_URL } from '@/lib/config';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 const OFFICE_EXTENSIONS = new Set(['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx']);
 const TEXT_EXTENSIONS = new Set(['txt', 'md']);
@@ -45,8 +46,10 @@ interface FileGalleryProps {
 }
 
 /**
- * Grid of file cards with inline preview below — click to expand a specific file's
- * preview on the page (image/video/audio/text/PDF), not in a modal.
+ * Grid of file cards; clicking one opens its preview across the whole screen
+ * (image/video/audio/text/Office/PDF). A document read in a 320px column beside
+ * the grid was legible for nothing but a thumbnail, which defeats the point of
+ * previewing it at all.
  */
 export function FileGallery({ files, onDelete, onRename, onToggleRequired, onMarkViewed, onUnmarkViewed, className }: FileGalleryProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -55,8 +58,8 @@ export function FileGallery({ files, onDelete, onRename, onToggleRequired, onMar
   if (files.length === 0) return null;
 
   return (
-    <div className={cn('flex flex-col gap-4', selected && 'lg:flex-row lg:items-start')}>
-      <div className={cn('grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4', selected && 'lg:flex-1', className)}>
+    <div className="flex flex-col gap-4">
+      <div className={cn('grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4', className)}>
         {files.map((f) => (
           <FileTile
             key={f.id}
@@ -72,10 +75,7 @@ export function FileGallery({ files, onDelete, onRename, onToggleRequired, onMar
         ))}
       </div>
 
-      {/* Preview — beside the grid on wide screens, stacked below it on narrow ones */}
-      {selected && (
-        <FilePreviewInline file={selected} onClose={() => setSelectedId(null)} className="lg:sticky lg:top-4 lg:w-80 lg:shrink-0" />
-      )}
+      <FilePreviewDialog file={selected} onClose={() => setSelectedId(null)} />
     </div>
   );
 }
@@ -219,7 +219,15 @@ function FileTile({
   );
 }
 
-function FilePreviewInline({ file, onClose, className }: { file: GalleryFile; onClose: () => void; className?: string }) {
+function FilePreviewDialog({ file, onClose }: { file: GalleryFile | undefined; onClose: () => void }) {
+  return (
+    <Dialog open={Boolean(file)} onOpenChange={(open) => { if (!open) onClose(); }}>
+      {file && <FilePreviewBody file={file} />}
+    </Dialog>
+  );
+}
+
+function FilePreviewBody({ file }: { file: GalleryFile }) {
   const ext = file.extension ?? '';
   const kind = getFileKindByExtension(ext);
   const isOffice = OFFICE_EXTENSIONS.has(ext);
@@ -228,30 +236,25 @@ function FilePreviewInline({ file, onClose, className }: { file: GalleryFile; on
   const downloadUrl = `${url}${url.includes('?') ? '&' : '?'}dl=1`;
 
   return (
-    <div className={cn('rounded-input border border-rule bg-ground/30 p-4', className)}>
-      <div className="mb-3 flex items-center justify-between gap-3">
+    <DialogContent size="full">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-rule px-5 py-3.5 pe-12">
         <div className="min-w-0">
-          <h3 className="truncate text-sm font-semibold text-ink">{file.name}</h3>
+          <DialogTitle className="truncate text-sm">{file.name}</DialogTitle>
           {file.sizeBytes && <p className="text-xs text-ink/50">{formatBytes(file.sizeBytes)}</p>}
         </div>
-        <div className="flex shrink-0 gap-2">
-          <a
-            href={downloadUrl}
-            download={file.name}
-            className="flex items-center gap-1.5 rounded-input bg-indigo px-3 py-1.5 text-xs font-semibold text-sheet hover:bg-indigo/90"
-          >
-            <Download size={12} /> הורדה
-          </a>
-          <button
-            onClick={onClose}
-            className="rounded-input border border-rule px-3 py-1.5 text-xs font-semibold text-ink hover:bg-sheet/60"
-          >
-            סגירה
-          </button>
-        </div>
+        <a
+          href={downloadUrl}
+          download={file.name}
+          className="flex shrink-0 items-center gap-1.5 rounded-input bg-indigo px-3 py-1.5 text-xs font-semibold text-sheet hover:bg-indigo/90"
+        >
+          <Download size={12} /> הורדה
+        </a>
       </div>
 
-      <div className="flex min-h-72 items-center justify-center overflow-auto rounded-sm bg-sheet p-3">
+      {/* min-h-0 lets this row actually shrink inside the flex column, which is
+          what allows the viewer to fill the remaining height instead of
+          overflowing past the bottom of the screen. */}
+      <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-sheet p-3">
         {kind === 'image' && (
           <img src={url} alt={file.name} className="max-h-full max-w-full rounded-sm object-contain" />
         )}
@@ -286,7 +289,7 @@ function FilePreviewInline({ file, onClose, className }: { file: GalleryFile; on
           </div>
         )}
       </div>
-    </div>
+    </DialogContent>
   );
 }
 
@@ -316,7 +319,7 @@ function TextFilePreview({ url }: { url: string }) {
   if (content === null) return <p className="text-sm text-ink/50">טוען…</p>;
 
   return (
-    <pre className="max-h-96 w-full overflow-auto whitespace-pre-wrap break-words rounded-sm border border-rule bg-ground/40 p-4 text-right text-xs text-ink">
+    <pre dir="auto" className="h-full w-full overflow-auto whitespace-pre-wrap break-words rounded-sm border border-rule bg-ground/40 p-4 text-start text-xs text-ink">
       {content}
     </pre>
   );
