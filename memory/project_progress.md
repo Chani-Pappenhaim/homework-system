@@ -2,6 +2,39 @@
 
 > קובץ זה עוקב אחרי מה שהושלם ומה שנשאר. יש לעדכן אותו בסוף כל שיחה שבה נעשתה עבודה.
 
+## 2026-09-22/23 — סידור מחדש FileUpload/FileGallery + אחוז התקדמות/שגיאות מפורטות בהעלאה + תכנון (טרם מומש) פיצ'ר ניהול אחסון
+
+**✅ הועלה מעל הגלריה, לא מתחתיה** ב-[teacher/LessonDetailPage.tsx](../frontend/src/pages/teacher/LessonDetailPage.tsx) וב-[teacher/CourseFormPage.tsx](../frontend/src/pages/teacher/CourseFormPage.tsx) — בעקבות "אם יהיו הרבה קבצים אז הכפתור של העלאה יהיה למטה". `<FileUpload>` עכשיו מופיע לפני `<FileGallery>` בשני הדפים, כך שהוא נשאר נגיש גם כשרשימת הקבצים ארוכה. `tsc --noEmit` נקי.
+
+**⚠️ המשתמשת דיווחה שהיא לא רואה את האחוזים בהעלאה בכלל** (צילום מסך הראה "מעלה..." בלי מספר אחוזים) — נבדק בקוד ואישרתי שה-label כן כולל `${uploadProgress ?? 0}%`, כך שזה כנראה **שינוי שעדיין לא בפרודקשן**: כל השינויים היו עדיין לא committed בזמן הדיווח, ולכן גם לא רצים לא ב-Docker מקומי (אם לא הורץ rebuild) ולא בוודאי ב-Vercel (שם ה-deploy תלוי ב-git push, לא ב-Docker בכלל) — **טרם אושר עם המשתמשת האם היא בודקת מול Docker מקומי או מול ה-URL של Vercel בפרודקשן**, וזו נקודה שחשוב להבהיר בהמשך כי הפתרון שונה (docker rebuild מול git commit+push). **עדכון:** הקוד כעת committed ונדחף ל-`feature/frontend-upload-feedback` (ר' למטה) — אחרי merge/deploy הבעיה אמורה להיפתר מעצמה.
+
+**✅ נמצא שורש "לא כתב כלום כשההעלאה נכשלה":** ל-`uploadFileMutation` (גם ב-`teacher/LessonDetailPage.tsx` וגם ב-`teacher/CourseFormPage.tsx`) **לא היה בכלל `onError`** — כשל בהעלאה נבלע בשקט, שום toast לא הופיע. גם `lessonsApi.uploadFile`/`coursesApi.uploadFile`/`submissionsApi.submitVideo` (שלושתם עולים ישירות מהדפדפן ל-Cloudinary) זרקו רק `new Error('File/Video upload to storage failed')` גנרי בלי לקרוא את גוף התגובה של Cloudinary בכלל.
+
+**✅ נוצר [lib/upload.ts](../frontend/src/lib/upload.ts) — `uploadToCloudinary()` + מחלקת `UploadError`:**
+- עובר מ-`fetch` ל-`XMLHttpRequest` (סיבה: ל-`fetch` אין upload-progress event, ל-XHR יש `xhr.upload.onprogress`) — זה מה שמאפשר את אחוז ההתקדמות.
+- `xhr.onload` עם status לא-2xx: קורא את גוף תגובת Cloudinary (`error.message`) ומתרגם למשפט עברי ידידותי; **status 418 מטופל במיוחד** — זה קוד שחוסמי-רשת כמו NetFree מחזירים בעצמם (הבקשה לא הגיעה בכלל ל-Cloudinary), אז ההודעה אומרת במפורש "נחסם על ידי סינון הרשת" ומציעה לנסות רשת אחרת/לבקש אישור לדומיין.
+- `xhr.onerror` (החיבור נותק לגמרי, כמו ה-`ERR_CONNECTION_RESET` שדווח) — הודעה נפרדת שמסבירה שזו כנראה חסימת רשת.
+- הודעות ספציפיות גם לגודל קובץ חורג ולמכסת אחסון (`quota`/`credit` בהודעת Cloudinary).
+
+**⚠️ אבחון סיבת השורש לכשל שדווח בפועל:** `418 Blocked by NetFree` **הוא לא קוד סטטוס אמיתי של Cloudinary** — NetFree (סנן הרשת) מחזיר את זה בעצמו כשהוא חוסם את הבקשה **לפני** שהיא מגיעה ל-Cloudinary בכלל. זו בעיית רשת/ISP בצד המשתמשת, בדיוק כמו בעיית ה-SSL המתועדת ב-`CLAUDE.md` (אותה משפחת בעיה — NetFree מיירט/חוסם תעבורה) — לא באג קוד. **עדכון חשוב:** המשתמשת ציינה שבעבר וידאו **כן** הועלה בהצלחה בלי חסימה — כלומר NetFree כנראה לא חוסם גורף וקבוע, אלא מסווג לפי תוכן/קטגוריה ו/או מגביל לפי שעות; טרם אומת מול המשתמשת אם מדובר באותה רשת/מכשיר/שעה כמו בפעם שהצליחה. **לא שונתה הארכיטקטורה** (העלאה ישירה מהדפדפן ל-Cloudinary, כדי לא להעמיס קבצי וידאו גדולים על זיכרון השרת).
+
+**✅ `getApiErrorMessage()` ([lib/errors.ts](../frontend/src/lib/errors.ts)) עודכן** לזהות `error.isUploadError` ולהציג את ההודעה המוכנה מ-`UploadError` ישירות (לפני הבדיקות הרגילות ל-axios).
+
+**✅ אחוז התקדמות מחובר בשלושה מקומות** (state מקומי `uploadProgress`, מוזרם כ-`onProgress` ל-API, מוצג בתוך label של `FileUpload` כ-`מעלה... X%`, מתאפס ב-`onSettled`):
+- `teacher/LessonDetailPage.tsx` (קבצי שיעור), `teacher/CourseFormPage.tsx` (קבצי קורס), `student/LessonDetailPage.tsx::AssignmentCard` (הגשת מטלה — גם קובץ רגיל דרך הבאקאנד עם `axios onUploadProgress`, וגם וידאו ישיר ל-Cloudinary).
+
+**✅ Tooltip נוסף לכפתור עריכת שם קובץ** ([file-gallery.tsx](../frontend/src/components/ui/file-gallery.tsx)) — היה רק `aria-label` (לא נראה בהעברת עכבר), נוסף גם `title` בדיוק כמו בכפתור הכוכב (חובה-לצפייה).
+
+**⚠️ "קובץ וידאו לא נפתח" בשיעור ספציפי בפרודקשן** (`/teacher/lessons/70fd6b72-...`) — **התגלה ממצא חשוב:** ב-`origin/main` כבר קיים תיקון (commit `0181ef7`, 2026-09-18, ר' סעיף למטה) בדיוק לתבנית "נטפרי חוסמת בקשות Range עם 418" ב-`files.controller.ts` — רלוונטי ישירות לבאג הזה. **טרם אומת** אם התיקון הזה כבר היה חי בפרודקשן כשהמשתמשת נתקלה בבאג, ולכן לא ידוע אם הוא פותר את הבעיה או שנשאר שורש נוסף (למשל קידוד HEVC/H.265 ב-`.mov` מאייפון, שדפדפני Chrome/Firefox בווינדוס לא תמיד מנגנים טבעית). **צריך מהמשתמשת:** לבדוק שוב אחרי המיזוג, ובמידה והבעיה נמשכת — קוד סטטוס/שגיאה מ-Network tab עבור בקשת ה-video src.
+
+**🗣️ נדון לעומק פיצ'ר ניהול אחסון (טרם מומש בכלל, אין קוד עדיין) — התכנון הבא הוסכם עקרונית:**
+- המשתמשת הציעה (רעיון טוב יותר משלי) לשלוף את רשימת הקבצים **ישירות מ-Cloudinary** (`cloudinary.api.usage()`/`cloudinary.api.resources()`) במקום להסתמך על `sizeBytes` ב-DB — פותר את הבעיה שלהגשות תלמידים (`Submission.fileUrl`) אין בכלל עמודת גודל שמורה, וגם חושף "קבצים יתומים" שהועלו ל-Cloudinary אך מעולם לא נקשרו לרשומה (למשל בגלל שגיאת רשת אחרי ההעלאה).
+- אומת בקוד: החיבור ל-Cloudinary Admin API כבר קיים ופעיל ([config/cloudinary.ts](../backend/src/config/cloudinary.ts), בשימוש כבר ב-[ai-usage.service.ts](../backend/src/services/ai-usage.service.ts)) — אין צורך במפתחות חדשים.
+- **מחיקה: אין צורך בקוד חדש בכלל.** `deleteLessonFile(lessonId, fileId)` ([lessons.service.ts:200](../backend/src/services/lessons.service.ts)) ו-`deleteCourseFile(courseId, fileId)` ([courses.service.ts:177](../backend/src/services/courses.service.ts)) **כבר** מוחקות גם מ-Cloudinary (דרך `destroyByUrl`) וגם את הרשומה מהשיעור/קורס עצמו — בדיוק מה שהמשתמשת ביקשה ("שהקבצים פשוט ימחקו מהשיעור שהיו"). האנדפוינט החדש רק יצליב לפי URL (`extractPublicId` הקיים ב-[storage.ts](../backend/src/utils/storage.ts)) איזה LessonFile/CourseFile מתאים לכל קובץ שחוזר מ-Cloudinary, ויקרא לפונקציה הקיימת המתאימה; קובץ "יתום" (בלי שיוך ב-DB) יימחק ישירות עם `destroyByUrl`.
+- **שאלה פתוחה שנשאלה ולא נענתה עדיין:** מי אמורה לראות/לגשת למסך ניהול האחסון — כל מורה, או רק אדמין/בעלת המערכת? קובע איזו הרשאה שמים על ה-endpoint. **טרם התחיל מימוש בפועל (אין endpoint, אין route, אין מסך פרונט) — ממתין לתשובה על ההרשאה ואישור סופי להתחיל.**
+
+**✅ נדחף ל-GitHub:** commit `feat(frontend): show upload progress, detailed failure messages, rename tooltip` על ענף `feature/frontend-upload-feedback` (מ-`main` מקומי, שהיה 3 קומיטים מאחורי `origin/main` — נעשה rebase על `origin/main` לפני הדחיפה כדי לכלול את התיקונים של תהילה מ-2026-09-18). `npx tsc --noEmit` נקי.
+
 ## 2026-09-18 — תצוגה מקדימה על כל המסך + שם וסוג נכונים בהורדת קובץ (branch `feat/large-file-preview`)
 
 **שלוש תלונות של המשתמשת על קבצים מצורפים.** מה שנמצא:
