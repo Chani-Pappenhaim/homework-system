@@ -111,8 +111,13 @@ export async function download(req: Request, res: Response) {
   // passing it on — the Netfree filter on the developer network answers one
   // with its block page under status 418. Falling back to the whole file costs
   // seeking, but it beats a media element that will not play at all.
-  if (!upstream.ok && rangeHeader) {
-    console.warn('[files] ranged request refused upstream, retrying whole file', { status: upstream.status });
+  // Scoped to 418 specifically (not any !upstream.ok) — a broader check also
+  // caught real Cloudinary failures (a dropped connection, a transient 5xx)
+  // and silently swapped the browser's expected 206 partial response for a
+  // full 200 body, which is what actually broke video playback that used to
+  // work: the retry fired on failures that had nothing to do with a filter.
+  if (upstream.status === 418 && rangeHeader) {
+    console.warn('[files] ranged request blocked upstream (418), retrying whole file');
     upstream = await fetch(deliveryUrl);
   }
   if (!upstream.ok || !upstream.body) {

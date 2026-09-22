@@ -212,6 +212,17 @@ describe('GET /api/files/download/:fileId', () => {
     expect(res.body.toString()).toBe('the whole clip');
   });
 
+  it('does not retry without Range on a real upstream failure, only on 418', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(fakeUpstream(500, { 'content-type': 'text/plain' }, 'server error'));
+    vi.stubGlobal('fetch', fetchMock);
+    const token = signFileToken({ fileId: 'f1', kind: 'lesson', userId: 'u1' });
+    const res = await request(app).get('/api/files/download/f1').query({ token }).set('Range', 'bytes=0-4');
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toBe(502);
+  });
+
   it('drops the clickjacking headers so the SPA on another origin can embed the file', async () => {
     const token = signFileToken({ fileId: 'f1', kind: 'lesson', userId: 'u1' });
     const res = await request(hardenedApp).get('/api/files/download/f1').query({ token });
