@@ -1,4 +1,5 @@
 import api from './axios';
+import { uploadToCloudinary } from '@/lib/upload';
 import type { CourseDTO, CourseDetailDTO } from '@/types';
 
 export const coursesApi = {
@@ -38,7 +39,7 @@ export const coursesApi = {
    * never pass through the server, avoiding the extra bandwidth cost of
    * relaying a buffered copy.
    */
-  uploadFile: async (id: string, file: File, name?: string) => {
+  uploadFile: async (id: string, file: File, name?: string, onProgress?: (percent: number) => void) => {
     const { data } = await api.post(`/courses/${id}/upload-signature`);
     const { apiKey, cloudName, timestamp, signature, folder } = data.data;
 
@@ -49,12 +50,7 @@ export const coursesApi = {
     form.append('signature', signature);
     form.append('folder', folder);
 
-    const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
-      method: 'POST',
-      body: form,
-    });
-    if (!uploadRes.ok) throw new Error('File upload to storage failed');
-    const uploaded = await uploadRes.json();
+    const uploaded = await uploadToCloudinary(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, form, onProgress);
 
     return api.post(`/courses/${id}/files`, {
       uploadedFile: { url: uploaded.secure_url, bytes: uploaded.bytes, originalName: file.name },

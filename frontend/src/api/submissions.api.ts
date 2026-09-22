@@ -1,4 +1,5 @@
 import api from './axios';
+import { uploadToCloudinary } from '@/lib/upload';
 import type { MySubmission, PendingAssignment, SubmissionDTO } from '@/types';
 
 /** Videos are the one submission type large enough to threaten the backend's memory limit. */
@@ -9,11 +10,15 @@ export function isVideoFile(file: File): boolean {
 }
 
 export const submissionsApi = {
-  submitFile: (assignmentId: string, file: File, notes?: string) => {
+  submitFile: (assignmentId: string, file: File, notes?: string, onProgress?: (percent: number) => void) => {
     const form = new FormData();
     form.append('file', file);
     if (notes) form.append('notes', notes);
-    return api.post(`/assignments/${assignmentId}/submit`, form);
+    return api.post(`/assignments/${assignmentId}/submit`, form, {
+      onUploadProgress: (e) => {
+        if (e.total && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+      },
+    });
   },
 
   /**
@@ -21,7 +26,7 @@ export const submissionsApi = {
    * file straight from the browser, then tell the backend only the resulting
    * URL. Keeps large video files from ever being buffered in server memory.
    */
-  submitVideo: async (assignmentId: string, file: File, notes?: string) => {
+  submitVideo: async (assignmentId: string, file: File, notes?: string, onProgress?: (percent: number) => void) => {
     const { data } = await api.post(`/assignments/${assignmentId}/video-upload-signature`);
     const { apiKey, cloudName, timestamp, signature, folder } = data.data;
 
@@ -32,12 +37,7 @@ export const submissionsApi = {
     form.append('signature', signature);
     form.append('folder', folder);
 
-    const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/video/upload`, {
-      method: 'POST',
-      body: form,
-    });
-    if (!uploadRes.ok) throw new Error('Video upload to storage failed');
-    const uploaded = await uploadRes.json();
+    const uploaded = await uploadToCloudinary(`https://api.cloudinary.com/v1_1/${cloudName}/video/upload`, form, onProgress);
 
     return api.post(`/assignments/${assignmentId}/submit`, {
       uploadedFile: { url: uploaded.secure_url, originalName: file.name },

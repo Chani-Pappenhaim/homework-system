@@ -198,6 +198,7 @@ function FileTile({
           onClick={handleRename}
           className="absolute -top-2 start-6 rounded-full bg-ink p-1 text-sheet opacity-0 shadow-soft transition group-hover:opacity-100"
           aria-label="שינוי שם קובץ"
+          title="שינוי שם קובץ"
         >
           <Pencil size={12} strokeWidth={2.5} />
         </button>

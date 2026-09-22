@@ -8,6 +8,12 @@ const NETWORK_MESSAGE =
 const GENERIC_MESSAGE = 'אירעה שגיאה. אנא נסו שוב מאוחר יותר.';
 
 export function getApiErrorMessage(error: any, fallback: string = GENERIC_MESSAGE): string {
+  // Direct-to-storage uploads (Cloudinary) never go through axios/our backend,
+  // so they already carry a ready-to-show Hebrew message — use it as-is.
+  if (error && typeof error === 'object' && error.isUploadError && typeof error.message === 'string') {
+    return error.message;
+  }
+
   // Axios sets `response` only when the server actually answered. No response =
   // the request never completed (offline, DNS, connection refused, timeout).
   if (error && typeof error === 'object' && 'isAxiosError' in error && !error.response) {

@@ -225,6 +225,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
   const [error, setError] = useState('');
   const [showAiReview, setShowAiReview] = useState(false);
   const [aiLimitReached, setAiLimitReached] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   const lateRequest = useTeacherRequest(
     (reason) => `בקשת הגשה מאוחרת עבור "${a.title}"${reason ? `: ${reason}` : ''}`,
@@ -249,12 +250,15 @@ function AssignmentCard({ assignment: a, submission: sub }: {
   });
 
   const fileMutation = useMutation({
-    mutationFn: (file: File) =>
-      isVideoFile(file)
-        ? submissionsApi.submitVideo(a.id, file, notes || undefined)
-        : submissionsApi.submitFile(a.id, file, notes || undefined),
+    mutationFn: (file: File) => {
+      setUploadProgress(0);
+      return isVideoFile(file)
+        ? submissionsApi.submitVideo(a.id, file, notes || undefined, setUploadProgress)
+        : submissionsApi.submitFile(a.id, file, notes || undefined, setUploadProgress);
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['mine'] }); setError(''); setNotes(''); },
     onError: (e: any) => setError(getApiErrorMessage(e, 'שגיאה בהגשה')),
+    onSettled: () => setUploadProgress(null),
   });
 
   const repoMutation = useMutation({
@@ -419,7 +423,11 @@ function AssignmentCard({ assignment: a, submission: sub }: {
               <FileUpload
                 accept={a.allowedTypes.length ? a.allowedTypes.map((t) => `.${t}`).join(',') : undefined}
                 onFile={(file) => fileMutation.mutate(file)}
-                label={a.allowedTypes.length ? `קבצים מורשים: ${a.allowedTypes.join(', ')}` : 'גרור קובץ לכאן'}
+                label={
+                  fileMutation.isPending
+                    ? `מעלה... ${uploadProgress ?? 0}%`
+                    : a.allowedTypes.length ? `קבצים מורשים: ${a.allowedTypes.join(', ')}` : 'גרור קובץ לכאן'
+                }
               />
             )}
             {a.allowGithub && (

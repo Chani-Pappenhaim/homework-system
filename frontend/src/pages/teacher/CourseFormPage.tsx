@@ -95,9 +95,15 @@ export default function CourseFormPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['course', id] }),
   });
 
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const uploadFileMutation = useMutation({
-    mutationFn: (vars: { file: File; name?: string }) => coursesApi.uploadFile(id!, vars.file, vars.name),
+    mutationFn: (vars: { file: File; name?: string }) => {
+      setUploadProgress(0);
+      return coursesApi.uploadFile(id!, vars.file, vars.name, setUploadProgress);
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['course', id] }); toast.success('הקובץ הועלה'); },
+    onError: (e: any) => toast.error(getApiErrorMessage(e, 'העלאת הקובץ נכשלה')),
+    onSettled: () => setUploadProgress(null),
   });
 
   const deleteFileMutation = useMutation({
@@ -281,8 +287,12 @@ export default function CourseFormPage() {
           <Card>
             <CardHeader><h2 className="font-display text-base font-bold">קבצים</h2></CardHeader>
             <CardContent className="space-y-3">
-              <FileGallery files={course.files} onDelete={(fileId) => deleteFileMutation.mutate(fileId)} onRename={(fileId, name) => renameFileMutation.mutate({ fileId, name })} />
-              <FileUpload withName onFile={(file, name) => uploadFileMutation.mutate({ file, name })} label="העלה קובץ לקורס" />
+              <FileUpload
+                withName
+                onFile={(file, name) => uploadFileMutation.mutate({ file, name })}
+                label={uploadFileMutation.isPending ? `מעלה... ${uploadProgress ?? 0}%` : 'העלה קובץ לקורס'}
+              />
+              <FileGallery files={course.files} onDelete={(fileId) => deleteFileMutation.mutate(fileId)} onRename={(fileId, name) => renameFileMutation.mutate({ fileId, name })} className="mt-1" />
             </CardContent>
           </Card>
         </div>

@@ -22,6 +22,7 @@ import { QuizResultsCard } from '@/components/lesson/QuizResultsCard';
 import QuizPanel from '@/components/teacher/QuizPanel';
 import QuizDashboard from '@/components/teacher/QuizDashboard';
 import { cn, formatDate, toExternalUrl } from '@/lib/utils';
+import { getApiErrorMessage } from '@/lib/errors';
 import type { AssignmentDTO, SubmissionDTO, QuizResultsDTO } from '@/types';
 
 export default function LessonDetailPage() {
@@ -68,9 +69,15 @@ export default function LessonDetailPage() {
   // Switching assignments shouldn't carry over an expanded description from the previous one.
   useEffect(() => setDescExpanded(false), [selectedAssignment]);
 
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const uploadFileMutation = useMutation({
-    mutationFn: (vars: { file: File; name?: string }) => lessonsApi.uploadFile(id!, vars.file, vars.name),
+    mutationFn: (vars: { file: File; name?: string }) => {
+      setUploadProgress(0);
+      return lessonsApi.uploadFile(id!, vars.file, vars.name, setUploadProgress);
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['lesson', id] }); toast.success('הקובץ הועלה'); },
+    onError: (e: any) => toast.error(getApiErrorMessage(e, 'העלאת הקובץ נכשלה')),
+    onSettled: () => setUploadProgress(null),
   });
 
   const deleteLessonMutation = useMutation({
@@ -195,21 +202,21 @@ export default function LessonDetailPage() {
           <h2 className="font-display text-base font-bold">קבצים מצורפים</h2>
         </CardHeader>
         <CardContent className="space-y-2">
+          <FileUpload
+            withName
+            onFile={(file, name) => uploadFileMutation.mutate({ file, name })}
+            label={uploadFileMutation.isPending ? `מעלה... ${uploadProgress ?? 0}%` : 'גרור קובץ להעלאה או לחצי לבחירה'}
+          />
           <FileGallery
             files={lesson.files}
             onDelete={(fileId) => deleteFileMutation.mutate(fileId)}
             onRename={(fileId, name) => renameFileMutation.mutate({ fileId, name })}
             onToggleRequired={(fileId, required) => requiredFileMutation.mutate({ fileId, required })}
+            className="mt-1"
           />
           {lesson.files.length === 0 && (
             <p className="text-xs text-ink/50">אין קבצים מצורפים</p>
           )}
-          <FileUpload
-            withName
-            onFile={(file, name) => uploadFileMutation.mutate({ file, name })}
-            label={uploadFileMutation.isPending ? 'מעלה...' : 'גרור קובץ להעלאה או לחצי לבחירה'}
-            className="mt-1"
-          />
         </CardContent>
       </Card>
       </div>
