@@ -47,6 +47,42 @@ export async function copyCourse(req: Request, res: Response) {
 }
 
 
+export async function setFileHidden(req: Request, res: Response) {
+  try {
+    const file = await coursesService.setCourseFileHidden(req.params.id as string, req.params.fileId as string, Boolean(req.body.hidden), req.user!.userId);
+    res.json({ success: true, data: { file } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function getAccess(req: Request, res: Response) {
+  try {
+    const students = await coursesService.getCourseAccess(req.params.id as string);
+    res.json({ success: true, data: { students } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function grantAccess(req: Request, res: Response) {
+  try {
+    await coursesService.grantCourseAccess(req.params.id as string, req.body.studentId);
+    res.status(201).json({ success: true, data: null });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function revokeAccess(req: Request, res: Response) {
+  try {
+    await coursesService.revokeCourseAccess(req.params.id as string, req.params.studentId as string);
+    res.json({ success: true, data: null });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
 export async function addLink(req: Request, res: Response) {
   try {
     const { label, url, order } = req.body;

@@ -31,6 +31,10 @@ vi.mock('../../src/services/courses.service', () => ({
   deleteCourseLink: vi.fn(),
   uploadCourseFile: vi.fn(),
   deleteCourseFile: vi.fn(),
+  setCourseFileHidden: vi.fn(),
+  getCourseAccess: vi.fn(),
+  grantCourseAccess: vi.fn(),
+  revokeCourseAccess: vi.fn(),
 }));
 vi.mock('../../src/services/groups.service', () => ({
   getGroups: vi.fn(),
@@ -41,6 +45,7 @@ vi.mock('../../src/services/groups.service', () => ({
   removeStudent: vi.fn(),
   importStudents: vi.fn(),
   resetStudentPassword: vi.fn(),
+  createStudentAccount: vi.fn(),
 }));
 vi.mock('../../src/services/lessons.service', () => ({
   getLessons: vi.fn(),
@@ -58,6 +63,8 @@ vi.mock('../../src/services/lessons.service', () => ({
   grantLessonAccess: vi.fn(),
   revokeLessonAccess: vi.fn(),
   importMarkdown: vi.fn(),
+  setLessonFileHidden: vi.fn(),
+  copyLesson: vi.fn(),
 }));
 vi.mock('../../src/services/assignments.service', () => ({
   getAssignments: vi.fn(),
@@ -202,7 +209,7 @@ describe('lessons controller', () => {
       .set(...bearer(admin))
       .send({ required: true });
     expect(res.status).toBe(200);
-    expect(lessonsService.setLessonFileRequired).toHaveBeenCalledWith('l1', 'f1', true);
+    expect(lessonsService.setLessonFileRequired).toHaveBeenCalledWith('l1', 'f1', true, 'admin1');
   });
 
   it('POST /api/lessons/:id/files/:fileId/view marks a file as viewed for the caller', async () => {
@@ -342,5 +349,60 @@ describe('messages controller', () => {
     const res = await request(app).get('/api/messages/unread-count').set(...bearer(admin));
     expect(res.status).toBe(200);
     expect(res.body.data.count).toBe(5);
+  });
+});
+
+describe('client-feedback routes', () => {
+  it('PATCH /api/lessons/:id/files/:fileId/hidden hides a lesson file for an admin', async () => {
+    (lessonsService.setLessonFileHidden as any).mockResolvedValue({ id: 'f1', hidden: true });
+    const res = await request(app).patch('/api/lessons/l1/files/f1/hidden').set(...bearer(admin)).send({ hidden: true });
+    expect(res.status).toBe(200);
+    expect(lessonsService.setLessonFileHidden).toHaveBeenCalledWith('l1', 'f1', true, 'admin1');
+  });
+
+  it('PATCH /api/courses/:id/files/:fileId/hidden is admin-only', async () => {
+    const res = await request(app).patch('/api/courses/c1/files/f1/hidden').set(...bearer(student)).send({ hidden: true });
+    expect(res.status).toBe(403);
+    expect(coursesService.setCourseFileHidden).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/lessons/:id/copy copies to the target course', async () => {
+    (lessonsService.copyLesson as any).mockResolvedValue({ id: 'l9' });
+    const res = await request(app).post('/api/lessons/l1/copy').set(...bearer(admin)).send({ targetCourseId: 'c2' });
+    expect(res.status).toBe(201);
+    expect(res.body.data.lesson).toMatchObject({ id: 'l9' });
+    expect(lessonsService.copyLesson).toHaveBeenCalledWith('l1', 'c2');
+  });
+
+  it('POST /api/lessons/:id/copy is admin-only', async () => {
+    const res = await request(app).post('/api/lessons/l1/copy').set(...bearer(student));
+    expect(res.status).toBe(403);
+  });
+
+  it('course access: list, grant, revoke', async () => {
+    (coursesService.getCourseAccess as any).mockResolvedValue([{ id: 's1' }]);
+    const list = await request(app).get('/api/courses/c1/access').set(...bearer(admin));
+    expect(list.body.data.students).toEqual([{ id: 's1' }]);
+
+    const grant = await request(app).post('/api/courses/c1/access').set(...bearer(admin)).send({ studentId: 's1' });
+    expect(grant.status).toBe(201);
+    expect(coursesService.grantCourseAccess).toHaveBeenCalledWith('c1', 's1');
+
+    const revoke = await request(app).delete('/api/courses/c1/access/s1').set(...bearer(admin));
+    expect(revoke.status).toBe(200);
+    expect(coursesService.revokeCourseAccess).toHaveBeenCalledWith('c1', 's1');
+  });
+
+  it('POST /api/students creates a student without a group', async () => {
+    (groupsService.createStudentAccount as any).mockResolvedValue({ id: 's7', name: 'A', email: 'a@x.com', githubUsername: null, password: 'h' });
+    const res = await request(app).post('/api/students').set(...bearer(admin)).send({ name: 'A', email: 'a@x.com' });
+    expect(res.status).toBe(201);
+    expect(res.body.data.student).toEqual({ id: 's7', name: 'A', email: 'a@x.com', githubUsername: null });
+  });
+
+  it('POST /api/students is admin-only', async () => {
+    const res = await request(app).post('/api/students').set(...bearer(student)).send({ name: 'A', email: 'a@x.com' });
+    expect(res.status).toBe(403);
+    expect(groupsService.createStudentAccount).not.toHaveBeenCalled();
   });
 });

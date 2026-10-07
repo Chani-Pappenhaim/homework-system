@@ -78,6 +78,11 @@ export async function download(req: Request, res: Response) {
     return;
   }
 
+  if (user.role !== 'ADMIN' && file.hidden) {
+    res.status(403).json({ success: false, error: 'אין לך הרשאה לקובץ זה' });
+    return;
+  }
+
   try {
     if (payload.kind === 'lesson') {
       await assertLessonAccess(payload.userId, user.role, (file as { lessonId: string }).lessonId);

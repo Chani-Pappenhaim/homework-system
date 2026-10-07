@@ -121,6 +121,24 @@ export async function setFileRequired(req: Request, res: Response) {
   }
 }
 
+export async function setFileHidden(req: Request, res: Response) {
+  try {
+    const file = await lessonsService.setLessonFileHidden(req.params.id as string, req.params.fileId as string, Boolean(req.body.hidden), req.user!.userId);
+    res.json({ success: true, data: { file } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function copyLesson(req: Request, res: Response) {
+  try {
+    const lesson = await lessonsService.copyLesson(req.params.id as string, req.body?.targetCourseId);
+    res.status(201).json({ success: true, data: { lesson } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
 export async function markFileViewed(req: Request, res: Response) {
   try {
     await lessonsService.markLessonFileViewed(req.user!.userId, req.user!.role, req.params.id as string, req.params.fileId as string);

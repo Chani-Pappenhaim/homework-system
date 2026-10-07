@@ -20,7 +20,10 @@ export async function getCoursesForUser(userId: string, role: string) {
   const groupIds = student?.studentGroups.map((sg) => sg.groupId) ?? [];
 
   const courses = await prisma.course.findMany({
-    where: { hidden: false, groupId: { in: groupIds } },
+    where: {
+      hidden: false,
+      OR: [{ groupId: { in: groupIds } }, { access: { some: { studentId: userId } } }],
+    },
     include: {
       group: { select: { name: true } },
       _count: { select: { lessons: { where: { hidden: false } } } },
@@ -55,7 +58,7 @@ export async function getCourseById(id: string, userId: string, role: string) {
     where: { id },
     include: {
       links: { orderBy: { order: 'asc' } },
-      files: { orderBy: { uploadedAt: 'desc' } },
+      files: { where: role === 'ADMIN' ? {} : { hidden: false }, orderBy: { uploadedAt: 'desc' } },
       lessons: { orderBy: { order: 'asc' } },
       group: { select: { name: true } },
       _count: { select: { lessons: true } },
@@ -173,6 +176,35 @@ export async function uploadCourseFile(
     data: { courseId, name: displayName?.trim() || file.originalName, url, sizeBytes: bytes },
   });
   return toFileDTO(created, 'course', userId);
+}
+
+export async function setCourseFileHidden(courseId: string, fileId: string, hidden: boolean, userId: string) {
+  const file = await prisma.courseFile.findUnique({ where: { id: fileId, courseId } });
+  if (!file) throw new AppError('File not found', 'הקובץ לא נמצא', 404);
+  const updated = await prisma.courseFile.update({ where: { id: fileId }, data: { hidden } });
+  return toFileDTO(updated, 'course', userId);
+}
+
+export async function getCourseAccess(courseId: string) {
+  const records = await prisma.courseAccess.findMany({
+    where: { courseId },
+    include: { student: { select: { id: true, name: true, email: true } } },
+  });
+  return records.map((r) => r.student);
+}
+
+export async function grantCourseAccess(courseId: string, studentId: string) {
+  const student = await prisma.user.findFirst({ where: { id: studentId, role: 'STUDENT' }, select: { id: true } });
+  if (!student) throw new AppError('Student not found', 'התלמידה לא נמצאה', 404);
+  const exists = await prisma.courseAccess.findUnique({
+    where: { studentId_courseId: { studentId, courseId } },
+  });
+  if (exists) throw new AppError('Access already exists', 'לתלמידה כבר יש גישה לקורס זה', 409);
+  await prisma.courseAccess.create({ data: { studentId, courseId } });
+}
+
+export async function revokeCourseAccess(courseId: string, studentId: string) {
+  await prisma.courseAccess.deleteMany({ where: { studentId, courseId } });
 }
 
 export async function deleteCourseFile(courseId: string, fileId: string) {

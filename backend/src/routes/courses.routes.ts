@@ -21,5 +21,9 @@ router.post('/:id/files', requireRole('ADMIN'), upload.single('file'), coursesCo
 router.post('/:id/upload-signature', requireRole('ADMIN'), coursesController.getUploadSignature);
 router.delete('/:id/files/:fileId', requireRole('ADMIN'), coursesController.deleteFile);
 router.patch('/:id/files/:fileId', requireRole('ADMIN'), coursesController.renameFile);
+router.patch('/:id/files/:fileId/hidden', requireRole('ADMIN'), coursesController.setFileHidden);
+router.get('/:id/access', requireRole('ADMIN'), coursesController.getAccess);
+router.post('/:id/access', requireRole('ADMIN'), coursesController.grantAccess);
+router.delete('/:id/access/:studentId', requireRole('ADMIN'), coursesController.revokeAccess);
 
 export default router;
