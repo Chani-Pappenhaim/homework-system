@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cn, formatDate, formatDateTime, isOverdue, formatBytes } from '@/lib/utils';
+import { cn, formatDate, formatDateTime, isOverdue, formatBytes, toGematria, toHebrewDate } from '@/lib/utils';
 
 describe('cn', () => {
   it('merges class names', () => {
@@ -64,5 +64,35 @@ describe('formatBytes', () => {
   });
   it('accepts bigint input', () => {
     expect(formatBytes(1024n)).toBe('1.0 KB');
+  });
+});
+
+describe('toGematria', () => {
+  it('writes single letters with a geresh', () => {
+    expect(toGematria(1)).toBe('א׳');
+    expect(toGematria(20)).toBe('כ׳');
+  });
+  it('writes multi-letter numbers with gershayim before the last letter', () => {
+    expect(toGematria(19)).toBe('י״ט');
+    expect(toGematria(30)).toBe('ל׳');
+    expect(toGematria(26)).toBe('כ״ו');
+  });
+  it('uses ט״ו / ט״ז for 15 and 16', () => {
+    expect(toGematria(15)).toBe('ט״ו');
+    expect(toGematria(16)).toBe('ט״ז');
+  });
+  it('drops the thousands of a Hebrew year', () => {
+    expect(toGematria(5787)).toBe('תשפ״ז');
+    expect(toGematria(5786)).toBe('תשפ״ו');
+  });
+});
+
+describe('toHebrewDate', () => {
+  it('writes the day and year in Hebrew letters', () => {
+    expect(toHebrewDate('2026-09-01')).toBe('י״ט באלול תשפ״ו');
+  });
+  it('returns an empty string for a missing date', () => {
+    expect(toHebrewDate(null)).toBe('');
+    expect(toHebrewDate('')).toBe('');
   });
 });

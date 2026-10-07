@@ -45,14 +45,49 @@ export function todayISO(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+const GEMATRIA: [number, string][] = [
+  [400, 'ת'], [300, 'ש'], [200, 'ר'], [100, 'ק'],
+  [90, 'צ'], [80, 'פ'], [70, 'ע'], [60, 'ס'], [50, 'נ'], [40, 'מ'], [30, 'ל'], [20, 'כ'], [10, 'י'],
+  [9, 'ט'], [8, 'ח'], [7, 'ז'], [6, 'ו'], [5, 'ה'], [4, 'ד'], [3, 'ג'], [2, 'ב'], [1, 'א'],
+];
+
+/**
+ * Writes a number in Hebrew letters the way dates are written (15 → ט״ו,
+ * 5787 → תשפ״ז): thousands are dropped, 15/16 avoid spelling a divine name,
+ * and a gershayim/geresh marks the result as a number.
+ */
+export function toGematria(n: number): string {
+  let rest = n % 1000;
+  let letters = '';
+  for (const [value, letter] of GEMATRIA) {
+    while (rest >= value) {
+      if (rest === 15 || rest === 16) {
+        letters += rest === 15 ? 'טו' : 'טז';
+        rest = 0;
+        break;
+      }
+      letters += letter;
+      rest -= value;
+    }
+  }
+  return letters.length === 1 ? `${letters}׳` : `${letters.slice(0, -1)}״${letters.slice(-1)}`;
+}
+
 // The Hebrew calendar is built into Intl (no library needed) — used as a small
 // helper caption next to date pickers so a teacher scheduling around a Hebrew
-// date (e.g. a Chag) can see both calendars at a glance.
+// date (e.g. a Chag) can see both calendars at a glance. Intl writes the day
+// and year as digits, so they are re-written in Hebrew letters.
 export function toHebrewDate(isoDate: string | null | undefined): string {
   if (!isoDate) return '';
   try {
-    return new Intl.DateTimeFormat('he-IL-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric' })
-      .format(new Date(`${isoDate}T00:00:00`));
+    const parts = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric' })
+      .formatToParts(new Date(`${isoDate}T00:00:00`));
+    const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+    const day = Number(part('day'));
+    const year = Number(part('year'));
+    const month = part('month');
+    if (!day || !year || !month) return '';
+    return `${toGematria(day)} ב${month} ${toGematria(year)}`;
   } catch {
     return '';
   }
