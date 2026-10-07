@@ -7,7 +7,7 @@ import { coursesApi } from '@/api/courses.api';
 import { groupsApi } from '@/api/groups.api';
 import { lessonsApi } from '@/api/lessons.api';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { MarkdownField } from '@/components/ui/markdown-field';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
@@ -119,6 +119,11 @@ export default function CourseFormPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['course', id] }),
   });
 
+  const hiddenFileMutation = useMutation({
+    mutationFn: ({ fileId, hidden }: { fileId: string; hidden: boolean }) => coursesApi.setFileHidden(id!, fileId, hidden),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['course', id] }),
+  });
+
   const copyMutation = useMutation({
     mutationFn: () => coursesApi.copy(id!, copyGroupId),
     onSuccess: () => { setCopyModal(false); qc.invalidateQueries({ queryKey: ['courses'] }); toast.success('הקורס הועתק בהצלחה'); },
@@ -208,16 +213,13 @@ export default function CourseFormPage() {
                 {groups.map((g) => <option key={g.id} value={g.id}>{groupDisplayName(g)}</option>)}
               </select>
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium">תיאור</label>
-              <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-                className="resize-none"
-                placeholder="תיאור קצר של הקורס..."
-              />
-            </div>
+            <MarkdownField
+              label="תיאור"
+              value={description}
+              onChange={setDescription}
+              rows={3}
+              placeholder="תיאור קצר של הקורס..."
+            />
           </CardContent>
         </Card>
 
@@ -296,7 +298,7 @@ export default function CourseFormPage() {
                 onFile={(file, name) => uploadFileMutation.mutate({ file, name })}
                 label={uploadFileMutation.isPending ? `מעלה... ${uploadProgress ?? 0}%` : 'העלה קובץ לקורס'}
               />
-              <FileGallery files={course.files} onDelete={(fileId) => deleteFileMutation.mutate(fileId)} onRename={(fileId, name) => renameFileMutation.mutate({ fileId, name })} className="mt-1" />
+              <FileGallery files={course.files} onDelete={(fileId) => deleteFileMutation.mutate(fileId)} onRename={(fileId, name) => renameFileMutation.mutate({ fileId, name })} onToggleHidden={(fileId, hidden) => hiddenFileMutation.mutate({ fileId, hidden })} className="mt-1" />
             </CardContent>
           </Card>
         </div>

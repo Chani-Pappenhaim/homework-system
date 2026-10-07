@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { FileGallery } from '@/components/ui/file-gallery';
 import { cn } from '@/lib/utils';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 
 export default function StudentCourseDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -42,7 +43,7 @@ export default function StudentCourseDetailPage() {
         back
         backLabel="חזרה"
       />
-      {course.description && <p className="text-sm text-ink/70">{course.description}</p>}
+      {course.description && <MarkdownRenderer content={course.description} className="text-ink/70" />}
 
       <Card accent="sage">
         <CardContent>
