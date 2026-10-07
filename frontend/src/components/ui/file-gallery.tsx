@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Image, Video, FileText, Music, Archive, File as FileIcon, Download, Pencil, X, Star } from 'lucide-react';
+import { Image, Video, FileText, Music, Archive, File as FileIcon, FileCode, Download, ExternalLink, Pencil, X, Star } from 'lucide-react';
 import { cn, formatBytes } from '@/lib/utils';
-import { getFileKindByExtension } from '@/lib/file-type';
+import { getFileKindByExtension, PREVIEWABLE_TYPES_HINT } from '@/lib/file-type';
 import { API_URL } from '@/lib/config';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 
 const OFFICE_EXTENSIONS = new Set(['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx']);
 const TEXT_EXTENSIONS = new Set(['txt', 'md']);
@@ -22,6 +23,17 @@ function resolveFileUrl(url: string): string {
   return `${API_URL}${url}`;
 }
 
+type OfficeViewer = 'microsoft' | 'google';
+
+// Both viewers fetch the file from their own servers, so they only work against
+// a publicly reachable API (not localhost). Microsoft's renders presentations
+// far more reliably; Google's stays available as a fallback.
+function officeViewerUrl(url: string, viewer: OfficeViewer): string {
+  return viewer === 'microsoft'
+    ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`
+    : `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
+}
+
 const KIND_ICON: Record<string, typeof FileIcon> = {
   image: Image,
   video: Video,
@@ -29,6 +41,7 @@ const KIND_ICON: Record<string, typeof FileIcon> = {
   audio: Music,
   archive: Archive,
   doc: FileText,
+  html: FileCode,
   other: FileIcon,
 };
 
@@ -126,16 +139,15 @@ function FileTile({
             <audio src={url} className="w-full" controls />
           ) : kind === 'video' ? (
             <video src={url} className="h-full w-full object-cover" />
-          ) : kind === 'pdf' ? (
-            <iframe src={url} title={file.name} className="h-full w-full border-0" />
-          ) : kind === 'doc' ? (
-            <iframe
-              src={`https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`}
-              title={file.name}
-              className="h-full w-full border-0 bg-sheet"
-            />
           ) : (
-            <Icon size={26} className="text-ink/50" />
+            // No <iframe> thumbnails: a browser that can't render a type inline
+            // (a PDF with the built-in viewer turned off, say) downloads it the
+            // moment the frame loads — which is what made files download on
+            // their own when a lesson page opened.
+            <div className="flex flex-col items-center gap-1">
+              <Icon size={26} className="text-ink/50" />
+              {file.extension && <span className="text-[10px] font-semibold uppercase text-ink/40">{file.extension}</span>}
+            </div>
           )}
         </div>
         <p className="w-full truncate text-xs font-medium text-ink" title={file.name}>
@@ -235,6 +247,7 @@ function FilePreviewBody({ file }: { file: GalleryFile }) {
   const isText = TEXT_EXTENSIONS.has(ext);
   const url = resolveFileUrl(file.url);
   const downloadUrl = `${url}${url.includes('?') ? '&' : '?'}dl=1`;
+  const [viewer, setViewer] = useState<OfficeViewer>('microsoft');
 
   return (
     <DialogContent size="full">
@@ -243,13 +256,35 @@ function FilePreviewBody({ file }: { file: GalleryFile }) {
           <DialogTitle className="truncate text-sm">{file.name}</DialogTitle>
           {file.sizeBytes && <p className="text-xs text-ink/50">{formatBytes(file.sizeBytes)}</p>}
         </div>
-        <a
-          href={downloadUrl}
-          download={file.name}
-          className="flex shrink-0 items-center gap-1.5 rounded-input bg-indigo px-3 py-1.5 text-xs font-semibold text-sheet hover:bg-indigo/90"
-        >
-          <Download size={12} /> הורדה
-        </a>
+        <div className="flex shrink-0 items-center gap-2">
+          {kind === 'doc' && isOffice && (
+            <button
+              type="button"
+              onClick={() => setViewer((v) => (v === 'microsoft' ? 'google' : 'microsoft'))}
+              className="rounded-input border border-rule px-3 py-1.5 text-xs font-semibold text-ink hover:bg-ground/40"
+              title="אם הקובץ לא מוצג — לנסות להציג אותו בצופה אחר"
+            >
+              {viewer === 'microsoft' ? 'לא מוצג? צופה חלופי' : 'חזרה לצופה הראשי'}
+            </button>
+          )}
+          {(kind === 'pdf' || kind === 'image' || kind === 'video') && (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 rounded-input border border-rule px-3 py-1.5 text-xs font-semibold text-ink hover:bg-ground/40"
+            >
+              <ExternalLink size={12} /> פתיחה בכרטיסייה חדשה
+            </a>
+          )}
+          <a
+            href={downloadUrl}
+            download={file.name}
+            className="flex items-center gap-1.5 rounded-input bg-indigo px-3 py-1.5 text-xs font-semibold text-sheet hover:bg-indigo/90"
+          >
+            <Download size={12} /> הורדה
+          </a>
+        </div>
       </div>
 
       {/* min-h-0 lets this row actually shrink inside the flex column, which is
@@ -268,18 +303,21 @@ function FilePreviewBody({ file }: { file: GalleryFile }) {
         )}
         {kind === 'doc' && isOffice && (
           <iframe
-            src={`https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`}
+            key={viewer}
+            src={officeViewerUrl(url, viewer)}
             title={file.name}
             className="h-full w-full rounded-sm border border-rule bg-sheet"
           />
         )}
         {kind === 'doc' && isText && (
-          <TextFilePreview url={url} />
+          <TextFilePreview url={url} mode={ext === 'md' ? 'markdown' : 'plain'} />
         )}
+        {kind === 'html' && <TextFilePreview url={url} mode="html" title={file.name} />}
         {(kind === 'archive' || kind === 'other') && (
           <div className="flex flex-col items-center gap-3 text-center">
             <FileIcon size={40} className="text-ink/40" />
             <p className="text-sm text-ink/70">אין תצוגה מקדימה זמינה לסוג קובץ זה</p>
+            <p className="max-w-md text-xs text-ink/50">{PREVIEWABLE_TYPES_HINT}</p>
             <a
               href={downloadUrl}
               download={file.name}
@@ -294,7 +332,7 @@ function FilePreviewBody({ file }: { file: GalleryFile }) {
   );
 }
 
-function TextFilePreview({ url }: { url: string }) {
+function TextFilePreview({ url, mode, title }: { url: string; mode: 'plain' | 'markdown' | 'html'; title?: string }) {
   const [content, setContent] = useState<string | null>(null);
   const [error, setError] = useState(false);
 
@@ -318,6 +356,21 @@ function TextFilePreview({ url }: { url: string }) {
 
   if (error) return <p className="text-sm text-ink/70">שגיאה בטעינת תוכן הקובץ</p>;
   if (content === null) return <p className="text-sm text-ink/50">טוען…</p>;
+
+  if (mode === 'html') {
+    // An empty sandbox: the page renders with its own styles, but its scripts,
+    // forms and navigation are all switched off, and it gets an opaque origin —
+    // so nothing inside it can reach this app's session.
+    return <iframe sandbox="" srcDoc={content} title={title} className="h-full w-full rounded-sm border border-rule bg-white" />;
+  }
+
+  if (mode === 'markdown') {
+    return (
+      <div dir="auto" className="h-full w-full overflow-auto rounded-sm border border-rule bg-sheet p-6 text-start">
+        <MarkdownRenderer content={content} />
+      </div>
+    );
+  }
 
   return (
     <pre dir="auto" className="h-full w-full overflow-auto whitespace-pre-wrap break-words rounded-sm border border-rule bg-ground/40 p-4 text-start text-xs text-ink">

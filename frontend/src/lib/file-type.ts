@@ -1,4 +1,4 @@
-export type FileKind = 'image' | 'video' | 'pdf' | 'audio' | 'archive' | 'doc' | 'other';
+export type FileKind = 'image' | 'video' | 'pdf' | 'audio' | 'archive' | 'doc' | 'html' | 'other';
 
 const EXT_MAP: Record<string, FileKind> = {
   png: 'image', jpg: 'image', jpeg: 'image', gif: 'image', webp: 'image', svg: 'image', bmp: 'image',
@@ -6,6 +6,7 @@ const EXT_MAP: Record<string, FileKind> = {
   mp3: 'audio', wav: 'audio', m4a: 'audio', ogg: 'audio', oga: 'audio',
   aac: 'audio', flac: 'audio', wma: 'audio', opus: 'audio', amr: 'audio',
   pdf: 'pdf',
+  html: 'html', htm: 'html',
   zip: 'archive', rar: 'archive', '7z': 'archive',
   doc: 'doc', docx: 'doc', ppt: 'doc', pptx: 'doc', xls: 'doc', xlsx: 'doc', txt: 'doc', md: 'doc',
 };
@@ -22,3 +23,7 @@ export function getFileKind(name: string): FileKind {
 export function getFileKindByExtension(ext: string): FileKind {
   return EXT_MAP[ext.toLowerCase()] ?? 'other';
 }
+
+/** Shown next to material uploads, so a teacher knows up front what students can open in place. */
+export const PREVIEWABLE_TYPES_HINT =
+  'תצוגה מקדימה באתר: תמונות, וידאו, שמע, PDF, Word, PowerPoint, Excel, HTML, טקסט ו-Markdown. קבצים מסוג אחר (zip וכדומה) זמינים להורדה בלבד.';

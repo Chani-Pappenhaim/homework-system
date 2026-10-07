@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { BackLink } from '@/components/ui/back-link';
 import { FileUpload } from '@/components/ui/file-upload';
+import { PREVIEWABLE_TYPES_HINT } from '@/lib/file-type';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { FileGallery } from '@/components/ui/file-gallery';
 import { useToast } from '@/components/ui/toast';
@@ -204,6 +205,7 @@ export default function LessonDetailPage() {
         <CardContent className="space-y-2">
           <FileUpload
             withName
+            hint={PREVIEWABLE_TYPES_HINT}
             onFile={(file, name) => uploadFileMutation.mutate({ file, name })}
             label={uploadFileMutation.isPending ? `מעלה... ${uploadProgress ?? 0}%` : 'גרור קובץ להעלאה או לחצי לבחירה'}
           />
