@@ -18,7 +18,7 @@ import { FileUpload } from '@/components/ui/file-upload';
 import { BackLink } from '@/components/ui/back-link';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
-import { downloadBlob } from '@/lib/utils';
+import { downloadBlob, groupDisplayName } from '@/lib/utils';
 
 export default function GroupFormPage() {
   const { id } = useParams();
@@ -76,8 +76,8 @@ export default function GroupFormPage() {
 
   const saveMutation = useMutation({
     mutationFn: () => isEdit
-      ? groupsApi.update(id!, { name, seminar: seminar || undefined, year })
-      : groupsApi.create({ name, seminar: seminar || undefined, year }),
+      ? groupsApi.update(id!, { name: name.trim(), seminar: seminar.trim(), year: year.trim() })
+      : groupsApi.create({ name: name.trim(), seminar: seminar.trim(), year: year.trim() }),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['groups'] });
       toast.success(isEdit ? 'הקבוצה נשמרה בהצלחה' : 'הקבוצה נוצרה בהצלחה');
@@ -168,11 +168,14 @@ export default function GroupFormPage() {
       <div className={isEdit ? 'grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start' : 'mx-auto max-w-2xl'}>
         <Card>
           <CardContent className="space-y-4">
-            <Input label="שם סמינר (אופציונלי)" value={seminar} onChange={(e) => setSeminar(e.target.value)} placeholder='בית יעקב' />
-            <Input label="שם קבוצה *" value={name} onChange={(e) => setName(e.target.value)} placeholder='קבוצה א' required />
+            <Input label="שם סמינר *" value={seminar} onChange={(e) => setSeminar(e.target.value)} placeholder='סמינר מאיר' required />
+            <Input label="שם קבוצה / כיתה *" value={name} onChange={(e) => setName(e.target.value)} placeholder='יד' required />
             <Input label='שנה"ל *' value={year} onChange={(e) => setYear(e.target.value)} placeholder='תשפ"ו' required />
+            {(seminar.trim() || name.trim() || year.trim()) && (
+              <p className="text-xs text-ink/60">שם הקבוצה יוצג כך: <span className="font-semibold text-ink">{groupDisplayName({ name, seminar, year })}</span></p>
+            )}
             {error && <p className="text-coral text-sm">{error}</p>}
-            <Button loading={saveMutation.isPending} onClick={() => saveMutation.mutate()} disabled={!name || !year}>
+            <Button loading={saveMutation.isPending} onClick={() => saveMutation.mutate()} disabled={!seminar.trim() || !name.trim() || !year.trim()}>
               {isEdit ? 'שמור שינויים' : 'צור קבוצה'}
             </Button>
           </CardContent>

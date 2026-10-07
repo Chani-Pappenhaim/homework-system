@@ -9,6 +9,7 @@ import { StudentAutocomplete } from '@/components/ui/student-autocomplete';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
 import { unwrap } from '@/lib/api-utils';
+import { groupDisplayName } from '@/lib/utils';
 
 /**
  * Grants access to a single lesson for students outside its default group,
@@ -101,7 +102,7 @@ export function LessonAccessPanel({ lessonId }: { lessonId: string }) {
               className="flex-1 rounded-input border border-rule bg-sheet px-3 py-2 text-sm"
             >
               <option value="">בחרי קבוצה...</option>
-              {allGroups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+              {allGroups.map((g) => <option key={g.id} value={g.id}>{groupDisplayName(g)}</option>)}
             </select>
             <Button
               size="sm"

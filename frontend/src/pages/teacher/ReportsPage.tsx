@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
-import { formatDate, formatDateTime } from '@/lib/utils';
+import { formatDate, formatDateTime, groupDisplayName } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import type { ReportRow } from '@/types';
 
@@ -77,7 +77,7 @@ export default function ReportsPage() {
             className="rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
           >
             <option value="">כל הקבוצות</option>
-            {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+            {groups.map((g) => <option key={g.id} value={g.id}>{groupDisplayName(g)}</option>)}
           </select>
 
           <select

@@ -8,7 +8,7 @@ export const groupsApi = {
   get: (id: string) =>
     api.get<{ success: true; data: { group: GroupDetailDTO } }>(`/groups/${id}`),
 
-  create: (data: { name: string; seminar?: string; year: string }) =>
+  create: (data: { name: string; seminar: string; year: string }) =>
     api.post<{ success: true; data: { group: GroupDTO } }>('/groups', data),
 
   update: (id: string, data: Partial<{ name: string; seminar: string; year: string }>) =>

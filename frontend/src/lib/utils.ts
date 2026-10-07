@@ -100,3 +100,12 @@ export function formatBytes(bytes: number | bigint | string | null | undefined):
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+/**
+ * A group's full name as the teacher refers to it — seminar, class and year
+ * together ("סמינר מאיר יד תשפ״ז"). The parts are stored apart so each stays
+ * editable; older groups without a seminar simply drop that part.
+ */
+export function groupDisplayName(group: { name: string; seminar?: string | null; year?: string | null }): string {
+  return [group.seminar, group.name, group.year].map((part) => part?.trim()).filter(Boolean).join(' ');
+}

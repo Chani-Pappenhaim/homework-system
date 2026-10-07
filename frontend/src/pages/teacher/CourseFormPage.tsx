@@ -1,4 +1,4 @@
-import { toExternalUrl, cn } from '@/lib/utils';
+import { toExternalUrl, cn, groupDisplayName } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -203,7 +203,7 @@ export default function CourseFormPage() {
                 className="w-full rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
               >
                 <option value="">בחרי קבוצה...</option>
-                {groups.map((g) => <option key={g.id} value={g.id}>{g.name} — {g.year}</option>)}
+                {groups.map((g) => <option key={g.id} value={g.id}>{groupDisplayName(g)}</option>)}
               </select>
             </div>
             <div className="flex flex-col gap-1">
@@ -315,7 +315,7 @@ export default function CourseFormPage() {
           >
             <option value="">בחרי קבוצה יעד...</option>
             {groups.filter((g) => g.id !== groupId).map((g) => (
-              <option key={g.id} value={g.id}>{g.name} — {g.year}</option>
+              <option key={g.id} value={g.id}>{groupDisplayName(g)}</option>
             ))}
           </select>
           <Button loading={copyMutation.isPending} onClick={() => copyMutation.mutate()} disabled={!copyGroupId} className="w-full">

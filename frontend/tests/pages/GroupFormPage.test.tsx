@@ -35,22 +35,25 @@ describe('GroupFormPage (new)', () => {
     expect(screen.getByRole('button', { name: 'צור קבוצה' })).toBeInTheDocument();
   });
 
-  it('disables submit until name and year are filled', async () => {
+  it('disables submit until seminar, name and year are filled', async () => {
     renderNew();
     const submit = screen.getByRole('button', { name: 'צור קבוצה' });
     expect(submit).toBeDisabled();
-    await userEvent.type(screen.getByPlaceholderText('קבוצה א'), 'קבוצה ב');
+    await userEvent.type(screen.getByPlaceholderText('יד'), 'קבוצה ב');
     await userEvent.type(screen.getByPlaceholderText('תשפ"ו'), '2026');
+    expect(submit).toBeDisabled();
+    await userEvent.type(screen.getByPlaceholderText('סמינר מאיר'), 'סמינר מאיר');
     expect(submit).toBeEnabled();
   });
 
   it('creates the group and navigates to its edit page', async () => {
     createGroup.mockResolvedValue({ data: { data: { group: { id: 'g42' } } } });
     renderNew();
-    await userEvent.type(screen.getByPlaceholderText('קבוצה א'), 'קבוצה ב');
+    await userEvent.type(screen.getByPlaceholderText('סמינר מאיר'), 'סמינר מאיר');
+    await userEvent.type(screen.getByPlaceholderText('יד'), 'קבוצה ב');
     await userEvent.type(screen.getByPlaceholderText('תשפ"ו'), '2026');
     await userEvent.click(screen.getByRole('button', { name: 'צור קבוצה' }));
-    await waitFor(() => expect(createGroup).toHaveBeenCalledWith({ name: 'קבוצה ב', seminar: undefined, year: '2026' }));
+    await waitFor(() => expect(createGroup).toHaveBeenCalledWith({ name: 'קבוצה ב', seminar: 'סמינר מאיר', year: '2026' }));
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/teacher/groups/g42/edit'));
   });
 
