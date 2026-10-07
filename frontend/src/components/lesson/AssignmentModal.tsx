@@ -9,8 +9,29 @@ import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '@/
 import { useToast } from '@/components/ui/toast';
 import type { AssignmentDTO } from '@/types';
 
-export function AssignmentModal({ lessonId, value, onClose }: {
+/**
+ * A week after the lesson, at the end of that day, as a `datetime-local` value.
+ * Without a lesson date it counts from today.
+ */
+export function defaultDeadline(lessonDate?: string | null): string {
+  const base = lessonDate ? new Date(lessonDate) : new Date();
+  if (Number.isNaN(base.getTime())) return '';
+  const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + 7, 23, 59);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** An ISO timestamp from the API as a local `datetime-local` value. */
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export function AssignmentModal({ lessonId, lessonDate, value, onClose }: {
   lessonId: string;
+  lessonDate?: string | null;
   value: AssignmentDTO | 'new' | null;
   onClose: () => void;
 }) {
@@ -23,20 +44,22 @@ export function AssignmentModal({ lessonId, value, onClose }: {
 
   useEffect(() => {
     if (value === 'new') {
-      setTitle(''); setDescription(''); setDeadline(''); setAiInstructions('');
+      setTitle(''); setDescription(''); setDeadline(defaultDeadline(lessonDate)); setAiInstructions('');
     } else if (value) {
       setTitle(value.title); setDescription(value.description ?? '');
-      setDeadline(value.deadline ? value.deadline.slice(0, 16) : '');
+      setDeadline(value.deadline ? toLocalInput(value.deadline) : '');
       setAiInstructions(value.aiInstructions ?? '');
     }
-  }, [value]);
+  }, [value, lessonDate]);
 
   const saveMutation = useMutation({
     mutationFn: () => {
       const data = {
-        title,
-        description: description || undefined,
-        deadline: deadline || undefined,
+        title: title.trim(),
+        description: description.trim(),
+        // null (not undefined) so that removing the deadline of an existing
+        // assignment actually clears it.
+        deadline: deadline ? new Date(deadline).toISOString() : null,
         aiInstructions: aiInstructions || undefined,
       };
       if (value === 'new') return assignmentsApi.create(lessonId, data);
@@ -64,22 +87,40 @@ export function AssignmentModal({ lessonId, value, onClose }: {
             placeholder="למשל: פרויקט גיטהב"
           />
           <div className="flex flex-col gap-1">
-            <Label htmlFor="assignment-description">תיאור (אופציונלי)</Label>
+            <Label htmlFor="assignment-description">תיאור המטלה *</Label>
             <Textarea
               id="assignment-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-              className="resize-none"
-              placeholder="הוראות לתלמידה..."
+              rows={4}
+              className="resize-y"
+              placeholder="מה צריך להגיש, ולפי מה העבודה תיבדק..."
+              required
             />
           </div>
-          <Input
-            label="מועד אחרון (אופציונלי)"
-            type="datetime-local"
-            value={deadline}
-            onChange={(e) => setDeadline(e.target.value)}
-          />
+          <div className="flex flex-col gap-1">
+            {deadline ? (
+              <>
+                <Input
+                  label="מועד אחרון"
+                  type="datetime-local"
+                  value={deadline}
+                  onChange={(e) => setDeadline(e.target.value)}
+                />
+                <button type="button" onClick={() => setDeadline('')} className="self-start text-xs font-semibold text-coral hover:underline">
+                  ללא מועד אחרון
+                </button>
+              </>
+            ) : (
+              <>
+                <Label>מועד אחרון</Label>
+                <p className="text-sm text-ink/60">אין מועד אחרון למטלה זו</p>
+                <button type="button" onClick={() => setDeadline(defaultDeadline(lessonDate))} className="self-start text-xs font-semibold text-indigo hover:underline">
+                  הגדרת מועד אחרון (שבוע אחרי השיעור)
+                </button>
+              </>
+            )}
+          </div>
           <div className="flex flex-col gap-1">
             <Label htmlFor="assignment-ai-instructions">הנחיות לבדיקת AI (אופציונלי)</Label>
             <Textarea
@@ -96,7 +137,7 @@ export function AssignmentModal({ lessonId, value, onClose }: {
             className="w-full"
             loading={saveMutation.isPending}
             onClick={() => saveMutation.mutate()}
-            disabled={!title.trim()}
+            disabled={!title.trim() || !description.trim()}
           >
             {value === 'new' ? 'צרי מטלה' : 'שמרי שינויים'}
           </Button>

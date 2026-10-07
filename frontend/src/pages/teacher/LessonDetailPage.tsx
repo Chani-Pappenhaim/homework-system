@@ -385,7 +385,7 @@ export default function LessonDetailPage() {
       </div>
 
       <LessonEditModal lesson={lesson} open={lessonEditOpen} onClose={() => setLessonEditOpen(false)} />
-      <AssignmentModal lessonId={lesson.id} value={assignmentModal} onClose={() => setAssignmentModal(null)} />
+      <AssignmentModal lessonId={lesson.id} lessonDate={lesson.lessonDate} value={assignmentModal} onClose={() => setAssignmentModal(null)} />
       <GradeModal submission={gradeModal} assignment={assignment} onClose={() => setGradeModal(null)} />
     </div>
   );
