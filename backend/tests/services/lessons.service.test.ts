@@ -4,7 +4,8 @@ vi.mock('../../src/config/prisma', () => ({
   prisma: {
     lesson: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
     lessonAccess: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), delete: vi.fn() },
-    lessonFile: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    lessonFile: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(), count: vi.fn().mockResolvedValue(0) },
+    courseFile: { count: vi.fn().mockResolvedValue(0) },
     lessonProgress: { findUnique: vi.fn(), upsert: vi.fn(), deleteMany: vi.fn() },
     lessonFileView: { findMany: vi.fn().mockResolvedValue([]), upsert: vi.fn() },
   },
@@ -219,13 +220,20 @@ describe('lessons.service file upload/delete', () => {
     p.lessonFile.findUnique.mockResolvedValue(null);
     await expect(deleteLessonFile('l1', 'f1')).rejects.toMatchObject({ status: 404 });
   });
-  it('deleteLessonFile destroys cloudinary asset then deletes the row', async () => {
+  it('deleteLessonFile deletes the row, then the asset once nothing references it', async () => {
     p.lessonFile.findUnique.mockResolvedValue({ id: 'f1', url: 'https://res.cloudinary.com/demo/upload/v1/lessons/abc.pdf' });
     destroyMock.mockResolvedValue({});
     p.lessonFile.delete.mockResolvedValue({});
     await deleteLessonFile('l1', 'f1');
-    expect(destroyMock).toHaveBeenCalled();
     expect(p.lessonFile.delete).toHaveBeenCalledWith({ where: { id: 'f1' } });
+    expect(destroyMock).toHaveBeenCalledWith('https://res.cloudinary.com/demo/upload/v1/lessons/abc.pdf');
+  });
+  it('deleteLessonFile keeps the asset while a copied lesson still references it', async () => {
+    p.lessonFile.findUnique.mockResolvedValue({ id: 'f1', url: 'https://cdn/shared.pdf' });
+    p.lessonFile.delete.mockResolvedValue({});
+    p.lessonFile.count.mockResolvedValueOnce(1);
+    await deleteLessonFile('l1', 'f1');
+    expect(destroyMock).not.toHaveBeenCalled();
   });
 });
 
@@ -318,7 +326,7 @@ describe('lessons.service.deleteLesson', () => {
     expect(p.lesson.delete).not.toHaveBeenCalled();
   });
 
-  it('destroys the lesson file assets, then deletes the lesson', async () => {
+  it('deletes the lesson, then destroys its now-unreferenced file assets', async () => {
     p.lesson.findUnique.mockResolvedValue({ id: 'l1', files: [{ url: 'https://cdn/a.pdf' }, { url: 'https://cdn/b.pdf' }] });
     destroyMock.mockResolvedValue({});
     p.lesson.delete.mockResolvedValue({});
