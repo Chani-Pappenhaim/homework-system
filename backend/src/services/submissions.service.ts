@@ -261,6 +261,34 @@ export async function requestAiReview(submissionId: string, studentId: string) {
   );
 }
 
+/**
+ * The teacher runs the AI review again — after editing the assignment's
+ * instructions, say. It has no attempt limit and doesn't count against the
+ * student's, and the new result waits for her approval like the first one.
+ */
+export async function rerunAiReview(submissionId: string) {
+  const submission = await prisma.submission.findUnique({ where: { id: submissionId } });
+  if (!submission) throw new AppError('Submission not found', 'ההגשה לא נמצאה', 404);
+  const fileRef = (submission.fileName || submission.fileUrl || '').toLowerCase();
+  if (!submission.githubUrl && !fileRef.endsWith('.zip') && !fileRef.endsWith('.docx')) {
+    throw new AppError(
+      'Submission is not reviewable by AI',
+      'בדיקת AI זמינה רק להגשות GitHub, קובץ ZIP או קובץ Word (.docx)',
+      400
+    );
+  }
+  if (submission.aiStatus === 'pending') {
+    throw new AppError('Review already in progress', 'בדיקת AI כבר מתבצעת עבור הגשה זו', 400);
+  }
+
+  await prisma.submission.update({ where: { id: submissionId }, data: { aiStatus: 'pending', aiApproved: false } });
+  await aiReviewQueue.add(
+    'review',
+    { submissionId, byTeacher: true },
+    { attempts: 3, backoff: { type: 'exponential', delay: 5000 } }
+  );
+}
+
 export async function approveAiReview(submissionId: string) {
   // Also publishes the content score, matching the previous single-flag
   // behavior (aiApproved used to gate both the AI fields and contentScore).

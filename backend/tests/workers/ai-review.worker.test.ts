@@ -38,9 +38,9 @@ import { registerAiReviewWorker } from '../../src/workers/ai-review.worker';
 registerAiReviewWorker({} as any);
 
 const p = prisma as any;
-const run = (submissionId: string, opts?: { attemptsMade?: number; attempts?: number }) =>
+const run = (submissionId: string, opts?: { attemptsMade?: number; attempts?: number; byTeacher?: boolean }) =>
   getProcessor()({
-    data: { submissionId },
+    data: { submissionId, byTeacher: opts?.byTeacher },
     attemptsMade: opts?.attemptsMade ?? 0,
     opts: { attempts: opts?.attempts ?? 1 },
   });
@@ -104,5 +104,36 @@ describe('ai-review worker', () => {
     // attemptsMade+1 (2) < attempts (3) → not final → must NOT write 'error'.
     await expect(run('s4', { attemptsMade: 1, attempts: 3 })).rejects.toThrow();
     expect(p.submission.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('ai-review worker — attempts and the assignment description', () => {
+  const githubSubmission = {
+    id: 's5', githubUrl: 'https://github.com/u/r', fileName: null, fileUrl: null,
+    assignment: { title: 'Task', aiInstructions: 'strict', description: 'Build a todo list' }, student: {},
+  };
+
+  beforeEach(() => {
+    p.submission.findUnique.mockResolvedValue(githubSubmission);
+    (codeExtraction.fetchGithubCode as any).mockResolvedValue('code');
+    (gemini.reviewCode as any).mockResolvedValue({ score: 90, codeReview: 'c', verbalReview: 'v' });
+  });
+
+  it('a student\'s request uses up one of her attempts', async () => {
+    await run('s5');
+    const data = p.submission.update.mock.calls.at(-1)[0].data;
+    expect(data.aiReviewCount).toEqual({ increment: 1 });
+  });
+
+  it('a teacher\'s re-run does not', async () => {
+    await run('s5', { byTeacher: true });
+    const data = p.submission.update.mock.calls.at(-1)[0].data;
+    expect(data).not.toHaveProperty('aiReviewCount');
+    expect(data.aiStatus).toBe('done');
+  });
+
+  it('gives the AI the assignment description', async () => {
+    await run('s5');
+    expect(gemini.reviewCode).toHaveBeenCalledWith('code', 'Task', 'strict', 'Build a todo list');
   });
 });

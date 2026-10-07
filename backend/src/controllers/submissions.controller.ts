@@ -96,6 +96,15 @@ export async function requestAiReview(req: Request, res: Response) {
   }
 }
 
+export async function rerunAiReview(req: Request, res: Response) {
+  try {
+    await submissionsService.rerunAiReview(req.params.id as string);
+    res.json({ success: true, data: null });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
 export async function approveAiReview(req: Request, res: Response) {
   try {
     const submission = await submissionsService.approveAiReview(req.params.id as string);
