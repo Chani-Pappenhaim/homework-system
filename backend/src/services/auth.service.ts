@@ -4,6 +4,7 @@ import { prisma } from '../config/prisma';
 import { User, Group } from '@prisma/client';
 import { emailQueue } from '../infrastructure/queues/queues';
 import { AppError } from '../utils/errors';
+import { isValidEmail, normalizeGithubUsername } from '../utils/excel';
 
 export type UserDTO = {
   id: string;
@@ -12,6 +13,8 @@ export type UserDTO = {
   role: string;
   mustChangePassword: boolean;
   githubUsername: string | null;
+  emailVerified: boolean;
+  emailNotifications: boolean;
   groups: { id: string; name: string }[];
 };
 
@@ -33,6 +36,8 @@ export function toUserDTO(user: UserWithGroups): UserDTO {
     role: user.role,
     mustChangePassword: user.mustChangePassword,
     githubUsername: user.githubUsername ?? null,
+    emailVerified: Boolean(user.emailVerifiedAt),
+    emailNotifications: user.emailNotifications,
     groups: user.studentGroups?.map((sg) => sg.group) ?? [],
   };
 }
@@ -91,6 +96,74 @@ export async function requestPasswordReset(email: string): Promise<void> {
   } catch (err) {
     console.error('[auth] Failed to enqueue forgot-password-link email:', err);
   }
+}
+
+/**
+ * Mails the user a link proving the address is hers. Replaces any earlier
+ * link, so only the newest one works. Never throws: a queue hiccup must not
+ * fail the action (adding a student, changing an email) that triggered it.
+ */
+export async function sendEmailVerification(userId: string): Promise<void> {
+  try {
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { emailVerifyTokenHash: hashToken(rawToken) },
+    });
+    const verifyUrl = `${process.env.FRONTEND_URL}/verify-email?token=${rawToken}`;
+    await emailQueue.add('verify-email', { email: user.email, name: user.name, verifyUrl });
+  } catch (err) {
+    console.error('[auth] Failed to send verification email:', err);
+  }
+}
+
+export async function verifyEmail(token: string): Promise<void> {
+  const user = token ? await prisma.user.findFirst({ where: { emailVerifyTokenHash: hashToken(token) } }) : null;
+  if (!user) throw new AppError('Verification link invalid', 'הקישור אינו תקין או שכבר נעשה בו שימוש', 400);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { emailVerifiedAt: new Date(), emailVerifyTokenHash: null },
+  });
+}
+
+/**
+ * Writes a new email address onto a user. A changed address is unverified
+ * until its owner follows the link mailed to it.
+ */
+export async function changeEmail(userId: string, rawEmail: string): Promise<boolean> {
+  const email = rawEmail.trim().toLowerCase();
+  if (!isValidEmail(email)) throw new AppError('Invalid email address', 'כתובת אימייל לא תקינה', 400);
+  const current = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+  if (current?.email === email) return false;
+  const taken = await prisma.user.findUnique({ where: { email } });
+  if (taken) throw new AppError('Email already in use', 'כתובת המייל הזו כבר בשימוש', 409);
+  await prisma.user.update({
+    where: { id: userId },
+    data: { email, emailVerifiedAt: null, emailVerifyTokenHash: null },
+  });
+  return true;
+}
+
+/** A user editing her own details on the profile page. */
+export async function updateProfile(userId: string, data: {
+  name?: string; email?: string; githubUsername?: string | null; emailNotifications?: boolean;
+}): Promise<UserWithGroups> {
+  const update: { name?: string; githubUsername?: string | null; emailNotifications?: boolean } = {};
+  if (data.name !== undefined) {
+    const name = String(data.name).trim();
+    if (!name) throw new AppError('Name is required', 'יש להזין שם', 400);
+    update.name = name;
+  }
+  if (data.githubUsername !== undefined) {
+    update.githubUsername = data.githubUsername ? normalizeGithubUsername(data.githubUsername) || null : null;
+  }
+  if (data.emailNotifications !== undefined) update.emailNotifications = Boolean(data.emailNotifications);
+
+  const emailChanged = data.email !== undefined && (await changeEmail(userId, String(data.email)));
+  if (Object.keys(update).length > 0) await prisma.user.update({ where: { id: userId }, data: update });
+  if (emailChanged) await sendEmailVerification(userId);
+
+  return (await getUserById(userId))!;
 }
 
 export async function resetPasswordWithToken(token: string, newPassword: string): Promise<void> {

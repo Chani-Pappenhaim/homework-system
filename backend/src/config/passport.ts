@@ -42,10 +42,14 @@ export function configurePassport(passport: PassportStatic) {
             // links to an existing account by email — it never creates one.
             if (!user) return done(null, false, { message: 'unregistered' });
 
-            if (!user.oauthProvider) {
+            // The provider vouches for the address, so it counts as verified.
+            if (!user.oauthProvider || !user.emailVerifiedAt) {
               await prisma.user.update({
                 where: { id: user.id },
-                data: { oauthProvider: 'github', oauthId: profile.id },
+                data: {
+                  ...(!user.oauthProvider ? { oauthProvider: 'github', oauthId: profile.id } : {}),
+                  emailVerifiedAt: user.emailVerifiedAt ?? new Date(),
+                },
               });
             }
             return done(null, user);
@@ -75,10 +79,14 @@ export function configurePassport(passport: PassportStatic) {
             // links to an existing account by email — it never creates one.
             if (!user) return done(null, false, { message: 'unregistered' });
 
-            if (!user.oauthProvider) {
+            // The provider vouches for the address, so it counts as verified.
+            if (!user.oauthProvider || !user.emailVerifiedAt) {
               await prisma.user.update({
                 where: { id: user.id },
-                data: { oauthProvider: 'google', oauthId: profile.id },
+                data: {
+                  ...(!user.oauthProvider ? { oauthProvider: 'google', oauthId: profile.id } : {}),
+                  emailVerifiedAt: user.emailVerifiedAt ?? new Date(),
+                },
               });
             }
             return done(null, user);

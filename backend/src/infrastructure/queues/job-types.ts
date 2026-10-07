@@ -13,6 +13,7 @@ export interface DeadlineReportRow {
 export interface EmailJobMap {
   'reset-password': { email: string; name: string };
   'forgot-password-link': { email: string; name: string; resetUrl: string };
+  'verify-email': { email: string; name: string; verifyUrl: string };
   'storage-alert': { email: string; name: string };
   'student-message': { messageId: string; studentName: string; studentEmail: string; content: string; assignmentTitle?: string };
   'teacher-reply': {
@@ -57,4 +58,6 @@ export interface QuizJobData {
 // ---- ai-review queue -------------------------------------------------------
 export interface AiReviewJobData {
   submissionId: string;
+  /** Run by the teacher — doesn't use up the student's own review attempts. */
+  byTeacher?: boolean;
 }

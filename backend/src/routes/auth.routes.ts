@@ -13,6 +13,9 @@ router.post('/forgot-password', authRateLimit, authController.forgotPassword);
 router.post('/reset-password', authRateLimit, authController.resetPasswordWithToken);
 router.post('/change-password', verifyAccessTokenMiddleware, authController.changePassword);
 router.get('/me', verifyAccessTokenMiddleware, authController.me);
+router.patch('/me', verifyAccessTokenMiddleware, authController.updateMe);
+router.post('/verify-email', authRateLimit, authController.verifyEmail);
+router.post('/verify-email/resend', authRateLimit, verifyAccessTokenMiddleware, authController.resendVerification);
 
 // A rejected strategy (an email the teacher has not added) yields no user. Send
 // the visitor back to the frontend login with a clear error instead of a silent

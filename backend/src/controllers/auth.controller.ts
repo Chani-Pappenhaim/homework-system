@@ -91,6 +91,34 @@ export async function resetPasswordWithToken(req: Request, res: Response): Promi
   }
 }
 
+export async function updateMe(req: Request, res: Response): Promise<void> {
+  try {
+    const { name, email, githubUsername, emailNotifications } = req.body ?? {};
+    const user = await authService.updateProfile(req.user!.userId, { name, email, githubUsername, emailNotifications });
+    res.json({ success: true, data: { user: authService.toUserDTO(user) } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function verifyEmail(req: Request, res: Response): Promise<void> {
+  try {
+    await authService.verifyEmail(String(req.body?.token ?? ''));
+    res.json({ success: true, data: null });
+  } catch (err: any) {
+    sendError(res, err, 400);
+  }
+}
+
+export async function resendVerification(req: Request, res: Response): Promise<void> {
+  try {
+    await authService.sendEmailVerification(req.user!.userId);
+    res.json({ success: true, data: null });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
 export async function me(req: Request, res: Response): Promise<void> {
   try {
     const user = await authService.getUserById(req.user!.userId);
