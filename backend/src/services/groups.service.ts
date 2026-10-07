@@ -17,8 +17,38 @@ export async function getGroups() {
   }));
 }
 
-export async function createGroup(data: { name: string; seminar?: string; year: string }) {
-  const group = await prisma.group.create({ data });
+type GroupFields = { name: string; seminar: string; year: string };
+
+const GROUP_FIELD_LABELS: Record<keyof GroupFields, string> = {
+  seminar: 'שם הסמינר',
+  name: 'שם הקבוצה',
+  year: 'שנת הלימודים',
+};
+
+/**
+ * Trims every field that was sent and rejects one left blank. The seminar is
+ * part of how a group is named ("סמינר מאיר יד תשפ״ז"), so it is as required as
+ * the name and year; on update a field that was not sent stays as it is.
+ */
+function cleanGroupFields<T extends Partial<GroupFields>>(data: T): T {
+  const cleaned = { ...data };
+  for (const key of Object.keys(GROUP_FIELD_LABELS) as (keyof GroupFields)[]) {
+    if (data[key] === undefined) continue;
+    const value = String(data[key] ?? '').trim();
+    if (!value) throw new AppError(`Group ${key} is required`, `${GROUP_FIELD_LABELS[key]} הוא שדה חובה`, 400);
+    cleaned[key] = value as T[typeof key];
+  }
+  return cleaned;
+}
+
+export async function createGroup(data: GroupFields) {
+  for (const key of Object.keys(GROUP_FIELD_LABELS) as (keyof GroupFields)[]) {
+    if (data[key] === undefined) {
+      throw new AppError(`Group ${key} is required`, `${GROUP_FIELD_LABELS[key]} הוא שדה חובה`, 400);
+    }
+  }
+  const { name, seminar, year } = cleanGroupFields(data);
+  const group = await prisma.group.create({ data: { name, seminar, year } });
   return { ...group, studentCount: 0 };
 }
 
@@ -39,8 +69,9 @@ export async function getGroupById(id: string) {
   };
 }
 
-export async function updateGroup(id: string, data: { name?: string; seminar?: string; year?: string }) {
-  const group = await prisma.group.update({ where: { id }, data });
+export async function updateGroup(id: string, data: Partial<GroupFields>) {
+  const { name, seminar, year } = cleanGroupFields(data);
+  const group = await prisma.group.update({ where: { id }, data: { name, seminar, year } });
   const count = await prisma.studentGroup.count({ where: { groupId: id } });
   return { ...group, studentCount: count };
 }

@@ -128,8 +128,28 @@ describe('groups.service', () => {
   describe('createGroup / updateGroup', () => {
     it('createGroup returns the group with studentCount 0', async () => {
       p.group.create.mockResolvedValue({ id: 'g1', name: 'G', year: '2026' });
-      const r = await createGroup({ name: 'G', year: '2026' });
+      const r = await createGroup({ name: 'G', seminar: 'סמינר מאיר', year: '2026' });
       expect(r).toMatchObject({ id: 'g1', studentCount: 0 });
+    });
+
+    it('createGroup trims the fields before saving', async () => {
+      p.group.create.mockResolvedValue({ id: 'g1' });
+      await createGroup({ name: ' יד ', seminar: ' סמינר מאיר ', year: ' תשפ"ז ' });
+      expect(p.group.create).toHaveBeenCalledWith({ data: { name: 'יד', seminar: 'סמינר מאיר', year: 'תשפ"ז' } });
+    });
+
+    it('createGroup rejects a missing or blank seminar', async () => {
+      await expect(createGroup({ name: 'G', year: '2026' } as never)).rejects.toMatchObject({ status: 400 });
+      await expect(createGroup({ name: 'G', seminar: '   ', year: '2026' })).rejects.toMatchObject({ status: 400 });
+      expect(p.group.create).not.toHaveBeenCalled();
+    });
+
+    it('updateGroup rejects clearing the seminar but leaves an unsent one alone', async () => {
+      await expect(updateGroup('g1', { seminar: '' })).rejects.toMatchObject({ status: 400 });
+      p.group.update.mockResolvedValue({ id: 'g1' });
+      p.studentGroup.count.mockResolvedValue(0);
+      await updateGroup('g1', { name: 'G2' });
+      expect(p.group.update).toHaveBeenCalledWith({ where: { id: 'g1' }, data: { name: 'G2', seminar: undefined, year: undefined } });
     });
 
     it('updateGroup returns the group with a recomputed studentCount', async () => {
