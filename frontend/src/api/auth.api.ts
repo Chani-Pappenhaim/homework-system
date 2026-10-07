@@ -21,4 +21,13 @@ export const authApi = {
 
   resetPassword: (token: string, newPassword: string) =>
     api.post('/auth/reset-password', { token, newPassword }),
+
+  updateMe: (data: Partial<{ name: string; email: string; githubUsername: string; emailNotifications: boolean }>) =>
+    api.patch<{ success: true; data: { user: UserDTO; emailChanged: boolean } }>('/auth/me', data),
+
+  verifyEmail: (token: string) =>
+    api.post('/auth/verify-email', { token }),
+
+  resendVerification: () =>
+    api.post('/auth/verify-email/resend'),
 };

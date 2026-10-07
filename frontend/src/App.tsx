@@ -10,6 +10,7 @@ import ChangePasswordPage from '@/pages/auth/ChangePasswordPage';
 import OAuthCallbackPage from '@/pages/auth/OAuthCallbackPage';
 import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from '@/pages/auth/ResetPasswordPage';
+import VerifyEmailPage from '@/pages/auth/VerifyEmailPage';
 
 import TeacherHomePage from '@/pages/teacher/HomePage';
 import GroupsPage from '@/pages/teacher/GroupsPage';
@@ -31,6 +32,7 @@ import StudentLessonDetailPage from '@/pages/student/LessonDetailPage';
 import AssignmentsPage from '@/pages/student/AssignmentsPage';
 import QuizPage from '@/pages/student/QuizPage';
 import StudentMessagesPage from '@/pages/student/MessagesPage';
+import ProfilePage from '@/pages/student/ProfilePage';
 
 function AppRoutes() {
   const location = useLocation();
@@ -40,6 +42,7 @@ function AppRoutes() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/auth/callback" element={<OAuthCallbackPage />} />
 
         <Route path="/change-password" element={
@@ -78,6 +81,7 @@ function AppRoutes() {
           <Route path="assignments" element={<AssignmentsPage />} />
           <Route path="quiz/:lessonId" element={<QuizPage />} />
           <Route path="messages" element={<StudentMessagesPage />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
 
         <Route path="/" element={<Navigate to="/login" replace />} />

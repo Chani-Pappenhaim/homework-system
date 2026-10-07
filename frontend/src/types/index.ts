@@ -7,6 +7,9 @@ export interface UserDTO {
   role: Role;
   mustChangePassword: boolean;
   githubUsername: string | null;
+  /** Has she confirmed her address? Notification emails go only to verified ones. */
+  emailVerified: boolean;
+  emailNotifications: boolean;
   groups: { id: string; name: string }[];
 }
 
@@ -15,12 +18,17 @@ export interface GroupDTO {
   name: string;
   seminar?: string;
   year: string;
+  /** Whether students added to the group start with notification emails on. */
+  emailNotificationsDefault?: boolean;
   createdAt: string;
   studentCount: number;
 }
 
 export interface GroupDetailDTO extends GroupDTO {
-  students: { id: string; name: string; email: string; githubUsername?: string; createdAt: string }[];
+  students: {
+    id: string; name: string; email: string; githubUsername?: string; createdAt: string;
+    emailVerified?: boolean; emailNotifications?: boolean;
+  }[];
   courses: { id: string; name: string; hidden: boolean; lessonCount: number }[];
 }
 
@@ -52,6 +60,8 @@ export interface CourseFile {
   extension?: string;
   sizeBytes?: string;
   uploadedAt: string;
+  /** Teacher view only — hidden from students. */
+  hidden?: boolean;
 }
 
 export interface LessonSummary {
@@ -80,6 +90,8 @@ export interface LessonFile {
   extension?: string;
   sizeBytes?: string;
   required?: boolean;
+  /** Teacher view only — hidden from students. */
+  hidden?: boolean;
   /** Present only in the student's view of a lesson — has she marked this file as seen? */
   viewed?: boolean;
 }

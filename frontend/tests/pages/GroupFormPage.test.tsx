@@ -53,7 +53,7 @@ describe('GroupFormPage (new)', () => {
     await userEvent.type(screen.getByPlaceholderText('יד'), 'קבוצה ב');
     await userEvent.type(screen.getByPlaceholderText('תשפ"ו'), '2026');
     await userEvent.click(screen.getByRole('button', { name: 'צור קבוצה' }));
-    await waitFor(() => expect(createGroup).toHaveBeenCalledWith({ name: 'קבוצה ב', seminar: 'סמינר מאיר', year: '2026' }));
+    await waitFor(() => expect(createGroup).toHaveBeenCalledWith({ name: 'קבוצה ב', seminar: 'סמינר מאיר', year: '2026', emailNotificationsDefault: true }));
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/teacher/groups/g42/edit'));
   });
 

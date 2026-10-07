@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Trash2, RotateCcw, UserPlus, Download, Pencil } from 'lucide-react';
+import { Trash2, RotateCcw, UserPlus, Download, Pencil, MailCheck, MailWarning, BellOff } from 'lucide-react';
 import { groupsApi } from '@/api/groups.api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +31,7 @@ export default function GroupFormPage() {
   const [name, setName] = useState('');
   const [seminar, setSeminar] = useState('');
   const [year, setYear] = useState('');
+  const [notifyDefault, setNotifyDefault] = useState(true);
   const [error, setError] = useState('');
   const [addModal, setAddModal] = useState(false);
   const [tab, setTab] = useState<'manual' | 'excel'>('manual');
@@ -73,13 +74,14 @@ export default function GroupFormPage() {
       setName(group.name);
       setSeminar(group.seminar ?? '');
       setYear(group.year);
+      setNotifyDefault(group.emailNotificationsDefault ?? true);
     }
   }, [group]);
 
   const saveMutation = useMutation({
     mutationFn: () => isEdit
-      ? groupsApi.update(id!, { name: name.trim(), seminar: seminar.trim(), year: year.trim() })
-      : groupsApi.create({ name: name.trim(), seminar: seminar.trim(), year: year.trim() }),
+      ? groupsApi.update(id!, { name: name.trim(), seminar: seminar.trim(), year: year.trim(), emailNotificationsDefault: notifyDefault })
+      : groupsApi.create({ name: name.trim(), seminar: seminar.trim(), year: year.trim(), emailNotificationsDefault: notifyDefault }),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['groups'] });
       toast.success(isEdit ? 'הקבוצה נשמרה בהצלחה' : 'הקבוצה נוצרה בהצלחה');
@@ -176,6 +178,13 @@ export default function GroupFormPage() {
             {(seminar.trim() || name.trim() || year.trim()) && (
               <p className="text-xs text-ink/60">שם הקבוצה יוצג כך: <span className="font-semibold text-ink">{groupDisplayName({ name, seminar, year })}</span></p>
             )}
+            <label className="flex items-start gap-2 text-sm text-ink">
+              <input type="checkbox" className="mt-1" checked={notifyDefault} onChange={(e) => setNotifyDefault(e.target.checked)} />
+              <span>
+                עדכונים במייל לתלמידות חדשות בקבוצה
+                <span className="block text-xs text-ink/55">ברירת מחדל לתלמידות שיתווספו מעכשיו — כל תלמידה יכולה לשנות בפרופיל שלה</span>
+              </span>
+            </label>
             {error && <p className="text-coral text-sm">{error}</p>}
             <Button loading={saveMutation.isPending} onClick={() => saveMutation.mutate()} disabled={!seminar.trim() || !name.trim() || !year.trim()}>
               {isEdit ? 'שמור שינויים' : 'צור קבוצה'}
@@ -237,7 +246,13 @@ export default function GroupFormPage() {
                     />
                     <div>
                       <p className="text-sm font-medium">{s.name}</p>
-                      <p className="text-xs text-ink/50">{s.email}</p>
+                      <p className="flex items-center gap-1 text-xs text-ink/50">
+                        {s.email}
+                        {s.emailVerified
+                          ? <span title="המייל אומת"><MailCheck size={12} className="text-sage" /></span>
+                          : <span title="המייל עדיין לא אומת"><MailWarning size={12} className="text-coral" /></span>}
+                        {s.emailNotifications === false && <span title="ביטלה עדכונים במייל"><BellOff size={12} /></span>}
+                      </p>
                       <p className="text-xs text-ink/50">GitHub: {s.githubUsername || 'לא הוזן'}</p>
                     </div>
                   </div>
