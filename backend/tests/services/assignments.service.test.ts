@@ -66,10 +66,18 @@ describe('assignments.service.importAssignments', () => {
 
   it('records a per-row error when create throws', async () => {
     p.assignment.create.mockRejectedValue(new Error('db'));
-    const buf = await xlsxBuffer([['l1', 'Task A', '', '', '']]);
+    const buf = await xlsxBuffer([['l1', 'Task A', 'desc', '', '']]);
     const r = await importAssignments(buf);
     expect(r.imported).toBe(0);
     expect(r.errors.some((e) => e.includes('failed to create assignment'))).toBe(true);
+  });
+
+  it('skips a row with no description', async () => {
+    const buf = await xlsxBuffer([['l1', 'Task A', '', '', '']]);
+    const r = await importAssignments(buf);
+    expect(r.imported).toBe(0);
+    expect(r.errors.some((e) => e.includes('missing description'))).toBe(true);
+    expect(p.assignment.create).not.toHaveBeenCalled();
   });
 });
 
@@ -77,7 +85,7 @@ describe('assignments.service.createAssignment', () => {
   it('passes aiInstructions and requirements through, converting deadline to Date', async () => {
     p.assignment.create.mockImplementation(({ data }: any) => Promise.resolve(data));
     const r: any = await createAssignment('l1', {
-      title: 'Task', deadline: '2026-05-01T00:00:00.000Z',
+      title: 'Task', description: 'grading notes', deadline: '2026-05-01T00:00:00.000Z',
       aiInstructions: 'be strict', requirements: [{ id: 'r1', text: 'do X' }],
       allowGithub: true, allowFile: false,
     });
@@ -89,8 +97,14 @@ describe('assignments.service.createAssignment', () => {
 
   it('omits deadline entirely when not provided', async () => {
     p.assignment.create.mockImplementation(({ data }: any) => Promise.resolve(data));
-    const r: any = await createAssignment('l1', { title: 'No deadline' });
+    const r: any = await createAssignment('l1', { title: 'No deadline', description: 'd' });
     expect(r).not.toHaveProperty('deadline');
+  });
+
+  it('rejects a missing or blank description', async () => {
+    await expect(createAssignment('l1', { title: 'T' } as never)).rejects.toMatchObject({ status: 400 });
+    await expect(createAssignment('l1', { title: 'T', description: '  ' })).rejects.toMatchObject({ status: 400 });
+    expect(p.assignment.create).not.toHaveBeenCalled();
   });
 });
 
@@ -105,6 +119,14 @@ describe('assignments.service.updateAssignment', () => {
     p.assignment.update.mockImplementation(({ data }: any) => Promise.resolve(data));
     const r: any = await updateAssignment('a1', { title: 'New' });
     expect(r).not.toHaveProperty('deadline');
+  });
+  it('clears the deadline when sent null', async () => {
+    p.assignment.update.mockImplementation(({ data }: any) => Promise.resolve(data));
+    const r: any = await updateAssignment('a1', { deadline: null });
+    expect(r.deadline).toBeNull();
+  });
+  it('rejects blanking the description', async () => {
+    await expect(updateAssignment('a1', { description: '' })).rejects.toMatchObject({ status: 400 });
   });
 });
 
