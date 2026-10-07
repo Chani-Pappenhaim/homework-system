@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Github, CheckCircle, Clock, Bot, Check, BookOpen, ClipboardList, Paperclip, Sparkles } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
@@ -295,7 +295,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {a.description && <p className="text-sm text-ink/70">{a.description}</p>}
+        {a.description && <MarkdownRenderer content={a.description} className="text-ink/80" />}
         {a.deadline && (
           <p className="text-xs text-ink/50">מועד אחרון: <span className="font-medium">{formatDate(a.deadline)}</span></p>
         )}
@@ -462,7 +462,9 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                 </div>
                 {!githubUsername ? (
                   <p className="text-xs text-coral">
-                    לא הוגדר שם משתמש GitHub בחשבון שלך — יש לעדכן אותו בפרופיל לפני הגשת ריפו
+                    לא הוגדר שם משתמש GitHub בחשבון שלך —{' '}
+                    <Link to="/student/profile" className="font-semibold underline">יש לעדכן אותו בפרופיל</Link>{' '}
+                    לפני הגשת ריפו
                   </p>
                 ) : githubPreview && (
                   <a

@@ -7,6 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/toast';
+import { MarkdownField } from '@/components/ui/markdown-field';
+import { SubmissionTypePicker, type SubmissionTypes } from './SubmissionTypePicker';
 import type { AssignmentDTO } from '@/types';
 
 /**
@@ -41,14 +43,17 @@ export function AssignmentModal({ lessonId, lessonDate, value, onClose }: {
   const [description, setDescription] = useState('');
   const [deadline, setDeadline] = useState('');
   const [aiInstructions, setAiInstructions] = useState('');
+  const [types, setTypes] = useState<SubmissionTypes>({ allowGithub: true, allowFile: true, allowedTypes: [] });
 
   useEffect(() => {
     if (value === 'new') {
       setTitle(''); setDescription(''); setDeadline(defaultDeadline(lessonDate)); setAiInstructions('');
+      setTypes({ allowGithub: true, allowFile: true, allowedTypes: [] });
     } else if (value) {
       setTitle(value.title); setDescription(value.description ?? '');
       setDeadline(value.deadline ? toLocalInput(value.deadline) : '');
       setAiInstructions(value.aiInstructions ?? '');
+      setTypes({ allowGithub: value.allowGithub ?? true, allowFile: value.allowFile ?? true, allowedTypes: value.allowedTypes ?? [] });
     }
   }, [value, lessonDate]);
 
@@ -61,6 +66,7 @@ export function AssignmentModal({ lessonId, lessonDate, value, onClose }: {
         // assignment actually clears it.
         deadline: deadline ? new Date(deadline).toISOString() : null,
         aiInstructions: aiInstructions || undefined,
+        ...types,
       };
       if (value === 'new') return assignmentsApi.create(lessonId, data);
       return assignmentsApi.update((value as AssignmentDTO).id, data);
@@ -86,18 +92,15 @@ export function AssignmentModal({ lessonId, lessonDate, value, onClose }: {
             onChange={(e) => setTitle(e.target.value)}
             placeholder="למשל: פרויקט גיטהב"
           />
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="assignment-description">תיאור המטלה *</Label>
-            <Textarea
-              id="assignment-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={4}
-              className="resize-y"
-              placeholder="מה צריך להגיש, ולפי מה העבודה תיבדק..."
-              required
-            />
-          </div>
+          <MarkdownField
+            id="assignment-description"
+            label="תיאור המטלה *"
+            value={description}
+            onChange={setDescription}
+            rows={4}
+            placeholder="מה צריך להגיש, ולפי מה העבודה תיבדק..."
+            required
+          />
           <div className="flex flex-col gap-1">
             {deadline ? (
               <>
@@ -121,6 +124,7 @@ export function AssignmentModal({ lessonId, lessonDate, value, onClose }: {
               </>
             )}
           </div>
+          <SubmissionTypePicker value={types} onChange={setTypes} />
           <div className="flex flex-col gap-1">
             <Label htmlFor="assignment-ai-instructions">הנחיות לבדיקת AI (אופציונלי)</Label>
             <Textarea
@@ -137,7 +141,7 @@ export function AssignmentModal({ lessonId, lessonDate, value, onClose }: {
             className="w-full"
             loading={saveMutation.isPending}
             onClick={() => saveMutation.mutate()}
-            disabled={!title.trim() || !description.trim()}
+            disabled={!title.trim() || !description.trim() || (!types.allowGithub && !types.allowFile)}
           >
             {value === 'new' ? 'צרי מטלה' : 'שמרי שינויים'}
           </Button>

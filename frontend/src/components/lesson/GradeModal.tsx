@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ExternalLink, Github, Bot, RotateCcw, CheckCircle, Sparkles } from 'lucide-react';
+import { ExternalLink, Github, Bot, RotateCcw, CheckCircle, Sparkles, RefreshCw } from 'lucide-react';
 import { gradesApi } from '@/api/grades.api';
 import { submissionsApi } from '@/api/submissions.api';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/toast';
+import { getApiErrorMessage } from '@/lib/errors';
 import type { AssignmentDTO, ChecklistResult, SubmissionDTO } from '@/types';
 
 export function GradeModal({ submission, assignment, onClose }: {
@@ -93,6 +94,19 @@ export function GradeModal({ submission, assignment, onClose }: {
       setLocal((prev) => prev ? { ...prev, aiApproved: true } : prev);
       invalidateSubmissions();
     },
+  });
+
+  // Only GitHub, ZIP and Word submissions can be reviewed — the backend says the same.
+  const aiReviewable = Boolean(local?.githubUrl) || /\.(zip|docx)$/i.test(local?.fileName ?? '');
+
+  const rerunAiMutation = useMutation({
+    mutationFn: () => submissionsApi.rerunAiReview(local!.id),
+    onSuccess: () => {
+      setLocal((prev) => prev ? { ...prev, aiStatus: 'pending', aiApproved: false } : prev);
+      invalidateSubmissions();
+      toast.success('בדיקת ה-AI הופעלה מחדש — התוצאה תופיע בעוד דקה-שתיים');
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'לא ניתן להריץ את הבדיקה מחדש')),
   });
 
   const allowExtraAiMutation = useMutation({
@@ -182,6 +196,25 @@ export function GradeModal({ submission, assignment, onClose }: {
                     )}
                   </div>
                 )}
+              </div>
+            )}
+
+            {aiReviewable && (
+              <div className="flex items-center justify-between gap-2 text-xs text-ink/60">
+                <span>
+                  {local.aiStatus === 'pending' ? 'בדיקת AI מתבצעת כעת...'
+                    : local.aiStatus === 'failed' ? 'בדיקת ה-AI נכשלה.'
+                    : local.aiStatus === 'done' ? 'אפשר להריץ שוב (למשל אחרי שינוי הנחיות ה-AI) — לא נספר במכסת התלמידה.'
+                    : 'עוד לא בוצעה בדיקת AI להגשה זו.'}
+                </span>
+                <Button
+                  size="sm" variant="outline"
+                  loading={rerunAiMutation.isPending}
+                  disabled={local.aiStatus === 'pending'}
+                  onClick={() => rerunAiMutation.mutate()}
+                >
+                  <RefreshCw size={12} /> {local.aiStatus === 'done' ? 'הרצת בדיקת AI מחדש' : 'הרצת בדיקת AI'}
+                </Button>
               </div>
             )}
 

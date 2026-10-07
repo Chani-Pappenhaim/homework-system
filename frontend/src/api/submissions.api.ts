@@ -63,6 +63,10 @@ export const submissionsApi = {
   requestAiReview: (submissionId: string) =>
     api.post(`/submissions/${submissionId}/request-ai-review`),
 
+  /** Teacher-only: runs the AI review again, outside the student's attempt limit. */
+  rerunAiReview: (submissionId: string) =>
+    api.post(`/submissions/${submissionId}/rerun-ai-review`),
+
   approveAi: (submissionId: string) =>
     api.post(`/submissions/${submissionId}/approve-ai`),
 
