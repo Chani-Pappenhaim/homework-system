@@ -2,6 +2,7 @@
 import * as lessonsService from '../services/lessons.service';
 import { sendError } from '../utils/http';
 import { fixMulterFilename } from '../utils/storage';
+import { fileToMarkdown } from '../utils/content-convert';
 
 export async function getLessons(req: Request, res: Response) {
   try {
@@ -198,7 +199,7 @@ export async function revokeLessonAccess(req: Request, res: Response) {
 
 export async function importMarkdown(req: Request, res: Response) {
   try {
-    const content = req.file!.buffer.toString('utf-8');
+    const content = await fileToMarkdown(fixMulterFilename(req.file!.originalname), req.file!.buffer);
     const lesson = await lessonsService.importMarkdown(req.params.id as string, content);
     res.json({ success: true, data: { lesson: { id: lesson.id, contentMd: lesson.contentMd } } });
   } catch (err: any) {
