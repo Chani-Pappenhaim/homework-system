@@ -6,6 +6,7 @@ import { computeSubmissionScore } from '../utils/grading';
 import { aiReviewQueue, emailQueue } from '../infrastructure/queues/queues';
 import type { EmailJobMap } from '../infrastructure/queues/job-types';
 import { cellText } from '../utils/excel';
+import { getRepoStatus, normalizeRepoName } from '../utils/github';
 import ExcelJS from 'exceljs';
 
 async function enqueueEmail<T extends keyof EmailJobMap>(jobName: T, data: EmailJobMap[T]) {
@@ -43,8 +44,17 @@ export async function submitAssignment(
   if (payload.repoName) {
     if (!assignment.allowGithub) throw new AppError('GitHub not allowed for this assignment', 'הגשת GitHub אינה מותרת במטלה זו', 400);
     const student = await prisma.user.findUnique({ where: { id: studentId } });
-    if (!student?.githubUsername) throw new AppError('No GitHub username set for your account', 'לא הוגדר שם משתמש GitHub בחשבון שלך', 400);
-    githubUrl = `https://github.com/${student.githubUsername}/${payload.repoName}`;
+    if (!student?.githubUsername) throw new AppError('No GitHub username set for your account', 'לא הוגדר שם משתמש GitHub בחשבון שלך — יש לעדכן אותו בפרופיל', 400);
+    const repoName = normalizeRepoName(payload.repoName);
+    if (!repoName) throw new AppError('Empty repo name', 'יש להזין שם ריפו', 400);
+    if ((await getRepoStatus(student.githubUsername, repoName)) === 'missing') {
+      throw new AppError(
+        `Repo ${student.githubUsername}/${repoName} not found`,
+        `הריפו github.com/${student.githubUsername}/${repoName} לא נמצא. יש לבדוק את שם הריפו, את שם המשתמש בפרופיל, ושהריפו ציבורי`,
+        400
+      );
+    }
+    githubUrl = `https://github.com/${student.githubUsername}/${repoName}`;
   } else if (payload.file || payload.uploadedFile) {
     if (!assignment.allowFile) throw new AppError('File upload not allowed for this assignment', 'העלאת קובץ אינה מותרת במטלה זו', 400);
     const originalName = payload.file ? payload.file.originalName : payload.uploadedFile!.originalName;
