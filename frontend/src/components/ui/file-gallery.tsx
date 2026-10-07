@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Image, Video, FileText, Music, Archive, File as FileIcon, FileCode, Download, ExternalLink, Pencil, X, Star } from 'lucide-react';
+import { Image, Video, FileText, Music, Archive, File as FileIcon, FileCode, Download, ExternalLink, Pencil, X, Star, EyeOff, Eye } from 'lucide-react';
 import { cn, formatBytes } from '@/lib/utils';
 import { getFileKindByExtension, PREVIEWABLE_TYPES_HINT } from '@/lib/file-type';
 import { API_URL } from '@/lib/config';
@@ -16,6 +16,7 @@ export interface GalleryFile {
   extension?: string;
   sizeBytes?: string | null;
   required?: boolean;
+  hidden?: boolean;
   viewed?: boolean;
 }
 
@@ -51,6 +52,8 @@ interface FileGalleryProps {
   onRename?: (fileId: string, name: string) => void;
   /** Teacher-only — toggles whether a file is mandatory viewing for students. */
   onToggleRequired?: (fileId: string, required: boolean) => void;
+  /** Teacher-only — hides a file from students without deleting it. */
+  onToggleHidden?: (fileId: string, hidden: boolean) => void;
   /** Student-only — marks a required file as seen/read. */
   onMarkViewed?: (fileId: string) => void;
   /** Student-only — undoes an accidental "seen" mark on a required file. */
@@ -64,7 +67,7 @@ interface FileGalleryProps {
  * the grid was legible for nothing but a thumbnail, which defeats the point of
  * previewing it at all.
  */
-export function FileGallery({ files, onDelete, onRename, onToggleRequired, onMarkViewed, onUnmarkViewed, className }: FileGalleryProps) {
+export function FileGallery({ files, onDelete, onRename, onToggleRequired, onToggleHidden, onMarkViewed, onUnmarkViewed, className }: FileGalleryProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = files.find((f) => f.id === selectedId);
 
@@ -82,6 +85,7 @@ export function FileGallery({ files, onDelete, onRename, onToggleRequired, onMar
             onDelete={onDelete}
             onRename={onRename}
             onToggleRequired={onToggleRequired}
+            onToggleHidden={onToggleHidden}
             onMarkViewed={onMarkViewed}
             onUnmarkViewed={onUnmarkViewed}
           />
@@ -100,6 +104,7 @@ function FileTile({
   onDelete,
   onRename,
   onToggleRequired,
+  onToggleHidden,
   onMarkViewed,
   onUnmarkViewed,
 }: {
@@ -109,6 +114,7 @@ function FileTile({
   onDelete?: (id: string) => void;
   onRename?: (id: string, name: string) => void;
   onToggleRequired?: (id: string, required: boolean) => void;
+  onToggleHidden?: (id: string, hidden: boolean) => void;
   onMarkViewed?: (id: string) => void;
   onUnmarkViewed?: (id: string) => void;
 }) {
@@ -129,7 +135,8 @@ function FileTile({
         onClick={onOpen}
         className={cn(
           'lift flex w-full flex-col items-center gap-2 rounded-input border-2 bg-sheet p-3 text-center shadow-soft transition hover:bg-ground/40',
-          isSelected ? 'border-indigo' : 'border-rule'
+          isSelected ? 'border-indigo' : 'border-rule',
+          file.hidden && 'border-dashed opacity-60'
         )}
       >
         <div className="flex h-24 w-full items-center justify-center overflow-hidden rounded-sm bg-ground/50">
@@ -154,6 +161,9 @@ function FileTile({
           {file.name}
         </p>
         {file.sizeBytes != null && <p className="text-[10px] text-ink/40">{formatBytes(file.sizeBytes)}</p>}
+        {file.hidden && (
+          <span className="rounded-full bg-ink/10 px-2 py-0.5 text-[10px] font-semibold text-ink/60">מוסתר מהתלמידות</span>
+        )}
         {file.required && !onToggleRequired && (
           <span className={cn(
             'rounded-full px-2 py-0.5 text-[10px] font-semibold',
@@ -202,6 +212,23 @@ function FileTile({
           title={file.required ? 'קובץ חובה — לחצי לביטול' : 'סימני כקובץ חובה לצפייה'}
         >
           <Star size={12} strokeWidth={2.5} fill={file.required ? 'currentColor' : 'none'} />
+        </button>
+      )}
+      {onToggleHidden && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleHidden(file.id, !file.hidden);
+          }}
+          className={cn(
+            'absolute -top-2 start-[5.5rem] rounded-full p-1 shadow-soft transition',
+            file.hidden ? 'bg-ink/70 text-sheet opacity-100' : 'bg-ink text-sheet opacity-0 group-hover:opacity-100'
+          )}
+          aria-label={file.hidden ? 'הצגת הקובץ לתלמידות' : 'הסתרת הקובץ מהתלמידות'}
+          title={file.hidden ? 'מוסתר — לחצי כדי להציג לתלמידות' : 'הסתרה מהתלמידות (בלי למחוק)'}
+        >
+          {file.hidden ? <EyeOff size={12} strokeWidth={2.5} /> : <Eye size={12} strokeWidth={2.5} />}
         </button>
       )}
       {onRename && (

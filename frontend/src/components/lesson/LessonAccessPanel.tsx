@@ -5,7 +5,7 @@ import { lessonsApi } from '@/api/lessons.api';
 import { groupsApi } from '@/api/groups.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { StudentAutocomplete } from '@/components/ui/student-autocomplete';
+import { StudentGrantPicker } from './StudentGrantPicker';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
 import { unwrap } from '@/lib/api-utils';
@@ -23,6 +23,8 @@ export function LessonAccessPanel({ lessonId }: { lessonId: string }) {
   const [accessGroupId, setAccessGroupId] = useState('');
   const [accessFileEmails, setAccessFileEmails] = useState<string[]>([]);
   const [accessFileName, setAccessFileName] = useState('');
+  const [notFoundEmails, setNotFoundEmails] = useState<string[]>([]);
+  const [newStudentEmail, setNewStudentEmail] = useState<string | null>(null);
 
   const { data: accessData } = useQuery({
     queryKey: ['lesson-access', lessonId],
@@ -54,8 +56,9 @@ export function LessonAccessPanel({ lessonId }: { lessonId: string }) {
       setAccessGroupId('');
       setAccessFileEmails([]);
       setAccessFileName('');
+      setNotFoundEmails(notFound ?? []);
       if (notFound && notFound.length > 0) {
-        setAccessError(`הוענקה גישה ל-${granted} תלמידות. לא נמצאו: ${notFound.join(', ')}`);
+        setAccessError(`הוענקה גישה ל-${granted} תלמידות. לא נמצאו ${notFound.length} כתובות:`);
       } else {
         setAccessError('');
         toast.success(`הוענקה גישה ל-${granted} תלמידות`);
@@ -83,7 +86,7 @@ export function LessonAccessPanel({ lessonId }: { lessonId: string }) {
             ['group', 'קבוצה שלמה'],
             ['file', 'קובץ מיילים'],
           ] as const).map(([t, label]) => (
-            <button key={t} onClick={() => { setAccessTab(t); setAccessError(''); }}
+            <button key={t} onClick={() => { setAccessTab(t); setAccessError(''); setNotFoundEmails([]); setNewStudentEmail(null); }}
               className={`rounded-input border px-3 py-1.5 text-xs font-bold transition-colors ${accessTab === t ? 'border-rule bg-ink text-sheet' : 'border-rule/30 text-ink/70 hover:border-rule'}`}>
               {label}
             </button>
@@ -91,7 +94,11 @@ export function LessonAccessPanel({ lessonId }: { lessonId: string }) {
         </div>
 
         {accessTab === 'student' && (
-          <StudentAutocomplete onSelect={(s) => grantAccessMutation.mutate(s.id)} />
+          <StudentGrantPicker
+            key={newStudentEmail ?? ''}
+            initialEmail={newStudentEmail ?? undefined}
+            onGrant={(studentId) => { setNewStudentEmail(null); grantAccessMutation.mutate(studentId); }}
+          />
         )}
 
         {accessTab === 'group' && (
@@ -150,6 +157,26 @@ export function LessonAccessPanel({ lessonId }: { lessonId: string }) {
         )}
 
         {accessError && <p className="text-coral text-xs">{accessError}</p>}
+        {notFoundEmails.length > 0 && (
+          <ul className="space-y-1">
+            {notFoundEmails.map((email) => (
+              <li key={email} className="flex items-center justify-between gap-2 text-xs">
+                <span dir="ltr" className="text-ink/70">{email}</span>
+                <button
+                  className="font-semibold text-clay hover:underline"
+                  onClick={() => {
+                    setNotFoundEmails((prev) => prev.filter((e) => e !== email));
+                    setAccessError('');
+                    setNewStudentEmail(email);
+                    setAccessTab('student');
+                  }}
+                >
+                  להוסיף כתלמידה חדשה?
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         {accessStudents.length > 0 && (
           <div className="divide-y divide-rule/20 border border-rule/20 rounded-card">
             {accessStudents.map((s) => (

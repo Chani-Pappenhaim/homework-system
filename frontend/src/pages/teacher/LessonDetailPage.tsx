@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Github, Edit, Trash2, Plus, BookOpen, Lock, ClipboardList, Paperclip, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
+import { Github, Edit, Trash2, Plus, BookOpen, Lock, ClipboardList, Paperclip, ChevronRight, ChevronLeft, Sparkles, Copy } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
 import { assignmentsApi } from '@/api/assignments.api';
 import { quizzesApi } from '@/api/quizzes.api';
@@ -15,6 +15,7 @@ import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { FileGallery } from '@/components/ui/file-gallery';
 import { useToast } from '@/components/ui/toast';
 import { LessonEditModal } from '@/components/lesson/LessonEditModal';
+import { LessonCopyModal } from '@/components/lesson/LessonCopyModal';
 import { AssignmentModal } from '@/components/lesson/AssignmentModal';
 import { AssignmentSubmissionsTable } from '@/components/lesson/AssignmentSubmissionsTable';
 import { GradeModal } from '@/components/lesson/GradeModal';
@@ -45,6 +46,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
   const [gradeModal, setGradeModal] = useState<SubmissionDTO | null>(null);
   const [assignmentModal, setAssignmentModal] = useState<AssignmentDTO | null | 'new'>(null);
   const [lessonEditOpen, setLessonEditOpen] = useState(false);
+  const [copyOpen, setCopyOpen] = useState(false);
   const [tab, setTab] = useTabParam(TABS, 'content');
 
   const { data: lessonData, isLoading } = useQuery({
@@ -114,6 +116,15 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
     onSuccess: () => qc.invalidateQueries({ queryKey: ['lesson', id] }),
   });
 
+  const hiddenFileMutation = useMutation({
+    mutationFn: ({ fileId, hidden }: { fileId: string; hidden: boolean }) => lessonsApi.setFileHidden(id!, fileId, hidden),
+    onSuccess: (_, { hidden }) => {
+      qc.invalidateQueries({ queryKey: ['lesson', id] });
+      toast.success(hidden ? 'הקובץ הוסתר מהתלמידות' : 'הקובץ מוצג לתלמידות');
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'שגיאה בעדכון הקובץ')),
+  });
+
   const deleteAssignmentMutation = useMutation({
     mutationFn: (aId: string) => assignmentsApi.delete(aId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['lesson', id] }); toast.success('המטלה נמחקה'); },
@@ -135,6 +146,9 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
             {lesson.hidden && <Badge variant="warning">מוסתר</Badge>}
             <Button size="sm" variant="outline" onClick={() => setLessonEditOpen(true)}>
               <Edit size={12} /> ערוך שיעור
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setCopyOpen(true)}>
+              <Copy size={12} /> שכפול / העתקה
             </Button>
             <Button
               size="sm"
@@ -221,6 +235,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
             onDelete={(fileId) => deleteFileMutation.mutate(fileId)}
             onRename={(fileId, name) => renameFileMutation.mutate({ fileId, name })}
             onToggleRequired={(fileId, required) => requiredFileMutation.mutate({ fileId, required })}
+            onToggleHidden={(fileId, hidden) => hiddenFileMutation.mutate({ fileId, hidden })}
             className="mt-1"
           />
           {lesson.files.length === 0 && (
@@ -307,9 +322,9 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
                     <>
                       <dt className="text-xs font-medium text-ink/50">תיאור</dt>
                       <dd className="text-ink/80">
-                        <p className={cn('whitespace-pre-wrap', !descExpanded && 'line-clamp-2')}>
-                          {assignment.description}
-                        </p>
+                        <div className={cn(!descExpanded && 'max-h-12 overflow-hidden')}>
+                          <MarkdownRenderer content={assignment.description} />
+                        </div>
                         {assignment.description.length > 120 && (
                           <button
                             onClick={() => setDescExpanded((v) => !v)}
@@ -392,6 +407,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
       </div>
 
       <LessonEditModal lesson={lesson} open={lessonEditOpen} onClose={() => setLessonEditOpen(false)} />
+      <LessonCopyModal lesson={lesson} open={copyOpen} onClose={() => setCopyOpen(false)} />
       <AssignmentModal lessonId={lesson.id} lessonDate={lesson.lessonDate} value={assignmentModal} onClose={() => setAssignmentModal(null)} />
       <GradeModal submission={gradeModal} assignment={assignment} onClose={() => setGradeModal(null)} />
     </div>
