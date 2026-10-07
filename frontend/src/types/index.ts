@@ -6,6 +6,7 @@ export interface UserDTO {
   email: string;
   role: Role;
   mustChangePassword: boolean;
+  githubUsername: string | null;
   groups: { id: string; name: string }[];
 }
 

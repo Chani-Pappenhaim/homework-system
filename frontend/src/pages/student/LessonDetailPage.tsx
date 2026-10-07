@@ -13,6 +13,7 @@ import { FileUpload } from '@/components/ui/file-upload';
 import { FileGallery } from '@/components/ui/file-gallery';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
+import useAuthStore from '@/store/authStore';
 import QuizContent from '@/components/student/QuizContent';
 import { cn, formatDate, formatDateTime, isOverdue, toExternalUrl } from '@/lib/utils';
 import { getApiErrorMessage } from '@/lib/errors';
@@ -267,7 +268,10 @@ function AssignmentCard({ assignment: a, submission: sub }: {
     onError: (e: any) => setError(getApiErrorMessage(e, 'שגיאה בהגשה')),
   });
 
-  const githubPreview = repoName ? `https://github.com/[username]/${repoName}` : '';
+  const githubUsername = useAuthStore((s) => s.user?.githubUsername);
+  // Mirrors the server's normalizeRepoName so the preview matches what gets saved.
+  const cleanRepo = repoName.trim().replace(/\/+$/, '').replace(/\.git$/i, '').split('/').pop() ?? '';
+  const githubPreview = cleanRepo && githubUsername ? `https://github.com/${githubUsername}/${cleanRepo}` : '';
 
   return (
     <Card>
@@ -449,10 +453,20 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                     הגש
                   </Button>
                 </div>
-                {githubPreview && (
-                  <p className="text-xs text-ink/50 flex items-center gap-1">
-                    <Github size={11} /> {githubPreview}
+                {!githubUsername ? (
+                  <p className="text-xs text-coral">
+                    לא הוגדר שם משתמש GitHub בחשבון שלך — יש לעדכן אותו בפרופיל לפני הגשת ריפו
                   </p>
+                ) : githubPreview && (
+                  <a
+                    href={githubPreview}
+                    target="_blank"
+                    rel="noreferrer"
+                    dir="ltr"
+                    className="flex w-fit items-center gap-1 text-xs text-clay hover:underline"
+                  >
+                    <Github size={11} /> {githubPreview}
+                  </a>
                 )}
               </div>
             )}

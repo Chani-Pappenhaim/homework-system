@@ -42,6 +42,7 @@ describe('auth.service', () => {
       } as any);
       expect(dto).toEqual({
         id: 'u1', name: 'Dina', email: 'd@x.com', role: 'STUDENT', mustChangePassword: true,
+        githubUsername: 'gh',
         groups: [{ id: 'g1', name: 'קבוצה א' }],
       });
       expect(dto).not.toHaveProperty('password');

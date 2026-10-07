@@ -11,6 +11,7 @@ export type UserDTO = {
   email: string;
   role: string;
   mustChangePassword: boolean;
+  githubUsername: string | null;
   groups: { id: string; name: string }[];
 };
 
@@ -31,6 +32,7 @@ export function toUserDTO(user: UserWithGroups): UserDTO {
     email: user.email,
     role: user.role,
     mustChangePassword: user.mustChangePassword,
+    githubUsername: user.githubUsername ?? null,
     groups: user.studentGroups?.map((sg) => sg.group) ?? [],
   };
 }
