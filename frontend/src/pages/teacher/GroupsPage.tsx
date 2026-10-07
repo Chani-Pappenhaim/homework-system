@@ -11,6 +11,7 @@ import { Tape } from '@/components/decor';
 import { cn, groupDisplayName } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import type { GroupDTO } from '@/types';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 const ACCENTS = ['indigo', 'sage', 'clay', 'butter', 'coral'] as const;
 const ICON_TINT: Record<(typeof ACCENTS)[number], string> = {
@@ -22,6 +23,7 @@ const ICON_TINT: Record<(typeof ACCENTS)[number], string> = {
 };
 
 export default function GroupsPage() {
+  usePageTitle('קבוצות');
   const navigate = useNavigate();
 
   const { data, isLoading } = useQuery({

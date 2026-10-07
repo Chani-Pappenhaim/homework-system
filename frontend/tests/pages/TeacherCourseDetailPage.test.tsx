@@ -56,7 +56,7 @@ describe('TeacherCourseDetailPage', () => {
     await screen.findByRole('heading', { name: 'קורס React' });
     // Lesson bubbles show the topic as their visible text.
     await userEvent.click(screen.getByRole('button', { name: /שיעור ראשון/ }));
-    expect(navigate).toHaveBeenCalledWith('/teacher/lessons/l1');
+    expect(navigate).toHaveBeenCalledWith('/teacher/courses/c1/lessons/1');
   });
 
   it('opens the new-lesson modal and creates a lesson', async () => {

@@ -1,4 +1,5 @@
 import { toExternalUrl, todayISO, formatDate, cn } from '@/lib/utils';
+import { lessonPath } from '@/components/lesson/LessonRoute';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Edit, Lock, ExternalLink, Plus, Trash2, ClipboardCheck } from 'lucide-react';
@@ -21,6 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { useState } from 'react';
 import { useToast } from '@/components/ui/toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 function StatTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -73,6 +75,7 @@ export default function CourseDetailPage() {
   });
 
   const course = data?.data.data.course;
+  usePageTitle(course?.name);
   if (isLoading) return <div className="p-6 text-ink/50">טוען...</div>;
   if (!course) return <div className="p-6 text-coral">קורס לא נמצא</div>;
 
@@ -136,7 +139,7 @@ export default function CourseDetailPage() {
             {course.lessons.map((l, i) => (
               <button
                 key={l.id}
-                onClick={() => navigate(`/teacher/lessons/${l.id}`)}
+                onClick={() => navigate(lessonPath('teacher', course.id, i + 1))}
                 onMouseEnter={() => qc.prefetchQuery({ queryKey: ['lesson', l.id], queryFn: () => lessonsApi.get(l.id) })}
                 onFocus={() => qc.prefetchQuery({ queryKey: ['lesson', l.id], queryFn: () => lessonsApi.get(l.id) })}
                 title={l.topic}

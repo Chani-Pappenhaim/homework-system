@@ -11,10 +11,12 @@ import { PageHeader } from '@/components/ui/page-header';
 import { cn, formatDate, formatDateTime, isOverdue } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import type { MySubmission, PendingAssignment } from '@/types';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 type ViewingItem = { type: 'pending'; item: PendingAssignment } | { type: 'submitted'; item: MySubmission };
 
 export default function AssignmentsPage() {
+  usePageTitle('המטלות שלי');
   const navigate = useNavigate();
   const { data } = useQuery({ queryKey: ['mine'], queryFn: () => submissionsApi.mine() });
   const mine = unwrap(data);

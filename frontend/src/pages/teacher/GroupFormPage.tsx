@@ -19,6 +19,7 @@ import { BackLink } from '@/components/ui/back-link';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
 import { downloadBlob, groupDisplayName } from '@/lib/utils';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function GroupFormPage() {
   const { id } = useParams();
@@ -56,6 +57,7 @@ export default function GroupFormPage() {
   });
 
   const group = data?.data.data.group;
+  usePageTitle(isEdit ? 'עריכת קבוצה' : 'קבוצה חדשה');
 
   const visibleStudents = (() => {
     const q = studentQuery.trim().toLowerCase();

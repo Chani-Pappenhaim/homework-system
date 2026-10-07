@@ -21,8 +21,10 @@ import { cn, formatDateTime } from '@/lib/utils';
 import { getApiErrorMessage } from '@/lib/errors';
 import { unwrap } from '@/lib/api-utils';
 import type { MessageDTO } from '@/types';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function StudentMessagesPage() {
+  usePageTitle('הודעות');
   const qc = useQueryClient();
   const [searchParams] = useSearchParams();
   const [composeOpen, setComposeOpen] = useState(false);

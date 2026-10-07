@@ -13,8 +13,10 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { formatDate, formatDateTime, groupDisplayName } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import type { ReportRow } from '@/types';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function ReportsPage() {
+  usePageTitle('דוחות');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [groupId, setGroupId] = useState('');

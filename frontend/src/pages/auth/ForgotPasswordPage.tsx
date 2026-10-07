@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { BrandMark, Tape } from '@/components/decor';
 import { getApiErrorMessage } from '@/lib/errors';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function ForgotPasswordPage() {
+  usePageTitle('שכחתי סיסמה');
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');

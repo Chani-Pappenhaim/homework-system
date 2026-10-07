@@ -19,12 +19,18 @@ import { cn, formatDate, formatDateTime, isOverdue, toExternalUrl } from '@/lib/
 import { getApiErrorMessage } from '@/lib/errors';
 import { useTeacherRequest } from '@/hooks/useTeacherRequest';
 import { unwrap } from '@/lib/api-utils';
+import { useTabParam } from '@/hooks/useTabParam';
+import { usePageTitle } from '@/hooks/usePageTitle';
+import type { LessonPageProps } from '@/components/lesson/LessonRoute';
 import type { AssignmentDTO, MySubmission } from '@/types';
 
-export default function StudentLessonDetailPage() {
-  const { id } = useParams<{ id: string }>();
+const TABS = ['content', 'files', 'quiz', 'assignments'] as const;
+
+export default function StudentLessonDetailPage({ lessonId, lessonNumber }: Partial<LessonPageProps> = {}) {
+  const params = useParams<{ id: string }>();
+  const id = lessonId ?? params.id;
   const qc = useQueryClient();
-  const [tab, setTab] = useState<'content' | 'files' | 'quiz' | 'assignments'>('content');
+  const [tab, setTab] = useTabParam(TABS, 'content');
 
   const { data, isLoading } = useQuery({
     queryKey: ['lesson', id],
@@ -37,6 +43,7 @@ export default function StudentLessonDetailPage() {
   });
 
   const lesson = data?.data.data.lesson;
+  usePageTitle(lesson?.topic, lessonNumber ? `שיעור ${lessonNumber}` : null);
   const submitted: MySubmission[] = unwrap(mineData)?.submitted ?? [];
 
   const [progressError, setProgressError] = useState('');

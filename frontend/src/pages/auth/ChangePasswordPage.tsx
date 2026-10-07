@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button';
 import { PasswordInput } from '@/components/ui/password-input';
 import { BrandMark, Tape } from '@/components/decor';
 import { getApiErrorMessage } from '@/lib/errors';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function ChangePasswordPage() {
+  usePageTitle('החלפת סיסמה');
   const navigate = useNavigate();
   const { user, setAuth, accessToken } = useAuthStore();
   const [current, setCurrent] = useState('');

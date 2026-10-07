@@ -24,10 +24,16 @@ import QuizPanel from '@/components/teacher/QuizPanel';
 import QuizDashboard from '@/components/teacher/QuizDashboard';
 import { cn, formatDate, toExternalUrl } from '@/lib/utils';
 import { getApiErrorMessage } from '@/lib/errors';
+import { useTabParam } from '@/hooks/useTabParam';
+import { usePageTitle } from '@/hooks/usePageTitle';
+import type { LessonPageProps } from '@/components/lesson/LessonRoute';
 import type { AssignmentDTO, SubmissionDTO, QuizResultsDTO } from '@/types';
 
-export default function LessonDetailPage() {
-  const { id } = useParams<{ id: string }>();
+const TABS = ['content', 'files', 'assignments', 'access', 'quiz'] as const;
+
+export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<LessonPageProps> = {}) {
+  const params = useParams<{ id: string }>();
+  const id = lessonId ?? params.id;
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const qc = useQueryClient();
@@ -39,7 +45,7 @@ export default function LessonDetailPage() {
   const [gradeModal, setGradeModal] = useState<SubmissionDTO | null>(null);
   const [assignmentModal, setAssignmentModal] = useState<AssignmentDTO | null | 'new'>(null);
   const [lessonEditOpen, setLessonEditOpen] = useState(false);
-  const [tab, setTab] = useState<'files' | 'content' | 'assignments' | 'access' | 'quiz'>('content');
+  const [tab, setTab] = useTabParam(TABS, 'content');
 
   const { data: lessonData, isLoading } = useQuery({
     queryKey: ['lesson', id],
@@ -48,6 +54,7 @@ export default function LessonDetailPage() {
 
   const lesson = lessonData?.data.data.lesson;
   const assignment = lesson?.assignments[selectedAssignment];
+  usePageTitle(lesson?.topic, lessonNumber ? `שיעור ${lessonNumber}` : null);
 
   const { data: quizResultsData } = useQuery({
     queryKey: ['quiz-results', id],
@@ -65,7 +72,7 @@ export default function LessonDetailPage() {
     if (!lesson || !targetAssignmentId) return;
     const i = lesson.assignments.findIndex((a) => a.id === targetAssignmentId);
     if (i >= 0) { setSelectedAssignment(i); setViewingAssignment(true); setTab('assignments'); }
-  }, [lesson, targetAssignmentId]);
+  }, [lesson, targetAssignmentId, setTab]);
 
   // Switching assignments shouldn't carry over an expanded description from the previous one.
   useEffect(() => setDescExpanded(false), [selectedAssignment]);

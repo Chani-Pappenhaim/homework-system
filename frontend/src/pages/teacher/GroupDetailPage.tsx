@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { BackLink } from '@/components/ui/back-link';
 import { useToast } from '@/components/ui/toast';
 import { cn, groupDisplayName } from '@/lib/utils';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function GroupDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -24,6 +25,7 @@ export default function GroupDetailPage() {
   });
 
   const group = data?.data.data.group;
+  usePageTitle(group && groupDisplayName(group));
 
   const toggleHiddenMutation = useMutation({
     mutationFn: (course: { id: string; hidden: boolean }) =>

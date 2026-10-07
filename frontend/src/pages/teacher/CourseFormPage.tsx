@@ -23,6 +23,7 @@ import { FileGallery } from '@/components/ui/file-gallery';
 import { BackLink } from '@/components/ui/back-link';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function CourseFormPage() {
   const { id } = useParams();
@@ -54,6 +55,7 @@ export default function CourseFormPage() {
   });
 
   const course = courseData?.data.data.course;
+  usePageTitle(isEdit ? 'עריכת קורס' : 'קורס חדש', course?.name);
   const groups = groupsData?.data.data.groups ?? [];
 
   useEffect(() => {
