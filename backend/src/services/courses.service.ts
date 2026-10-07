@@ -1,6 +1,7 @@
 import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
-import { uploadBuffer, createUploadSignature, destroyByUrl, toFileDTO } from '../utils/storage';
+import { uploadBuffer, createUploadSignature, toFileDTO } from '../utils/storage';
+import { releaseFileUrls } from '../utils/file-refs';
 import { assertCourseAccess } from '../utils/access';
 
 export async function getCoursesForUser(userId: string, role: string) {
@@ -177,8 +178,8 @@ export async function uploadCourseFile(
 export async function deleteCourseFile(courseId: string, fileId: string) {
   const file = await prisma.courseFile.findUnique({ where: { id: fileId, courseId } });
   if (!file) throw new AppError('File not found', 'הקובץ לא נמצא', 404);
-  await destroyByUrl(file.url);
   await prisma.courseFile.delete({ where: { id: fileId } });
+  await releaseFileUrls([file.url]);
 }
 
 export async function renameCourseFile(courseId: string, fileId: string, name: string, userId: string) {
@@ -190,9 +191,9 @@ export async function renameCourseFile(courseId: string, fileId: string, name: s
   return toFileDTO(updated, 'course', userId);
 }
 
-// Deletes a course and everything under it. The DB rows cascade automatically,
-// so this only needs to clean up stored assets first, best-effort — a storage
-// hiccup must not block the delete.
+// Deletes a course and everything under it. The DB rows cascade automatically;
+// afterwards, stored assets that no other course/lesson still uses (e.g. one
+// sharing them through a copy) are cleaned up, best-effort.
 export async function deleteCourse(id: string) {
   const course = await prisma.course.findUnique({
     where: { id },
@@ -204,20 +205,9 @@ export async function deleteCourse(id: string) {
     ...course.files.map((f) => f.url),
     ...course.lessons.flatMap((l) => l.files.map((f) => f.url)),
   ];
-  await destroyUrls(urls);
 
   await prisma.course.delete({ where: { id } });
-}
-
-/** Best-effort removal of stored assets; never throws. */
-export async function destroyUrls(urls: string[]) {
-  for (const url of urls) {
-    try {
-      await destroyByUrl(url);
-    } catch (err) {
-      console.error('[storage] failed to destroy asset:', url, err);
-    }
-  }
+  await releaseFileUrls(urls);
 }
 
 

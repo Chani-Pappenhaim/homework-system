@@ -6,7 +6,8 @@ vi.mock('../../src/config/prisma', () => ({
     user: { findUnique: vi.fn() },
     studentGroup: { findFirst: vi.fn(), count: vi.fn() },
     lessonAccess: { findUnique: vi.fn() },
-    courseFile: { findUnique: vi.fn(), delete: vi.fn(), create: vi.fn() },
+    courseFile: { findUnique: vi.fn(), delete: vi.fn(), create: vi.fn(), count: vi.fn().mockResolvedValue(0) },
+    lessonFile: { count: vi.fn().mockResolvedValue(0) },
     courseLink: { create: vi.fn(), delete: vi.fn() },
     lessonProgress: { findMany: vi.fn(), groupBy: vi.fn() },
   },
@@ -229,13 +230,21 @@ describe('courses.service create/update + links + files', () => {
     p.courseFile.findUnique.mockResolvedValue(null);
     await expect(deleteCourseFile('c1', 'f1')).rejects.toMatchObject({ status: 404 });
   });
-  it('deleteCourseFile removes the cloudinary asset then the row', async () => {
+  it('deleteCourseFile deletes the row, then the asset once nothing references it', async () => {
     p.courseFile.findUnique.mockResolvedValue({ id: 'f1', url: 'https://res.cloudinary.com/demo/upload/v1/courses/abc.pdf' });
     destroyMock.mockResolvedValue({});
     p.courseFile.delete.mockResolvedValue({});
     await deleteCourseFile('c1', 'f1');
-    expect(destroyMock).toHaveBeenCalled();
     expect(p.courseFile.delete).toHaveBeenCalledWith({ where: { id: 'f1' } });
+    expect(destroyMock).toHaveBeenCalledWith('https://res.cloudinary.com/demo/upload/v1/courses/abc.pdf');
+  });
+  it('deleteCourseFile keeps the asset while a copied course still references it', async () => {
+    p.courseFile.findUnique.mockResolvedValue({ id: 'f1', url: 'https://cdn/shared.pdf' });
+    p.courseFile.delete.mockResolvedValue({});
+    p.courseFile.count.mockResolvedValueOnce(1);
+    await deleteCourseFile('c1', 'f1');
+    expect(p.courseFile.delete).toHaveBeenCalledWith({ where: { id: 'f1' } });
+    expect(destroyMock).not.toHaveBeenCalled();
   });
 });
 
@@ -246,7 +255,7 @@ describe('courses.service.deleteCourse', () => {
     expect(p.course.delete).not.toHaveBeenCalled();
   });
 
-  it('destroys course + lesson file assets, then deletes the course', async () => {
+  it('deletes the course, then destroys its now-unreferenced file assets', async () => {
     p.course.findUnique.mockResolvedValue({
       id: 'c1',
       files: [{ url: 'https://cdn/course-file.pdf' }],
@@ -259,6 +268,20 @@ describe('courses.service.deleteCourse', () => {
     expect(destroyMock).toHaveBeenCalledWith('https://cdn/course-file.pdf');
     expect(destroyMock).toHaveBeenCalledWith('https://cdn/lesson-a.pdf');
     expect(p.course.delete).toHaveBeenCalledWith({ where: { id: 'c1' } });
+  });
+
+  it('keeps assets that another course still references through a copy', async () => {
+    p.course.findUnique.mockResolvedValue({
+      id: 'c1',
+      files: [{ url: 'https://cdn/shared.pdf' }],
+      lessons: [{ files: [{ url: 'https://cdn/own.pdf' }] }],
+    });
+    p.course.delete.mockResolvedValue({});
+    p.courseFile.count.mockImplementation(({ where }: any) => Promise.resolve(where.url === 'https://cdn/shared.pdf' ? 1 : 0));
+    await deleteCourse('c1');
+    expect(destroyMock).toHaveBeenCalledTimes(1);
+    expect(destroyMock).toHaveBeenCalledWith('https://cdn/own.pdf');
+    p.courseFile.count.mockResolvedValue(0);
   });
 
   it('still deletes the course when a storage destroy fails', async () => {

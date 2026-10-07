@@ -1,6 +1,7 @@
 import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
-import { uploadBuffer, createUploadSignature, destroyByUrl, toFileDTO } from '../utils/storage';
+import { uploadBuffer, createUploadSignature, toFileDTO } from '../utils/storage';
+import { releaseFileUrls } from '../utils/file-refs';
 import { assertLessonAccess, assertCourseAccess } from '../utils/access';
 
 // Older lessons only have the legacy single `githubUrl` column populated;
@@ -200,8 +201,8 @@ export async function uploadLessonFile(
 export async function deleteLessonFile(lessonId: string, fileId: string) {
   const file = await prisma.lessonFile.findUnique({ where: { id: fileId, lessonId } });
   if (!file) throw new AppError('File not found', 'הקובץ לא נמצא', 404);
-  await destroyByUrl(file.url);
   await prisma.lessonFile.delete({ where: { id: fileId } });
+  await releaseFileUrls([file.url]);
 }
 
 export async function renameLessonFile(lessonId: string, fileId: string, name: string, userId: string) {
@@ -214,8 +215,8 @@ export async function renameLessonFile(lessonId: string, fileId: string, name: s
 }
 
 // Deletes a lesson and its children (assignments, submissions, files, quiz,
-// access, progress) via cascade. Stored file assets are cleaned up first,
-// best-effort, so a storage failure can't block the delete.
+// access, progress) via cascade. Afterwards, stored assets no other
+// course/lesson still uses are cleaned up, best-effort.
 export async function deleteLesson(id: string) {
   const lesson = await prisma.lesson.findUnique({
     where: { id },
@@ -223,15 +224,8 @@ export async function deleteLesson(id: string) {
   });
   if (!lesson) throw new AppError('Lesson not found', 'השיעור לא נמצא', 404);
 
-  for (const f of lesson.files) {
-    try {
-      await destroyByUrl(f.url);
-    } catch (err) {
-      console.error('[storage] failed to destroy asset:', f.url, err);
-    }
-  }
-
   await prisma.lesson.delete({ where: { id } });
+  await releaseFileUrls(lesson.files.map((f) => f.url));
 }
 
 export async function importMarkdown(lessonId: string, content: string) {
