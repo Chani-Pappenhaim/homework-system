@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Edit, Users, BookOpen, Plus, Github, Trash2, Lock, EyeOff, ClipboardList } from 'lucide-react';
@@ -11,13 +10,16 @@ import { BackLink } from '@/components/ui/back-link';
 import { useToast } from '@/components/ui/toast';
 import { cn, groupDisplayName } from '@/lib/utils';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { useTabParam } from '@/hooks/useTabParam';
+
+const GROUP_TABS = ['courses', 'students'] as const;
 
 export default function GroupDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
-  const [tab, setTab] = useState<'courses' | 'students'>('courses');
+  const [tab, setTab] = useTabParam(GROUP_TABS, 'courses');
 
   const { data, isLoading } = useQuery({
     queryKey: ['group', id],

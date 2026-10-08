@@ -8,6 +8,11 @@ vi.mock('@/api/quizzes.api', () => ({
   quizzesApi: { get: vi.fn(), attempt: vi.fn(), results: vi.fn() },
 }));
 import { quizzesApi } from '@/api/quizzes.api';
+
+// The question renders as Markdown inside its numbered line, so its text spans
+// more than one element; match the whole line instead.
+const findQuestion = (text: string) =>
+  screen.findByText((_, el) => el?.tagName === 'P' && el.textContent === text);
 const getQuiz = quizzesApi.get as unknown as ReturnType<typeof vi.fn>;
 const attempt = quizzesApi.attempt as unknown as ReturnType<typeof vi.fn>;
 
@@ -59,7 +64,7 @@ describe('QuizPage', () => {
   it('renders quiz questions and options when ready', async () => {
     getQuiz.mockResolvedValue(readyQuiz);
     renderPage();
-    expect(await screen.findByText('1. מהו React?')).toBeInTheDocument();
+    expect(await findQuestion('1. מהו React?')).toBeInTheDocument();
     expect(screen.getByText('ספרייה')).toBeInTheDocument();
     expect(screen.getByText('1 שאלות')).toBeInTheDocument();
   });
@@ -67,7 +72,7 @@ describe('QuizPage', () => {
   it('disables submit until every question is answered', async () => {
     getQuiz.mockResolvedValue(readyQuiz);
     renderPage();
-    await screen.findByText('1. מהו React?');
+    await findQuestion('1. מהו React?');
     const submit = screen.getByRole('button', { name: 'הגש חידון' });
     expect(submit).toBeDisabled();
     await userEvent.click(screen.getAllByRole('radio')[0]);
@@ -98,7 +103,7 @@ describe('QuizPage', () => {
       },
     });
     renderPage();
-    await screen.findByText('1. מהו React?');
+    await findQuestion('1. מהו React?');
     await userEvent.click(screen.getAllByRole('radio')[0]);
     await userEvent.click(screen.getByRole('button', { name: 'הגש חידון' }));
     await waitFor(() => expect(attempt).toHaveBeenCalledWith('l1', [0]));
@@ -120,7 +125,7 @@ describe('QuizPage', () => {
       },
     });
     renderPage();
-    await screen.findByText('1. מהו React?');
+    await findQuestion('1. מהו React?');
     await userEvent.click(screen.getAllByRole('radio')[1]);
     await userEvent.click(screen.getByRole('button', { name: 'הגש חידון' }));
 
@@ -143,7 +148,7 @@ describe('QuizPage', () => {
       },
     });
     renderPage();
-    await screen.findByText('1. מהו React?');
+    await findQuestion('1. מהו React?');
     await userEvent.click(screen.getAllByRole('radio')[0]);
     await userEvent.click(screen.getByRole('button', { name: 'הגש חידון' }));
 

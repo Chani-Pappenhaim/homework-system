@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
+import { MarkdownRenderer, MarkdownText } from '@/components/ui/markdown-renderer';
 
 describe('MarkdownRenderer', () => {
   it('renders a heading from markdown', () => {
@@ -61,5 +61,41 @@ describe('MarkdownRenderer', () => {
   it('joins single line breaks by default', () => {
     const { container } = render(<MarkdownRenderer content={'line one\nline two'} />);
     expect(container.querySelectorAll('br')).toHaveLength(0);
+  });
+});
+
+describe('MarkdownText', () => {
+  it('renders inline code and bold', () => {
+    const { container } = render(<MarkdownText content={'מה מחזיר `arr.length` עבור **מערך ריק**?'} />);
+    expect(container.querySelector('code')?.textContent).toBe('arr.length');
+    expect(container.querySelector('strong')?.textContent).toBe('מערך ריק');
+  });
+
+  it('keeps a code block left-to-right', () => {
+    const { container } = render(<MarkdownText content={'מה יודפס?\n\n```\nconsole.log(1)\n```'} />);
+    const code = container.querySelector('code');
+    expect(code?.textContent).toContain('console.log(1)');
+    expect(code?.closest('[dir="ltr"]')).not.toBeNull();
+  });
+
+  it('flattens a heading to plain text', () => {
+    render(<MarkdownText content={'# כותרת'} />);
+    expect(screen.queryByRole('heading')).toBeNull();
+    expect(screen.getByText('כותרת')).toBeInTheDocument();
+  });
+
+  it('renders only inline elements, so it fits inside a paragraph', () => {
+    const { container } = render(<MarkdownText content={'שורה ראשונה\n\nשורה שנייה'} />);
+    expect(container.querySelector('p, div, h1, ul, pre')).toBeNull();
+  });
+
+  it('keeps single line breaks', () => {
+    const { container } = render(<MarkdownText content={'שורה אחת\nשורה שתיים'} />);
+    expect(container.querySelectorAll('br')).toHaveLength(1);
+  });
+
+  it('opens links in a new tab', () => {
+    render(<MarkdownText content={'[תיעוד](https://react.dev)'} />);
+    expect(screen.getByRole('link', { name: 'תיעוד' })).toHaveAttribute('target', '_blank');
   });
 });

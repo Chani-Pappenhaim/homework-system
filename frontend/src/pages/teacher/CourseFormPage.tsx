@@ -24,6 +24,9 @@ import { BackLink } from '@/components/ui/back-link';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { useTabParam } from '@/hooks/useTabParam';
+
+const COURSE_TABS = ['details', 'links'] as const;
 
 export default function CourseFormPage() {
   const { id } = useParams();
@@ -41,7 +44,7 @@ export default function CourseFormPage() {
   const [copyModal, setCopyModal] = useState(false);
   const [copyGroupId, setCopyGroupId] = useState('');
   const [newLink, setNewLink] = useState({ label: '', url: '' });
-  const [tab, setTab] = useState<'details' | 'links'>('details');
+  const [tab, setTab] = useTabParam(COURSE_TABS, 'details');
 
   const { data: courseData } = useQuery({
     queryKey: ['course', id],
@@ -322,6 +325,14 @@ export default function CourseFormPage() {
               <option key={g.id} value={g.id}>{groupDisplayName(g)}</option>
             ))}
           </select>
+          <div className="space-y-1 text-xs text-ink/60">
+            <p>יועתקו פרטי הקורס, הקישורים, הקבצים, השיעורים והמטלות.</p>
+            <p>
+              הקבצים לא מועלים שוב: העותק משתמש באותם קבצים שכבר שמורים בענן, כך שלא נתפס מקום נוסף.
+              מחיקת קובץ מאחד הקורסים לא מוחקת אותו מהקורס השני.
+            </p>
+            <p>בחנים, הגשות, ציונים והרשאות פרטיות לתלמידות לא מועתקים. כל השיעורים בעותק יהיו גלויים לתלמידות.</p>
+          </div>
           <Button loading={copyMutation.isPending} onClick={() => copyMutation.mutate()} disabled={!copyGroupId} className="w-full">
             העתק קורס
           </Button>

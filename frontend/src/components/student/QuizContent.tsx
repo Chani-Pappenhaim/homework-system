@@ -9,6 +9,7 @@ import { unwrap } from '@/lib/api-utils';
 import { getApiErrorMessage } from '@/lib/errors';
 import useAuthStore from '@/store/authStore';
 import type { QuizAttemptResultDTO } from '@/types';
+import { MarkdownText } from '@/components/ui/markdown-renderer';
 
 export default function QuizContent({ lessonId }: { lessonId: string }) {
   const [answers, setAnswers] = useState<number[]>([]);
@@ -172,7 +173,7 @@ export default function QuizContent({ lessonId }: { lessonId: string }) {
                     {q.isCorrect ? '✓' : '✗'}
                   </span>
                   <p className="text-sm font-bold text-ink">
-                    {i + 1}. {q.question}
+                    {i + 1}. <MarkdownText content={q.question} />
                     <span className="sr-only">{q.isCorrect ? ' — ענית נכון' : ' — ענית לא נכון'}</span>
                   </p>
                 </div>
@@ -195,7 +196,7 @@ export default function QuizContent({ lessonId }: { lessonId: string }) {
                       <span className="font-sans shrink-0" aria-hidden>
                         {isCorrect ? '✓' : isSelected ? '✗' : '○'}
                       </span>
-                      <span className="min-w-0 flex-1">{opt}</span>
+                      <MarkdownText content={opt} className="min-w-0 flex-1" />
                       {/* Spell out what the colours mean — a wrong answer is only
                           useful if she can tell which line was hers. */}
                       {isCorrect && (
@@ -228,7 +229,7 @@ export default function QuizContent({ lessonId }: { lessonId: string }) {
         {quiz?.questions.map((q, i) => (
           <Card key={q.id}>
             <CardContent className="space-y-3">
-              <p className="text-sm font-bold text-ink">{i + 1}. {q.question}</p>
+              <p className="text-sm font-bold text-ink">{i + 1}. <MarkdownText content={q.question} /></p>
               {q.options.map((opt, j) => (
                 <label
                   key={j}
@@ -244,7 +245,7 @@ export default function QuizContent({ lessonId }: { lessonId: string }) {
                     onChange={() => setAnswers((prev) => { const n = [...prev]; n[i] = j; return n; })}
                     className="accent-ink"
                   />
-                  <span className="text-sm">{opt}</span>
+                  <MarkdownText content={opt} className="text-sm" />
                 </label>
               ))}
             </CardContent>

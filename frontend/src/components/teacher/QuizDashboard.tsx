@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { cn, formatDateTime } from '@/lib/utils';
 import type { QuizQuestionStatsDTO, QuizResultsDTO } from '@/types';
+import { MarkdownText } from '@/components/ui/markdown-renderer';
 
 /**
  * Per-question breakdown of quiz results, ordered by lowest correct rate,
@@ -44,7 +45,7 @@ function QuestionRow({ q, index, attemptCount }: {
       <div className="flex items-start gap-3">
         <span className="mt-0.5 font-display text-sm font-bold tabular text-ink/40">{index + 1}</span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold text-ink">{q.question}</p>
+          <p className="text-sm font-bold text-ink"><MarkdownText content={q.question} /></p>
 
           <div className="mt-2 flex items-center gap-3">
             <div className="min-w-0 flex-1"><Bar value={q.correctCount} max={attemptCount} emphasis /></div>
@@ -70,7 +71,7 @@ function QuestionRow({ q, index, attemptCount }: {
                     {isCorrect ? '✓' : '·'}
                   </span>
                   <span className={cn('min-w-0 flex-1 text-xs', isCorrect ? 'font-semibold text-ink' : 'text-ink/60')}>
-                    {opt}
+                    <MarkdownText content={opt} />
                     {isCorrect && <span className="mr-1.5 font-normal text-ink/45">(התשובה הנכונה)</span>}
                   </span>
                   <span className="w-24 shrink-0"><Bar value={count} max={attemptCount} emphasis={isCorrect} /></span>

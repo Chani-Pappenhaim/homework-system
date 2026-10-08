@@ -3,7 +3,7 @@ import { FileUp, Eye, Pencil } from 'lucide-react';
 import { contentApi, CONTENT_FILE_ACCEPT } from '@/api/content.api';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
+import { MarkdownRenderer, MarkdownText } from '@/components/ui/markdown-renderer';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
 import { cn } from '@/lib/utils';
@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
  * A free-text field stored as Markdown: write it here, or load it from an
  * MD, HTML or Word file (converted on the server), and preview the result.
  */
-export function MarkdownField({ label, value, onChange, rows = 5, placeholder, required, id }: {
+export function MarkdownField({ label, value, onChange, rows = 5, placeholder, required, id, showHint = true, inline = false }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -20,6 +20,10 @@ export function MarkdownField({ label, value, onChange, rows = 5, placeholder, r
   placeholder?: string;
   required?: boolean;
   id?: string;
+  /** The formatting help line; a form with many fields shows it once instead. */
+  showHint?: boolean;
+  /** Preview it the way short inline text (a quiz question) is shown to students. */
+  inline?: boolean;
 }) {
   const autoId = useId();
   const fieldId = id ?? autoId;
@@ -70,7 +74,7 @@ export function MarkdownField({ label, value, onChange, rows = 5, placeholder, r
       </div>
       {preview ? (
         <div className={cn('min-h-[80px] overflow-auto rounded-input border border-rule bg-sheet px-3 py-2')} style={{ maxHeight: `${Math.max(rows, 6) * 1.75}rem` }}>
-          <MarkdownRenderer content={value} />
+          {inline ? <MarkdownText content={value} className="text-sm text-ink" /> : <MarkdownRenderer content={value} />}
         </div>
       ) : (
         <Textarea
@@ -83,9 +87,11 @@ export function MarkdownField({ label, value, onChange, rows = 5, placeholder, r
           required={required}
         />
       )}
-      <p className="text-xs text-ink-soft">
-        אפשר לעצב עם Markdown — כותרות (#), רשימות, קוד (```), קישורים — או לטעון קובץ Markdown, HTML או Word
-      </p>
+      {showHint && (
+        <p className="text-xs text-ink-soft">
+          אפשר לעצב עם Markdown — כותרות (#), רשימות, קוד (```), קישורים — או לטעון קובץ Markdown, HTML או Word
+        </p>
+      )}
     </div>
   );
 }
