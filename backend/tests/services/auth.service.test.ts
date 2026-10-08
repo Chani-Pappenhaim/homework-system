@@ -89,7 +89,7 @@ describe('auth.service', () => {
       expect(r).toEqual({ id: 'u9' });
       expect(p.user.findUnique).toHaveBeenCalledWith({
         where: { id: 'u9' },
-        include: { studentGroups: { include: { group: { select: { id: true, name: true } } } } },
+        include: { studentGroups: { include: { group: { select: { id: true, name: true, seminar: true, year: true } } } } },
       });
     });
   });

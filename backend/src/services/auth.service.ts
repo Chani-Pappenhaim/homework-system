@@ -5,6 +5,7 @@ import { User, Group } from '@prisma/client';
 import { emailQueue } from '../infrastructure/queues/queues';
 import { AppError } from '../utils/errors';
 import { isValidEmail, normalizeGithubUsername } from '../utils/excel';
+import { groupDisplayName, groupNameSelect } from '../utils/group-name';
 
 export type UserDTO = {
   id: string;
@@ -21,11 +22,11 @@ export type UserDTO = {
 // A user loaded together with its group memberships. Students belong to one
 // or more groups; teachers have none.
 type UserWithGroups = User & {
-  studentGroups?: { group: Pick<Group, 'id' | 'name'> }[];
+  studentGroups?: { group: Pick<Group, 'id' | 'name' | 'seminar' | 'year'> }[];
 };
 
 const groupsInclude = {
-  studentGroups: { include: { group: { select: { id: true, name: true } } } },
+  studentGroups: { include: { group: { select: { id: true, ...groupNameSelect } } } },
 };
 
 export function toUserDTO(user: UserWithGroups): UserDTO {
@@ -38,7 +39,7 @@ export function toUserDTO(user: UserWithGroups): UserDTO {
     githubUsername: user.githubUsername ?? null,
     emailVerified: Boolean(user.emailVerifiedAt),
     emailNotifications: user.emailNotifications,
-    groups: user.studentGroups?.map((sg) => sg.group) ?? [],
+    groups: user.studentGroups?.map((sg) => ({ id: sg.group.id, name: groupDisplayName(sg.group) })) ?? [],
   };
 }
 
