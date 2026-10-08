@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AutoTextarea } from '@/components/ui/auto-textarea';
+import { MarkdownField } from '@/components/ui/markdown-field';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
 import { cn } from '@/lib/utils';
@@ -184,19 +185,24 @@ export default function QuizPanel({
             ? 'הבוחן גלוי לתלמידות. עריכה תמחק את כל התשובות שכבר נענו.'
             : 'עברי על השאלות, תקני מה שצריך, ואז פרסמי. עד לפרסום התלמידות לא רואות דבר.'}
         </p>
+        <p className="text-xs text-ink/50">
+          שאלות ותשובות תומכות ב-Markdown: `קוד` בשורה, ``` לבלוק קוד, **הדגשה** וקישורים. את טקסט השאלה אפשר גם לטעון מקובץ Markdown, HTML או Word.
+        </p>
 
         {errorLine}
 
         <div className="space-y-4">
           {draft.map((q, qi) => (
             <div key={q.id} className="rounded-card border border-rule/60 bg-ground/30 p-3">
-              <div className="mb-2 flex items-start gap-2">
-                <span className="mt-2 font-display text-sm font-bold text-ink/40 tabular">{qi + 1}</span>
-                <AutoTextarea
+              <div className="mb-2">
+                <MarkdownField
+                  id={`quiz-question-${q.id}`}
+                  label={`שאלה ${qi + 1}`}
                   value={q.question}
-                  onChange={(e) => editQuestion(qi, { question: e.target.value })}
-                  className="flex-1"
-                  aria-label={`שאלה ${qi + 1}`}
+                  onChange={(question) => editQuestion(qi, { question })}
+                  rows={2}
+                  showHint={false}
+                  inline
                 />
               </div>
 
