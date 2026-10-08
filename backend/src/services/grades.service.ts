@@ -13,9 +13,12 @@ export async function gradeSubmission(
   });
 }
 
-export async function getReport(filters: { groupId?: string; courseId?: string }) {
+export type ReportFilters = { groupId?: string; courseId?: string; studentId?: string };
+
+export async function getReport(filters: ReportFilters) {
   const submissions = await prisma.submission.findMany({
     where: {
+      ...(filters.studentId && { studentId: filters.studentId }),
       assignment: {
         lesson: {
           course: {
@@ -37,6 +40,7 @@ export async function getReport(filters: { groupId?: string; courseId?: string }
     submissionId: s.id,
     lessonId: s.assignment.lessonId,
     assignmentId: s.assignmentId,
+    studentId: s.studentId,
     studentName: s.student.name,
     studentEmail: s.student.email,
     groupName: groupDisplayName(s.student.studentGroups[0]?.group),
@@ -53,7 +57,7 @@ export async function getReport(filters: { groupId?: string; courseId?: string }
   }));
 }
 
-export async function exportReport(filters: { groupId?: string; courseId?: string }): Promise<Buffer> {
+export async function exportReport(filters: ReportFilters): Promise<Buffer> {
   const rows = await getReport(filters);
 
   const workbook = new ExcelJS.Workbook();

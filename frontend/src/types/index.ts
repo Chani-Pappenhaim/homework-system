@@ -277,6 +277,7 @@ export interface ReportRow {
   submissionId: string;
   lessonId: string;
   assignmentId: string;
+  studentId: string;
   studentName: string;
   studentEmail: string;
   groupName: string;

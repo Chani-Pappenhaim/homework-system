@@ -1,11 +1,13 @@
 import api from './axios';
 import type { ChecklistResult, ReportRow } from '@/types';
 
+export type ReportFilters = { groupId?: string; courseId?: string; studentId?: string };
+
 export const gradesApi = {
   grade: (submissionId: string, data: { submissionScore?: number; contentScore?: number; feedback?: string; checklist?: ChecklistResult[] }) =>
     api.post(`/submissions/${submissionId}/grade`, data),
 
-  report: (filters?: { groupId?: string; courseId?: string }) =>
+  report: (filters?: ReportFilters) =>
     api.get<{ success: true; data: { report: ReportRow[] } }>('/grades/report', { params: filters }),
 
   pending: () =>
@@ -16,6 +18,6 @@ export const gradesApi = {
    * cookies but not the Authorization header, and the route requires a Bearer
    * token with no cookie fallback — so the "download" was always a 401 JSON body.
    */
-  exportReport: (filters?: { groupId?: string; courseId?: string }) =>
+  exportReport: (filters?: ReportFilters) =>
     api.get('/grades/report/export', { params: filters, responseType: 'blob' }),
 };

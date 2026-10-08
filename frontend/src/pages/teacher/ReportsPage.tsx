@@ -5,6 +5,7 @@ import { Download, ClipboardCheck } from 'lucide-react';
 import { gradesApi } from '@/api/grades.api';
 import { groupsApi } from '@/api/groups.api';
 import { coursesApi } from '@/api/courses.api';
+import { studentsApi } from '@/api/students.api';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,17 +20,31 @@ export default function ReportsPage() {
   usePageTitle('דוחות');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [groupId, setGroupId] = useState('');
-  // Deep-linked from a course page ("בדיקה" there jumps straight to that course's reports).
+  // Deep-linked from a course page ("בדיקה" there jumps straight to that course's reports)
+  // and from a group's student list ("הגשות" there opens one student's submissions).
+  const [groupId, setGroupId] = useState(searchParams.get('groupId') ?? '');
   const [courseId, setCourseId] = useState(searchParams.get('courseId') ?? '');
+  const [studentId, setStudentId] = useState(searchParams.get('studentId') ?? '');
   const [exportError, setExportError] = useState('');
 
   const { data: groupsData } = useQuery({ queryKey: ['groups'], queryFn: () => groupsApi.list() });
   const { data: coursesData } = useQuery({ queryKey: ['courses'], queryFn: () => coursesApi.list() });
+  // Student options: the selected group's roster, or every student (search is capped server-side) when no group is chosen
+  const { data: groupData } = useQuery({
+    queryKey: ['group', groupId],
+    queryFn: () => groupsApi.get(groupId),
+    enabled: Boolean(groupId),
+  });
+  const { data: allStudentsData } = useQuery({
+    queryKey: ['students', 'search', ''],
+    queryFn: () => studentsApi.search(''),
+    enabled: !groupId,
+  });
 
   const filters = {
     ...(groupId && { groupId }),
     ...(courseId && { courseId }),
+    ...(studentId && { studentId }),
   };
 
   const { data: reportData, isLoading } = useQuery({
@@ -40,6 +55,10 @@ export default function ReportsPage() {
   const groups = unwrap(groupsData)?.groups ?? [];
   const courses = unwrap(coursesData)?.courses ?? [];
   const report: ReportRow[] = unwrap(reportData)?.report ?? [];
+  const studentOptions = (groupId
+    ? (unwrap(groupData)?.group.students ?? [])
+    : (unwrap(allStudentsData)?.students ?? [])
+  ).slice().sort((a, b) => a.name.localeCompare(b.name, 'he'));
 
   const exportMutation = useMutation({
     mutationFn: () => gradesApi.exportReport(Object.keys(filters).length ? filters : undefined),
@@ -75,7 +94,7 @@ export default function ReportsPage() {
         <div className="px-5 py-4 flex gap-3 flex-wrap">
           <select
             value={groupId}
-            onChange={(e) => setGroupId(e.target.value)}
+            onChange={(e) => { setGroupId(e.target.value); setStudentId(''); }}
             className="rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
           >
             <option value="">כל הקבוצות</option>
@@ -91,8 +110,17 @@ export default function ReportsPage() {
             {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
 
-          {(groupId || courseId) && (
-            <Button size="sm" variant="outline" onClick={() => { setGroupId(''); setCourseId(''); }}>
+          <select
+            value={studentId}
+            onChange={(e) => setStudentId(e.target.value)}
+            className="rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
+          >
+            <option value="">כל התלמידות</option>
+            {studentOptions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+
+          {(groupId || courseId || studentId) && (
+            <Button size="sm" variant="outline" onClick={() => { setGroupId(''); setCourseId(''); setStudentId(''); }}>
               נקה פילטרים
             </Button>
           )}

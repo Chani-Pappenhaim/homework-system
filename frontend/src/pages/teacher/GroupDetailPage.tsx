@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Edit, Users, BookOpen, Plus, Github, Trash2, Lock, EyeOff } from 'lucide-react';
+import { Edit, Users, BookOpen, Plus, Github, Trash2, Lock, EyeOff, ClipboardList } from 'lucide-react';
 import { groupsApi } from '@/api/groups.api';
 import { coursesApi } from '@/api/courses.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -167,12 +167,22 @@ export default function GroupDetailPage() {
               <p className="px-5 py-4 text-sm text-ink/50">אין תלמידות עדיין</p>
             )}
             {[...group.students].sort((a, b) => a.name.localeCompare(b.name, 'he')).map((s) => (
-              <div key={s.id} className="px-5 py-3">
-                <p className="text-sm font-medium text-ink">{s.name}</p>
-                <p className="text-xs text-ink/50">{s.email}</p>
-                <p className="text-xs text-ink/50 flex items-center gap-1 mt-0.5">
-                  <Github size={11} /> {s.githubUsername || 'לא הוזן שם משתמש GitHub'}
-                </p>
+              <div key={s.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                <div>
+                  <p className="text-sm font-medium text-ink">{s.name}</p>
+                  <p className="text-xs text-ink/50">{s.email}</p>
+                  <p className="text-xs text-ink/50 flex items-center gap-1 mt-0.5">
+                    <Github size={11} /> {s.githubUsername || 'לא הוזן שם משתמש GitHub'}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={() => navigate(`/teacher/reports?groupId=${id}&studentId=${s.id}`)}
+                >
+                  <ClipboardList size={12} /> הגשות
+                </Button>
               </div>
             ))}
           </div>

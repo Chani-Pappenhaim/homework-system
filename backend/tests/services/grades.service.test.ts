@@ -32,6 +32,13 @@ describe('grades.service.getReport', () => {
     await getReport({ groupId: 'g1', courseId: 'c1' });
     const where = p.submission.findMany.mock.calls[0][0].where;
     expect(where.assignment.lesson.course).toEqual({ groupId: 'g1', id: 'c1' });
+    expect(where.studentId).toBeUndefined();
+  });
+
+  it('filters by studentId when given', async () => {
+    p.submission.findMany.mockResolvedValue([]);
+    await getReport({ studentId: 's1' });
+    expect(p.submission.findMany.mock.calls[0][0].where.studentId).toBe('s1');
   });
 
   it('flattens submissions into report rows with grade fallbacks', async () => {
