@@ -106,6 +106,17 @@ export function formatBytes(bytes: number | bigint | string | null | undefined):
  * together ("סמינר מאיר יד תשפ״ז"). The parts are stored apart so each stays
  * editable; older groups without a seminar simply drop that part.
  */
+/** Markdown reduced to plain text, for one-line previews of a longer text. */
+export function markdownToPlainText(md: string): string {
+  return md
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/gm, '')
+    .replace(/[*_~`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function groupDisplayName(group: { name: string; seminar?: string | null; year?: string | null }): string {
   return [group.seminar, group.name, group.year].map((part) => part?.trim()).filter(Boolean).join(' ');
 }

@@ -5,7 +5,8 @@ import { Mail, ChevronLeft, Clock, Trash2, Plus, Send, X } from 'lucide-react';
 import { messagesApi } from '@/api/messages.api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { MarkdownField } from '@/components/ui/markdown-field';
+import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MessageSkeleton } from '@/components/ui/skeleton';
@@ -19,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { cn, formatDateTime } from '@/lib/utils';
+import { cn, formatDateTime, markdownToPlainText } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import type { MessageDTO } from '@/types';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -153,7 +154,7 @@ export default function TeacherMessagesPage() {
                       <Badge variant="warning" className="shrink-0"><Clock size={9} className="ml-1" /> בקשת הגשה</Badge>
                     )}
                   </div>
-                  <p className="truncate text-[13px] text-ink-soft mt-1">{last?.content}</p>
+                  <p className="truncate text-[13px] text-ink-soft mt-1">{last ? markdownToPlainText(last.content) : null}</p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1 ml-4">
                   <span className="text-[11px] text-ink-soft">{formatDateTime(last?.createdAt ?? msg.createdAt)}</span>
@@ -214,26 +215,24 @@ export default function TeacherMessagesPage() {
                           </button>
                         )}
                       </div>
-                      <p className="whitespace-pre-wrap break-words text-sm text-ink">{entry.content}</p>
+                      <MarkdownRenderer content={entry.content} keepLineBreaks className="break-words text-sm text-ink" />
                     </div>
                   ) : (
                     <div key={entry.id}>
                       <div className="label mb-0.5">התלמידה · {formatDateTime(entry.createdAt)}</div>
-                      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-ink">{entry.content}</p>
+                      <MarkdownRenderer content={entry.content} keepLineBreaks className="break-words text-sm leading-relaxed text-ink" />
                     </div>
                   );
                 })}
                 <div ref={bottomRef} />
 
                 <div className="pt-1">
-                  <div className="label mb-1">כתיבת תגובה</div>
-                  <Textarea
+                  <MarkdownField
+                    label="כתיבת תגובה"
                     rows={4}
-                    className="resize-y"
                     placeholder="כתבי תגובה לתלמידה…"
                     value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    autoFocus
+                    onChange={setReplyText}
                   />
                 </div>
               </DialogBody>
@@ -294,13 +293,12 @@ export default function TeacherMessagesPage() {
               )}
             </div>
             <div>
-              <div className="label mb-1">תוכן ההודעה</div>
-              <Textarea
+              <MarkdownField
+                label="תוכן ההודעה"
                 rows={5}
-                className="resize-y"
                 placeholder="כתבי הודעה לתלמידה…"
                 value={composeText}
-                onChange={(e) => setComposeText(e.target.value)}
+                onChange={setComposeText}
               />
             </div>
           </DialogBody>

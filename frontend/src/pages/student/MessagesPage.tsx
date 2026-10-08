@@ -4,7 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, Clock, Trash2, Send, MessageSquarePlus } from 'lucide-react';
 import { messagesApi } from '@/api/messages.api';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { MarkdownField } from '@/components/ui/markdown-field';
+import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -17,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { cn, formatDateTime } from '@/lib/utils';
+import { cn, formatDateTime, markdownToPlainText } from '@/lib/utils';
 import { getApiErrorMessage } from '@/lib/errors';
 import { unwrap } from '@/lib/api-utils';
 import type { MessageDTO } from '@/types';
@@ -131,7 +132,7 @@ export default function StudentMessagesPage() {
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className={cn('truncate text-sm', unread ? 'font-bold text-ink' : 'font-medium text-ink')}>{last?.content}</p>
+                    <p className={cn('truncate text-sm', unread ? 'font-bold text-ink' : 'font-medium text-ink')}>{last ? markdownToPlainText(last.content) : null}</p>
                     {last?.fromTeacher && <Badge variant="secondary" className="shrink-0">מהמורה</Badge>}
                     {msg.assignmentId && (
                       <Badge variant="warning" className="shrink-0"><Clock size={9} className="ml-1" /> בקשת הגשה</Badge>
@@ -159,13 +160,12 @@ export default function StudentMessagesPage() {
             <DialogTitle>הודעה חדשה למורה</DialogTitle>
           </DialogHeader>
           <DialogBody className="space-y-3">
-            <Textarea
-              className="resize-none"
+            <MarkdownField
+              label="תוכן ההודעה"
               rows={5}
               placeholder="כתבי את ההודעה שלך..."
               value={content}
-              onChange={(e) => setContent(e.target.value)}
-              autoFocus
+              onChange={setContent}
             />
             {error && <p className="text-coral text-xs">{error}</p>}
           </DialogBody>
@@ -198,25 +198,24 @@ export default function StudentMessagesPage() {
                   entry.fromTeacher ? (
                     <div key={entry.id} className="rounded-input border-r-2 border-indigo bg-ground/60 px-3 py-2">
                       <div className="label mb-0.5">תגובת המורה · {formatDateTime(entry.createdAt)}</div>
-                      <p className="whitespace-pre-wrap break-words text-sm text-ink">{entry.content}</p>
+                      <MarkdownRenderer content={entry.content} keepLineBreaks className="break-words text-sm text-ink" />
                     </div>
                   ) : (
                     <div key={entry.id}>
                       <div className="label mb-0.5">ההודעה שלי · {formatDateTime(entry.createdAt)}</div>
-                      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-ink">{entry.content}</p>
+                      <MarkdownRenderer content={entry.content} keepLineBreaks className="break-words text-sm leading-relaxed text-ink" />
                     </div>
                   )
                 ))}
                 <div ref={bottomRef} />
 
                 <div className="pt-1">
-                  <div className="label mb-1">כתיבת תגובה</div>
-                  <Textarea
+                  <MarkdownField
+                    label="כתיבת תגובה"
                     rows={4}
-                    className="resize-y"
                     placeholder="כתבי תגובה למורה…"
                     value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
+                    onChange={setReplyText}
                   />
                 </div>
               </DialogBody>

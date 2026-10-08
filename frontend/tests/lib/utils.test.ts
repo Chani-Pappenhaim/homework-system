@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cn, formatDate, formatDateTime, isOverdue, formatBytes, toGematria, toHebrewDate } from '@/lib/utils';
+import { cn, formatDate, formatDateTime, isOverdue, formatBytes, toGematria, toHebrewDate, markdownToPlainText } from '@/lib/utils';
 
 describe('cn', () => {
   it('merges class names', () => {
@@ -94,5 +94,11 @@ describe('toHebrewDate', () => {
   it('returns an empty string for a missing date', () => {
     expect(toHebrewDate(null)).toBe('');
     expect(toHebrewDate('')).toBe('');
+  });
+});
+
+describe('markdownToPlainText', () => {
+  it('strips Markdown syntax for a one-line preview', () => {
+    expect(markdownToPlainText('# כותרת\n\n**חשוב:** ראי [קישור](https://x.com)\n- פריט')).toBe('כותרת חשוב: ראי קישור פריט');
   });
 });

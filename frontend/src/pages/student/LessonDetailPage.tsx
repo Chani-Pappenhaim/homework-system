@@ -6,7 +6,6 @@ import { lessonsApi } from '@/api/lessons.api';
 import { submissionsApi, isVideoFile } from '@/api/submissions.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { MarkdownField } from '@/components/ui/markdown-field';
@@ -348,13 +347,11 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                     )}
                     {aiExtraRequest.formOpen && !aiExtraRequest.sent && (
                       <div className="space-y-2">
-                        <Textarea
-                          className="resize-none"
+                        <MarkdownField
+                          label="הסבר קצר לבקשה (אופציונלי)"
                           rows={2}
-                          placeholder="הסבר קצר לבקשה (אופציונלי)"
                           value={aiExtraRequest.reason}
-                          onChange={(e) => aiExtraRequest.setReason(e.target.value)}
-                          autoFocus
+                          onChange={aiExtraRequest.setReason}
                         />
                         <div className="flex gap-2">
                           <Button
@@ -406,13 +403,11 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                 )}
                 {lateRequest.formOpen && !lateRequest.sent && (
                   <div className="space-y-2">
-                    <Textarea
-                      className="resize-none"
+                    <MarkdownField
+                      label="סיבת האיחור (אופציונלי)"
                       rows={2}
-                      placeholder="סיבת האיחור (אופציונלי)"
                       value={lateRequest.reason}
-                      onChange={(e) => lateRequest.setReason(e.target.value)}
-                      autoFocus
+                      onChange={lateRequest.setReason}
                     />
                     <div className="flex gap-2">
                       <Button

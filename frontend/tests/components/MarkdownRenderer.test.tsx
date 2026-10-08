@@ -52,4 +52,14 @@ describe('MarkdownRenderer', () => {
     const { container } = render(<MarkdownRenderer content={'x'} className="wrap-me" />);
     expect(container.querySelector('.wrap-me')).toBeInTheDocument();
   });
+
+  it('keeps single line breaks when asked to (chat-style text)', () => {
+    const { container } = render(<MarkdownRenderer content={'line one\nline two'} keepLineBreaks />);
+    expect(container.querySelectorAll('br')).toHaveLength(1);
+  });
+
+  it('joins single line breaks by default', () => {
+    const { container } = render(<MarkdownRenderer content={'line one\nline two'} />);
+    expect(container.querySelectorAll('br')).toHaveLength(0);
+  });
 });
