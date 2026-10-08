@@ -337,7 +337,9 @@ export async function getQuizResults(lessonId: string) {
       attempts: { where: { isOfficial: true }, include: { student: { select: { name: true, email: true } } } },
     },
   });
-  if (!quiz) throw new AppError('Quiz not found', 'החידון לא נמצא', 404);
+  // No quiz yet is a normal state for a lesson, not an error — a 404 here showed
+  // up as a red console error on every teacher lesson page without a quiz.
+  if (!quiz) return null;
 
   const questions = quiz.questions as any[];
   const attempts = quiz.attempts;

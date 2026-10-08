@@ -364,9 +364,9 @@ describe('quizzes.service.submitQuizAttempt', () => {
 });
 
 describe('quizzes.service.getQuizResults', () => {
-  it('throws 404 when no quiz for the lesson', async () => {
+  it('returns null when the lesson has no quiz yet', async () => {
     p.quiz.findUnique.mockResolvedValue(null);
-    await expect(getQuizResults('l1')).rejects.toMatchObject({ status: 404 });
+    expect(await getQuizResults('l1')).toBeNull();
   });
 
   it('returns quiz meta, its published state and mapped attempt results', async () => {

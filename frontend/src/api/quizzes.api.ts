@@ -18,7 +18,7 @@ export const quizzesApi = {
     api.patch(`/lessons/${lessonId}/quiz/publish`, { published }),
 
   results: (lessonId: string) =>
-    api.get<{ success: true; data: QuizResultsDTO }>(`/lessons/${lessonId}/quiz/results`),
+    api.get<{ success: true; data: QuizResultsDTO | null }>(`/lessons/${lessonId}/quiz/results`),
 
   // --- student only -------------------------------------------------------
   attempt: (lessonId: string, answers: number[]) =>

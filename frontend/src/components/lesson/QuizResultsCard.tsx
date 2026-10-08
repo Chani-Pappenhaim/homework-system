@@ -10,8 +10,7 @@ import type { LessonDetailDTO } from '@/types';
 /**
  * Shows quiz status for a lesson and opens the full editor/results view
  * (via onManage, rendered inline in the same tab). Not every lesson has a
- * quiz, so a 404 on the results fetch is expected and just means none has
- * been created yet.
+ * quiz; the results fetch returns null until one is created.
  */
 export function QuizResultsCard({ lesson, onManage }: { lesson: LessonDetailDTO; onManage: () => void }) {
   const { data: quizResultsData } = useQuery({

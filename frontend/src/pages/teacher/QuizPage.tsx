@@ -19,7 +19,7 @@ export default function TeacherQuizPage() {
     enabled: Boolean(lessonId),
   });
 
-  // 404 here just means "no quiz yet" — the panel below handles that case.
+  // null here just means "no quiz yet" — the panel below handles that case.
   const { data: resultsData } = useQuery({
     queryKey: ['quiz-results', lessonId],
     queryFn: () => quizzesApi.results(lessonId!),
