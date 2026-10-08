@@ -325,6 +325,14 @@ export default function CourseFormPage() {
               <option key={g.id} value={g.id}>{groupDisplayName(g)}</option>
             ))}
           </select>
+          <div className="space-y-1 text-xs text-ink/60">
+            <p>יועתקו פרטי הקורס, הקישורים, הקבצים, השיעורים והמטלות.</p>
+            <p>
+              הקבצים לא מועלים שוב: העותק משתמש באותם קבצים שכבר שמורים בענן, כך שלא נתפס מקום נוסף.
+              מחיקת קובץ מאחד הקורסים לא מוחקת אותו מהקורס השני.
+            </p>
+            <p>בחנים, הגשות, ציונים והרשאות פרטיות לתלמידות לא מועתקים. כל השיעורים בעותק יהיו גלויים לתלמידות.</p>
+          </div>
           <Button loading={copyMutation.isPending} onClick={() => copyMutation.mutate()} disabled={!copyGroupId} className="w-full">
             העתק קורס
           </Button>
