@@ -201,7 +201,7 @@ function SubmittedDetail({ item }: { item: MySubmission }) {
       <div className="bg-sage/10 border border-sage/30 rounded-input p-3 text-sm space-y-1">
         <p className="text-ink/70 text-xs">הוגש: {formatDateTime(item.submittedAt)}</p>
         {item.isLate && <Badge variant="warning">הוגש באיחור</Badge>}
-        {item.notes && <p className="text-xs text-ink/70">הערה: {item.notes}</p>}
+        {item.notes && <div className="text-xs text-ink/70"><span>הערה:</span><MarkdownRenderer content={item.notes} className="text-xs" /></div>}
       </div>
 
       {(item.githubUrl || item.fileUrl) && (

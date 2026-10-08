@@ -3,7 +3,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { assignmentsApi } from '@/api/assignments.api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/toast';
@@ -126,13 +125,12 @@ export function AssignmentModal({ lessonId, lessonDate, value, onClose }: {
           </div>
           <SubmissionTypePicker value={types} onChange={setTypes} />
           <div className="flex flex-col gap-1">
-            <Label htmlFor="assignment-ai-instructions">הנחיות לבדיקת AI (אופציונלי)</Label>
-            <Textarea
+            <MarkdownField
               id="assignment-ai-instructions"
+              label="הנחיות לבדיקת AI (אופציונלי)"
               value={aiInstructions}
-              onChange={(e) => setAiInstructions(e.target.value)}
+              onChange={setAiInstructions}
               rows={3}
-              className="resize-none"
               placeholder="למשל: בדקי שיש שימוש ב-async/await, שהקוד מחולק לפונקציות, ושיש טיפול בשגיאות..."
             />
             <p className="text-xs text-ink-soft">הנחיות אלו יישלחו ל-AI בעת בדיקת עבודות התלמידות</p>

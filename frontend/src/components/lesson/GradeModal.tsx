@@ -6,8 +6,8 @@ import { submissionsApi } from '@/api/submissions.api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
+import { MarkdownField } from '@/components/ui/markdown-field';
+import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
@@ -139,8 +139,8 @@ export function GradeModal({ submission, assignment, onClose }: {
             )}
             {local.notes && (
               <div className="bg-ground/60 border border-rule/20 rounded-input px-3 py-2 text-sm">
-                <span className="font-medium text-xs text-ink/50">הערת תלמידה: </span>
-                {local.notes}
+                <span className="font-medium text-xs text-ink/50">הערת תלמידה:</span>
+                <MarkdownRenderer content={local.notes} className="text-sm" />
               </div>
             )}
 
@@ -254,13 +254,12 @@ export function GradeModal({ submission, assignment, onClose }: {
             </div>
 
             <div className="flex flex-col gap-1">
-              <Label htmlFor="grade-feedback">משוב (Markdown)</Label>
-              <Textarea
+              <MarkdownField
                 id="grade-feedback"
+                label="משוב"
                 value={feedback}
-                onChange={(e) => setFeedback(e.target.value)}
+                onChange={setFeedback}
                 rows={4}
-                className="resize-none"
                 placeholder="כתבי משוב מפורט..."
               />
             </div>

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
+import { MarkdownField } from '@/components/ui/markdown-field';
 import { FileUpload } from '@/components/ui/file-upload';
 import { FileGallery } from '@/components/ui/file-gallery';
 import { Input } from '@/components/ui/input';
@@ -306,7 +307,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
               <p className="text-sage font-medium">הגשתך התקבלה בהצלחה ✓</p>
               <p className="text-ink/70 text-xs">הוגש: {formatDateTime(sub.submittedAt)}</p>
               {sub.isLate && <Badge variant="warning">הוגש באיחור</Badge>}
-              {sub.notes && <p className="text-xs text-ink/70">הערה: {sub.notes}</p>}
+              {sub.notes && <div className="text-xs text-ink/70"><span>הערה:</span><MarkdownRenderer content={sub.notes} className="text-xs" /></div>}
               {sub.grade && (
                 <div className="mt-2 space-y-1">
                   {sub.grade.submissionScore != null && <p className="font-semibold">ציון הגשה: {sub.grade.submissionScore}</p>}
@@ -479,12 +480,12 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                 )}
               </div>
             )}
-            <Textarea
-              className="resize-none"
+            <MarkdownField
+              id={`submission-notes-${a.id}`}
+              label="הערה למורה (אופציונלי)"
               rows={2}
-              placeholder="הערה למורה (אופציונלי)"
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={setNotes}
             />
             {error && <p className="text-coral text-xs">{error}</p>}
           </>
