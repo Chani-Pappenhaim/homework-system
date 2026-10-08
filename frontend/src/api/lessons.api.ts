@@ -58,6 +58,13 @@ export const lessonsApi = {
   setFileRequired: (id: string, fileId: string, required: boolean) =>
     api.patch(`/lessons/${id}/files/${fileId}/required`, { required }),
 
+  setFileHidden: (id: string, fileId: string, hidden: boolean) =>
+    api.patch(`/lessons/${id}/files/${fileId}/hidden`, { hidden }),
+
+  /** Without a target course the lesson is duplicated in its own course. */
+  copy: (id: string, targetCourseId?: string) =>
+    api.post<{ success: true; data: { lesson: { id: string; courseId: string } } }>(`/lessons/${id}/copy`, { targetCourseId }),
+
   markFileViewed: (id: string, fileId: string) =>
     api.post(`/lessons/${id}/files/${fileId}/view`),
 

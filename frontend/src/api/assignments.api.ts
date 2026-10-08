@@ -5,10 +5,10 @@ export const assignmentsApi = {
   list: (lessonId: string) =>
     api.get<{ success: true; data: { assignments: AssignmentDTO[] } }>(`/lessons/${lessonId}/assignments`),
 
-  create: (lessonId: string, data: Partial<AssignmentDTO> & { title: string }) =>
+  create: (lessonId: string, data: Omit<Partial<AssignmentDTO>, 'deadline'> & { title: string; description: string; deadline?: string | null }) =>
     api.post(`/lessons/${lessonId}/assignments`, data),
 
-  update: (id: string, data: Partial<AssignmentDTO>) =>
+  update: (id: string, data: Omit<Partial<AssignmentDTO>, 'deadline'> & { deadline?: string | null }) =>
     api.put(`/assignments/${id}`, data),
 
   delete: (id: string) =>

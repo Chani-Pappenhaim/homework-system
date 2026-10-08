@@ -8,9 +8,10 @@ import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { CourseSkeleton } from '@/components/ui/skeleton';
 import { Tape } from '@/components/decor';
-import { cn } from '@/lib/utils';
+import { cn, groupDisplayName } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import type { GroupDTO } from '@/types';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 const ACCENTS = ['indigo', 'sage', 'clay', 'butter', 'coral'] as const;
 const ICON_TINT: Record<(typeof ACCENTS)[number], string> = {
@@ -22,6 +23,7 @@ const ICON_TINT: Record<(typeof ACCENTS)[number], string> = {
 };
 
 export default function GroupsPage() {
+  usePageTitle('קבוצות');
   const navigate = useNavigate();
 
   const { data, isLoading } = useQuery({
@@ -69,11 +71,9 @@ export default function GroupsPage() {
                       <Users size={18} />
                     </div>
                     <div>
-                      <p className="font-display text-base font-bold text-ink">{g.name}</p>
-                      {g.seminar && <p className="font-sans text-[11px] text-ink/55">{g.seminar}</p>}
+                      <p className="font-display text-base font-bold text-ink">{groupDisplayName(g)}</p>
                     </div>
                   </div>
-                  <span className="font-sans text-[11px] text-ink/50">{g.year}</span>
                 </div>
                 <div className="flex items-center justify-between border-t border-dashed border-rule/25 pt-2">
                   <p className="font-sans text-[11px] text-ink/70">{g.studentCount} תלמידות</p>

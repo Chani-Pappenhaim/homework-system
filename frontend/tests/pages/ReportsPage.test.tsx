@@ -52,7 +52,7 @@ describe('ReportsPage', () => {
   it('populates the group and course filter dropdowns', async () => {
     report.mockResolvedValue({ data: { data: { report: [] } } });
     renderWithProviders(<ReportsPage />);
-    expect(await screen.findByRole('option', { name: 'קבוצה א' })).toBeInTheDocument();
+    expect(await screen.findByRole('option', { name: 'קבוצה א 2026' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'קורס א' })).toBeInTheDocument();
   });
 

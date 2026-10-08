@@ -18,7 +18,7 @@ export function registerAiReviewWorker(connection: IORedis): Worker<AiReviewJobD
   const worker = new Worker<AiReviewJobData>(
     'ai-review',
     async (job) => {
-      const { submissionId } = job.data;
+      const { submissionId, byTeacher } = job.data;
 
       // Anything that throws below leaves aiStatus at 'pending', and requestAiReview
       // refuses to re-enqueue while pending. Always land on a terminal status before
@@ -48,7 +48,8 @@ export function registerAiReviewWorker(connection: IORedis): Worker<AiReviewJobD
         const result = await reviewCode(
           code,
           submission.assignment.title,
-          submission.assignment.aiInstructions
+          submission.assignment.aiInstructions,
+          submission.assignment.description
         );
 
         await prisma.submission.update({
@@ -58,7 +59,7 @@ export function registerAiReviewWorker(connection: IORedis): Worker<AiReviewJobD
             aiScore: result.score,
             aiCodeReview: result.codeReview,
             aiVerbalReview: result.verbalReview,
-            aiReviewCount: { increment: 1 },
+            ...(byTeacher ? {} : { aiReviewCount: { increment: 1 } }),
           },
         });
       } catch (err) {

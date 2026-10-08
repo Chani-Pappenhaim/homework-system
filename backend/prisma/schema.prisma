@@ -12,35 +12,46 @@ enum Role {
 }
 
 model User {
-  id                 String   @id @default(uuid())
-  name               String
-  email              String   @unique
-  password           String?
-  role               Role     @default(STUDENT)
-  mustChangePassword Boolean  @default(true)
-  githubUsername     String?
-  oauthProvider      String?
-  oauthId            String?
-  resetTokenHash        String?
-  resetTokenExpiresAt   DateTime?
-  createdAt          DateTime @default(now())
+  id                   String    @id @default(uuid())
+  name                 String
+  email                String    @unique
+  password             String?
+  role                 Role      @default(STUDENT)
+  mustChangePassword   Boolean   @default(true)
+  githubUsername       String?
+  oauthProvider        String?
+  oauthId              String?
+  resetTokenHash       String?
+  resetTokenExpiresAt  DateTime?
+  // Set once the student follows the link mailed to her address; notification
+  // emails only go to verified addresses, so a mistyped or made-up address is
+  // never mailed past the verification email itself.
+  emailVerifiedAt      DateTime?
+  emailVerifyTokenHash String?
+  // The student's own choice whether to get notification emails (replies,
+  // grades). Starts from her first group's default.
+  emailNotifications   Boolean   @default(true)
+  createdAt            DateTime  @default(now())
 
-  studentGroups    StudentGroup[]
-  submissions      Submission[]
-  quizAttempts     QuizAttempt[]
-  gradesGiven      Grade[]
-  lessonAccess     LessonAccess[]
-  lessonProgress   LessonProgress[]
-  lessonFileViews  LessonFileView[]
-  teacherMessages  TeacherMessage[]
+  studentGroups   StudentGroup[]
+  submissions     Submission[]
+  quizAttempts    QuizAttempt[]
+  gradesGiven     Grade[]
+  lessonAccess    LessonAccess[]
+  courseAccess    CourseAccess[]
+  lessonProgress  LessonProgress[]
+  lessonFileViews LessonFileView[]
+  teacherMessages TeacherMessage[]
 }
 
 model Group {
-  id        String   @id @default(uuid())
-  name      String
-  seminar   String?
-  year      String
-  createdAt DateTime @default(now())
+  id                        String   @id @default(uuid())
+  name                      String
+  seminar                   String?
+  year                      String
+  // Whether students added to this group start with notification emails on.
+  emailNotificationsDefault Boolean  @default(true)
+  createdAt                 DateTime @default(now())
 
   students StudentGroup[]
   courses  Course[]
@@ -69,6 +80,7 @@ model Course {
   lessons Lesson[]
   links   CourseLink[]
   files   CourseFile[]
+  access  CourseAccess[]
 }
 
 model CourseLink {
@@ -88,6 +100,8 @@ model CourseFile {
   url        String
   sizeBytes  BigInt?
   uploadedAt DateTime @default(now())
+  // Hidden from students; the teacher still sees it.
+  hidden     Boolean  @default(false)
 }
 
 model Lesson {
@@ -131,6 +145,17 @@ model LessonAccess {
   @@id([studentId, lessonId])
 }
 
+// A student let into a whole course outside its group — a private student, or
+// one following a single course of another class.
+model CourseAccess {
+  studentId String
+  courseId  String
+  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course    Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, courseId])
+}
+
 model LessonFile {
   id         String   @id @default(uuid())
   lessonId   String
@@ -140,8 +165,10 @@ model LessonFile {
   sizeBytes  BigInt?
   uploadedAt DateTime @default(now())
   required   Boolean  @default(false)
+  // Hidden from students; the teacher still sees it.
+  hidden     Boolean  @default(false)
 
-  views      LessonFileView[]
+  views LessonFileView[]
 }
 
 // A student's self-marked "seen/read" of a required file (presence of row = viewed)
@@ -156,42 +183,42 @@ model LessonFileView {
 }
 
 model Assignment {
-  id              String    @id @default(uuid())
-  lessonId        String
-  lesson          Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  title           String
-  description     String?
-  deadline        DateTime?
-  allowedTypes    String[]  @default([])
-  allowGithub     Boolean   @default(true)
-  allowFile       Boolean   @default(true)
-  requirements    Json?
-  aiInstructions  String?
-  createdAt       DateTime  @default(now())
+  id             String    @id @default(uuid())
+  lessonId       String
+  lesson         Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  deadline       DateTime?
+  allowedTypes   String[]  @default([])
+  allowGithub    Boolean   @default(true)
+  allowFile      Boolean   @default(true)
+  requirements   Json?
+  aiInstructions String?
+  createdAt      DateTime  @default(now())
 
   submissions Submission[]
 }
 
 model Submission {
-  id              String     @id @default(uuid())
-  assignmentId    String
-  studentId       String
-  assignment      Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  student         User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  fileUrl         String?
-  fileName        String?
-  githubUrl       String?
-  notes           String?
-  checklist       Json?      // student's filled copy of the assignment requirements
-  submittedAt     DateTime   @default(now())
-  isLate          Boolean    @default(false)
-  aiStatus        String     @default("none")
-  aiScore         Float?
-  aiCodeReview    String?
-  aiVerbalReview  String?
-  aiApproved      Boolean    @default(false)
-  aiReviewCount   Int        @default(0)
-  aiExtraAllowed  Boolean    @default(false)
+  id             String     @id @default(uuid())
+  assignmentId   String
+  studentId      String
+  assignment     Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student        User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  fileUrl        String?
+  fileName       String?
+  githubUrl      String?
+  notes          String?
+  checklist      Json? // student's filled copy of the assignment requirements
+  submittedAt    DateTime   @default(now())
+  isLate         Boolean    @default(false)
+  aiStatus       String     @default("none")
+  aiScore        Float?
+  aiCodeReview   String?
+  aiVerbalReview String?
+  aiApproved     Boolean    @default(false)
+  aiReviewCount  Int        @default(0)
+  aiExtraAllowed Boolean    @default(false)
 
   grade Grade?
 
@@ -199,17 +226,17 @@ model Submission {
 }
 
 model Grade {
-  id           String     @id @default(uuid())
-  submissionId String     @unique
-  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  submissionScore Float?  @default(100)   // ציון הגשה — אוטומטי (100 − איחור − checklist)
-  contentScore    Float?                  // ציון תוכן — מ-AI/מורה, מוסתר עד contentApproved
-  contentApproved Boolean @default(false) // מורה אישרה שהציון גלוי לתלמידה (כל הגשה, לא רק AI)
-  feedback     String?
-  checklist    Json?
-  gradedAt     DateTime   @default(now())
-  gradedById   String?                    // null = ציון הגשה אוטומטי שנוצר בזמן ההגשה
-  gradedBy     User?      @relation(fields: [gradedById], references: [id])
+  id              String     @id @default(uuid())
+  submissionId    String     @unique
+  submission      Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  submissionScore Float?     @default(100) // ציון הגשה — אוטומטי (100 − איחור − checklist)
+  contentScore    Float? // ציון תוכן — מ-AI/מורה, מוסתר עד contentApproved
+  contentApproved Boolean    @default(false) // מורה אישרה שהציון גלוי לתלמידה (כל הגשה, לא רק AI)
+  feedback        String?
+  checklist       Json?
+  gradedAt        DateTime   @default(now())
+  gradedById      String? // null = ציון הגשה אוטומטי שנוצר בזמן ההגשה
+  gradedBy        User?      @relation(fields: [gradedById], references: [id])
 }
 
 model AiUsageLog {
@@ -228,7 +255,7 @@ model TeacherMessage {
   id           String         @id @default(uuid())
   studentId    String
   student      User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  assignmentId String?        // אם קיים → בקשת הגשה מאוחרת למטלה ספציפית
+  assignmentId String? // אם קיים → בקשת הגשה מאוחרת למטלה ספציפית
   createdAt    DateTime       @default(now())
   entries      MessageEntry[]
 }
@@ -237,7 +264,7 @@ model MessageEntry {
   id          String         @id @default(uuid())
   messageId   String
   message     TeacherMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  fromTeacher Boolean        // true = the teacher wrote this entry, false = the student did
+  fromTeacher Boolean // true = the teacher wrote this entry, false = the student did
   content     String
   isRead      Boolean        @default(false) // has the other side seen this entry?
   createdAt   DateTime       @default(now())
@@ -260,17 +287,17 @@ model Quiz {
 }
 
 model QuizAttempt {
-  id        String   @id @default(uuid())
-  quizId    String
-  studentId String
-  quiz      Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  student   User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  answers   Json
-  score     Float
-  takenAt   DateTime @default(now())
+  id         String   @id @default(uuid())
+  quizId     String
+  studentId  String
+  quiz       Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  student    User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  answers    Json
+  score      Float
+  takenAt    DateTime @default(now())
   // The first attempt per student is locked in as the official grade; every
   // later retry is practice only and never overwrites it (see quizzes.service.ts).
-  isOfficial Boolean @default(true)
+  isOfficial Boolean  @default(true)
 
   @@index([quizId, studentId])
 }

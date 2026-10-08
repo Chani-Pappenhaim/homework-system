@@ -6,9 +6,11 @@ import QuizPanel from '@/components/teacher/QuizPanel';
 import QuizDashboard from '@/components/teacher/QuizDashboard';
 import { PageHeader } from '@/components/ui/page-header';
 import type { QuizResultsDTO } from '@/types';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 /** Standalone page for managing a lesson's quiz: question editor plus a class-wide results breakdown. */
 export default function TeacherQuizPage() {
+  usePageTitle('בוחן');
   const { lessonId } = useParams<{ lessonId: string }>();
 
   const { data: lessonData, isLoading } = useQuery({

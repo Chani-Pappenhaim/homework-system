@@ -60,6 +60,7 @@ export function setAuthUser(user: Partial<UserDTO> | null) {
         email: 'test@example.com',
         role: 'STUDENT',
         mustChangePassword: false,
+        githubUsername: null,
         ...user,
       },
       accessToken: 'token',

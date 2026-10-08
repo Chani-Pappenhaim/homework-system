@@ -21,6 +21,16 @@ vi.mock('../../src/utils/storage', () => ({
 vi.mock('../../src/utils/access', () => ({
   assertLessonAccess: assertAccessMock,
 }));
+const { aiQueueAdd } = vi.hoisted(() => ({ aiQueueAdd: vi.fn() }));
+vi.mock('../../src/infrastructure/queues/queues', () => ({
+  aiReviewQueue: { add: aiQueueAdd },
+  emailQueue: { add: vi.fn() },
+}));
+const { repoStatusMock } = vi.hoisted(() => ({ repoStatusMock: vi.fn() }));
+vi.mock('../../src/utils/github', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/utils/github')>()),
+  getRepoStatus: repoStatusMock,
+}));
 
 import ExcelJS from 'exceljs';
 import { prisma } from '../../src/config/prisma';
@@ -30,6 +40,7 @@ import {
   getSubmissionById,
   importSubmissions,
   getVideoUploadSignature,
+  rerunAiReview,
 } from '../../src/services/submissions.service';
 
 async function xlsxBuffer(rows: string[][]): Promise<Buffer> {
@@ -52,6 +63,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   // assertLessonAccess resolves when access is granted and throws when it isn't
   assertAccessMock.mockResolvedValue(undefined);
+  repoStatusMock.mockResolvedValue('exists');
 });
 
 describe('submissions.service.submitAssignment', () => {
@@ -71,6 +83,35 @@ describe('submissions.service.submitAssignment', () => {
     p.user.findUnique.mockResolvedValue({ id: 's1', githubUsername: 'dina' });
     p.submission.findUnique.mockResolvedValue(null);
     p.submission.create.mockImplementation(({ data }: any) => Promise.resolve(data));
+    const r: any = await submitAssignment('a1', 's1', { repoName: 'my-repo' });
+    expect(r.githubUrl).toBe('https://github.com/dina/my-repo');
+  });
+
+  it('accepts a pasted repo URL and keeps only the repo name', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment());
+    p.user.findUnique.mockResolvedValue({ id: 's1', githubUsername: 'dina' });
+    p.submission.findUnique.mockResolvedValue(null);
+    p.submission.create.mockImplementation(({ data }: any) => Promise.resolve(data));
+    const r: any = await submitAssignment('a1', 's1', { repoName: ' https://github.com/dina/my-repo.git ' });
+    expect(r.githubUrl).toBe('https://github.com/dina/my-repo');
+    expect(repoStatusMock).toHaveBeenCalledWith('dina', 'my-repo');
+  });
+
+  it('rejects a repo that does not exist on GitHub, without saving', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment());
+    p.user.findUnique.mockResolvedValue({ id: 's1', githubUsername: 'dina' });
+    repoStatusMock.mockResolvedValue('missing');
+    await expect(submitAssignment('a1', 's1', { repoName: 'typo-repo' })).rejects.toMatchObject({ status: 400 });
+    expect(p.submission.create).not.toHaveBeenCalled();
+    expect(p.grade.upsert).not.toHaveBeenCalled();
+  });
+
+  it('still accepts the submission when GitHub cannot be reached', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment());
+    p.user.findUnique.mockResolvedValue({ id: 's1', githubUsername: 'dina' });
+    p.submission.findUnique.mockResolvedValue(null);
+    p.submission.create.mockImplementation(({ data }: any) => Promise.resolve(data));
+    repoStatusMock.mockResolvedValue('unknown');
     const r: any = await submitAssignment('a1', 's1', { repoName: 'my-repo' });
     expect(r.githubUrl).toBe('https://github.com/dina/my-repo');
   });
@@ -372,5 +413,30 @@ describe('submissions.service.importSubmissions', () => {
     expect(r.imported).toBe(1);
     expect(p.submission.update).toHaveBeenCalled();
     expect(p.submission.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('submissions.service rerunAiReview', () => {
+  it('queues a teacher review and puts the submission back to pending, unapproved', async () => {
+    p.submission.findUnique.mockResolvedValue({ id: 's1', githubUrl: 'https://github.com/u/r', aiStatus: 'done', aiReviewCount: 3 });
+    await rerunAiReview('s1');
+    expect(p.submission.update).toHaveBeenCalledWith({ where: { id: 's1' }, data: { aiStatus: 'pending', aiApproved: false } });
+    expect(aiQueueAdd).toHaveBeenCalledWith('review', { submissionId: 's1', byTeacher: true }, expect.any(Object));
+  });
+
+  it('refuses while a review is already running', async () => {
+    p.submission.findUnique.mockResolvedValue({ id: 's1', githubUrl: 'https://github.com/u/r', aiStatus: 'pending' });
+    await expect(rerunAiReview('s1')).rejects.toMatchObject({ status: 400 });
+    expect(aiQueueAdd).not.toHaveBeenCalled();
+  });
+
+  it('refuses a submission the AI cannot read', async () => {
+    p.submission.findUnique.mockResolvedValue({ id: 's1', githubUrl: null, fileName: 'essay.pdf', aiStatus: null });
+    await expect(rerunAiReview('s1')).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('throws 404 for a missing submission', async () => {
+    p.submission.findUnique.mockResolvedValue(null);
+    await expect(rerunAiReview('nope')).rejects.toMatchObject({ status: 404 });
   });
 });

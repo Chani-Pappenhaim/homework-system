@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ExternalLink, Github, Bot, RotateCcw, CheckCircle, Sparkles } from 'lucide-react';
+import { ExternalLink, Github, Bot, RotateCcw, CheckCircle, Sparkles, RefreshCw } from 'lucide-react';
 import { gradesApi } from '@/api/grades.api';
 import { submissionsApi } from '@/api/submissions.api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
+import { MarkdownField } from '@/components/ui/markdown-field';
+import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/toast';
+import { getApiErrorMessage } from '@/lib/errors';
 import type { AssignmentDTO, ChecklistResult, SubmissionDTO } from '@/types';
 
 export function GradeModal({ submission, assignment, onClose }: {
@@ -95,6 +96,19 @@ export function GradeModal({ submission, assignment, onClose }: {
     },
   });
 
+  // Only GitHub, ZIP and Word submissions can be reviewed — the backend says the same.
+  const aiReviewable = Boolean(local?.githubUrl) || /\.(zip|docx)$/i.test(local?.fileName ?? '');
+
+  const rerunAiMutation = useMutation({
+    mutationFn: () => submissionsApi.rerunAiReview(local!.id),
+    onSuccess: () => {
+      setLocal((prev) => prev ? { ...prev, aiStatus: 'pending', aiApproved: false } : prev);
+      invalidateSubmissions();
+      toast.success('בדיקת ה-AI הופעלה מחדש — התוצאה תופיע בעוד דקה-שתיים');
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'לא ניתן להריץ את הבדיקה מחדש')),
+  });
+
   const allowExtraAiMutation = useMutation({
     mutationFn: () => submissionsApi.allowExtraAi(local!.id),
     onSuccess: () => {
@@ -125,8 +139,8 @@ export function GradeModal({ submission, assignment, onClose }: {
             )}
             {local.notes && (
               <div className="bg-ground/60 border border-rule/20 rounded-input px-3 py-2 text-sm">
-                <span className="font-medium text-xs text-ink/50">הערת תלמידה: </span>
-                {local.notes}
+                <span className="font-medium text-xs text-ink/50">הערת תלמידה:</span>
+                <MarkdownRenderer content={local.notes} className="text-sm" />
               </div>
             )}
 
@@ -185,6 +199,25 @@ export function GradeModal({ submission, assignment, onClose }: {
               </div>
             )}
 
+            {aiReviewable && (
+              <div className="flex items-center justify-between gap-2 text-xs text-ink/60">
+                <span>
+                  {local.aiStatus === 'pending' ? 'בדיקת AI מתבצעת כעת...'
+                    : local.aiStatus === 'failed' ? 'בדיקת ה-AI נכשלה.'
+                    : local.aiStatus === 'done' ? 'אפשר להריץ שוב (למשל אחרי שינוי הנחיות ה-AI) — לא נספר במכסת התלמידה.'
+                    : 'עוד לא בוצעה בדיקת AI להגשה זו.'}
+                </span>
+                <Button
+                  size="sm" variant="outline"
+                  loading={rerunAiMutation.isPending}
+                  disabled={local.aiStatus === 'pending'}
+                  onClick={() => rerunAiMutation.mutate()}
+                >
+                  <RefreshCw size={12} /> {local.aiStatus === 'done' ? 'הרצת בדיקת AI מחדש' : 'הרצת בדיקת AI'}
+                </Button>
+              </div>
+            )}
+
             {checklist.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium">רשימת בדיקה</p>
@@ -221,13 +254,12 @@ export function GradeModal({ submission, assignment, onClose }: {
             </div>
 
             <div className="flex flex-col gap-1">
-              <Label htmlFor="grade-feedback">משוב (Markdown)</Label>
-              <Textarea
+              <MarkdownField
                 id="grade-feedback"
+                label="משוב"
                 value={feedback}
-                onChange={(e) => setFeedback(e.target.value)}
+                onChange={setFeedback}
                 rows={4}
-                className="resize-none"
                 placeholder="כתבי משוב מפורט..."
               />
             </div>

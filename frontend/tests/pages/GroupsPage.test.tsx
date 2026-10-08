@@ -28,9 +28,8 @@ describe('GroupsPage', () => {
   it('renders a card for each group', async () => {
     listMock.mockResolvedValue({ data: { data: { groups } } });
     renderWithProviders(<GroupsPage />);
-    expect(await screen.findByText('קבוצה א')).toBeInTheDocument();
-    expect(screen.getByText('קבוצה ב')).toBeInTheDocument();
-    expect(screen.getByText('סמינר X')).toBeInTheDocument();
+    expect(await screen.findByText('סמינר X קבוצה א 2026')).toBeInTheDocument();
+    expect(screen.getByText('קבוצה ב 2025')).toBeInTheDocument();
     expect(screen.getByText('12 תלמידות')).toBeInTheDocument();
   });
 
@@ -51,7 +50,7 @@ describe('GroupsPage', () => {
   it('opens the group view (not the edit form) from its card', async () => {
     listMock.mockResolvedValue({ data: { data: { groups } } });
     renderWithProviders(<GroupsPage />);
-    await screen.findByText('קבוצה א');
+    await screen.findByText('סמינר X קבוצה א 2026');
     const viewButtons = screen.getAllByRole('button', { name: /צפייה/ });
     await userEvent.click(viewButtons[0]);
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/teacher/groups/g1'));

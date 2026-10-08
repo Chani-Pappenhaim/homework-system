@@ -1,4 +1,4 @@
-import { toExternalUrl, cn } from '@/lib/utils';
+import { toExternalUrl, cn, groupDisplayName } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -7,7 +7,7 @@ import { coursesApi } from '@/api/courses.api';
 import { groupsApi } from '@/api/groups.api';
 import { lessonsApi } from '@/api/lessons.api';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { MarkdownField } from '@/components/ui/markdown-field';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
@@ -18,10 +18,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { FileUpload } from '@/components/ui/file-upload';
+import { PREVIEWABLE_TYPES_HINT } from '@/lib/file-type';
 import { FileGallery } from '@/components/ui/file-gallery';
 import { BackLink } from '@/components/ui/back-link';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function CourseFormPage() {
   const { id } = useParams();
@@ -53,6 +55,7 @@ export default function CourseFormPage() {
   });
 
   const course = courseData?.data.data.course;
+  usePageTitle(isEdit ? 'עריכת קורס' : 'קורס חדש', course?.name);
   const groups = groupsData?.data.data.groups ?? [];
 
   useEffect(() => {
@@ -113,6 +116,11 @@ export default function CourseFormPage() {
 
   const renameFileMutation = useMutation({
     mutationFn: ({ fileId, name }: { fileId: string; name: string }) => coursesApi.renameFile(id!, fileId, name),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['course', id] }),
+  });
+
+  const hiddenFileMutation = useMutation({
+    mutationFn: ({ fileId, hidden }: { fileId: string; hidden: boolean }) => coursesApi.setFileHidden(id!, fileId, hidden),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['course', id] }),
   });
 
@@ -202,19 +210,16 @@ export default function CourseFormPage() {
                 className="w-full rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
               >
                 <option value="">בחרי קבוצה...</option>
-                {groups.map((g) => <option key={g.id} value={g.id}>{g.name} — {g.year}</option>)}
+                {groups.map((g) => <option key={g.id} value={g.id}>{groupDisplayName(g)}</option>)}
               </select>
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium">תיאור</label>
-              <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-                className="resize-none"
-                placeholder="תיאור קצר של הקורס..."
-              />
-            </div>
+            <MarkdownField
+              label="תיאור"
+              value={description}
+              onChange={setDescription}
+              rows={3}
+              placeholder="תיאור קצר של הקורס..."
+            />
           </CardContent>
         </Card>
 
@@ -289,10 +294,11 @@ export default function CourseFormPage() {
             <CardContent className="space-y-3">
               <FileUpload
                 withName
+                hint={PREVIEWABLE_TYPES_HINT}
                 onFile={(file, name) => uploadFileMutation.mutate({ file, name })}
                 label={uploadFileMutation.isPending ? `מעלה... ${uploadProgress ?? 0}%` : 'העלה קובץ לקורס'}
               />
-              <FileGallery files={course.files} onDelete={(fileId) => deleteFileMutation.mutate(fileId)} onRename={(fileId, name) => renameFileMutation.mutate({ fileId, name })} className="mt-1" />
+              <FileGallery files={course.files} onDelete={(fileId) => deleteFileMutation.mutate(fileId)} onRename={(fileId, name) => renameFileMutation.mutate({ fileId, name })} onToggleHidden={(fileId, hidden) => hiddenFileMutation.mutate({ fileId, hidden })} className="mt-1" />
             </CardContent>
           </Card>
         </div>
@@ -313,7 +319,7 @@ export default function CourseFormPage() {
           >
             <option value="">בחרי קבוצה יעד...</option>
             {groups.filter((g) => g.id !== groupId).map((g) => (
-              <option key={g.id} value={g.id}>{g.name} — {g.year}</option>
+              <option key={g.id} value={g.id}>{groupDisplayName(g)}</option>
             ))}
           </select>
           <Button loading={copyMutation.isPending} onClick={() => copyMutation.mutate()} disabled={!copyGroupId} className="w-full">

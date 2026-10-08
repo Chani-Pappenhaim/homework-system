@@ -135,7 +135,8 @@ async function callGemini(
 export async function reviewCode(
   code: string,
   assignmentTitle: string,
-  aiInstructions?: string | null
+  aiInstructions?: string | null,
+  assignmentDescription?: string | null
 ): Promise<AiReviewResult> {
   const systemPrompt = `אתה מורה מקצועית שבודקת עבודות קוד של תלמידות.
 תתני:
@@ -148,7 +149,10 @@ ${aiInstructions ? `הנחיות ספציפיות למטלה זו:\n${aiInstruct
 החזירי JSON בלבד בפורמט:
 {"code_review": "...", "verbal_review": "...", "score": 85}`;
 
-  const userMessage = `מטלה: ${assignmentTitle}\n\nקוד:\n\`\`\`\n${code}\n\`\`\``;
+  // The description is what the student was asked to do, and holds the
+  // teacher's grading criteria.
+  const descriptionBlock = assignmentDescription?.trim() ? `\n\nתיאור המטלה:\n${assignmentDescription.trim()}` : '';
+  const userMessage = `מטלה: ${assignmentTitle}${descriptionBlock}\n\nקוד:\n\`\`\`\n${code}\n\`\`\``;
 
   const parsed = await callGemini(systemPrompt, userMessage, 'homework_review');
   return {

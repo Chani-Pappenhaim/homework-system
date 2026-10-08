@@ -108,10 +108,14 @@ export function toFileDTO<T extends { id: string; sizeBytes?: bigint | null; url
     ...file,
     sizeBytes: file.sizeBytes?.toString() ?? null,
     ...(file.url
-      ? {
-          url: `/files/download/${file.id}?token=${signFileToken({ fileId: file.id, kind, userId })}`,
-          extension: urlExtension(file.url),
-        }
+      ? (() => {
+          const extension = urlExtension(file.url);
+          const suffix = extension ? `/file.${extension}` : '';
+          return {
+            url: `/files/download/${file.id}${suffix}?token=${signFileToken({ fileId: file.id, kind, userId })}`,
+            extension,
+          };
+        })()
       : {}),
   };
 }

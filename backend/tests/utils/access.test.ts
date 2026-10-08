@@ -6,6 +6,7 @@ vi.mock('../../src/config/prisma', () => ({
     course: { findUnique: vi.fn() },
     studentGroup: { findFirst: vi.fn() },
     lessonAccess: { findUnique: vi.fn() },
+    courseAccess: { findUnique: vi.fn() },
   },
 }));
 
@@ -13,7 +14,10 @@ import { prisma } from '../../src/config/prisma';
 import { assertLessonAccess, assertCourseAccess } from '../../src/utils/access';
 
 const p = prisma as any;
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  p.courseAccess.findUnique.mockResolvedValue(null);
+});
 
 /** The thrown value carries a numeric `status` the error middleware reads. */
 async function status(fn: () => Promise<unknown>): Promise<number | undefined> {
@@ -94,6 +98,32 @@ describe('assertCourseAccess', () => {
   it('throws 403 for a student outside the course group', async () => {
     p.course.findUnique.mockResolvedValue({ groupId: 'g1', hidden: false });
     p.studentGroup.findFirst.mockResolvedValue(null);
+    expect(await status(() => assertCourseAccess('s1', 'STUDENT', 'c1'))).toBe(403);
+  });
+});
+
+describe('course-access grants', () => {
+  it('a course grant opens the course to a student outside its group', async () => {
+    p.course.findUnique.mockResolvedValue({ hidden: false, groupId: 'g1' });
+    p.studentGroup.findFirst.mockResolvedValue(null);
+    p.courseAccess.findUnique.mockResolvedValue({ studentId: 's1', courseId: 'c1' });
+    await expect(assertCourseAccess('s1', 'STUDENT', 'c1')).resolves.toBeUndefined();
+    expect(p.courseAccess.findUnique).toHaveBeenCalledWith({
+      where: { studentId_courseId: { studentId: 's1', courseId: 'c1' } },
+    });
+  });
+
+  it('a course grant opens every lesson of that course', async () => {
+    p.lesson.findUnique.mockResolvedValue({ hidden: false, course: { id: 'c1', groupId: 'g1', hidden: false } });
+    p.studentGroup.findFirst.mockResolvedValue(null);
+    p.courseAccess.findUnique.mockResolvedValue({ studentId: 's1', courseId: 'c1' });
+    await expect(assertLessonAccess('s1', 'STUDENT', 'l1')).resolves.toBeUndefined();
+    expect(p.lessonAccess.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('a course grant does not reveal a hidden course', async () => {
+    p.course.findUnique.mockResolvedValue({ hidden: true, groupId: 'g1' });
+    p.courseAccess.findUnique.mockResolvedValue({ studentId: 's1', courseId: 'c1' });
     expect(await status(() => assertCourseAccess('s1', 'STUDENT', 'c1'))).toBe(403);
   });
 });

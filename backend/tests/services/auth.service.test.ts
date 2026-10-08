@@ -38,13 +38,16 @@ describe('auth.service', () => {
       const dto = toUserDTO({
         id: 'u1', name: 'Dina', email: 'd@x.com', role: 'STUDENT',
         mustChangePassword: true, password: 'secret-hash', githubUsername: 'gh',
+        emailVerifiedAt: new Date(), emailVerifyTokenHash: 'h', emailNotifications: false,
         studentGroups: [{ group: { id: 'g1', name: 'קבוצה א' } }],
       } as any);
       expect(dto).toEqual({
         id: 'u1', name: 'Dina', email: 'd@x.com', role: 'STUDENT', mustChangePassword: true,
+        githubUsername: 'gh', emailVerified: true, emailNotifications: false,
         groups: [{ id: 'g1', name: 'קבוצה א' }],
       });
       expect(dto).not.toHaveProperty('password');
+      expect(dto).not.toHaveProperty('emailVerifyTokenHash');
     });
   });
 

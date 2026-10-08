@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Github, CheckCircle, Clock, Bot, Check, BookOpen, ClipboardList, Paperclip, Sparkles } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
@@ -9,21 +9,29 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
+import { MarkdownField } from '@/components/ui/markdown-field';
 import { FileUpload } from '@/components/ui/file-upload';
 import { FileGallery } from '@/components/ui/file-gallery';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
+import useAuthStore from '@/store/authStore';
 import QuizContent from '@/components/student/QuizContent';
 import { cn, formatDate, formatDateTime, isOverdue, toExternalUrl } from '@/lib/utils';
 import { getApiErrorMessage } from '@/lib/errors';
 import { useTeacherRequest } from '@/hooks/useTeacherRequest';
 import { unwrap } from '@/lib/api-utils';
+import { useTabParam } from '@/hooks/useTabParam';
+import { usePageTitle } from '@/hooks/usePageTitle';
+import type { LessonPageProps } from '@/components/lesson/LessonRoute';
 import type { AssignmentDTO, MySubmission } from '@/types';
 
-export default function StudentLessonDetailPage() {
-  const { id } = useParams<{ id: string }>();
+const TABS = ['content', 'files', 'quiz', 'assignments'] as const;
+
+export default function StudentLessonDetailPage({ lessonId, lessonNumber }: Partial<LessonPageProps> = {}) {
+  const params = useParams<{ id: string }>();
+  const id = lessonId ?? params.id;
   const qc = useQueryClient();
-  const [tab, setTab] = useState<'content' | 'files' | 'quiz' | 'assignments'>('content');
+  const [tab, setTab] = useTabParam(TABS, 'content');
 
   const { data, isLoading } = useQuery({
     queryKey: ['lesson', id],
@@ -36,6 +44,7 @@ export default function StudentLessonDetailPage() {
   });
 
   const lesson = data?.data.data.lesson;
+  usePageTitle(lesson?.topic, lessonNumber ? `שיעור ${lessonNumber}` : null);
   const submitted: MySubmission[] = unwrap(mineData)?.submitted ?? [];
 
   const [progressError, setProgressError] = useState('');
@@ -267,7 +276,10 @@ function AssignmentCard({ assignment: a, submission: sub }: {
     onError: (e: any) => setError(getApiErrorMessage(e, 'שגיאה בהגשה')),
   });
 
-  const githubPreview = repoName ? `https://github.com/[username]/${repoName}` : '';
+  const githubUsername = useAuthStore((s) => s.user?.githubUsername);
+  // Mirrors the server's normalizeRepoName so the preview matches what gets saved.
+  const cleanRepo = repoName.trim().replace(/\/+$/, '').replace(/\.git$/i, '').split('/').pop() ?? '';
+  const githubPreview = cleanRepo && githubUsername ? `https://github.com/${githubUsername}/${cleanRepo}` : '';
 
   return (
     <Card>
@@ -284,7 +296,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {a.description && <p className="text-sm text-ink/70">{a.description}</p>}
+        {a.description && <MarkdownRenderer content={a.description} className="text-ink/80" />}
         {a.deadline && (
           <p className="text-xs text-ink/50">מועד אחרון: <span className="font-medium">{formatDate(a.deadline)}</span></p>
         )}
@@ -295,7 +307,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
               <p className="text-sage font-medium">הגשתך התקבלה בהצלחה ✓</p>
               <p className="text-ink/70 text-xs">הוגש: {formatDateTime(sub.submittedAt)}</p>
               {sub.isLate && <Badge variant="warning">הוגש באיחור</Badge>}
-              {sub.notes && <p className="text-xs text-ink/70">הערה: {sub.notes}</p>}
+              {sub.notes && <div className="text-xs text-ink/70"><span>הערה:</span><MarkdownRenderer content={sub.notes} className="text-xs" /></div>}
               {sub.grade && (
                 <div className="mt-2 space-y-1">
                   {sub.grade.submissionScore != null && <p className="font-semibold">ציון הגשה: {sub.grade.submissionScore}</p>}
@@ -449,19 +461,31 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                     הגש
                   </Button>
                 </div>
-                {githubPreview && (
-                  <p className="text-xs text-ink/50 flex items-center gap-1">
-                    <Github size={11} /> {githubPreview}
+                {!githubUsername ? (
+                  <p className="text-xs text-coral">
+                    לא הוגדר שם משתמש GitHub בחשבון שלך —{' '}
+                    <Link to="/student/profile" className="font-semibold underline">יש לעדכן אותו בפרופיל</Link>{' '}
+                    לפני הגשת ריפו
                   </p>
+                ) : githubPreview && (
+                  <a
+                    href={githubPreview}
+                    target="_blank"
+                    rel="noreferrer"
+                    dir="ltr"
+                    className="flex w-fit items-center gap-1 text-xs text-clay hover:underline"
+                  >
+                    <Github size={11} /> {githubPreview}
+                  </a>
                 )}
               </div>
             )}
-            <Textarea
-              className="resize-none"
+            <MarkdownField
+              id={`submission-notes-${a.id}`}
+              label="הערה למורה (אופציונלי)"
               rows={2}
-              placeholder="הערה למורה (אופציונלי)"
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={setNotes}
             />
             {error && <p className="text-coral text-xs">{error}</p>}
           </>

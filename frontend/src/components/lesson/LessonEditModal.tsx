@@ -3,8 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lessonsApi } from '@/api/lessons.api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
+import { MarkdownField } from '@/components/ui/markdown-field';
 import { DateField } from '@/components/ui/date-field';
 import { MultiUrlInput } from '@/components/ui/multi-url-input';
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -57,18 +56,14 @@ export function LessonEditModal({ lesson, open, onClose }: {
         <DialogBody className="space-y-4">
           <Input label="נושא השיעור *" value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="React Hooks" />
           <DateField label="תאריך" value={date} onChange={setDate} />
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="lesson-content">חומר הלימוד (Markdown)</Label>
-            <Textarea
-              id="lesson-content"
-              value={contentMd}
-              onChange={(e) => setContentMd(e.target.value)}
-              rows={8}
-              className="resize-y font-sans"
-              placeholder="# כותרת&#10;&#10;תוכן השיעור, הסברים, דוגמאות קוד..."
-            />
-            <p className="text-xs text-ink-soft">אפשר לעצב עם Markdown: כותרות (#), רשימות, קוד (```), קישורים ועוד</p>
-          </div>
+          <MarkdownField
+            id="lesson-content"
+            label="חומר הלימוד"
+            value={contentMd}
+            onChange={setContentMd}
+            rows={8}
+            placeholder={'# כותרת\n\nתוכן השיעור, הסברים, דוגמאות קוד...'}
+          />
           <MultiUrlInput label="קישורים לקוד ב-GitHub (אופציונלי)" values={githubUrls} onChange={setGithubUrls} placeholder="https://github.com/..." />
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} className="accent-ink" />

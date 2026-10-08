@@ -1,6 +1,7 @@
 import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
-import { uploadBuffer, createUploadSignature, destroyByUrl, toFileDTO } from '../utils/storage';
+import { uploadBuffer, createUploadSignature, toFileDTO } from '../utils/storage';
+import { releaseFileUrls } from '../utils/file-refs';
 import { assertLessonAccess, assertCourseAccess } from '../utils/access';
 
 // Older lessons only have the legacy single `githubUrl` column populated;
@@ -48,7 +49,11 @@ export async function createLesson(courseId: string, data: {
 export async function getLessonById(id: string, userId: string, role: string) {
   const lesson = await prisma.lesson.findUnique({
     where: { id },
-    include: { files: true, assignments: true, quiz: { select: { published: true } } },
+    include: {
+      files: { where: role === 'ADMIN' ? {} : { hidden: false } },
+      assignments: true,
+      quiz: { select: { published: true } },
+    },
   });
   if (!lesson) return null;
 
@@ -91,8 +96,9 @@ export async function getLessonById(id: string, userId: string, role: string) {
 }
 
 async function assertRequiredFilesViewed(studentId: string, lessonId: string) {
+  // A hidden file can't be opened, so it can't hold the lesson back either.
   const requiredFiles = await prisma.lessonFile.findMany({
-    where: { lessonId, required: true },
+    where: { lessonId, required: true, hidden: false },
     select: { id: true, name: true },
   });
   if (requiredFiles.length === 0) return;
@@ -140,6 +146,61 @@ export async function setLessonFileRequired(lessonId: string, fileId: string, re
   if (!file) throw new AppError('File not found', 'הקובץ לא נמצא', 404);
   const updated = await prisma.lessonFile.update({ where: { id: fileId }, data: { required } });
   return toFileDTO(updated, 'lesson', userId);
+}
+
+export async function setLessonFileHidden(lessonId: string, fileId: string, hidden: boolean, userId: string) {
+  const file = await prisma.lessonFile.findUnique({ where: { id: fileId, lessonId } });
+  if (!file) throw new AppError('File not found', 'הקובץ לא נמצא', 404);
+  const updated = await prisma.lessonFile.update({ where: { id: fileId }, data: { hidden } });
+  return toFileDTO(updated, 'lesson', userId);
+}
+
+/**
+ * Copies a lesson — its content, files, assignments and quiz — to the end of a
+ * course: the same course (a duplicate) or another one. Files point at the same
+ * stored assets rather than new uploads (deletes count references, see
+ * utils/file-refs). The copy starts hidden so students don't see a lesson the
+ * teacher hasn't finished adapting, and its quiz starts as an unpublished draft.
+ */
+export async function copyLesson(lessonId: string, targetCourseId?: string) {
+  const source = await prisma.lesson.findUnique({
+    where: { id: lessonId },
+    include: { files: true, assignments: true, quiz: true },
+  });
+  if (!source) throw new AppError('Lesson not found', 'השיעור לא נמצא', 404);
+
+  const courseId = targetCourseId || source.courseId;
+  const target = await prisma.course.findUnique({ where: { id: courseId }, select: { id: true } });
+  if (!target) throw new AppError('Course not found', 'הקורס לא נמצא', 404);
+
+  const last = await prisma.lesson.findFirst({ where: { courseId }, orderBy: { order: 'desc' }, select: { order: true } });
+  const sameCourse = courseId === source.courseId;
+
+  return prisma.lesson.create({
+    data: {
+      courseId,
+      topic: sameCourse ? `${source.topic} (עותק)` : source.topic,
+      lessonDate: source.lessonDate,
+      contentMd: source.contentMd,
+      githubUrl: source.githubUrl,
+      githubUrls: source.githubUrls,
+      hidden: true,
+      order: (last?.order ?? -1) + 1,
+      files: {
+        create: source.files.map((f) => ({
+          name: f.name, url: f.url, sizeBytes: f.sizeBytes, required: f.required, hidden: f.hidden,
+        })),
+      },
+      assignments: {
+        create: source.assignments.map((a) => ({
+          title: a.title, description: a.description, deadline: a.deadline,
+          allowedTypes: a.allowedTypes, allowGithub: a.allowGithub, allowFile: a.allowFile,
+          requirements: a.requirements ?? undefined, aiInstructions: a.aiInstructions,
+        })),
+      },
+      ...(source.quiz ? { quiz: { create: { questions: source.quiz.questions ?? [], published: false } } } : {}),
+    },
+  });
 }
 
 export async function setLessonProgress(studentId: string, lessonId: string, completed: boolean) {
@@ -200,8 +261,8 @@ export async function uploadLessonFile(
 export async function deleteLessonFile(lessonId: string, fileId: string) {
   const file = await prisma.lessonFile.findUnique({ where: { id: fileId, lessonId } });
   if (!file) throw new AppError('File not found', 'הקובץ לא נמצא', 404);
-  await destroyByUrl(file.url);
   await prisma.lessonFile.delete({ where: { id: fileId } });
+  await releaseFileUrls([file.url]);
 }
 
 export async function renameLessonFile(lessonId: string, fileId: string, name: string, userId: string) {
@@ -214,8 +275,8 @@ export async function renameLessonFile(lessonId: string, fileId: string, name: s
 }
 
 // Deletes a lesson and its children (assignments, submissions, files, quiz,
-// access, progress) via cascade. Stored file assets are cleaned up first,
-// best-effort, so a storage failure can't block the delete.
+// access, progress) via cascade. Afterwards, stored assets no other
+// course/lesson still uses are cleaned up, best-effort.
 export async function deleteLesson(id: string) {
   const lesson = await prisma.lesson.findUnique({
     where: { id },
@@ -223,15 +284,8 @@ export async function deleteLesson(id: string) {
   });
   if (!lesson) throw new AppError('Lesson not found', 'השיעור לא נמצא', 404);
 
-  for (const f of lesson.files) {
-    try {
-      await destroyByUrl(f.url);
-    } catch (err) {
-      console.error('[storage] failed to destroy asset:', f.url, err);
-    }
-  }
-
   await prisma.lesson.delete({ where: { id } });
+  await releaseFileUrls(lesson.files.map((f) => f.url));
 }
 
 export async function importMarkdown(lessonId: string, content: string) {

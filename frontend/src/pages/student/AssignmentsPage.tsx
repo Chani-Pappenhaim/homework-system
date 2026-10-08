@@ -11,10 +11,12 @@ import { PageHeader } from '@/components/ui/page-header';
 import { cn, formatDate, formatDateTime, isOverdue } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import type { MySubmission, PendingAssignment } from '@/types';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 type ViewingItem = { type: 'pending'; item: PendingAssignment } | { type: 'submitted'; item: MySubmission };
 
 export default function AssignmentsPage() {
+  usePageTitle('המטלות שלי');
   const navigate = useNavigate();
   const { data } = useQuery({ queryKey: ['mine'], queryFn: () => submissionsApi.mine() });
   const mine = unwrap(data);
@@ -199,7 +201,7 @@ function SubmittedDetail({ item }: { item: MySubmission }) {
       <div className="bg-sage/10 border border-sage/30 rounded-input p-3 text-sm space-y-1">
         <p className="text-ink/70 text-xs">הוגש: {formatDateTime(item.submittedAt)}</p>
         {item.isLate && <Badge variant="warning">הוגש באיחור</Badge>}
-        {item.notes && <p className="text-xs text-ink/70">הערה: {item.notes}</p>}
+        {item.notes && <div className="text-xs text-ink/70"><span>הערה:</span><MarkdownRenderer content={item.notes} className="text-xs" /></div>}
       </div>
 
       {(item.githubUrl || item.fileUrl) && (

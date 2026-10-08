@@ -13,4 +13,6 @@ router.get('/', (req, res) => {
   return studentsController.searchStudents(req, res);
 });
 
+router.post('/', studentsController.createStudent);
+
 export default router;

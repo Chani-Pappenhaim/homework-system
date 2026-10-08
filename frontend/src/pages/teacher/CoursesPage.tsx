@@ -12,6 +12,7 @@ import { Tape } from '@/components/decor';
 import { cn } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import type { CourseDTO } from '@/types';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 // Each card gets its own accent so the grid reads like colourful tabbed sheets.
 const ACCENTS = ['clay', 'indigo', 'sage', 'butter', 'coral'] as const;
@@ -24,6 +25,7 @@ const ICON_TINT: Record<(typeof ACCENTS)[number], string> = {
 };
 
 export default function CoursesPage() {
+  usePageTitle('קורסים');
   const navigate = useNavigate();
   const qc = useQueryClient();
 

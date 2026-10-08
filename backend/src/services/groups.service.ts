@@ -4,6 +4,7 @@ import ExcelJS from 'exceljs';
 import { emailQueue } from '../infrastructure/queues/queues';
 import { AppError } from '../utils/errors';
 import { deleteCourse } from './courses.service';
+import { sendEmailVerification, changeEmail } from './auth.service';
 import { cellText, isValidEmail, normalizeGithubUsername, buildTemplateWorkbook } from '../utils/excel';
 
 export async function getGroups() {
@@ -13,12 +14,48 @@ export async function getGroups() {
   });
   return groups.map((g) => ({
     id: g.id, name: g.name, seminar: g.seminar, year: g.year,
+    emailNotificationsDefault: g.emailNotificationsDefault,
     createdAt: g.createdAt, studentCount: g._count.students,
   }));
 }
 
-export async function createGroup(data: { name: string; seminar?: string; year: string }) {
-  const group = await prisma.group.create({ data });
+type GroupFields = { name: string; seminar: string; year: string };
+type GroupSettings = { emailNotificationsDefault?: boolean };
+
+function groupSettings(data: GroupSettings): GroupSettings {
+  return data.emailNotificationsDefault === undefined ? {} : { emailNotificationsDefault: Boolean(data.emailNotificationsDefault) };
+}
+
+const GROUP_FIELD_LABELS: Record<keyof GroupFields, string> = {
+  seminar: 'שם הסמינר',
+  name: 'שם הקבוצה',
+  year: 'שנת הלימודים',
+};
+
+/**
+ * Trims every field that was sent and rejects one left blank. The seminar is
+ * part of how a group is named ("סמינר מאיר יד תשפ״ז"), so it is as required as
+ * the name and year; on update a field that was not sent stays as it is.
+ */
+function cleanGroupFields<T extends Partial<GroupFields>>(data: T): T {
+  const cleaned = { ...data };
+  for (const key of Object.keys(GROUP_FIELD_LABELS) as (keyof GroupFields)[]) {
+    if (data[key] === undefined) continue;
+    const value = String(data[key] ?? '').trim();
+    if (!value) throw new AppError(`Group ${key} is required`, `${GROUP_FIELD_LABELS[key]} הוא שדה חובה`, 400);
+    cleaned[key] = value as T[typeof key];
+  }
+  return cleaned;
+}
+
+export async function createGroup(data: GroupFields & GroupSettings) {
+  for (const key of Object.keys(GROUP_FIELD_LABELS) as (keyof GroupFields)[]) {
+    if (data[key] === undefined) {
+      throw new AppError(`Group ${key} is required`, `${GROUP_FIELD_LABELS[key]} הוא שדה חובה`, 400);
+    }
+  }
+  const { name, seminar, year } = cleanGroupFields(data);
+  const group = await prisma.group.create({ data: { name, seminar, year, ...groupSettings(data) } });
   return { ...group, studentCount: 0 };
 }
 
@@ -26,7 +63,7 @@ export async function getGroupById(id: string) {
   const group = await prisma.group.findUnique({
     where: { id },
     include: {
-      students: { include: { student: { select: { id: true, name: true, email: true, githubUsername: true, createdAt: true } } } },
+      students: { include: { student: { select: { id: true, name: true, email: true, githubUsername: true, createdAt: true, emailVerifiedAt: true, emailNotifications: true } } } },
       courses: { select: { id: true, name: true, hidden: true, _count: { select: { lessons: true } } } },
     },
   });
@@ -34,13 +71,15 @@ export async function getGroupById(id: string) {
   return {
     id: group.id, name: group.name, seminar: group.seminar,
     year: group.year, createdAt: group.createdAt,
-    students: group.students.map((sg) => sg.student),
+    emailNotificationsDefault: group.emailNotificationsDefault,
+    students: group.students.map(({ student: { emailVerifiedAt, ...s } }) => ({ ...s, emailVerified: Boolean(emailVerifiedAt) })),
     courses: group.courses.map((c) => ({ id: c.id, name: c.name, hidden: c.hidden, lessonCount: c._count.lessons })),
   };
 }
 
-export async function updateGroup(id: string, data: { name?: string; seminar?: string; year?: string }) {
-  const group = await prisma.group.update({ where: { id }, data });
+export async function updateGroup(id: string, data: Partial<GroupFields> & GroupSettings) {
+  const { name, seminar, year } = cleanGroupFields(data);
+  const group = await prisma.group.update({ where: { id }, data: { name, seminar, year, ...groupSettings(data) } });
   const count = await prisma.studentGroup.count({ where: { groupId: id } });
   return { ...group, studentCount: count };
 }
@@ -72,12 +111,37 @@ export async function addStudent(groupId: string, name: string, email: string, g
     return { id: existing.id, name: existing.name, email: existing.email, githubUsername: existing.githubUsername, warning };
   }
 
-  const hashed = await bcrypt.hash('12345678', 12);
-  const student = await prisma.user.create({
-    data: { name, email, password: hashed, role: 'STUDENT', mustChangePassword: true, githubUsername: githubUsername || null },
-  });
+  const group = await prisma.group.findUnique({ where: { id: groupId }, select: { emailNotificationsDefault: true } });
+  if (!group) throw new AppError('Group not found', 'הקבוצה לא נמצאה', 404);
+  const student = await createStudentAccount({ name, email, githubUsername, emailNotifications: group.emailNotificationsDefault });
   await prisma.studentGroup.create({ data: { studentId: student.id, groupId } });
   return { id: student.id, name: student.name, email: student.email, githubUsername: student.githubUsername };
+}
+
+/**
+ * A new student account with the default password, and a verification email
+ * on its way so notifications can reach her once she confirms the address.
+ */
+export async function createStudentAccount(data: {
+  name: string; email: string; githubUsername?: string | null; emailNotifications?: boolean;
+}) {
+  const name = data.name?.trim();
+  if (!name) throw new AppError('Name is required', 'יש להזין שם', 400);
+  const email = data.email.trim().toLowerCase();
+  if (!isValidEmail(email)) throw new AppError('Invalid email address', 'כתובת אימייל לא תקינה', 400);
+  if (await prisma.user.findUnique({ where: { email } })) {
+    throw new AppError('Email already in use', 'כתובת המייל הזו כבר בשימוש', 409);
+  }
+  const hashed = await bcrypt.hash('12345678', 12);
+  const student = await prisma.user.create({
+    data: {
+      name, email, password: hashed, role: 'STUDENT', mustChangePassword: true,
+      githubUsername: data.githubUsername ? normalizeGithubUsername(data.githubUsername) || null : null,
+      emailNotifications: data.emailNotifications ?? true,
+    },
+  });
+  await sendEmailVerification(student.id);
+  return student;
 }
 
 export async function removeStudent(groupId: string, studentId: string) {
@@ -97,18 +161,13 @@ export async function updateStudent(
   const inGroup = await prisma.studentGroup.findUnique({ where: { studentId_groupId: { studentId, groupId } } });
   if (!inGroup) throw new AppError('Student not found in this group', 'התלמידה לא נמצאה בקבוצה זו', 404);
 
-  const update: { name?: string; email?: string; githubUsername?: string | null } = {};
+  const update: { name?: string; githubUsername?: string | null } = {};
   if (data.name !== undefined) update.name = data.name.trim();
   if (data.githubUsername !== undefined) update.githubUsername = normalizeGithubUsername(data.githubUsername) || null;
-  if (data.email !== undefined) {
-    const email = data.email.trim().toLowerCase();
-    if (!isValidEmail(email)) throw new AppError('Invalid email address', 'כתובת אימייל לא תקינה', 400);
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing && existing.id !== studentId) throw new AppError('Email already in use', 'כתובת המייל הזו כבר בשימוש', 409);
-    update.email = email;
-  }
+  const emailChanged = data.email !== undefined && (await changeEmail(studentId, data.email));
 
   const student = await prisma.user.update({ where: { id: studentId }, data: update });
+  if (emailChanged) await sendEmailVerification(studentId);
   return { id: student.id, name: student.name, email: student.email, githubUsername: student.githubUsername };
 }
 
@@ -140,6 +199,8 @@ export async function importStudents(groupId: string, buffer: Buffer) {
   const errors: string[] = [];
 
   const hashed = await bcrypt.hash('12345678', 12);
+  const group = await prisma.group.findUnique({ where: { id: groupId }, select: { emailNotificationsDefault: true } });
+  if (!group) throw new AppError('Group not found', 'הקבוצה לא נמצאה', 404);
 
   const rows: Array<{ rowNumber: number; name: string; email: string; githubUsername: string | null }> = [];
 
@@ -158,8 +219,12 @@ export async function importStudents(groupId: string, buffer: Buffer) {
       let user = await prisma.user.findUnique({ where: { email } });
       if (!user) {
         user = await prisma.user.create({
-          data: { name, email, password: hashed, role: 'STUDENT', mustChangePassword: true, githubUsername },
+          data: {
+            name, email, password: hashed, role: 'STUDENT', mustChangePassword: true, githubUsername,
+            emailNotifications: group.emailNotificationsDefault,
+          },
         });
+        await sendEmailVerification(user.id);
       }
       const exists = await prisma.studentGroup.findUnique({
         where: { studentId_groupId: { studentId: user.id, groupId } },

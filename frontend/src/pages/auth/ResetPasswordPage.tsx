@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button';
 import { PasswordInput } from '@/components/ui/password-input';
 import { BrandMark, Tape } from '@/components/decor';
 import { getApiErrorMessage } from '@/lib/errors';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function ResetPasswordPage() {
+  usePageTitle('איפוס סיסמה');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token') ?? '';

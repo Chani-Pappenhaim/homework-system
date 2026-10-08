@@ -2,9 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../src/config/prisma', () => ({
   prisma: {
-    lesson: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    lesson: { findMany: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    course: { findUnique: vi.fn() },
     lessonAccess: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), delete: vi.fn() },
-    lessonFile: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    lessonFile: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(), count: vi.fn().mockResolvedValue(0) },
+    courseFile: { count: vi.fn().mockResolvedValue(0) },
     lessonProgress: { findUnique: vi.fn(), upsert: vi.fn(), deleteMany: vi.fn() },
     lessonFileView: { findMany: vi.fn().mockResolvedValue([]), upsert: vi.fn() },
   },
@@ -43,6 +45,8 @@ import {
   markLessonFileViewed,
   setLessonFileRequired,
   setLessonProgress,
+  setLessonFileHidden,
+  copyLesson,
 } from '../../src/services/lessons.service';
 
 const p = prisma as any;
@@ -219,13 +223,20 @@ describe('lessons.service file upload/delete', () => {
     p.lessonFile.findUnique.mockResolvedValue(null);
     await expect(deleteLessonFile('l1', 'f1')).rejects.toMatchObject({ status: 404 });
   });
-  it('deleteLessonFile destroys cloudinary asset then deletes the row', async () => {
+  it('deleteLessonFile deletes the row, then the asset once nothing references it', async () => {
     p.lessonFile.findUnique.mockResolvedValue({ id: 'f1', url: 'https://res.cloudinary.com/demo/upload/v1/lessons/abc.pdf' });
     destroyMock.mockResolvedValue({});
     p.lessonFile.delete.mockResolvedValue({});
     await deleteLessonFile('l1', 'f1');
-    expect(destroyMock).toHaveBeenCalled();
     expect(p.lessonFile.delete).toHaveBeenCalledWith({ where: { id: 'f1' } });
+    expect(destroyMock).toHaveBeenCalledWith('https://res.cloudinary.com/demo/upload/v1/lessons/abc.pdf');
+  });
+  it('deleteLessonFile keeps the asset while a copied lesson still references it', async () => {
+    p.lessonFile.findUnique.mockResolvedValue({ id: 'f1', url: 'https://cdn/shared.pdf' });
+    p.lessonFile.delete.mockResolvedValue({});
+    p.lessonFile.count.mockResolvedValueOnce(1);
+    await deleteLessonFile('l1', 'f1');
+    expect(destroyMock).not.toHaveBeenCalled();
   });
 });
 
@@ -318,7 +329,7 @@ describe('lessons.service.deleteLesson', () => {
     expect(p.lesson.delete).not.toHaveBeenCalled();
   });
 
-  it('destroys the lesson file assets, then deletes the lesson', async () => {
+  it('deletes the lesson, then destroys its now-unreferenced file assets', async () => {
     p.lesson.findUnique.mockResolvedValue({ id: 'l1', files: [{ url: 'https://cdn/a.pdf' }, { url: 'https://cdn/b.pdf' }] });
     destroyMock.mockResolvedValue({});
     p.lesson.delete.mockResolvedValue({});
@@ -333,5 +344,85 @@ describe('lessons.service.deleteLesson', () => {
     p.lesson.delete.mockResolvedValue({});
     await deleteLesson('l1');
     expect(p.lesson.delete).toHaveBeenCalledWith({ where: { id: 'l1' } });
+  });
+});
+
+describe('lessons.service hidden files', () => {
+  it('a student is never sent the hidden files', async () => {
+    p.lesson.findUnique.mockResolvedValue(null);
+    await getLessonById('l1', 's1', 'STUDENT').catch(() => {});
+    expect(p.lesson.findUnique.mock.calls[0][0].include.files).toEqual({ where: { hidden: false } });
+  });
+
+  it('setLessonFileHidden flips the flag on a file of that lesson', async () => {
+    p.lessonFile.findUnique.mockResolvedValue({ id: 'f1', lessonId: 'l1' });
+    p.lessonFile.update.mockResolvedValue({ id: 'f1', name: 'a.pdf', url: 'https://x/a.pdf', sizeBytes: null, hidden: true });
+    const r: any = await setLessonFileHidden('l1', 'f1', true, 'admin');
+    expect(p.lessonFile.update).toHaveBeenCalledWith({ where: { id: 'f1' }, data: { hidden: true } });
+    expect(r.hidden).toBe(true);
+  });
+
+  it('setLessonFileHidden throws 404 for a file of another lesson', async () => {
+    p.lessonFile.findUnique.mockResolvedValue(null);
+    await expect(setLessonFileHidden('l1', 'f9', true, 'admin')).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe('lessons.service copyLesson', () => {
+  const source = {
+    id: 'l1', courseId: 'c1', topic: 'Hooks', lessonDate: new Date('2026-10-01'), contentMd: '# x',
+    githubUrl: null, githubUrls: [], hidden: false, order: 2,
+    files: [{ id: 'f1', name: 'a.pdf', url: 'https://cdn/a.pdf', sizeBytes: 10n, required: true, hidden: false }],
+    assignments: [{
+      id: 'a1', title: 'T', description: 'D', deadline: null, allowedTypes: ['zip'],
+      allowGithub: true, allowFile: true, requirements: null, aiInstructions: 'ai',
+    }],
+    quiz: { id: 'q1', questions: [{ q: 1 }], published: true },
+  };
+
+  beforeEach(() => {
+    p.lesson.findUnique.mockResolvedValue(source);
+    p.course.findUnique.mockResolvedValue({ id: 'c1' });
+    p.lesson.findFirst.mockResolvedValue({ order: 7 });
+    p.lesson.create.mockImplementation(async ({ data }: any) => ({ id: 'new', ...data }));
+  });
+
+  it('duplicates within the course as a hidden lesson at the end, marked as a copy', async () => {
+    await copyLesson('l1');
+    const data = p.lesson.create.mock.calls[0][0].data;
+    expect(data).toMatchObject({ courseId: 'c1', topic: 'Hooks (עותק)', hidden: true, order: 8, contentMd: '# x' });
+  });
+
+  it('points the copy at the same stored files instead of uploading new ones', async () => {
+    await copyLesson('l1');
+    const data = p.lesson.create.mock.calls[0][0].data;
+    expect(data.files.create).toEqual([
+      { name: 'a.pdf', url: 'https://cdn/a.pdf', sizeBytes: 10n, required: true, hidden: false },
+    ]);
+    expect(uploadMock).not.toHaveBeenCalled();
+  });
+
+  it('copies the assignments and the quiz, the quiz as an unpublished draft', async () => {
+    await copyLesson('l1');
+    const data = p.lesson.create.mock.calls[0][0].data;
+    expect(data.assignments.create[0]).toMatchObject({ title: 'T', description: 'D', allowedTypes: ['zip'], aiInstructions: 'ai' });
+    expect(data.quiz).toEqual({ create: { questions: [{ q: 1 }], published: false } });
+  });
+
+  it('keeps the topic when copying to another course', async () => {
+    p.course.findUnique.mockResolvedValue({ id: 'c2' });
+    p.lesson.findFirst.mockResolvedValue(null);
+    await copyLesson('l1', 'c2');
+    const data = p.lesson.create.mock.calls[0][0].data;
+    expect(data).toMatchObject({ courseId: 'c2', topic: 'Hooks', order: 0 });
+  });
+
+  it('throws 404 for a missing lesson or target course', async () => {
+    p.lesson.findUnique.mockResolvedValue(null);
+    await expect(copyLesson('nope')).rejects.toMatchObject({ status: 404 });
+    p.lesson.findUnique.mockResolvedValue(source);
+    p.course.findUnique.mockResolvedValue(null);
+    await expect(copyLesson('l1', 'nope')).rejects.toMatchObject({ status: 404 });
+    expect(p.lesson.create).not.toHaveBeenCalled();
   });
 });

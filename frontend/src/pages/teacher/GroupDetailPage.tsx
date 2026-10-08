@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { BackLink } from '@/components/ui/back-link';
 import { useToast } from '@/components/ui/toast';
-import { cn } from '@/lib/utils';
+import { cn, groupDisplayName } from '@/lib/utils';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function GroupDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -24,6 +25,7 @@ export default function GroupDetailPage() {
   });
 
   const group = data?.data.data.group;
+  usePageTitle(group && groupDisplayName(group));
 
   const toggleHiddenMutation = useMutation({
     mutationFn: (course: { id: string; hidden: boolean }) =>
@@ -55,10 +57,9 @@ export default function GroupDetailPage() {
               <Users size={20} className="text-ink" />
             </div>
             <div>
-              <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{group.name}</h1>
+              <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{groupDisplayName(group)}</h1>
             <p className="text-ink/70 text-sm mt-0.5">
-              {group.seminar && <span>{group.seminar} · </span>}
-              שנה"ל {group.year} · {group.students.length} תלמידות
+              {group.students.length} תלמידות
             </p>
           </div>
         </div>
@@ -74,7 +75,7 @@ export default function GroupDetailPage() {
                 const coursesNote = group.courses.length > 0
                   ? ` כל ${group.courses.length} הקורסים של הקבוצה (כולל שיעורים, מטלות והגשות) יימחקו גם הם לצמיתות.`
                   : '';
-                if (confirm(`למחוק את הקבוצה "${group.name}"?${coursesNote} התלמידות לא יימחקו מהמערכת, רק ישויכו החוצה מהקבוצה.`)) {
+                if (confirm(`למחוק את הקבוצה "${groupDisplayName(group)}"?${coursesNote} התלמידות לא יימחקו מהמערכת, רק ישויכו החוצה מהקבוצה.`)) {
                   deleteGroupMutation.mutate();
                 }
               }}

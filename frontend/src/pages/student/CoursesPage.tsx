@@ -6,6 +6,7 @@ import { coursesApi } from '@/api/courses.api';
 import { Tape } from '@/components/decor';
 import { PageHeader } from '@/components/ui/page-header';
 import { cn } from '@/lib/utils';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 // Slight rotation per card gives the row a hand-tacked, sheet-on-a-board look.
 const CARD_ACCENTS = ['clay', 'indigo', 'sage', 'butter', 'coral'] as const;
@@ -23,6 +24,7 @@ const ACCENT_CLASSES: Record<(typeof CARD_ACCENTS)[number], { bar: string; text:
 };
 
 export default function StudentCoursesPage() {
+  usePageTitle('הקורסים שלי');
   const navigate = useNavigate();
   const qc = useQueryClient();
   function prefetchCourse(courseId: string) {

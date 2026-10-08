@@ -1,6 +1,6 @@
 import api from './axios';
 import { uploadToCloudinary } from '@/lib/upload';
-import type { CourseDTO, CourseDetailDTO } from '@/types';
+import type { CourseDTO, CourseDetailDTO, StudentSummary } from '@/types';
 
 export const coursesApi = {
   list: () =>
@@ -20,6 +20,9 @@ export const coursesApi = {
 
   copy: (id: string, targetGroupId: string) =>
     api.post(`/courses/${id}/copy`, { targetGroupId }),
+
+  getAccess: (id: string) =>
+    api.get<{ success: true; data: { students: StudentSummary[] } }>(`/courses/${id}/access`),
 
   grantAccess: (id: string, studentId: string) =>
     api.post(`/courses/${id}/access`, { studentId }),
@@ -63,4 +66,7 @@ export const coursesApi = {
 
   renameFile: (id: string, fileId: string, name: string) =>
     api.patch(`/courses/${id}/files/${fileId}`, { name }),
+
+  setFileHidden: (id: string, fileId: string, hidden: boolean) =>
+    api.patch(`/courses/${id}/files/${fileId}/hidden`, { hidden }),
 };

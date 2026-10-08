@@ -5,16 +5,18 @@ import { Input } from '@/components/ui/input';
 
 interface StudentAutocompleteProps {
   onSelect: (student: StudentSearchResult) => void;
+  /** When set, a search with no results offers to create a new student from the typed text. */
+  onNoMatch?: (query: string) => void;
   placeholder?: string;
 }
 
 /** Free-text search by name or email against the student directory, showing a dropdown of matches. */
-export function StudentAutocomplete({ onSelect, placeholder = 'חפשי לפי שם או אימייל' }: StudentAutocompleteProps) {
+export function StudentAutocomplete({ onSelect, onNoMatch, placeholder = 'חפשי לפי שם או אימייל' }: StudentAutocompleteProps) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { data } = useQuery({
+  const { data, isFetching } = useQuery({
     queryKey: ['students-search', query],
     queryFn: () => studentsApi.search(query),
     enabled: query.trim().length >= 2,
@@ -54,6 +56,18 @@ export function StudentAutocomplete({ onSelect, placeholder = 'חפשי לפי �
               )}
             </button>
           ))}
+        </div>
+      )}
+      {open && onNoMatch && query.trim().length >= 2 && data && !isFetching && results.length === 0 && (
+        <div className="absolute z-20 mt-1 w-full rounded-input border border-rule bg-sheet shadow-soft">
+          <button
+            type="button"
+            onClick={() => { onNoMatch(query); setQuery(''); setOpen(false); }}
+            className="block w-full px-3 py-2 text-right text-sm hover:bg-ground/60"
+          >
+            <span className="text-ink/60">לא נמצאה תלמידה. </span>
+            <span className="font-semibold text-clay">להוסיף תלמידה חדשה?</span>
+          </button>
         </div>
       )}
     </div>

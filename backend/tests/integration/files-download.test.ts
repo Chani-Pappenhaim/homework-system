@@ -81,6 +81,13 @@ describe('GET /api/files/download/:fileId', () => {
     expect(res.status).toBe(401);
   });
 
+  it('serves the file when the URL carries a cosmetic file.<ext> segment', async () => {
+    const token = signFileToken({ fileId: 'f1', kind: 'lesson', userId: 'u1' });
+    const res = await request(app).get('/api/files/download/f1/file.mp3').query({ token });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('audio/mpeg');
+  });
+
   it('rejects a token whose fileId does not match the URL param', async () => {
     const token = signFileToken({ fileId: 'other-file', kind: 'lesson', userId: 'u1' });
     const res = await request(app).get('/api/files/download/f1').query({ token });

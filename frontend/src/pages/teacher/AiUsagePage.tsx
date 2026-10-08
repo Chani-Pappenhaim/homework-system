@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { cn } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 function formatMonth(month: string) {
   const [year, m] = month.split('-');
@@ -21,6 +22,7 @@ function formatBytes(bytes: number): string {
 }
 
 export default function AiUsagePage() {
+  usePageTitle('שימוש ב-AI');
   const { data, isLoading } = useQuery({
     queryKey: ['ai-usage-summary'],
     queryFn: () => aiUsageApi.summary(),

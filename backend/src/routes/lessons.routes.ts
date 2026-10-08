@@ -22,6 +22,8 @@ router.post('/:id/upload-signature', requireRole('ADMIN'), lessonsController.get
 router.delete('/:id/files/:fileId', requireRole('ADMIN'), lessonsController.deleteFile);
 router.patch('/:id/files/:fileId', requireRole('ADMIN'), lessonsController.renameFile);
 router.patch('/:id/files/:fileId/required', requireRole('ADMIN'), lessonsController.setFileRequired);
+router.patch('/:id/files/:fileId/hidden', requireRole('ADMIN'), lessonsController.setFileHidden);
+router.post('/:id/copy', requireRole('ADMIN'), lessonsController.copyLesson);
 router.post('/:id/files/:fileId/view', lessonsController.markFileViewed);
 router.delete('/:id/files/:fileId/view', lessonsController.unmarkFileViewed);
 router.post('/:id/import-md', requireRole('ADMIN'), uploadImport.single('file'), requireFile, lessonsController.importMarkdown);

@@ -2,8 +2,10 @@ import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authApi } from '@/api/auth.api';
 import useAuthStore from '@/store/authStore';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function OAuthCallbackPage() {
+  usePageTitle('מתחבר…');
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);

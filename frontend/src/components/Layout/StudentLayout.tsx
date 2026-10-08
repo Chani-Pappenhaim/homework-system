@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Home, BookOpen, ClipboardList, MessageSquare, LogOut } from 'lucide-react';
+import { Home, BookOpen, ClipboardList, MessageSquare, LogOut, UserRound, MailWarning, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import useAuthStore from '@/store/authStore';
 import { authApi } from '@/api/auth.api';
@@ -13,6 +14,7 @@ const nav = [
   { to: '/student/courses', label: 'קורסים', icon: BookOpen },
   { to: '/student/assignments', label: 'מטלות', icon: ClipboardList },
   { to: '/student/messages', label: 'הודעה למורה', icon: MessageSquare },
+  { to: '/student/profile', label: 'הפרופיל שלי', icon: UserRound },
 ];
 
 export default function StudentLayout() {
@@ -32,6 +34,9 @@ export default function StudentLayout() {
     navigate('/login');
   }
 
+  const [bannerClosed, setBannerClosed] = useState(false);
+  const showVerifyBanner = Boolean(user && user.emailVerified === false && !bannerClosed);
+
   const initials = (user?.name ?? 'תלמידה').split(' ').map((w) => w[0]).slice(0, 2).join('');
 
   return (
@@ -44,6 +49,7 @@ export default function StudentLayout() {
 
           <div className="mr-auto flex items-center gap-3">
             <div className="flex items-center gap-2 border-r border-rule pr-3">
+              <button onClick={() => navigate('/student/profile')} title="הפרופיל שלי" className="flex items-center gap-2">
               <span className="grid size-8 place-items-center rounded-full bg-clay text-xs font-semibold text-sheet">
                 {initials}
               </span>
@@ -51,6 +57,7 @@ export default function StudentLayout() {
                 <div className="text-xs font-semibold text-ink">{user?.name ?? 'תלמידה'}</div>
                 <div className="text-[10px] text-ink-soft">תלמידה</div>
               </div>
+              </button>
               <button onClick={handleLogout} title="יציאה" className="text-ink-soft hover:text-coral">
                 <LogOut size={15} />
               </button>
@@ -86,6 +93,18 @@ export default function StudentLayout() {
         <main className="min-w-0 flex-1 px-4 py-8 md:px-10">
           {/* Every page shares this exact width, so the canvas lines up consistently across the app. */}
           <div className="mx-auto max-w-6xl">
+            {showVerifyBanner && (
+              <div className="mb-6 flex items-center gap-3 rounded-input border border-coral/30 bg-coral/10 px-4 py-2.5 text-sm text-ink">
+                <MailWarning size={16} className="shrink-0 text-coral" />
+                <span className="flex-1">
+                  כתובת המייל שלך עדיין לא אומתה, ולכן עדכונים מהמורה לא יגיעו אלייך במייל.{' '}
+                  <NavLink to="/student/profile" className="font-semibold underline">לאימות הכתובת</NavLink>
+                </span>
+                <button onClick={() => setBannerClosed(true)} aria-label="סגירה" className="text-ink/50 hover:text-ink">
+                  <X size={15} />
+                </button>
+              </div>
+            )}
             <Outlet />
           </div>
         </main>

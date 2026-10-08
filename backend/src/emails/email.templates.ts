@@ -30,6 +30,12 @@ export function forgotPasswordLinkHtml(data: EmailJobMap['forgot-password-link']
   );
 }
 
+export function verifyEmailHtml(data: EmailJobMap['verify-email']): string {
+  return wrapRtl(
+    `<p>שלום ${data.name},</p><p>כדי לקבל עדכונים מהמורה במייל (תשובות להודעות, ציונים), יש לאשר שזו כתובת המייל שלך:</p><p><a href="${data.verifyUrl}" style="color:#4f46e5;">אישור כתובת המייל</a></p><p>אם לא את נרשמת לאתר, אפשר להתעלם מהמייל.</p>`
+  );
+}
+
 export function storageAlertHtml(): string {
   return wrapRtl(
     `<p>שלום,</p><p>שטח האחסון בחשבון ה-Cloudinary עבר <strong>80%</strong> מהמכסה.</p><p>מומלץ למחוק קבצים ישנים או להרחיב את המכסה כדי שהגשות חדשות לא ייכשלו.</p>`

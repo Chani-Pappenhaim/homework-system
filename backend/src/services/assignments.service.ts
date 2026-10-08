@@ -10,28 +10,52 @@ export async function getAssignments(lessonId: string, userId: string, role: str
   return prisma.assignment.findMany({ where: { lessonId }, orderBy: { createdAt: 'asc' } });
 }
 
+/**
+ * The description is where the teacher writes what is expected and how it is
+ * graded, so an assignment without one is not a usable assignment.
+ */
+function requireText(value: unknown, field: 'title' | 'description'): string {
+  const text = typeof value === 'string' ? value.trim() : '';
+  if (!text) {
+    const label = field === 'title' ? 'כותרת המטלה' : 'תיאור המטלה';
+    throw new AppError(`Assignment ${field} is required`, `${label} הוא שדה חובה`, 400);
+  }
+  return text;
+}
+
+/** `null` clears the deadline, a string sets it, `undefined` leaves it as it is. */
+function deadlineField(deadline: string | null | undefined) {
+  if (deadline === undefined) return {};
+  if (deadline === null || deadline === '') return { deadline: null };
+  return { deadline: new Date(deadline) };
+}
+
 export async function createAssignment(lessonId: string, data: {
-  title: string; description?: string; deadline?: string;
+  title: string; description: string; deadline?: string | null;
   allowedTypes?: string[]; allowGithub?: boolean; allowFile?: boolean;
   requirements?: { id: string; text: string }[];
   aiInstructions?: string;
 }) {
   const { deadline, ...rest } = data;
+  const title = requireText(data.title, 'title');
+  const description = requireText(data.description, 'description');
   return prisma.assignment.create({
-    data: { lessonId, ...rest, ...(deadline ? { deadline: new Date(deadline) } : {}) },
+    data: { lessonId, ...rest, title, description, ...(deadline ? { deadline: new Date(deadline) } : {}) },
   });
 }
 
 export async function updateAssignment(id: string, data: Partial<{
-  title: string; description: string; deadline: string;
+  title: string; description: string; deadline: string | null;
   allowedTypes: string[]; allowGithub: boolean; allowFile: boolean;
   requirements: { id: string; text: string }[];
   aiInstructions: string;
 }>) {
   const { deadline, ...rest } = data;
+  if (data.title !== undefined) rest.title = requireText(data.title, 'title');
+  if (data.description !== undefined) rest.description = requireText(data.description, 'description');
   return prisma.assignment.update({
     where: { id },
-    data: { ...rest, ...(deadline ? { deadline: new Date(deadline) } : {}) },
+    data: { ...rest, ...deadlineField(deadline) },
   });
 }
 
@@ -57,6 +81,7 @@ export async function importAssignments(buffer: Buffer) {
     const allowedTypes = allowedTypesRaw ? allowedTypesRaw.split(',').map((s) => s.trim()) : [];
 
     if (!lessonId || !title) { errors.push(`Row ${i}: missing lessonId or title`); continue; }
+    if (!description) { errors.push(`Row ${i}: missing description`); continue; }
 
     try {
       await prisma.assignment.create({ data: { lessonId, title, description, deadline: deadline ? new Date(deadline) : undefined, allowedTypes } });

@@ -22,8 +22,10 @@ import {
 import { cn, formatDateTime } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import type { MessageDTO } from '@/types';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function TeacherMessagesPage() {
+  usePageTitle('הודעות');
   const qc = useQueryClient();
   const [searchParams] = useSearchParams();
   const [openId, setOpenId] = useState<string | null>(null);

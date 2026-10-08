@@ -16,6 +16,7 @@ router.post('/:id/submit', requireRole('STUDENT'), uploadAttachment.single('file
 router.post('/:id/video-upload-signature', requireRole('STUDENT'), submissionsController.getVideoUploadSignature);
 // Enqueues a billable Gemini review
 router.post('/:id/request-ai-review', aiRateLimit, requireRole('STUDENT'), submissionsController.requestAiReview);
+router.post('/:id/rerun-ai-review', aiRateLimit, requireRole('ADMIN'), submissionsController.rerunAiReview);
 router.post('/:id/approve-ai', requireRole('ADMIN'), submissionsController.approveAiReview);
 router.post('/:id/allow-extra-ai', requireRole('ADMIN'), submissionsController.allowExtraAiReview);
 router.post('/:id/restore-ai-score', requireRole('ADMIN'), submissionsController.restoreAiScore);

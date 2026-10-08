@@ -3,10 +3,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../../src/config/prisma', () => ({
   prisma: {
     course: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
-    user: { findUnique: vi.fn() },
+    user: { findUnique: vi.fn(), findFirst: vi.fn() },
     studentGroup: { findFirst: vi.fn(), count: vi.fn() },
     lessonAccess: { findUnique: vi.fn() },
-    courseFile: { findUnique: vi.fn(), delete: vi.fn(), create: vi.fn() },
+    courseFile: { findUnique: vi.fn(), delete: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn().mockResolvedValue(0) },
+    courseAccess: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), deleteMany: vi.fn() },
+    lessonFile: { count: vi.fn().mockResolvedValue(0) },
     courseLink: { create: vi.fn(), delete: vi.fn() },
     lessonProgress: { findMany: vi.fn(), groupBy: vi.fn() },
   },
@@ -39,6 +41,8 @@ import {
   uploadCourseFile,
   deleteCourseFile,
   deleteCourse,
+  setCourseFileHidden,
+  grantCourseAccess,
 } from '../../src/services/courses.service';
 
 const p = prisma as any;
@@ -61,12 +65,15 @@ describe('courses.service.getCoursesForUser', () => {
     expect(r[0]).toMatchObject({ id: 'c1', groupName: 'G', lessonCount: 3 });
   });
 
-  it('STUDENT only gets non-hidden courses in their groups', async () => {
+  it('STUDENT only gets non-hidden courses in their groups or granted to them', async () => {
     p.user.findUnique.mockResolvedValue({ studentGroups: [{ groupId: 'g1' }] });
     p.course.findMany.mockResolvedValue([]);
     await getCoursesForUser('s1', 'STUDENT');
     expect(p.course.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { hidden: false, groupId: { in: ['g1'] } },
+      where: {
+        hidden: false,
+        OR: [{ groupId: { in: ['g1'] } }, { access: { some: { studentId: 's1' } } }],
+      },
     }));
   });
 
@@ -229,13 +236,21 @@ describe('courses.service create/update + links + files', () => {
     p.courseFile.findUnique.mockResolvedValue(null);
     await expect(deleteCourseFile('c1', 'f1')).rejects.toMatchObject({ status: 404 });
   });
-  it('deleteCourseFile removes the cloudinary asset then the row', async () => {
+  it('deleteCourseFile deletes the row, then the asset once nothing references it', async () => {
     p.courseFile.findUnique.mockResolvedValue({ id: 'f1', url: 'https://res.cloudinary.com/demo/upload/v1/courses/abc.pdf' });
     destroyMock.mockResolvedValue({});
     p.courseFile.delete.mockResolvedValue({});
     await deleteCourseFile('c1', 'f1');
-    expect(destroyMock).toHaveBeenCalled();
     expect(p.courseFile.delete).toHaveBeenCalledWith({ where: { id: 'f1' } });
+    expect(destroyMock).toHaveBeenCalledWith('https://res.cloudinary.com/demo/upload/v1/courses/abc.pdf');
+  });
+  it('deleteCourseFile keeps the asset while a copied course still references it', async () => {
+    p.courseFile.findUnique.mockResolvedValue({ id: 'f1', url: 'https://cdn/shared.pdf' });
+    p.courseFile.delete.mockResolvedValue({});
+    p.courseFile.count.mockResolvedValueOnce(1);
+    await deleteCourseFile('c1', 'f1');
+    expect(p.courseFile.delete).toHaveBeenCalledWith({ where: { id: 'f1' } });
+    expect(destroyMock).not.toHaveBeenCalled();
   });
 });
 
@@ -246,7 +261,7 @@ describe('courses.service.deleteCourse', () => {
     expect(p.course.delete).not.toHaveBeenCalled();
   });
 
-  it('destroys course + lesson file assets, then deletes the course', async () => {
+  it('deletes the course, then destroys its now-unreferenced file assets', async () => {
     p.course.findUnique.mockResolvedValue({
       id: 'c1',
       files: [{ url: 'https://cdn/course-file.pdf' }],
@@ -261,11 +276,73 @@ describe('courses.service.deleteCourse', () => {
     expect(p.course.delete).toHaveBeenCalledWith({ where: { id: 'c1' } });
   });
 
+  it('keeps assets that another course still references through a copy', async () => {
+    p.course.findUnique.mockResolvedValue({
+      id: 'c1',
+      files: [{ url: 'https://cdn/shared.pdf' }],
+      lessons: [{ files: [{ url: 'https://cdn/own.pdf' }] }],
+    });
+    p.course.delete.mockResolvedValue({});
+    p.courseFile.count.mockImplementation(({ where }: any) => Promise.resolve(where.url === 'https://cdn/shared.pdf' ? 1 : 0));
+    await deleteCourse('c1');
+    expect(destroyMock).toHaveBeenCalledTimes(1);
+    expect(destroyMock).toHaveBeenCalledWith('https://cdn/own.pdf');
+    p.courseFile.count.mockResolvedValue(0);
+  });
+
   it('still deletes the course when a storage destroy fails', async () => {
     p.course.findUnique.mockResolvedValue({ id: 'c1', files: [{ url: 'https://cdn/x.pdf' }], lessons: [] });
     destroyMock.mockRejectedValue(new Error('cloudinary down'));
     p.course.delete.mockResolvedValue({});
     await deleteCourse('c1');
     expect(p.course.delete).toHaveBeenCalledWith({ where: { id: 'c1' } });
+  });
+});
+
+describe('courses.service hidden files', () => {
+  it('a student is never sent the hidden files', async () => {
+    p.course.findUnique.mockResolvedValue(null);
+    await getCourseById('c1', 's1', 'STUDENT').catch(() => {});
+    expect(p.course.findUnique.mock.calls[0][0].include.files.where).toEqual({ hidden: false });
+  });
+
+  it('the teacher gets every file', async () => {
+    p.course.findUnique.mockResolvedValue(null);
+    await getCourseById('c1', 'admin', 'ADMIN');
+    expect(p.course.findUnique.mock.calls[0][0].include.files.where).toEqual({});
+  });
+
+  it('setCourseFileHidden flips the flag on a file of that course', async () => {
+    p.courseFile.findUnique.mockResolvedValue({ id: 'f1', courseId: 'c1' });
+    p.courseFile.update.mockResolvedValue({ id: 'f1', name: 'a.pdf', url: 'https://x/a.pdf', sizeBytes: null, hidden: true });
+    const r: any = await setCourseFileHidden('c1', 'f1', true, 'admin');
+    expect(p.courseFile.update).toHaveBeenCalledWith({ where: { id: 'f1' }, data: { hidden: true } });
+    expect(r.hidden).toBe(true);
+  });
+
+  it('setCourseFileHidden throws 404 for a file of another course', async () => {
+    p.courseFile.findUnique.mockResolvedValue(null);
+    await expect(setCourseFileHidden('c1', 'f9', true, 'admin')).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe('courses.service course access', () => {
+  it('grants a student access to the course', async () => {
+    p.user.findFirst.mockResolvedValue({ id: 's1' });
+    p.courseAccess.findUnique.mockResolvedValue(null);
+    await grantCourseAccess('c1', 's1');
+    expect(p.courseAccess.create).toHaveBeenCalledWith({ data: { studentId: 's1', courseId: 'c1' } });
+  });
+
+  it('throws 404 for someone who is not a student', async () => {
+    p.user.findFirst.mockResolvedValue(null);
+    await expect(grantCourseAccess('c1', 'x')).rejects.toMatchObject({ status: 404 });
+    expect(p.courseAccess.create).not.toHaveBeenCalled();
+  });
+
+  it('throws 409 when the student already has access', async () => {
+    p.user.findFirst.mockResolvedValue({ id: 's1' });
+    p.courseAccess.findUnique.mockResolvedValue({ studentId: 's1', courseId: 'c1' });
+    await expect(grantCourseAccess('c1', 's1')).rejects.toMatchObject({ status: 409 });
   });
 });

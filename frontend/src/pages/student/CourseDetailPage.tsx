@@ -1,4 +1,5 @@
 import { toExternalUrl } from '@/lib/utils';
+import { lessonPath } from '@/components/lesson/LessonRoute';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, Check } from 'lucide-react';
@@ -8,6 +9,8 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { FileGallery } from '@/components/ui/file-gallery';
 import { cn } from '@/lib/utils';
+import { usePageTitle } from '@/hooks/usePageTitle';
+import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 
 export default function StudentCourseDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -24,6 +27,7 @@ export default function StudentCourseDetailPage() {
   }
 
   const course = data?.data.data.course;
+  usePageTitle(course?.name);
   if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
   if (!course) return <div className="p-6 font-sans text-coral">קורס לא נמצא</div>;
 
@@ -39,7 +43,7 @@ export default function StudentCourseDetailPage() {
         back
         backLabel="חזרה"
       />
-      {course.description && <p className="text-sm text-ink/70">{course.description}</p>}
+      {course.description && <MarkdownRenderer content={course.description} className="text-ink/70" />}
 
       <Card accent="sage">
         <CardContent>
@@ -62,7 +66,7 @@ export default function StudentCourseDetailPage() {
             {course.lessons.map((l, i) => (
               <button
                 key={l.id}
-                onClick={() => navigate(`/student/lessons/${l.id}`)}
+                onClick={() => navigate(lessonPath('student', course.id, i + 1, l.id))}
                 onMouseEnter={() => prefetchLesson(l.id)}
                 onFocus={() => prefetchLesson(l.id)}
                 title={l.completed ? `${l.topic} (הושלם)` : l.topic}

@@ -6,6 +6,7 @@ import { computeSubmissionScore } from '../utils/grading';
 import { aiReviewQueue, emailQueue } from '../infrastructure/queues/queues';
 import type { EmailJobMap } from '../infrastructure/queues/job-types';
 import { cellText } from '../utils/excel';
+import { getRepoStatus, normalizeRepoName } from '../utils/github';
 import ExcelJS from 'exceljs';
 
 async function enqueueEmail<T extends keyof EmailJobMap>(jobName: T, data: EmailJobMap[T]) {
@@ -43,8 +44,17 @@ export async function submitAssignment(
   if (payload.repoName) {
     if (!assignment.allowGithub) throw new AppError('GitHub not allowed for this assignment', 'הגשת GitHub אינה מותרת במטלה זו', 400);
     const student = await prisma.user.findUnique({ where: { id: studentId } });
-    if (!student?.githubUsername) throw new AppError('No GitHub username set for your account', 'לא הוגדר שם משתמש GitHub בחשבון שלך', 400);
-    githubUrl = `https://github.com/${student.githubUsername}/${payload.repoName}`;
+    if (!student?.githubUsername) throw new AppError('No GitHub username set for your account', 'לא הוגדר שם משתמש GitHub בחשבון שלך — יש לעדכן אותו בפרופיל', 400);
+    const repoName = normalizeRepoName(payload.repoName);
+    if (!repoName) throw new AppError('Empty repo name', 'יש להזין שם ריפו', 400);
+    if ((await getRepoStatus(student.githubUsername, repoName)) === 'missing') {
+      throw new AppError(
+        `Repo ${student.githubUsername}/${repoName} not found`,
+        `הריפו github.com/${student.githubUsername}/${repoName} לא נמצא. יש לבדוק את שם הריפו, את שם המשתמש בפרופיל, ושהריפו ציבורי`,
+        400
+      );
+    }
+    githubUrl = `https://github.com/${student.githubUsername}/${repoName}`;
   } else if (payload.file || payload.uploadedFile) {
     if (!assignment.allowFile) throw new AppError('File upload not allowed for this assignment', 'העלאת קובץ אינה מותרת במטלה זו', 400);
     const originalName = payload.file ? payload.file.originalName : payload.uploadedFile!.originalName;
@@ -247,6 +257,34 @@ export async function requestAiReview(submissionId: string, studentId: string) {
     { submissionId: submission.id },
     // GitHub and Gemini both fail transiently; without retries a blip costs the
     // student her one review attempt.
+    { attempts: 3, backoff: { type: 'exponential', delay: 5000 } }
+  );
+}
+
+/**
+ * The teacher runs the AI review again — after editing the assignment's
+ * instructions, say. It has no attempt limit and doesn't count against the
+ * student's, and the new result waits for her approval like the first one.
+ */
+export async function rerunAiReview(submissionId: string) {
+  const submission = await prisma.submission.findUnique({ where: { id: submissionId } });
+  if (!submission) throw new AppError('Submission not found', 'ההגשה לא נמצאה', 404);
+  const fileRef = (submission.fileName || submission.fileUrl || '').toLowerCase();
+  if (!submission.githubUrl && !fileRef.endsWith('.zip') && !fileRef.endsWith('.docx')) {
+    throw new AppError(
+      'Submission is not reviewable by AI',
+      'בדיקת AI זמינה רק להגשות GitHub, קובץ ZIP או קובץ Word (.docx)',
+      400
+    );
+  }
+  if (submission.aiStatus === 'pending') {
+    throw new AppError('Review already in progress', 'בדיקת AI כבר מתבצעת עבור הגשה זו', 400);
+  }
+
+  await prisma.submission.update({ where: { id: submissionId }, data: { aiStatus: 'pending', aiApproved: false } });
+  await aiReviewQueue.add(
+    'review',
+    { submissionId, byTeacher: true },
     { attempts: 3, backoff: { type: 'exponential', delay: 5000 } }
   );
 }
