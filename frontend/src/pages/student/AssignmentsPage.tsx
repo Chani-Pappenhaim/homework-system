@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Github, Paperclip, Search } from 'lucide-react';
 import { submissionsApi } from '@/api/submissions.api';
 import { Button } from '@/components/ui/button';
@@ -16,13 +16,31 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 type ViewingItem = { type: 'pending'; item: PendingAssignment } | { type: 'submitted'; item: MySubmission };
 
 export default function AssignmentsPage() {
-  usePageTitle('המטלות שלי');
   const navigate = useNavigate();
   const { data } = useQuery({ queryKey: ['mine'], queryFn: () => submissionsApi.mine() });
   const mine = unwrap(data);
   const pending: PendingAssignment[] = mine?.pending ?? [];
   const submitted: MySubmission[] = mine?.submitted ?? [];
-  const [viewing, setViewing] = useState<ViewingItem | null>(null);
+  // The open assignment lives in the URL (`?pending=<assignmentId>` or
+  // `?submission=<submissionId>`), so a refresh or a shared link reopens it and
+  // the browser's back button returns to the list.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const pendingId = searchParams.get('pending');
+  const submissionId = searchParams.get('submission');
+  const pendingItem = pendingId ? pending.find((p) => p.assignmentId === pendingId) : undefined;
+  const submittedItem = submissionId ? submitted.find((s) => s.submissionId === submissionId) : undefined;
+  const viewing: ViewingItem | null = pendingItem
+    ? { type: 'pending', item: pendingItem }
+    : submittedItem ? { type: 'submitted', item: submittedItem } : null;
+  const setViewing = (next: ViewingItem | null) => setSearchParams((p) => {
+    const params = new URLSearchParams(p);
+    params.delete('pending');
+    params.delete('submission');
+    if (next?.type === 'pending') params.set('pending', next.item.assignmentId);
+    if (next?.type === 'submitted') params.set('submission', next.item.submissionId);
+    return params;
+  }, { replace: !next });
+  usePageTitle(viewing?.item.assignmentTitle, 'המטלות שלי');
   const [searchMode, setSearchMode] = useState<'assignment' | 'course'>('assignment');
   const [search, setSearch] = useState('');
 

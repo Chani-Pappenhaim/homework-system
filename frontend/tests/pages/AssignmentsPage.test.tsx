@@ -81,4 +81,22 @@ describe('AssignmentsPage', () => {
     renderWithProviders(<AssignmentsPage />);
     expect(await screen.findByText('ממתין לציון')).toBeInTheDocument();
   });
+
+  it('reopens the assignment named in the URL, and goes back to the list', async () => {
+    mine.mockResolvedValue({ data: { data: {
+      pending: [
+        { assignmentId: 'a1', assignmentTitle: 'מטלה 1', courseName: 'קורס', lessonId: 'l1', lessonTopic: 'שיעור' },
+      ],
+      submitted: [],
+    } } });
+    renderWithProviders(<AssignmentsPage />, { initialEntries: ['/student/assignments?pending=a1'] });
+    await userEvent.click(await screen.findByText('חזרה לרשימה'));
+    expect(await screen.findByText('לא הוגשו (1)')).toBeInTheDocument();
+  });
+
+  it('ignores an unknown assignment in the URL and shows the list', async () => {
+    mine.mockResolvedValue({ data: { data: { pending: [], submitted: [] } } });
+    renderWithProviders(<AssignmentsPage />, { initialEntries: ['/student/assignments?submission=missing'] });
+    expect(await screen.findByText('אין מטלות פתוחות 🎉')).toBeInTheDocument();
+  });
 });
