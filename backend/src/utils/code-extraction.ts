@@ -1,6 +1,7 @@
 import AdmZip from 'adm-zip';
 import mammoth from 'mammoth';
 import { toDeliveryUrl } from './storage';
+import { githubHeaders } from './github';
 
 // Same caps across every extraction path: max 20 files, max 5KB per file
 const CODE_EXTENSIONS = ['.js', '.ts', '.jsx', '.tsx', '.py', '.html', '.css', '.java', '.cs', '.cpp', '.c'];
@@ -13,9 +14,8 @@ export async function fetchGithubCode(githubUrl: string): Promise<string> {
   const [, owner, repo] = match;
 
   const apiUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/HEAD?recursive=1`;
-  const treeRes = await fetch(apiUrl, {
-    headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'homework-app' },
-  });
+  const treeRes = await fetch(apiUrl, { headers: githubHeaders() });
+  if (treeRes.status === 404) throw new Error(`GitHub API error: 404 — repo ${owner}/${repo} not found or private`);
   if (!treeRes.ok) throw new Error(`GitHub API error: ${treeRes.status}`);
   const tree = await treeRes.json() as any;
 

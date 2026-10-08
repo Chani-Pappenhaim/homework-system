@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { getRepoStatus, normalizeRepoName } from '../../src/utils/github';
+import { getRepoStatus, githubHeaders, normalizeRepoName } from '../../src/utils/github';
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
 
 describe('normalizeRepoName', () => {
   it('keeps a bare repo name', () => {
@@ -23,8 +26,20 @@ describe('getRepoStatus', () => {
     expect(await getRepoStatus('dina', 'b')).toBe('missing');
   });
   it('is unknown on a rate limit or network failure', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({ ok: false, status: 403 }).mockRejectedValueOnce(new Error('blocked')));
     expect(await getRepoStatus('dina', 'a')).toBe('unknown');
     expect(await getRepoStatus('dina', 'b')).toBe('unknown');
+  });
+});
+
+describe('githubHeaders', () => {
+  it('sends no Authorization header without a token', () => {
+    vi.stubEnv('GITHUB_TOKEN', '');
+    expect(githubHeaders().Authorization).toBeUndefined();
+  });
+  it('authenticates with GITHUB_TOKEN when set', () => {
+    vi.stubEnv('GITHUB_TOKEN', 'ghp_test');
+    expect(githubHeaders().Authorization).toBe('Bearer ghp_test');
   });
 });
