@@ -24,6 +24,9 @@ import { BackLink } from '@/components/ui/back-link';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { useTabParam } from '@/hooks/useTabParam';
+
+const COURSE_TABS = ['details', 'links'] as const;
 
 export default function CourseFormPage() {
   const { id } = useParams();
@@ -41,7 +44,7 @@ export default function CourseFormPage() {
   const [copyModal, setCopyModal] = useState(false);
   const [copyGroupId, setCopyGroupId] = useState('');
   const [newLink, setNewLink] = useState({ label: '', url: '' });
-  const [tab, setTab] = useState<'details' | 'links'>('details');
+  const [tab, setTab] = useTabParam(COURSE_TABS, 'details');
 
   const { data: courseData } = useQuery({
     queryKey: ['course', id],
