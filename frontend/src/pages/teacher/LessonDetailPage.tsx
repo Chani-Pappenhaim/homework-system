@@ -148,7 +148,15 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
   const deleteAssignmentMutation = useMutation({
     mutationFn: (aId: string) => assignmentsApi.delete(aId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['lesson', id] }); toast.success('המטלה נמחקה'); },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'שגיאה במחיקת המטלה')),
   });
+
+  // Deleting an assignment cascades to its submissions and grades, so the confirm says so explicitly
+  const confirmDeleteAssignment = (a: { id: string; title: string }) => {
+    if (!confirm(`למחוק את המטלה "${a.title}"? כל ההגשות והציונים של המטלה יימחקו לצמיתות.`)) return;
+    deleteAssignmentMutation.mutate(a.id);
+    if (assignment?.id === a.id) closeAssignment();
+  };
 
   if (isLoading) return <div className="p-6 text-ink/50">טוען...</div>;
   if (!lesson) return <div className="p-6 text-coral">שיעור לא נמצא</div>;
@@ -307,14 +315,26 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
               <p className="text-sm text-ink/50">אין מטלות עדיין</p>
             )}
             {lesson.assignments.map((a) => (
-              <button
+              <div
                 key={a.id}
-                onClick={() => openAssignment(a.id)}
-                className="flex w-full items-center justify-between gap-2 rounded-input border border-rule/30 px-4 py-2.5 text-right transition-colors hover:border-rule hover:bg-ground/60"
+                className="flex w-full items-center gap-2 rounded-input border border-rule/30 pe-2 transition-colors hover:border-rule hover:bg-ground/60"
               >
-                <span className="text-sm font-bold text-ink">{a.title}</span>
-                <ChevronLeft size={16} className="shrink-0 text-ink/40" />
-              </button>
+                <button
+                  onClick={() => openAssignment(a.id)}
+                  className="flex flex-1 items-center justify-between gap-2 px-4 py-2.5 text-right"
+                >
+                  <span className="text-sm font-bold text-ink">{a.title}</span>
+                  <ChevronLeft size={16} className="shrink-0 text-ink/40" />
+                </button>
+                <div className="flex gap-1 shrink-0">
+                  <Button size="sm" variant="outline" onClick={() => setAssignmentModal(a)}>
+                    <Edit size={12} /> עריכה
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => confirmDeleteAssignment(a)}>
+                    <Trash2 size={12} /> מחיקה
+                  </Button>
+                </div>
+              </div>
             ))}
           </CardContent>
         </Card>
@@ -365,18 +385,16 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
                   {assignment.aiInstructions && (
                     <>
                       <dt className="text-xs font-medium text-ink/50">הנחיות AI</dt>
-                      <dd className="text-xs text-ink/60">{assignment.aiInstructions}</dd>
+                      <dd className="text-ink/80"><MarkdownRenderer content={assignment.aiInstructions} /></dd>
                     </>
                   )}
                 </dl>
                 <div className="flex gap-1 shrink-0">
                   <Button size="sm" variant="outline" onClick={() => setAssignmentModal(assignment)}>
-                    <Edit size={12} />
+                    <Edit size={12} /> עריכה
                   </Button>
-                  <Button size="sm" variant="destructive" onClick={() => {
-                    if (confirm('למחוק מטלה זו?')) { deleteAssignmentMutation.mutate(assignment.id); closeAssignment(); }
-                  }}>
-                    <Trash2 size={12} />
+                  <Button size="sm" variant="destructive" onClick={() => confirmDeleteAssignment(assignment)}>
+                    <Trash2 size={12} /> מחיקה
                   </Button>
                 </div>
               </div>
