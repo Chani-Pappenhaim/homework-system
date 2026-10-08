@@ -39,9 +39,6 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
   const [searchParams, setSearchParams] = useSearchParams();
   const qc = useQueryClient();
   const toast = useToast();
-  const [selectedAssignment, setSelectedAssignment] = useState(0);
-  const [viewingAssignment, setViewingAssignment] = useState(false);
-  const [viewingQuiz, setViewingQuiz] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
   const [gradeModal, setGradeModal] = useState<SubmissionDTO | null>(null);
   const [assignmentModal, setAssignmentModal] = useState<AssignmentDTO | null | 'new'>(null);
@@ -55,7 +52,34 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
   });
 
   const lesson = lessonData?.data.data.lesson;
-  const assignment = lesson?.assignments[selectedAssignment];
+
+  // The open assignment and the quiz-management view live in the URL
+  // (`?tab=assignments&assignmentId=…`, `?tab=quiz&view=manage`), so a refresh
+  // or a shared link lands on the same screen and "back" returns to the list.
+  const targetAssignmentId = searchParams.get('assignmentId');
+  const targetSubmissionId = searchParams.get('submissionId') ?? undefined;
+  const assignment = targetAssignmentId ? lesson?.assignments.find((a) => a.id === targetAssignmentId) : undefined;
+  const viewingAssignment = Boolean(assignment);
+  const viewingQuiz = searchParams.get('view') === 'manage';
+
+  const openAssignment = (assignmentId: string) => setSearchParams((p) => {
+    const next = new URLSearchParams(p);
+    next.set('tab', 'assignments');
+    next.set('assignmentId', assignmentId);
+    next.delete('submissionId');
+    return next;
+  });
+  const closeAssignment = () => setSearchParams((p) => {
+    const next = new URLSearchParams(p);
+    next.delete('assignmentId');
+    next.delete('submissionId');
+    return next;
+  }, { replace: true });
+  const setViewingQuiz = (open: boolean) => setSearchParams((p) => {
+    const next = new URLSearchParams(p);
+    if (open) next.set('view', 'manage'); else next.delete('view');
+    return next;
+  }, { replace: !open });
   usePageTitle(lesson?.topic, lessonNumber ? `שיעור ${lessonNumber}` : null);
 
   const { data: quizResultsData } = useQuery({
@@ -66,18 +90,14 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
   });
   const quizResults = (quizResultsData?.data as any)?.data as QuizResultsDTO | undefined;
 
-  // Deep-link from the grades report ("open for review"): land straight on the
-  // right assignment tab instead of making the teacher hunt for it manually.
-  const targetAssignmentId = searchParams.get('assignmentId');
-  const targetSubmissionId = searchParams.get('submissionId') ?? undefined;
+  // Deep-link from the grades report ("open for review") may name only the
+  // assignment: show it on the assignments tab.
   useEffect(() => {
-    if (!lesson || !targetAssignmentId) return;
-    const i = lesson.assignments.findIndex((a) => a.id === targetAssignmentId);
-    if (i >= 0) { setSelectedAssignment(i); setViewingAssignment(true); setTab('assignments'); }
-  }, [lesson, targetAssignmentId, setTab]);
+    if (assignment && tab !== 'assignments') setTab('assignments');
+  }, [assignment, tab, setTab]);
 
   // Switching assignments shouldn't carry over an expanded description from the previous one.
-  useEffect(() => setDescExpanded(false), [selectedAssignment]);
+  useEffect(() => setDescExpanded(false), [targetAssignmentId]);
 
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const uploadFileMutation = useMutation({
@@ -286,10 +306,10 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
             {lesson.assignments.length === 0 && (
               <p className="text-sm text-ink/50">אין מטלות עדיין</p>
             )}
-            {lesson.assignments.map((a, i) => (
+            {lesson.assignments.map((a) => (
               <button
                 key={a.id}
-                onClick={() => { setSelectedAssignment(i); setViewingAssignment(true); }}
+                onClick={() => openAssignment(a.id)}
                 className="flex w-full items-center justify-between gap-2 rounded-input border border-rule/30 px-4 py-2.5 text-right transition-colors hover:border-rule hover:bg-ground/60"
               >
                 <span className="text-sm font-bold text-ink">{a.title}</span>
@@ -304,7 +324,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
         <Card>
           <CardHeader>
             <button
-              onClick={() => setViewingAssignment(false)}
+              onClick={closeAssignment}
               className="flex items-center gap-1 text-sm font-semibold text-ink-soft hover:text-ink"
             >
               <ChevronRight size={15} /> חזרה לרשימת המטלות
@@ -354,7 +374,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
                     <Edit size={12} />
                   </Button>
                   <Button size="sm" variant="destructive" onClick={() => {
-                    if (confirm('למחוק מטלה זו?')) { deleteAssignmentMutation.mutate(assignment.id); setViewingAssignment(false); }
+                    if (confirm('למחוק מטלה זו?')) { deleteAssignmentMutation.mutate(assignment.id); closeAssignment(); }
                   }}>
                     <Trash2 size={12} />
                   </Button>
@@ -366,7 +386,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
               assignmentId={assignment.id}
               onGrade={setGradeModal}
               autoOpenSubmissionId={assignment.id === targetAssignmentId ? targetSubmissionId : undefined}
-              onAutoOpenHandled={() => setSearchParams((p) => { p.delete('assignmentId'); p.delete('submissionId'); return p; }, { replace: true })}
+              onAutoOpenHandled={() => setSearchParams((p) => { const next = new URLSearchParams(p); next.delete('submissionId'); return next; }, { replace: true })}
             />
           </div>
         </Card>

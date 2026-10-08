@@ -90,6 +90,16 @@ describe('TeacherLessonDetailPage', () => {
     expect(await screen.findByText('רותי')).toBeInTheDocument();
   });
 
+  it('keeps the open assignment in the address, so a refresh lands on it', async () => {
+    getSubmissions.mockResolvedValue({ data: { data: { submissions: [] } } });
+    renderWithProviders(<TeacherLessonDetailPage />, {
+      path: '/teacher/lesson/:id',
+      initialEntries: [`/teacher/lesson/l1?tab=assignments&assignmentId=${lesson.assignments[0].id}`],
+    });
+    expect(await screen.findByRole('button', { name: /חזרה לרשימת המטלות/ })).toBeInTheDocument();
+    expect(getSubmissions).toHaveBeenCalledWith(lesson.assignments[0].id);
+  });
+
   it('opens the grade modal with the suggested score prefilled for an ungraded submission', async () => {
     // not late, 1 unchecked requirement => 100 - 0 - 5 = 95
     getSubmissions.mockResolvedValue({
