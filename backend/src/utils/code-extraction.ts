@@ -15,8 +15,10 @@ export async function fetchGithubCode(githubUrl: string): Promise<string> {
 
   const apiUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/HEAD?recursive=1`;
   const treeRes = await fetch(apiUrl, { headers: githubHeaders() });
-  if (treeRes.status === 404) throw new Error(`GitHub API error: 404 — repo ${owner}/${repo} not found or private`);
-  if (!treeRes.ok) throw new Error(`GitHub API error: ${treeRes.status}`);
+  if (!treeRes.ok) {
+    const detail = treeRes.status === 404 ? ` — repo ${owner}/${repo} not found or private` : '';
+    throw Object.assign(new Error(`GitHub API error: ${treeRes.status}${detail}`), { status: treeRes.status });
+  }
   const tree = await treeRes.json() as any;
 
   const files = (tree.tree || []).filter((f: any) =>

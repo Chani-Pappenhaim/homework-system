@@ -420,7 +420,7 @@ describe('submissions.service rerunAiReview', () => {
   it('queues a teacher review and puts the submission back to pending, unapproved', async () => {
     p.submission.findUnique.mockResolvedValue({ id: 's1', githubUrl: 'https://github.com/u/r', aiStatus: 'done', aiReviewCount: 3 });
     await rerunAiReview('s1');
-    expect(p.submission.update).toHaveBeenCalledWith({ where: { id: 's1' }, data: { aiStatus: 'pending', aiApproved: false } });
+    expect(p.submission.update).toHaveBeenCalledWith({ where: { id: 's1' }, data: { aiStatus: 'pending', aiApproved: false, aiError: null } });
     expect(aiQueueAdd).toHaveBeenCalledWith('review', { submissionId: 's1', byTeacher: true }, expect.any(Object));
   });
 

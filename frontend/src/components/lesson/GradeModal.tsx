@@ -203,7 +203,7 @@ export function GradeModal({ submission, assignment, onClose }: {
               <div className="flex items-center justify-between gap-2 text-xs text-ink/60">
                 <span>
                   {local.aiStatus === 'pending' ? 'בדיקת AI מתבצעת כעת...'
-                    : local.aiStatus === 'failed' ? 'בדיקת ה-AI נכשלה.'
+                    : local.aiStatus === 'error' ? `בדיקת ה-AI נכשלה${local.aiError ? `: ${local.aiError}` : '.'}`
                     : local.aiStatus === 'done' ? 'אפשר להריץ שוב (למשל אחרי שינוי הנחיות ה-AI) — לא נספר במכסת התלמידה.'
                     : 'עוד לא בוצעה בדיקת AI להגשה זו.'}
                 </span>

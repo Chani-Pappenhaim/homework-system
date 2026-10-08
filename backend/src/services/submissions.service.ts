@@ -126,6 +126,7 @@ interface SubmissionAiFields {
   aiApproved: boolean;
   aiCodeReview: string | null;
   aiVerbalReview: string | null;
+  aiError?: string | null;
 }
 
 /**
@@ -141,6 +142,7 @@ export function toStudentAiView(sub: SubmissionAiFields) {
     aiStatus: sub.aiStatus,
     aiApproved: sub.aiApproved,
     aiCodeReview: sub.aiStatus === 'done' ? sub.aiCodeReview : null,
+    aiError: sub.aiStatus === 'error' ? (sub.aiError ?? null) : null,
   };
   if (!sub.aiApproved) {
     return { ...base, aiScore: null, aiVerbalReview: null };
@@ -251,7 +253,7 @@ export async function requestAiReview(submissionId: string, studentId: string) {
     throw new AppError('Review already in progress', 'בדיקת AI כבר מתבצעת עבור הגשה זו', 400);
   }
 
-  await prisma.submission.update({ where: { id: submission.id }, data: { aiStatus: 'pending' } });
+  await prisma.submission.update({ where: { id: submission.id }, data: { aiStatus: 'pending', aiError: null } });
   await aiReviewQueue.add(
     'review',
     { submissionId: submission.id },
@@ -281,7 +283,7 @@ export async function rerunAiReview(submissionId: string) {
     throw new AppError('Review already in progress', 'בדיקת AI כבר מתבצעת עבור הגשה זו', 400);
   }
 
-  await prisma.submission.update({ where: { id: submissionId }, data: { aiStatus: 'pending', aiApproved: false } });
+  await prisma.submission.update({ where: { id: submissionId }, data: { aiStatus: 'pending', aiApproved: false, aiError: null } });
   await aiReviewQueue.add(
     'review',
     { submissionId, byTeacher: true },

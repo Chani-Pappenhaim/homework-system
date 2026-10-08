@@ -238,6 +238,7 @@ export interface SubmissionDTO {
   aiCodeReview?: string | null;
   aiVerbalReview?: string | null;
   aiExtraAllowed?: boolean;
+  aiError?: string | null;
   grade: GradeDTO | null;
 }
 
@@ -259,6 +260,7 @@ export interface MySubmission {
   aiApproved?: boolean;
   aiVerbalReview?: string | null;
   aiCodeReview?: string | null;
+  aiError?: string | null;
   grade: GradeDTO | null;
 }
 

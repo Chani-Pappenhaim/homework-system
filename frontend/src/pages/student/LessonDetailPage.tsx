@@ -333,8 +333,16 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                   )}
                   {sub.aiStatus === 'pending' && <Badge variant="warning">בודק...</Badge>}
                   {sub.aiStatus === 'done' && !sub.aiApproved && <Badge variant="success">נבדק ✓</Badge>}
-                  {sub.aiStatus === 'error' && <Badge variant="default">שגיאה</Badge>}
+                  {sub.aiStatus === 'error' && (aiLimitReached ? <Badge variant="default">הבדיקה נכשלה</Badge> : (
+                    <Button size="sm" variant="outline" loading={aiReviewMutation.isPending}
+                      onClick={() => aiReviewMutation.mutate()}>
+                      בקשי בדיקה שוב
+                    </Button>
+                  ))}
                 </div>
+                {sub.aiStatus === 'error' && (
+                  <p className="text-xs text-coral">{sub.aiError || 'בדיקת ה-AI לא הצליחה. אפשר לבקש בדיקה שוב.'}</p>
+                )}
                 {aiLimitReached && (
                   <div className="space-y-2 pt-1">
                     <p className="text-xs text-ink/70">נוצל מספר בדיקות ה-AI המותר להגשה זו.</p>

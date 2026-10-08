@@ -219,6 +219,7 @@ model Submission {
   aiApproved     Boolean    @default(false)
   aiReviewCount  Int        @default(0)
   aiExtraAllowed Boolean    @default(false)
+  aiError        String? // Hebrew, shown to the student when aiStatus is 'error'; the technical cause is only logged
 
   grade Grade?
 

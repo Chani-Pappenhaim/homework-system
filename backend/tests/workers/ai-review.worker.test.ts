@@ -9,6 +9,7 @@ const { getProcessor, setProcessor } = vi.hoisted(() => {
 });
 
 vi.mock('bullmq', () => ({
+  UnrecoverableError: class extends Error {},
   Worker: class {
     constructor(_name: string, processor: any) { setProcessor(processor); }
     on() {}
@@ -32,6 +33,7 @@ import { prisma } from '../../src/config/prisma';
 import * as gemini from '../../src/services/gemini.service';
 import * as codeExtraction from '../../src/utils/code-extraction';
 import { registerAiReviewWorker } from '../../src/workers/ai-review.worker';
+import { AI_REVIEW_GENERIC_ERROR } from '../../src/utils/ai-review-errors';
 
 // Registering the worker constructs the (mocked) BullMQ Worker, which captures
 // the processor via setProcessor. The connection is irrelevant under the mock.
@@ -45,7 +47,10 @@ const run = (submissionId: string, opts?: { attemptsMade?: number; attempts?: nu
     opts: { attempts: opts?.attempts ?? 1 },
   });
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+});
 
 describe('ai-review worker', () => {
   it('reviews a GitHub submission and lands on aiStatus "done"', async () => {
@@ -84,26 +89,58 @@ describe('ai-review worker', () => {
     vi.unstubAllGlobals();
   });
 
-  it('sets aiStatus "error" on the final attempt for an unsupported submission', async () => {
+  const errorData = () => p.submission.update.mock.calls.at(-1)[0].data;
+
+  it('fails an unsupported submission at once, without retries, with a message the student can act on', async () => {
     p.submission.findUnique.mockResolvedValue({
       id: 's3', githubUrl: null, fileName: 'notes.txt', fileUrl: 'https://c/notes.txt',
       assignment: { title: 'T' }, student: {},
     });
 
-    // Final attempt (attemptsMade+1 >= attempts) → should mark error, then rethrow.
-    await expect(run('s3', { attemptsMade: 0, attempts: 1 })).rejects.toThrow(/Unsupported/);
-    expect(p.submission.update).toHaveBeenCalledWith({ where: { id: 's3' }, data: { aiStatus: 'error' } });
+    // Not the final attempt — but retrying can't help, so it is marked failed now.
+    await expect(run('s3', { attemptsMade: 0, attempts: 3 })).rejects.toThrow(/Unsupported/);
+    expect(errorData()).toEqual({ aiStatus: 'error', aiError: expect.stringContaining('ZIP') });
   });
 
-  it('leaves the status alone on a non-final attempt so a retry can still succeed', async () => {
+  it('tells the student when the GitHub repo is missing or private', async () => {
     p.submission.findUnique.mockResolvedValue({
-      id: 's4', githubUrl: null, fileName: 'notes.txt', fileUrl: 'https://c/notes.txt',
+      id: 's6', githubUrl: 'https://github.com/u/nope', fileName: null, fileUrl: null,
       assignment: { title: 'T' }, student: {},
     });
+    (codeExtraction.fetchGithubCode as any).mockRejectedValue(Object.assign(new Error('GitHub API error: 404'), { status: 404 }));
+
+    await expect(run('s6', { attempts: 3 })).rejects.toThrow(/404/);
+    expect(errorData()).toEqual({ aiStatus: 'error', aiError: expect.stringContaining('הריפו לא נמצא') });
+  });
+
+  it('does not send an empty submission to the AI', async () => {
+    p.submission.findUnique.mockResolvedValue({
+      id: 's7', githubUrl: 'https://github.com/u/r', fileName: null, fileUrl: null,
+      assignment: { title: 'T' }, student: {},
+    });
+    (codeExtraction.fetchGithubCode as any).mockResolvedValue('  ');
+
+    await expect(run('s7', { attempts: 3 })).rejects.toThrow(/No reviewable content/);
+    expect(gemini.reviewCode).not.toHaveBeenCalled();
+    expect(errorData().aiError).toContain('לא נמצא בהגשה קוד');
+  });
+
+  it('leaves the status alone on a non-final attempt of a transient failure so a retry can still succeed', async () => {
+    p.submission.findUnique.mockResolvedValue({
+      id: 's4', githubUrl: 'https://github.com/u/r', fileName: null, fileUrl: null,
+      assignment: { title: 'T' }, student: {},
+    });
+    (codeExtraction.fetchGithubCode as any).mockResolvedValue('code');
+    (gemini.reviewCode as any).mockRejectedValue(new Error('Gemini API error: 503'));
 
     // attemptsMade+1 (2) < attempts (3) → not final → must NOT write 'error'.
     await expect(run('s4', { attemptsMade: 1, attempts: 3 })).rejects.toThrow();
     expect(p.submission.update).not.toHaveBeenCalled();
+
+    // The final attempt shows a generic message — the Gemini detail stays in the logs.
+    await expect(run('s4', { attemptsMade: 2, attempts: 3 })).rejects.toThrow();
+    expect(errorData()).toEqual({ aiStatus: 'error', aiError: AI_REVIEW_GENERIC_ERROR });
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('submission s4'), 'Gemini API error: 503');
   });
 });
 
