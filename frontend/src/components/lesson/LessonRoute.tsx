@@ -12,9 +12,18 @@ export interface LessonPageProps {
   lessonNumber?: number;
 }
 
-/** `/teacher/courses/c1/lessons/3` — the address a lesson page lives at. */
-export function lessonPath(area: Area, courseId: string, lessonNumber: number): string {
-  return `/${area}/courses/${courseId}/lessons/${lessonNumber}`;
+/** A short, permanent key for a lesson — the start of its id. */
+function lessonKey(lessonId: string): string {
+  return lessonId.replace(/-/g, '').slice(0, 8);
+}
+
+/**
+ * `/teacher/courses/c1/lessons/3-1a2b3c4d` — the address a lesson page lives at:
+ * its current number in the course, plus a permanent key that keeps old links
+ * pointing at the same lesson after the lessons are reordered.
+ */
+export function lessonPath(area: Area, courseId: string, lessonNumber: number, lessonId: string): string {
+  return `/${area}/courses/${courseId}/lessons/${lessonNumber}-${lessonKey(lessonId)}`;
 }
 
 function useCourseLessons(courseId: string | undefined) {
@@ -27,26 +36,40 @@ function useCourseLessons(courseId: string | undefined) {
 }
 
 /**
- * Renders a lesson addressed by its number in the course. The number is the
- * one the course page shows on the lesson's tile (its position in the list the
- * viewer sees), so it reads naturally in the address bar.
+ * Renders a lesson addressed by its number in the course — the number the
+ * course page shows on the lesson's tile. The key after the number identifies
+ * the lesson itself, so when the order changed since the link was made (or the
+ * viewer sees a different list, e.g. without hidden lessons) the address is
+ * corrected to the lesson's current number. A bare number is looked up by
+ * position and gets its key added.
  */
 export function LessonByNumber({ area, page: Page }: { area: Area; page: ComponentType<LessonPageProps> }) {
   const { courseId, lessonNumber } = useParams<{ courseId: string; lessonNumber: string }>();
+  const location = useLocation();
   const { data, isLoading, isError } = useCourseLessons(courseId);
-  const n = Number(lessonNumber);
-  const lessons = data?.data.data.course.lessons;
+  const lessons = data?.data.data.course.lessons ?? [];
 
   if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
-  const lesson = Number.isInteger(n) && n >= 1 ? lessons?.[n - 1] : undefined;
-  if (isError || !lesson) {
+  const match = /^(\d+)(?:-([0-9a-z]+))?$/i.exec(lessonNumber ?? '');
+  const n = match ? Number(match[1]) : NaN;
+  const key = match?.[2]?.toLowerCase();
+  const index = key
+    ? lessons.findIndex((l) => lessonKey(l.id) === key)
+    : (n >= 1 && n <= lessons.length ? n - 1 : -1);
+
+  if (isError || !courseId || index < 0) {
     return (
       <div className="p-6 font-sans text-coral" dir="rtl">
         השיעור לא נמצא. <Navigate to={courseId ? `/${area}/courses/${courseId}` : `/${area}`} replace />
       </div>
     );
   }
-  return <Page key={lesson.id} lessonId={lesson.id} lessonNumber={n} />;
+  const lesson = lessons[index];
+  const canonical = lessonPath(area, courseId, index + 1, lesson.id);
+  if (location.pathname !== canonical) {
+    return <Navigate to={`${canonical}${location.search}`} replace />;
+  }
+  return <Page key={lesson.id} lessonId={lesson.id} lessonNumber={index + 1} />;
 }
 
 /**
@@ -72,7 +95,7 @@ export function LessonById({ area, page: Page }: { area: Area; page: ComponentTy
   }
   const index = courseQuery.data?.data.data.course.lessons.findIndex((l) => l.id === id) ?? -1;
   if (courseId && index >= 0) {
-    return <Navigate to={`${lessonPath(area, courseId, index + 1)}${location.search}`} replace />;
+    return <Navigate to={`${lessonPath(area, courseId, index + 1, id!)}${location.search}`} replace />;
   }
   return <Page lessonId={id!} />;
 }

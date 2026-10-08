@@ -66,7 +66,7 @@ export default function StudentCourseDetailPage() {
             {course.lessons.map((l, i) => (
               <button
                 key={l.id}
-                onClick={() => navigate(lessonPath('student', course.id, i + 1))}
+                onClick={() => navigate(lessonPath('student', course.id, i + 1, l.id))}
                 onMouseEnter={() => prefetchLesson(l.id)}
                 onFocus={() => prefetchLesson(l.id)}
                 title={l.completed ? `${l.topic} (הושלם)` : l.topic}

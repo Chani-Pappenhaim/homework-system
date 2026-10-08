@@ -62,7 +62,23 @@ describe('lesson routes', () => {
   it('writes a tab change into the address', async () => {
     renderAt('/teacher/courses/c1/lessons/1');
     await userEvent.click(await screen.findByRole('button', { name: 'files' }));
-    expect(screen.getByText('at /teacher/courses/c1/lessons/1?tab=files')).toBeInTheDocument();
+    expect(screen.getByText('at /teacher/courses/c1/lessons/1-l1?tab=files')).toBeInTheDocument();
+  });
+
+  it('adds the lesson key to a bare number', async () => {
+    renderAt('/teacher/courses/c1/lessons/2?tab=files');
+    expect(await screen.findByText('at /teacher/courses/c1/lessons/2-l2?tab=files')).toBeInTheDocument();
+  });
+
+  it('follows the key after the lessons were reordered', async () => {
+    renderAt('/teacher/courses/c1/lessons/1-l2?tab=files');
+    expect(await screen.findByText('lesson l2 #2 tab files')).toBeInTheDocument();
+    expect(screen.getByText('at /teacher/courses/c1/lessons/2-l2?tab=files')).toBeInTheDocument();
+  });
+
+  it('sends a key of a deleted lesson back to the course', async () => {
+    renderAt('/teacher/courses/c1/lessons/1-gone');
+    expect(await screen.findByText('course page')).toBeInTheDocument();
   });
 
   it('sends a number past the end back to the course', async () => {
@@ -72,7 +88,7 @@ describe('lesson routes', () => {
 
   it('moves the old id address to the numbered one, keeping its query', async () => {
     renderAt('/teacher/lessons/l2?assignmentId=a1');
-    expect(await screen.findByText('at /teacher/courses/c1/lessons/2?assignmentId=a1')).toBeInTheDocument();
+    expect(await screen.findByText('at /teacher/courses/c1/lessons/2-l2?assignmentId=a1')).toBeInTheDocument();
   });
 
   it('shows a lesson missing from the course list by its id', async () => {

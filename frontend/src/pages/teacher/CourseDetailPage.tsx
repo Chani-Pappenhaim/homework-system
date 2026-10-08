@@ -151,7 +151,7 @@ export default function CourseDetailPage() {
             {course.lessons.map((l, i) => (
               <button
                 key={l.id}
-                onClick={() => navigate(lessonPath('teacher', course.id, i + 1))}
+                onClick={() => navigate(lessonPath('teacher', course.id, i + 1, l.id))}
                 onMouseEnter={() => qc.prefetchQuery({ queryKey: ['lesson', l.id], queryFn: () => lessonsApi.get(l.id) })}
                 onFocus={() => qc.prefetchQuery({ queryKey: ['lesson', l.id], queryFn: () => lessonsApi.get(l.id) })}
                 title={l.topic}
