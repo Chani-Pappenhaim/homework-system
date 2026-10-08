@@ -65,6 +65,14 @@ describe('courses.service.getCoursesForUser', () => {
     expect(r[0]).toMatchObject({ id: 'c1', groupName: 'G', lessonCount: 3 });
   });
 
+  it('names the group by seminar, class and year', async () => {
+    p.course.findMany.mockResolvedValue([
+      { id: 'c1', name: 'C1', group: { name: 'יד', seminar: 'סמינר מאיר', year: 'תשפ״ז' }, _count: { lessons: 0 } },
+    ]);
+    const r = await getCoursesForUser('admin', 'ADMIN');
+    expect(r[0].groupName).toBe('סמינר מאיר יד תשפ״ז');
+  });
+
   it('STUDENT only gets non-hidden courses in their groups or granted to them', async () => {
     p.user.findUnique.mockResolvedValue({ studentGroups: [{ groupId: 'g1' }] });
     p.course.findMany.mockResolvedValue([]);

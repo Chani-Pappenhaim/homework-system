@@ -1,3 +1,4 @@
+import { groupDisplayName, groupNameSelect } from '../utils/group-name';
 import { prisma } from '../config/prisma';
 
 export async function findStudentByEmail(email: string) {
@@ -28,7 +29,7 @@ export async function searchStudents(query?: string) {
       id: true,
       name: true,
       email: true,
-      studentGroups: { select: { group: { select: { name: true } } } },
+      studentGroups: { select: { group: { select: groupNameSelect } } },
     },
     orderBy: { name: 'asc' },
     take: 50,
@@ -37,6 +38,6 @@ export async function searchStudents(query?: string) {
     id: s.id,
     name: s.name,
     email: s.email,
-    groupNames: s.studentGroups.map((sg) => sg.group.name),
+    groupNames: s.studentGroups.map((sg) => groupDisplayName(sg.group)),
   }));
 }

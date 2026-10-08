@@ -1,5 +1,6 @@
 import { prisma } from '../config/prisma';
 import ExcelJS from 'exceljs';
+import { groupDisplayName } from '../utils/group-name';
 
 export async function gradeSubmission(
   submissionId: string, gradedById: string,
@@ -38,7 +39,7 @@ export async function getReport(filters: { groupId?: string; courseId?: string }
     assignmentId: s.assignmentId,
     studentName: s.student.name,
     studentEmail: s.student.email,
-    groupName: s.student.studentGroups[0]?.group.name ?? '',
+    groupName: groupDisplayName(s.student.studentGroups[0]?.group),
     courseName: s.assignment.lesson.course.name,
     lessonTopic: s.assignment.lesson.topic,
     assignmentTitle: s.assignment.title,

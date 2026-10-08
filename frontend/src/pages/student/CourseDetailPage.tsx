@@ -39,7 +39,7 @@ export default function StudentCourseDetailPage() {
     <div className="space-y-5" dir="rtl">
       <PageHeader
         title={course.name}
-        meta={`${course.groupName} · ${course.year}`}
+        meta={course.groupName || course.year}
         back
         backLabel="חזרה"
       />

@@ -98,7 +98,7 @@ export default function CourseDetailPage() {
           <div>
             <BackLink className="mb-2" />
             <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{course.name}</h1>
-            <p className="text-ink/70 text-sm mt-0.5">{course.groupName} · {course.year}</p>
+            <p className="text-ink/70 text-sm mt-0.5">{course.groupName || course.year}</p>
             {course.description && <MarkdownRenderer content={course.description} className="mt-1 text-ink/70" />}
           </div>
           <div className="flex items-center gap-2">

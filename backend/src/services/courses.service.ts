@@ -3,11 +3,12 @@ import { AppError } from '../utils/errors';
 import { uploadBuffer, createUploadSignature, toFileDTO } from '../utils/storage';
 import { releaseFileUrls } from '../utils/file-refs';
 import { assertCourseAccess } from '../utils/access';
+import { groupDisplayName, groupNameSelect } from '../utils/group-name';
 
 export async function getCoursesForUser(userId: string, role: string) {
   if (role === 'ADMIN') {
     const courses = await prisma.course.findMany({
-      include: { group: { select: { name: true } }, _count: { select: { lessons: true } } },
+      include: { group: { select: groupNameSelect }, _count: { select: { lessons: true } } },
       orderBy: { createdAt: 'desc' },
     });
     return courses.map(toCourseDTO);
@@ -25,7 +26,7 @@ export async function getCoursesForUser(userId: string, role: string) {
       OR: [{ groupId: { in: groupIds } }, { access: { some: { studentId: userId } } }],
     },
     include: {
-      group: { select: { name: true } },
+      group: { select: groupNameSelect },
       _count: { select: { lessons: { where: { hidden: false } } } },
     },
     orderBy: { createdAt: 'desc' },
@@ -48,7 +49,7 @@ export async function getCoursesForUser(userId: string, role: string) {
 export async function createCourse(data: { name: string; year?: string; description?: string; groupId: string }) {
   const course = await prisma.course.create({
     data,
-    include: { group: { select: { name: true } }, _count: { select: { lessons: true } } },
+    include: { group: { select: groupNameSelect }, _count: { select: { lessons: true } } },
   });
   return toCourseDTO(course);
 }
@@ -60,7 +61,7 @@ export async function getCourseById(id: string, userId: string, role: string) {
       links: { orderBy: { order: 'asc' } },
       files: { where: role === 'ADMIN' ? {} : { hidden: false }, orderBy: { uploadedAt: 'desc' } },
       lessons: { orderBy: { order: 'asc' } },
-      group: { select: { name: true } },
+      group: { select: groupNameSelect },
       _count: { select: { lessons: true } },
     },
   });
@@ -104,6 +105,7 @@ export async function getCourseById(id: string, userId: string, role: string) {
     id: course.id, name: course.name, year: course.year,
     description: course.description, imageUrl: course.imageUrl,
     hidden: course.hidden, groupId: course.groupId,
+    groupName: groupDisplayName(course.group),
     links: course.links,
     files: course.files.map((f) => toFileDTO(f, 'course', userId)),
     lessons,
@@ -113,7 +115,7 @@ export async function getCourseById(id: string, userId: string, role: string) {
 export async function updateCourse(id: string, data: Partial<{ name: string; year: string; description: string; imageUrl: string; hidden: boolean; groupId: string }>) {
   const course = await prisma.course.update({
     where: { id }, data,
-    include: { group: { select: { name: true } }, _count: { select: { lessons: true } } },
+    include: { group: { select: groupNameSelect }, _count: { select: { lessons: true } } },
   });
   return toCourseDTO(course);
 }
@@ -144,7 +146,7 @@ export async function copyCourse(courseId: string, targetGroupId: string) {
         })),
       },
     },
-    include: { group: { select: { name: true } }, _count: { select: { lessons: true } } },
+    include: { group: { select: groupNameSelect }, _count: { select: { lessons: true } } },
   });
   return toCourseDTO(newCourse);
 }
@@ -248,7 +250,7 @@ function toCourseDTO(course: any) {
     id: course.id, name: course.name, year: course.year,
     description: course.description, imageUrl: course.imageUrl,
     hidden: course.hidden, groupId: course.groupId,
-    groupName: course.group?.name, lessonCount: course._count?.lessons ?? 0,
+    groupName: course.group ? groupDisplayName(course.group) : undefined, lessonCount: course._count?.lessons ?? 0,
     createdAt: course.createdAt,
   };
 }
