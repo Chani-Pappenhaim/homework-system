@@ -3,13 +3,22 @@ export type RepoStatus = 'exists' | 'missing' | 'unknown';
 /**
  * Headers for GitHub REST API calls. Unauthenticated calls share a 60/hour limit
  * per IP — on a shared host (Render) that is exhausted by other tenants, every
- * call comes back 403 and repo checks silently degrade to 'unknown'. A token
- * (any fine-grained PAT, no scopes needed for public repos) raises it to 5000/hour.
+ * call comes back 403 and repo checks silently degrade to 'unknown'.
+ *
+ * Authenticating as the GitHub-login OAuth app (its existing client ID/secret as
+ * Basic auth, which GitHub allows for reading public data) raises that to
+ * 5000/hour with no extra setup. GITHUB_TOKEN, if set, takes precedence.
  */
 export function githubHeaders(): Record<string, string> {
   const headers: Record<string, string> = { Accept: 'application/vnd.github+json', 'User-Agent': 'homework-app' };
   const token = process.env.GITHUB_TOKEN?.trim();
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const clientId = process.env.GITHUB_CLIENT_ID?.trim();
+  const clientSecret = process.env.GITHUB_CLIENT_SECRET?.trim();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  } else if (clientId && clientSecret) {
+    headers.Authorization = `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`;
+  }
   return headers;
 }
 

@@ -34,9 +34,17 @@ describe('getRepoStatus', () => {
 });
 
 describe('githubHeaders', () => {
-  it('sends no Authorization header without a token', () => {
+  it('sends no Authorization header without any credentials', () => {
     vi.stubEnv('GITHUB_TOKEN', '');
+    vi.stubEnv('GITHUB_CLIENT_ID', '');
+    vi.stubEnv('GITHUB_CLIENT_SECRET', '');
     expect(githubHeaders().Authorization).toBeUndefined();
+  });
+  it('falls back to the OAuth app credentials as Basic auth', () => {
+    vi.stubEnv('GITHUB_TOKEN', '');
+    vi.stubEnv('GITHUB_CLIENT_ID', 'cid');
+    vi.stubEnv('GITHUB_CLIENT_SECRET', 'secret');
+    expect(githubHeaders().Authorization).toBe(`Basic ${Buffer.from('cid:secret').toString('base64')}`);
   });
   it('authenticates with GITHUB_TOKEN when set', () => {
     vi.stubEnv('GITHUB_TOKEN', 'ghp_test');
