@@ -20,7 +20,7 @@ export async function createCourse(req: Request, res: Response) {
 export async function getCourse(req: Request, res: Response) {
   try {
     const course = await coursesService.getCourseById(req.params.id as string, req.user!.userId, req.user!.role);
-    if (!course) { res.status(404).json({ success: false, error: 'Course not found' }); return; }
+    if (!course) { res.status(404).json({ success: false, error: 'הקורס לא נמצא' }); return; }
     res.json({ success: true, data: { course } });
   } catch (err: any) {
     sendError(res, err);
@@ -116,7 +116,7 @@ export async function uploadFile(req: Request, res: Response) {
     const source = req.file
       ? { buffer: req.file.buffer, mimeType: req.file.mimetype, originalName: fixMulterFilename(req.file.originalname) }
       : req.body.uploadedFile as { url: string; bytes: number; originalName: string } | undefined;
-    if (!source) { res.status(400).json({ success: false, error: 'No file provided' }); return; }
+    if (!source) { res.status(400).json({ success: false, error: 'לא נבחר קובץ' }); return; }
     const file = await coursesService.uploadCourseFile(req.params.id as string, source, req.body.name, req.user!.userId);
     res.status(201).json({ success: true, data: { file } });
   } catch (err: any) {

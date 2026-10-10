@@ -46,7 +46,7 @@ function buildSubmissionPayload(req: Request): SubmissionPayload | null {
 export async function submit(req: Request, res: Response) {
   try {
     const payload = buildSubmissionPayload(req);
-    if (!payload) { res.status(400).json({ success: false, error: 'No file or repo name provided' }); return; }
+    if (!payload) { res.status(400).json({ success: false, error: 'יש לצרף קובץ או קישור לריפו' }); return; }
 
     const submission = await submissionsService.submitAssignment(req.params.id as string, req.user!.userId, payload);
     res.json({ success: true, data: { submission } });

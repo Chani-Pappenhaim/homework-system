@@ -29,7 +29,7 @@ export async function createLesson(req: Request, res: Response) {
 export async function getLesson(req: Request, res: Response) {
   try {
     const lesson = await lessonsService.getLessonById(req.params.id as string, req.user!.userId, req.user!.role);
-    if (!lesson) { res.status(404).json({ success: false, error: 'Lesson not found' }); return; }
+    if (!lesson) { res.status(404).json({ success: false, error: 'השיעור לא נמצא' }); return; }
     res.json({ success: true, data: { lesson } });
   } catch (err: any) {
     sendError(res, err);
@@ -78,7 +78,7 @@ export async function uploadFile(req: Request, res: Response) {
     const source = req.file
       ? { buffer: req.file.buffer, mimeType: req.file.mimetype, originalName: fixMulterFilename(req.file.originalname) }
       : req.body.uploadedFile as { url: string; bytes: number; originalName: string } | undefined;
-    if (!source) { res.status(400).json({ success: false, error: 'No file provided' }); return; }
+    if (!source) { res.status(400).json({ success: false, error: 'לא נבחר קובץ' }); return; }
     const file = await lessonsService.uploadLessonFile(req.params.id as string, source, req.body.name, req.user!.userId);
     res.status(201).json({ success: true, data: { file } });
   } catch (err: any) {

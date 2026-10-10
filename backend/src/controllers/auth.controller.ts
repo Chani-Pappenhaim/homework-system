@@ -38,11 +38,11 @@ export async function login(req: Request, res: Response): Promise<void> {
 export async function refresh(req: Request, res: Response): Promise<void> {
   try {
     const token = req.cookies?.refreshToken;
-    if (!token) { res.status(401).json({ success: false, error: 'No refresh token' }); return; }
+    if (!token) { res.status(401).json({ success: false, error: 'אינך מחובר. אנא התחברו מחדש.' }); return; }
 
     const payload = verifyRefreshToken(token);
     const user = await authService.getUserById(payload.userId);
-    if (!user) { res.status(401).json({ success: false, error: 'User not found' }); return; }
+    if (!user) { res.status(401).json({ success: false, error: 'המשתמש לא נמצא' }); return; }
 
     const accessToken = signAccessToken({ userId: user.id, role: user.role });
     const newRefreshToken = signRefreshToken({ userId: user.id, role: user.role });
@@ -51,7 +51,7 @@ export async function refresh(req: Request, res: Response): Promise<void> {
 
     res.json({ success: true, data: { accessToken } });
   } catch {
-    res.status(401).json({ success: false, error: 'Invalid refresh token' });
+    res.status(401).json({ success: false, error: 'החיבור פג תוקף. אנא התחברו מחדש.' });
   }
 }
 
@@ -122,7 +122,7 @@ export async function resendVerification(req: Request, res: Response): Promise<v
 export async function me(req: Request, res: Response): Promise<void> {
   try {
     const user = await authService.getUserById(req.user!.userId);
-    if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
+    if (!user) { res.status(404).json({ success: false, error: 'המשתמש לא נמצא' }); return; }
     res.json({ success: true, data: { user: authService.toUserDTO(user) } });
   } catch (err: any) {
     sendError(res, err);

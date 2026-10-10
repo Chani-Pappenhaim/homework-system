@@ -174,7 +174,7 @@ describe('lessons controller', () => {
     );
     const res = await request(app).get('/api/lessons/hidden').set(...bearer(student));
     expect(res.status).toBe(403);
-    expect(res.body).toMatchObject({ success: false, error: 'Forbidden' });
+    expect(res.body).toMatchObject({ success: false, error: 'אין לך הרשאה לבצע פעולה זו.' });
   });
 
   it('POST /api/lessons/:id/progress records completion', async () => {

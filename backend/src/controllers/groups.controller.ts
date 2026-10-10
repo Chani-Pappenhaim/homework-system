@@ -18,7 +18,7 @@ export async function createGroup(req: Request, res: Response) {
 
 export async function getGroup(req: Request, res: Response) {
   const group = await groupsService.getGroupById(req.params.id as string);
-  if (!group) { res.status(404).json({ success: false, error: 'Group not found' }); return; }
+  if (!group) { res.status(404).json({ success: false, error: 'הקבוצה לא נמצאה' }); return; }
   res.json({ success: true, data: { group } });
 }
 

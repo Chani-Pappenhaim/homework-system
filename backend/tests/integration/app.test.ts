@@ -36,6 +36,7 @@ import request from 'supertest';
 import { createApp } from '../../src/app';
 import { signAccessToken } from '../../src/utils/jwt';
 import * as authService from '../../src/services/auth.service';
+import { AppError } from '../../src/utils/errors';
 import * as submissionsService from '../../src/services/submissions.service';
 import * as gradesService from '../../src/services/grades.service';
 
@@ -73,7 +74,8 @@ describe('auth controller', () => {
     );
     const res = await request(app).post('/api/auth/login').send({ email: 'd@x.com', password: 'bad' });
     expect(res.status).toBe(401);
-    expect(res.body).toEqual({ success: false, error: 'Invalid credentials' });
+    // An English developer message never reaches the user.
+    expect(res.body).toEqual({ success: false, error: 'אינך מחובר. אנא התחברו מחדש.' });
   });
 
   it('GET /api/auth/me without a token is rejected 401', async () => {
@@ -139,7 +141,7 @@ describe('submissions controller', () => {
     );
     const res = await request(app).get('/api/submissions/sub9').set('Authorization', `Bearer ${studentToken}`);
     expect(res.status).toBe(403);
-    expect(res.body.error).toBe('Forbidden');
+    expect(res.body.error).toBe('אין לך הרשאה לבצע פעולה זו.');
   });
 });
 
@@ -167,35 +169,35 @@ describe('submissions controller — AI review (service-backed routes)', () => {
 
   it('request-ai-review returns 400 when there is no GitHub URL', async () => {
     (submissionsService.requestAiReview as any).mockRejectedValue(
-      Object.assign(new Error('No GitHub URL on submission'), { status: 400 })
+      new AppError('No GitHub URL on submission', 'בדיקת AI זמינה רק להגשות GitHub', 400)
     );
     const res = await request(app)
       .post('/api/submissions/sub1/request-ai-review')
       .set('Authorization', `Bearer ${studentToken}`);
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/No GitHub URL/);
+    expect(res.body.error).toBe('בדיקת AI זמינה רק להגשות GitHub');
   });
 
   it('request-ai-review returns 400 when the review limit is reached', async () => {
     (submissionsService.requestAiReview as any).mockRejectedValue(
-      Object.assign(new Error('AI review limit reached'), { status: 400 })
+      new AppError('AI review limit reached', 'מכסת בדיקות ה-AI עבור הגשה זו נוצלה', 400)
     );
     const res = await request(app)
       .post('/api/submissions/sub1/request-ai-review')
       .set('Authorization', `Bearer ${studentToken}`);
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/limit reached/);
+    expect(res.body.error).toBe('מכסת בדיקות ה-AI עבור הגשה זו נוצלה');
   });
 
   it('request-ai-review returns 400 when a review is already pending', async () => {
     (submissionsService.requestAiReview as any).mockRejectedValue(
-      Object.assign(new Error('Review already in progress'), { status: 400 })
+      new AppError('Review already in progress', 'בדיקת AI כבר מתבצעת עבור הגשה זו', 400)
     );
     const res = await request(app)
       .post('/api/submissions/sub1/request-ai-review')
       .set('Authorization', `Bearer ${studentToken}`);
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/already in progress/);
+    expect(res.body.error).toBe('בדיקת AI כבר מתבצעת עבור הגשה זו');
   });
 
   it('request-ai-review succeeds on the happy path', async () => {

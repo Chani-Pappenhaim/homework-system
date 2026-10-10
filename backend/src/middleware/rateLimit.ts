@@ -3,7 +3,7 @@ import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 export const authRateLimit = rateLimit({
   windowMs: 60 * 1000,
   max: 10,
-  message: { success: false, error: 'Too many requests, please try again later' },
+  message: { success: false, error: 'יותר מדי בקשות. אנא נסו שוב בעוד כמה דקות.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -11,7 +11,7 @@ export const authRateLimit = rateLimit({
 export const generalRateLimit = rateLimit({
   windowMs: 60 * 1000,
   max: 1000,
-  message: { success: false, error: 'Too many requests, please try again later' },
+  message: { success: false, error: 'יותר מדי בקשות. אנא נסו שוב בעוד כמה דקות.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -28,7 +28,7 @@ export const generalRateLimit = rateLimit({
 export const aiRateLimit = rateLimit({
   windowMs: 60 * 1000,
   max: 40,
-  message: { success: false, error: 'Too many AI requests, please try again in a minute' },
+  message: { success: false, error: 'יותר מדי בקשות לבדיקת AI. אנא נסו שוב בעוד דקה.' },
   standardHeaders: true,
   legacyHeaders: false,
   // Authenticated requests are keyed per user; unauthenticated ones fall back to

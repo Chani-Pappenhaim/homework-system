@@ -5,7 +5,7 @@ import { sendError } from '../utils/http';
 export async function sendMessage(req: Request, res: Response) {
   try {
     const { content, assignmentId } = req.body;
-    if (!content?.trim()) { res.status(400).json({ success: false, error: 'Content required' }); return; }
+    if (!content?.trim()) { res.status(400).json({ success: false, error: 'תוכן ההודעה נדרש' }); return; }
     const message = await messagesService.sendMessage(req.user!.userId, content, assignmentId);
     res.status(201).json({ success: true, data: { message } });
   } catch (err: any) {
@@ -48,7 +48,7 @@ export async function getMyMessages(req: Request, res: Response) {
 export async function replyMessage(req: Request, res: Response) {
   try {
     const { reply } = req.body;
-    if (!reply?.trim()) { res.status(400).json({ success: false, error: 'Reply required' }); return; }
+    if (!reply?.trim()) { res.status(400).json({ success: false, error: 'תגובה נדרשת' }); return; }
     const message = await messagesService.replyMessage(req.params.id as string, reply);
     res.json({ success: true, data: { message } });
   } catch (err: any) {

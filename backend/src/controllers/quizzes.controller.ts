@@ -41,7 +41,7 @@ export async function updateQuestions(req: Request, res: Response) {
 export async function setPublished(req: Request, res: Response) {
   try {
     if (typeof req.body.published !== 'boolean') {
-      res.status(400).json({ success: false, error: 'published must be a boolean' });
+      res.status(400).json({ success: false, error: 'ערך פרסום לא תקין' });
       return;
     }
     const result = await quizzesService.setQuizPublished(
