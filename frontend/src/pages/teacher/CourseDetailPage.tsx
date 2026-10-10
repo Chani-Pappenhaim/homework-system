@@ -2,7 +2,7 @@ import { toExternalUrl, todayISO, formatDate, cn } from '@/lib/utils';
 import { lessonPath, type CoursePageProps } from '@/components/lesson/LessonRoute';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Edit, Lock, ExternalLink, Plus, Trash2, ClipboardCheck, ArrowUpDown } from 'lucide-react';
+import { Edit, Lock, ExternalLink, Plus, Trash2, ClipboardCheck, ArrowUpDown, BookOpen, Users, Paperclip } from 'lucide-react';
 import { LessonReorderList } from '@/components/lesson/LessonReorderList';
 import { CourseAccessPanel } from '@/components/lesson/CourseAccessPanel';
 import { FileGallery } from '@/components/ui/file-gallery';
@@ -26,6 +26,9 @@ import {
 import { useState } from 'react';
 import { useToast } from '@/components/ui/toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { useTabParam } from '@/hooks/useTabParam';
+
+const TABS = ['lessons', 'students', 'materials'] as const;
 
 function StatTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -46,6 +49,7 @@ export default function CourseDetailPage(props: Partial<CoursePageProps>) {
   const toast = useToast();
   const [newLessonModal, setNewLessonModal] = useState(false);
   const [reordering, setReordering] = useState(false);
+  const [tab, setTab] = useTabParam(TABS, 'lessons');
   const [newTopic, setNewTopic] = useState('');
   const [newDate, setNewDate] = useState(todayISO());
   const [newContent, setNewContent] = useState('');
@@ -135,7 +139,28 @@ export default function CourseDetailPage(props: Partial<CoursePageProps>) {
         </div>
       )}
 
+      {/* One section at a time instead of one long scroll */}
+      <div className="flex flex-wrap items-center gap-2">
+        {([
+          ['lessons', BookOpen, `שיעורים (${course.lessons.length})`],
+          ['students', Users, 'תלמידות נוספות'],
+          ['materials', Paperclip, `חומרי עזר וקישורים (${course.links.length + course.files.length})`],
+        ] as const).map(([key, Icon, label]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
+              tab === key ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
+            )}
+          >
+            <Icon size={15} /> {label}
+          </button>
+        ))}
+      </div>
+
       {/* Lessons */}
+      {tab === 'lessons' && (
       <Card accent="indigo">
         <CardHeader className="flex flex-row items-center justify-between gap-2">
           <h2 className="font-display text-base font-bold">שיעורים ({course.lessons.length})</h2>
@@ -188,10 +213,12 @@ export default function CourseDetailPage(props: Partial<CoursePageProps>) {
         </CardContent>
       </Card>
 
-      <CourseAccessPanel courseId={course.id} />
+      )}
+
+      {tab === 'students' && <CourseAccessPanel courseId={course.id} />}
 
       {/* Links + Files — independent, equal-weight sections, side by side on wide screens */}
-      {(course.links.length > 0 || course.files.length > 0) && (
+      {tab === 'materials' && (course.links.length > 0 || course.files.length > 0 ? (
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           {course.links.length > 0 && (
             <Card>
@@ -216,8 +243,16 @@ export default function CourseDetailPage(props: Partial<CoursePageProps>) {
             </Card>
           )}
         </div>
-      )}
-
+      ) : (
+        <Card>
+          <CardContent className="flex items-center justify-between gap-3 text-sm text-ink/60">
+            עדיין אין לקורס חומרי עזר או קישורים.
+            <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/courses/${courseSlug}/edit`)}>
+              <Plus size={13} /> הוספה
+            </Button>
+          </CardContent>
+        </Card>
+      ))}
 
       {/* New lesson modal */}
       <Dialog open={newLessonModal} onOpenChange={setNewLessonModal}>

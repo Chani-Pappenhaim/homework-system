@@ -42,13 +42,17 @@ beforeEach(() => {
 });
 
 describe('TeacherCourseDetailPage', () => {
-  it('renders the course header, links and files', async () => {
+  it('renders the course header, with links and files in their own tab', async () => {
     renderPage();
     expect(await screen.findByRole('heading', { name: 'קורס React' })).toBeInTheDocument();
     expect(screen.getByText('תיאור הקורס')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'שיעורים (2)' })).toBeInTheDocument();
+    expect(screen.queryByText('תיעוד')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /חומרי עזר וקישורים/ }));
     expect(screen.getByText('תיעוד')).toBeInTheDocument();
     expect(screen.getByText('קובץ.pdf')).toBeInTheDocument();
-    expect(screen.getByText('שיעורים (2)')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'שיעורים (2)' })).not.toBeInTheDocument();
   });
 
   it('navigates to a lesson when its bubble is clicked', async () => {
