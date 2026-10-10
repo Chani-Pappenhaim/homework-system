@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { getRepoStatus, githubHeaders, normalizeRepoName } from '../../src/utils/github';
+import { getRepoStatus, githubHeaders, normalizeRepoName, parseRepoRef } from '../../src/utils/github';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -61,5 +61,21 @@ describe('githubHeaders', () => {
   it('authenticates with GITHUB_TOKEN when set', () => {
     vi.stubEnv('GITHUB_TOKEN', 'ghp_test');
     expect(githubHeaders().Authorization).toBe('Bearer ghp_test');
+  });
+});
+
+describe('parseRepoRef', () => {
+  it('reads a bare name, owner/repo and a pasted link', () => {
+    expect(parseRepoRef(' my-repo ')).toEqual({ repo: 'my-repo' });
+    expect(parseRepoRef('dina/my-repo')).toEqual({ owner: 'dina', repo: 'my-repo' });
+    expect(parseRepoRef('https://github.com/dina/my-repo.git/')).toEqual({ owner: 'dina', repo: 'my-repo' });
+    expect(parseRepoRef('github.com/dina/my-repo/tree/main')).toEqual({ owner: 'dina', repo: 'my-repo' });
+  });
+
+  it('rejects text that cannot be a repo', () => {
+    expect(parseRepoRef('')).toBeNull();
+    expect(parseRepoRef('my repo')).toBeNull();
+    expect(parseRepoRef('a/b/c')).toBeNull();
+    expect(parseRepoRef('https://gitlab.com/dina/x')).toBeNull();
   });
 });

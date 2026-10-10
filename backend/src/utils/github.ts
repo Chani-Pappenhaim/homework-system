@@ -58,3 +58,18 @@ export function normalizeRepoName(input: string): string {
   const fromUrl = trimmed.match(/github\.com\/[^/]+\/([^/?#]+)/i);
   return (fromUrl ? fromUrl[1]! : trimmed.split('/').pop() ?? '').trim();
 }
+
+const GITHUB_NAME = /^[A-Za-z0-9_.-]+$/;
+
+/**
+ * Reads a repo reference typed by a person: a bare repo name, "owner/repo",
+ * or a pasted repo URL. The owner is left out when only a name was given.
+ * Returns null when the text is not a valid GitHub repo reference.
+ */
+export function parseRepoRef(input: string): { owner?: string; repo: string } | null {
+  const trimmed = input.trim().replace(/\/+$/, '').replace(/\.git$/i, '');
+  const fromUrl = trimmed.match(/^(?:https?:\/\/)?(?:www\.)?github\.com\/([^/?#]+)\/([^/?#]+)/i);
+  const parts = fromUrl ? [fromUrl[1]!, fromUrl[2]!.replace(/\.git$/i, '')] : trimmed.split('/');
+  if (parts.length > 2 || !parts.every((p) => GITHUB_NAME.test(p))) return null;
+  return parts.length === 2 ? { owner: parts[0], repo: parts[1]! } : { repo: parts[0]! };
+}

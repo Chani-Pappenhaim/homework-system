@@ -475,6 +475,71 @@ describe('submissions.service.getSubmissionById', () => {
 });
 
 describe('submissions.service.importSubmissions', () => {
+  const dina = { id: 's1', role: 'STUDENT', githubUsername: 'dina', studentGroups: [{ groupId: 'g1' }], courseAccess: [] };
+  const oneAssignment = [{ id: 'a1', deadline: null, lesson: { course: { id: 'c1', groupId: 'g1' } } }];
+  beforeEach(() => repoStatusMock.mockResolvedValue('exists'));
+
+  it('verifies the repo against GitHub before saving it', async () => {
+    p.user.findUnique.mockResolvedValue(dina);
+    p.assignment.findMany.mockResolvedValue(oneAssignment);
+    p.submission.findUnique.mockResolvedValue(null);
+    p.submission.create.mockResolvedValue({});
+    await importSubmissions(await xlsxBuffer([['Task1', 'a@x.com', 'repo']]));
+    expect(repoStatusMock).toHaveBeenCalledWith('dina', 'repo');
+  });
+
+  it('skips a row whose repo does not exist, naming the row', async () => {
+    p.user.findUnique.mockResolvedValue(dina);
+    p.assignment.findMany.mockResolvedValue(oneAssignment);
+    repoStatusMock.mockResolvedValue('missing');
+    const r = await importSubmissions(await xlsxBuffer([['Task1', 'a@x.com', 'nope']]));
+    expect(r).toMatchObject({ imported: 0, skipped: 1 });
+    expect(r.errors[0]).toBe('שורה 2: הריפו github.com/dina/nope לא נמצא (או שאינו ציבורי)');
+    expect(p.submission.create).not.toHaveBeenCalled();
+  });
+
+  it('does not import a repo GitHub could not confirm', async () => {
+    p.user.findUnique.mockResolvedValue(dina);
+    p.assignment.findMany.mockResolvedValue(oneAssignment);
+    repoStatusMock.mockResolvedValue('unknown');
+    const r = await importSubmissions(await xlsxBuffer([['Task1', 'a@x.com', 'repo']]));
+    expect(r.skipped).toBe(1);
+    expect(r.errors[0]).toContain('לא ניתן היה לאמת');
+    expect(p.submission.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses a bare repo name for a student with no GitHub username instead of guessing a link', async () => {
+    p.user.findUnique.mockResolvedValue({ ...dina, githubUsername: null });
+    p.assignment.findMany.mockResolvedValue(oneAssignment);
+    const r = await importSubmissions(await xlsxBuffer([['Task1', 'a@x.com', 'repo']]));
+    expect(r.skipped).toBe(1);
+    expect(r.errors[0]).toContain('לא מוגדר שם משתמש GitHub');
+    expect(repoStatusMock).not.toHaveBeenCalled();
+    expect(p.submission.create).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['owner/repo', 'other/proj'],
+    ['a full link', 'https://github.com/other/proj.git'],
+  ])('accepts %s without a username on the profile', async (_label, cell) => {
+    p.user.findUnique.mockResolvedValue({ ...dina, githubUsername: null });
+    p.assignment.findMany.mockResolvedValue(oneAssignment);
+    p.submission.findUnique.mockResolvedValue(null);
+    p.submission.create.mockResolvedValue({});
+    const r = await importSubmissions(await xlsxBuffer([['Task1', 'a@x.com', cell]]));
+    expect(r.imported).toBe(1);
+    expect(repoStatusMock).toHaveBeenCalledWith('other', 'proj');
+    expect(p.submission.create.mock.calls[0][0].data.githubUrl).toBe('https://github.com/other/proj');
+  });
+
+  it('rejects text that is not a repo reference', async () => {
+    p.user.findUnique.mockResolvedValue(dina);
+    p.assignment.findMany.mockResolvedValue(oneAssignment);
+    const r = await importSubmissions(await xlsxBuffer([['Task1', 'a@x.com', 'my repo name']]));
+    expect(r.skipped).toBe(1);
+    expect(r.errors[0]).toContain('אינו שם ריפו תקין');
+  });
+
   it('reports a missing-data error for incomplete rows', async () => {
     const buf = await xlsxBuffer([['', 'a@x.com', 'repo']]);
     const r = await importSubmissions(buf);

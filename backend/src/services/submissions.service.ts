@@ -8,7 +8,7 @@ import { computeSubmissionScore } from '../utils/grading';
 import { aiReviewQueue, emailQueue } from '../infrastructure/queues/queues';
 import type { EmailJobMap } from '../infrastructure/queues/job-types';
 import { cellText } from '../utils/excel';
-import { getRepoStatus, normalizeRepoName } from '../utils/github';
+import { getRepoStatus, normalizeRepoName, parseRepoRef } from '../utils/github';
 import ExcelJS from 'exceljs';
 
 async function enqueueEmail<T extends keyof EmailJobMap>(jobName: T, data: EmailJobMap[T]) {
@@ -506,9 +506,28 @@ export async function importSubmissions(buffer: Buffer) {
       }
       const assignment = candidates[0];
 
-      const githubUrl = student.githubUsername
-        ? `https://github.com/${student.githubUsername}/${repoName}`
-        : `https://github.com/${repoName}`;
+      // A bare repo name belongs to the student's own GitHub account; any
+      // other owner has to be written out, so no link is ever guessed.
+      const ref = parseRepoRef(repoName);
+      if (!ref) {
+        errors.push(`שורה ${rowNumber}: "${repoName}" אינו שם ריפו תקין — יש לכתוב שם ריפו, owner/repo או קישור מלא ל-GitHub`);
+        skipped++; continue;
+      }
+      const owner = ref.owner ?? student.githubUsername;
+      if (!owner) {
+        errors.push(`שורה ${rowNumber}: ל-${studentEmail} לא מוגדר שם משתמש GitHub — יש לכתוב owner/repo או קישור מלא במקום שם הריפו בלבד`);
+        skipped++; continue;
+      }
+      const repoStatus = await getRepoStatus(owner, ref.repo);
+      if (repoStatus === 'missing') {
+        errors.push(`שורה ${rowNumber}: הריפו github.com/${owner}/${ref.repo} לא נמצא (או שאינו ציבורי)`);
+        skipped++; continue;
+      }
+      if (repoStatus === 'unknown') {
+        errors.push(`שורה ${rowNumber}: לא ניתן היה לאמת את github.com/${owner}/${ref.repo} מול GitHub — השורה לא יובאה, יש לנסות לייבא אותה שוב מאוחר יותר`);
+        skipped++; continue;
+      }
+      const githubUrl = `https://github.com/${owner}/${ref.repo}`;
 
       const existing = await prisma.submission.findUnique({
         where: { assignmentId_studentId: { assignmentId: assignment.id, studentId: student.id } },
