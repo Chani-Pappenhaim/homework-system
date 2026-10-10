@@ -12,7 +12,15 @@ vi.mock('@/api/axios', () => {
   return { default: api };
 });
 
+// Cloudinary uploads go through XMLHttpRequest (fetch has no upload progress),
+// so the helper itself is stubbed — otherwise the test would really call out.
+vi.mock('@/lib/upload', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/upload')>()),
+  uploadToCloudinary: vi.fn(),
+}));
+
 import api from '@/api/axios';
+import { uploadToCloudinary } from '@/lib/upload';
 import { authApi } from '@/api/auth.api';
 import { groupsApi } from '@/api/groups.api';
 import { coursesApi } from '@/api/courses.api';
@@ -33,16 +41,14 @@ const del = api.delete as unknown as ReturnType<typeof vi.fn>;
 beforeEach(() => vi.clearAllMocks());
 afterEach(() => vi.unstubAllGlobals());
 
-// uploadFile signs with the backend, uploads straight to Cloudinary via fetch,
-// then posts the resulting URL back to the backend.
+// uploadFile signs with the backend, uploads straight to Cloudinary, then posts
+// the resulting URL back to the backend.
 function mockUploadSignatureAndCloudinary() {
   post.mockResolvedValueOnce({
     data: { data: { apiKey: 'key', cloudName: 'cloud', timestamp: 1, signature: 'sig', folder: 'f' } },
   });
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ secure_url: 'https://cdn/x', bytes: 5 }) })),
-  );
+  (uploadToCloudinary as unknown as ReturnType<typeof vi.fn>)
+    .mockResolvedValueOnce({ secure_url: 'https://cdn/x', bytes: 5 });
 }
 
 describe('authApi', () => {
@@ -133,6 +139,8 @@ describe('coursesApi', () => {
     mockUploadSignatureAndCloudinary();
     await coursesApi.uploadFile('c1', new File(['x'], 'f.pdf'));
     expect(post).toHaveBeenCalledWith('/courses/c1/upload-signature');
+    expect(uploadToCloudinary).toHaveBeenCalledWith(
+      'https://api.cloudinary.com/v1_1/cloud/auto/upload', expect.any(FormData), undefined);
     expect(post).toHaveBeenCalledWith('/courses/c1/files', {
       uploadedFile: { url: 'https://cdn/x', bytes: 5, originalName: 'f.pdf' },
       name: undefined,
@@ -196,7 +204,9 @@ describe('assignmentsApi', () => {
 describe('submissionsApi', () => {
   it('submitFile posts FormData', () => {
     submissionsApi.submitFile('a1', new File(['x'], 'f'), 'note');
-    expect(post).toHaveBeenCalledWith('/assignments/a1/submit', expect.any(FormData));
+    expect(post).toHaveBeenCalledWith('/assignments/a1/submit', expect.any(FormData), {
+      onUploadProgress: expect.any(Function),
+    });
   });
   it('submitRepo posts repoName + notes', () => {
     submissionsApi.submitRepo('a1', 'repo', 'note');
