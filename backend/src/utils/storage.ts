@@ -106,7 +106,7 @@ function urlExtension(url: string): string {
  * `extension` ships alongside it so the client can still tell a PDF from a
  * video without an extension to parse out of that URL.
  */
-export function toFileDTO<T extends { id: string; sizeBytes?: bigint | null; url?: string }>(
+export function toFileDTO<T extends { id: string; sizeBytes?: bigint | null; url?: string; name?: string }>(
   file: T,
   kind: 'lesson' | 'course',
   userId: string
@@ -116,7 +116,9 @@ export function toFileDTO<T extends { id: string; sizeBytes?: bigint | null; url
     sizeBytes: file.sizeBytes?.toString() ?? null,
     ...(file.url
       ? (() => {
-          const extension = urlExtension(file.url);
+          // Files uploaded before names were passed to Cloudinary have none in
+          // their URL; the stored name may still carry one.
+          const extension = urlExtension(file.url) || urlExtension(file.name ?? '');
           const suffix = extension ? `/file.${extension}` : '';
           return {
             url: `/files/download/${file.id}${suffix}?token=${signFileToken({ fileId: file.id, kind, userId })}`,

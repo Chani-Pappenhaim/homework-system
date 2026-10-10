@@ -24,6 +24,14 @@ describe('toFileDTO', () => {
     expect(toFileDTO({ id: 'f1', sizeBytes: null }).sizeBytes).toBeNull();
     expect(toFileDTO({ id: 'f1' } as any)).toMatchObject({ id: 'f1', sizeBytes: null });
   });
+
+  it('takes the extension from the URL, or from the name when the URL has none', () => {
+    const fromUrl = toFileDTO({ id: 'f1', name: 'slides', url: 'https://res.cloudinary.com/x/raw/upload/v1/a.pptx' }, 'lesson', 'u1');
+    expect(fromUrl.extension).toBe('pptx');
+    const fromName = toFileDTO({ id: 'f2', name: 'page.html', url: 'https://res.cloudinary.com/x/raw/upload/v1/abc' }, 'lesson', 'u1');
+    expect(fromName.extension).toBe('html');
+    expect(fromName.url).toMatch(/^\/files\/download\/f2\/file\.html\?token=/);
+  });
 });
 
 describe('extractPublicId', () => {
