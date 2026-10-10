@@ -131,7 +131,7 @@ export async function copyCourse(courseId: string, targetGroupId: string) {
     where: { id: courseId },
     include: {
       links: true, files: true,
-      lessons: { include: { files: true, assignments: true } },
+      lessons: { include: { files: true, assignments: true, quiz: true } },
     },
   });
   if (!source) throw new AppError('Course not found', 'הקורס לא נמצא', 404);
@@ -143,12 +143,16 @@ export async function copyCourse(courseId: string, targetGroupId: string) {
       links: { create: source.links.map(({ id: _, courseId: __, ...l }) => l) },
       files: { create: source.files.map(({ id: _, courseId: __, uploadedAt: _a, ...f }) => f) },
       lessons: {
-        create: source.lessons.map(({ id: _, courseId: __, createdAt: _c, ...lesson }: any) => ({
-          ...lesson, hidden: false,
-          files: { create: (lesson as any).files?.map(({ id: _i, lessonId: _l, uploadedAt: _a, ...f }: any) => f) ?? [] },
+        // Each lesson keeps its own hidden flag (a lesson the teacher held back
+        // stays held back), and its quiz comes along as an unpublished draft,
+        // the same way copying a single lesson treats it.
+        create: source.lessons.map(({ id: _, courseId: __, createdAt: _c, files, assignments, quiz, ...lesson }: any) => ({
+          ...lesson,
+          files: { create: files?.map(({ id: _i, lessonId: _l, uploadedAt: _a, ...f }: any) => f) ?? [] },
           assignments: {
-            create: (lesson as any).assignments?.map(({ id: _i, lessonId: _l, createdAt: _c, ...a }: any) => a) ?? [],
+            create: assignments?.map(({ id: _i, lessonId: _l, createdAt: _c, ...a }: any) => a) ?? [],
           },
+          ...(quiz ? { quiz: { create: { questions: quiz.questions ?? [], published: false } } } : {}),
         })),
       },
     },

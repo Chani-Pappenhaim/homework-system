@@ -163,7 +163,7 @@ describe('courses.service.copyCourse', () => {
     await expect(copyCourse('c1', 'g2')).rejects.toMatchObject({ status: 404 });
   });
 
-  it('clones course into target group with nested lessons/links/files, unhidden', async () => {
+  it('clones course into target group with nested lessons/links/files, keeping hidden lessons hidden', async () => {
     p.course.findUnique.mockResolvedValue({
       id: 'c1', name: 'Src', year: '2026', description: 'd', imageUrl: null,
       links: [{ id: 'lk1', courseId: 'c1', label: 'L', url: 'u', order: 0 }],
@@ -171,6 +171,7 @@ describe('courses.service.copyCourse', () => {
       lessons: [{
         id: 'l1', courseId: 'c1', createdAt: new Date(), topic: 'T', hidden: true, order: 1,
         files: [], assignments: [{ id: 'a1', lessonId: 'l1', createdAt: new Date(), title: 'A' }],
+        quiz: { id: 'q1', lessonId: 'l1', questions: [{ question: 'Q' }], published: true },
       }],
     });
     p.course.create.mockImplementation(({ data }: any) =>
@@ -179,9 +180,11 @@ describe('courses.service.copyCourse', () => {
     const createArg = p.course.create.mock.calls[0][0].data;
     expect(createArg.groupId).toBe('g2');
     expect(createArg.hidden).toBe(false);
-    // nested lesson is forced unhidden and strips ids
-    expect(createArg.lessons.create[0].hidden).toBe(false);
+    // a lesson the teacher held back stays held back; ids are stripped
+    expect(createArg.lessons.create[0].hidden).toBe(true);
     expect(createArg.lessons.create[0]).not.toHaveProperty('id');
+    // the quiz comes along as an unpublished draft
+    expect(createArg.lessons.create[0].quiz).toEqual({ create: { questions: [{ question: 'Q' }], published: false } });
     expect(r).toMatchObject({ id: 'c2', groupName: 'G2' });
   });
 });
