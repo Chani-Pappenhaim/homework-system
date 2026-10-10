@@ -448,7 +448,7 @@ export async function importSubmissions(buffer: Buffer) {
   let skipped = 0;
   const errors: string[] = [];
 
-  const rows: Array<{ assignmentTitle: string; studentEmail: string; repoName: string }> = [];
+  const rows: Array<{ rowNumber: number; assignmentTitle: string; studentEmail: string; repoName: string }> = [];
 
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1) return;
@@ -456,19 +456,44 @@ export async function importSubmissions(buffer: Buffer) {
     const studentEmail = cellText(row.getCell(2)).trim().toLowerCase();
     const repoName = cellText(row.getCell(3)).trim();
     if (!assignmentTitle || !studentEmail || !repoName) {
-      errors.push(`Row ${rowNumber}: missing data`);
+      errors.push(`שורה ${rowNumber}: חסרים נתונים`);
       return;
     }
-    rows.push({ assignmentTitle, studentEmail, repoName });
+    rows.push({ rowNumber, assignmentTitle, studentEmail, repoName });
   });
 
-  for (const { assignmentTitle, studentEmail, repoName } of rows) {
+  for (const { rowNumber, assignmentTitle, studentEmail, repoName } of rows) {
     try {
-      const student = await prisma.user.findUnique({ where: { email: studentEmail } });
-      if (!student) { errors.push(`Student not found: ${studentEmail}`); skipped++; continue; }
+      const student = await prisma.user.findUnique({
+        where: { email: studentEmail },
+        include: { studentGroups: { select: { groupId: true } }, courseAccess: { select: { courseId: true } } },
+      });
+      if (!student || student.role !== 'STUDENT') {
+        errors.push(`שורה ${rowNumber}: לא נמצאה תלמידה עם המייל ${studentEmail}`); skipped++; continue;
+      }
 
-      const assignment = await prisma.assignment.findFirst({ where: { title: assignmentTitle } });
-      if (!assignment) { errors.push(`Assignment not found: ${assignmentTitle}`); skipped++; continue; }
+      // Titles repeat across courses (every group's "תרגיל 1"), so the title
+      // alone can't pick the assignment: narrow it to the courses this student
+      // belongs to, and refuse to guess when that still leaves more than one.
+      const sameTitle = await prisma.assignment.findMany({
+        where: { title: assignmentTitle },
+        select: { id: true, deadline: true, lesson: { select: { course: { select: { id: true, groupId: true } } } } },
+      });
+      if (sameTitle.length === 0) {
+        errors.push(`שורה ${rowNumber}: לא נמצאה מטלה בשם "${assignmentTitle}"`); skipped++; continue;
+      }
+      const groupIds = new Set(student.studentGroups.map((g) => g.groupId));
+      const courseIds = new Set(student.courseAccess.map((c) => c.courseId));
+      const candidates = sameTitle.filter((a) =>
+        groupIds.has(a.lesson.course.groupId) || courseIds.has(a.lesson.course.id));
+      if (candidates.length === 0) {
+        errors.push(`שורה ${rowNumber}: ${studentEmail} אינה רשומה לקורס של המטלה "${assignmentTitle}"`); skipped++; continue;
+      }
+      if (candidates.length > 1) {
+        errors.push(`שורה ${rowNumber}: יש כמה מטלות בשם "${assignmentTitle}" בקורסים של ${studentEmail} — יש לשנות את שם המטלה כך שיהיה ייחודי`);
+        skipped++; continue;
+      }
+      const assignment = candidates[0];
 
       const githubUrl = student.githubUsername
         ? `https://github.com/${student.githubUsername}/${repoName}`
@@ -491,7 +516,7 @@ export async function importSubmissions(buffer: Buffer) {
       }
       imported++;
     } catch {
-      errors.push(`Failed: ${studentEmail} / ${assignmentTitle}`);
+      errors.push(`שורה ${rowNumber}: שגיאה בעיבוד ${studentEmail} / ${assignmentTitle}`);
     }
   }
 

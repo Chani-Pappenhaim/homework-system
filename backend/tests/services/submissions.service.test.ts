@@ -418,7 +418,7 @@ describe('submissions.service.importSubmissions', () => {
     const buf = await xlsxBuffer([['', 'a@x.com', 'repo']]);
     const r = await importSubmissions(buf);
     expect(r.imported).toBe(0);
-    expect(r.errors.some((e) => e.includes('missing data'))).toBe(true);
+    expect(r.errors.some((e) => e.includes('חסרים נתונים'))).toBe(true);
   });
 
   it('skips rows for unknown student / assignment', async () => {
@@ -426,12 +426,12 @@ describe('submissions.service.importSubmissions', () => {
     const buf = await xlsxBuffer([['Task1', 'ghost@x.com', 'repo']]);
     const r = await importSubmissions(buf);
     expect(r.skipped).toBe(1);
-    expect(r.errors.some((e) => e.includes('Student not found'))).toBe(true);
+    expect(r.errors.some((e) => e.includes('לא נמצאה תלמידה'))).toBe(true);
   });
 
   it('creates a new submission with github url from username', async () => {
-    p.user.findUnique.mockResolvedValue({ id: 's1', githubUsername: 'dina' });
-    p.assignment.findFirst.mockResolvedValue({ id: 'a1', deadline: null });
+    p.user.findUnique.mockResolvedValue({ id: 's1', role: 'STUDENT', githubUsername: 'dina', studentGroups: [{ groupId: 'g1' }], courseAccess: [] });
+    p.assignment.findMany.mockResolvedValue([{ id: 'a1', deadline: null, lesson: { course: { id: 'c1', groupId: 'g1' } } }]);
     p.submission.findUnique.mockResolvedValue(null);
     p.submission.create.mockResolvedValue({});
     const buf = await xlsxBuffer([['Task1', 'a@x.com', 'repo']]);
@@ -443,8 +443,8 @@ describe('submissions.service.importSubmissions', () => {
   });
 
   it('updates when a submission already exists', async () => {
-    p.user.findUnique.mockResolvedValue({ id: 's1', githubUsername: 'dina' });
-    p.assignment.findFirst.mockResolvedValue({ id: 'a1', deadline: null });
+    p.user.findUnique.mockResolvedValue({ id: 's1', role: 'STUDENT', githubUsername: 'dina', studentGroups: [{ groupId: 'g1' }], courseAccess: [] });
+    p.assignment.findMany.mockResolvedValue([{ id: 'a1', deadline: null, lesson: { course: { id: 'c1', groupId: 'g1' } } }]);
     p.submission.findUnique.mockResolvedValue({ id: 'sub1' });
     p.submission.update.mockResolvedValue({});
     const buf = await xlsxBuffer([['Task1', 'a@x.com', 'repo']]);
@@ -452,6 +452,40 @@ describe('submissions.service.importSubmissions', () => {
     expect(r.imported).toBe(1);
     expect(p.submission.update).toHaveBeenCalled();
     expect(p.submission.create).not.toHaveBeenCalled();
+  });
+
+  it('picks the same-titled assignment from the student own course', async () => {
+    p.user.findUnique.mockResolvedValue({ id: 's1', role: 'STUDENT', githubUsername: 'dina', studentGroups: [{ groupId: 'g1' }], courseAccess: [] });
+    p.assignment.findMany.mockResolvedValue([
+      { id: 'other', deadline: null, lesson: { course: { id: 'c9', groupId: 'g9' } } },
+      { id: 'mine', deadline: null, lesson: { course: { id: 'c1', groupId: 'g1' } } },
+    ]);
+    p.submission.findUnique.mockResolvedValue(null);
+    p.submission.create.mockResolvedValue({});
+    const r = await importSubmissions(await xlsxBuffer([['תרגיל 1', 'a@x.com', 'repo']]));
+    expect(r.imported).toBe(1);
+    expect(p.submission.create.mock.calls[0][0].data.assignmentId).toBe('mine');
+  });
+
+  it('refuses to guess between two same-titled assignments in her courses', async () => {
+    p.user.findUnique.mockResolvedValue({ id: 's1', role: 'STUDENT', githubUsername: 'dina', studentGroups: [{ groupId: 'g1' }], courseAccess: [] });
+    p.assignment.findMany.mockResolvedValue([
+      { id: 'a1', deadline: null, lesson: { course: { id: 'c1', groupId: 'g1' } } },
+      { id: 'a2', deadline: null, lesson: { course: { id: 'c2', groupId: 'g1' } } },
+    ]);
+    const r = await importSubmissions(await xlsxBuffer([['תרגיל 1', 'a@x.com', 'repo']]));
+    expect(r.skipped).toBe(1);
+    expect(r.errors[0]).toContain('כמה מטלות');
+    expect(p.submission.create).not.toHaveBeenCalled();
+  });
+
+  it('skips a teacher account and a student outside the assignment course', async () => {
+    p.user.findUnique.mockResolvedValueOnce({ id: 't1', role: 'ADMIN', studentGroups: [], courseAccess: [] });
+    p.user.findUnique.mockResolvedValueOnce({ id: 's1', role: 'STUDENT', githubUsername: 'dina', studentGroups: [{ groupId: 'g1' }], courseAccess: [] });
+    p.assignment.findMany.mockResolvedValue([{ id: 'a1', deadline: null, lesson: { course: { id: 'c9', groupId: 'g9' } } }]);
+    const r = await importSubmissions(await xlsxBuffer([['T', 't@x.com', 'r'], ['T', 'a@x.com', 'r']]));
+    expect(r.skipped).toBe(2);
+    expect(r.errors[1]).toContain('אינה רשומה');
   });
 });
 
