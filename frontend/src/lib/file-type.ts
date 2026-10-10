@@ -8,8 +8,26 @@ const EXT_MAP: Record<string, FileKind> = {
   pdf: 'pdf',
   html: 'html', htm: 'html',
   zip: 'archive', rar: 'archive', '7z': 'archive',
-  doc: 'doc', docx: 'doc', ppt: 'doc', pptx: 'doc', xls: 'doc', xlsx: 'doc', txt: 'doc', md: 'doc',
+  doc: 'doc', docx: 'doc', docm: 'doc', dotx: 'doc', odt: 'doc', rtf: 'doc',
+  ppt: 'doc', pptx: 'doc', pptm: 'doc', pps: 'doc', ppsx: 'doc', potx: 'doc', odp: 'doc',
+  xls: 'doc', xlsx: 'doc', xlsm: 'doc', xlsb: 'doc', ods: 'doc',
+  txt: 'doc', md: 'doc', csv: 'doc', log: 'doc', json: 'doc', xml: 'doc', yml: 'doc', yaml: 'doc', ini: 'doc',
+  js: 'doc', jsx: 'doc', ts: 'doc', tsx: 'doc', css: 'doc', scss: 'doc', py: 'doc', java: 'doc', cs: 'doc',
+  c: 'doc', cpp: 'doc', h: 'doc', go: 'doc', rb: 'doc', php: 'doc', kt: 'doc', swift: 'doc', sql: 'doc', sh: 'doc',
 };
+
+/** Opened through the online Office viewer. */
+export const OFFICE_EXTENSIONS = new Set([
+  'doc', 'docx', 'docm', 'dotx', 'odt', 'rtf',
+  'ppt', 'pptx', 'pptm', 'pps', 'ppsx', 'potx', 'odp',
+  'xls', 'xlsx', 'xlsm', 'xlsb', 'ods',
+]);
+
+/** Plain text read and shown as is (code left-to-right, prose in its own direction). */
+export const TEXT_EXTENSIONS = new Set([
+  'txt', 'md', 'csv', 'log', 'json', 'xml', 'yml', 'yaml', 'ini',
+  'js', 'jsx', 'ts', 'tsx', 'css', 'scss', 'py', 'java', 'cs', 'c', 'cpp', 'h', 'go', 'rb', 'php', 'kt', 'swift', 'sql', 'sh',
+]);
 
 export function getExtension(name: string): string {
   const match = name.match(/\.([^.]+)$/);
@@ -27,7 +45,8 @@ export function getFileKindByExtension(ext: string): FileKind {
 /** Shown next to material uploads, so a teacher knows up front what students can open in place. */
 export const PREVIEWABLE_TYPES_HINT =
   'תצוגה מקדימה באתר: PDF · תמונות (jpg, png, gif, webp, svg) · וידאו (mp4, webm, mov) · שמע (mp3, wav, m4a, ogg) · '
-  + 'Word ו-PowerPoint עד 10MB, Excel עד 5MB (docx, pptx, xlsx וגרסאות ישנות) · HTML · txt ו-md. '
+  + 'Word ו-PowerPoint עד 10MB, Excel עד 5MB (docx, pptx, ppsx, xlsx, גרסאות ישנות ו-OpenOffice) · HTML · '
+  + 'טקסט וקוד (txt, md, csv, json, py, js, java, cs, sql ועוד). '
   + 'כל סוג אחר (zip, rar וכדומה) — להורדה בלבד.';
 
 /**
@@ -36,5 +55,5 @@ export const PREVIEWABLE_TYPES_HINT =
  * says so up front instead of opening an empty frame.
  */
 export function officeViewerLimitBytes(ext: string): number {
-  return ext === 'xls' || ext === 'xlsx' ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
+  return ['xls', 'xlsx', 'xlsm', 'xlsb', 'ods'].includes(ext) ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
 }

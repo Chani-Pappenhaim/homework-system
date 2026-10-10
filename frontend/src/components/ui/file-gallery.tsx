@@ -1,13 +1,47 @@
 import { useState, useEffect } from 'react';
 import { Image, Video, FileText, Music, Archive, File as FileIcon, FileCode, Download, ExternalLink, Pencil, X, Star, EyeOff, Eye } from 'lucide-react';
 import { cn, formatBytes } from '@/lib/utils';
-import { getFileKindByExtension, officeViewerLimitBytes, PREVIEWABLE_TYPES_HINT } from '@/lib/file-type';
+import { getFileKindByExtension, officeViewerLimitBytes, OFFICE_EXTENSIONS, PREVIEWABLE_TYPES_HINT, TEXT_EXTENSIONS } from '@/lib/file-type';
 import { API_URL } from '@/lib/config';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 
-const OFFICE_EXTENSIONS = new Set(['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx']);
-const TEXT_EXTENSIONS = new Set(['txt', 'md']);
+// Text past this size would freeze the tab when rendered in full.
+const TEXT_PREVIEW_MAX_BYTES = 2 * 1024 * 1024;
+
+type TextMode = 'plain' | 'markdown' | 'code' | 'csv' | 'html';
+
+function textModeOf(ext: string): TextMode {
+  if (ext === 'md') return 'markdown';
+  if (ext === 'csv') return 'csv';
+  if (ext === 'txt' || ext === 'log') return 'plain';
+  return 'code';
+}
+
+/**
+ * Policy for an HTML file shown in the preview. Its scripts may run, but the
+ * page may not send anything anywhere: no fetch/XHR/WebSocket, no forms, no
+ * images or media from the web (a URL can carry data out). Scripts, styles and
+ * fonts load only from public library CDNs, whose request logs nobody but the
+ * CDN can read. The <meta> goes first so it applies before any of the file's
+ * own markup, and a CSP the file declares itself can only tighten it further.
+ */
+const LIBRARY_CDNS = 'https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com';
+const HTML_PREVIEW_CSP = [
+  "default-src 'none'",
+  `script-src 'unsafe-inline' 'unsafe-eval' ${LIBRARY_CDNS}`,
+  `style-src 'unsafe-inline' ${LIBRARY_CDNS} https://fonts.googleapis.com`,
+  `font-src data: ${LIBRARY_CDNS} https://fonts.gstatic.com`,
+  'img-src data: blob:',
+  'media-src data: blob:',
+  "connect-src 'none'",
+  "form-action 'none'",
+  "base-uri 'none'",
+].join('; ');
+
+export function withPreviewPolicy(html: string): string {
+  return `<!DOCTYPE html><meta http-equiv="Content-Security-Policy" content="${HTML_PREVIEW_CSP}">${html}`;
+}
 
 export interface GalleryFile {
   id: string;
@@ -272,6 +306,7 @@ function FilePreviewBody({ file }: { file: GalleryFile }) {
   const kind = getFileKindByExtension(ext);
   const isOffice = OFFICE_EXTENSIONS.has(ext);
   const isText = TEXT_EXTENSIONS.has(ext);
+  const textTooBig = isText && Number(file.sizeBytes ?? 0) > TEXT_PREVIEW_MAX_BYTES;
   const url = resolveFileUrl(file.url);
   const downloadUrl = `${url}${url.includes('?') ? '&' : '?'}dl=1`;
   const [viewer, setViewer] = useState<OfficeViewer>('microsoft');
@@ -356,8 +391,9 @@ function FilePreviewBody({ file }: { file: GalleryFile }) {
             className="h-full w-full rounded-sm border border-rule bg-sheet"
           />
         )}
-        {kind === 'doc' && isText && (
-          <TextFilePreview url={url} mode={ext === 'md' ? 'markdown' : 'plain'} />
+        {kind === 'doc' && isText && !textTooBig && <TextFilePreview url={url} mode={textModeOf(ext)} />}
+        {kind === 'doc' && textTooBig && (
+          <NoPreview downloadUrl={downloadUrl} name={file.name} reason="הקובץ גדול מדי להצגה כאן (מעל 2MB)." />
         )}
         {kind === 'html' && <TextFilePreview url={url} mode="html" title={file.name} />}
         {(kind === 'archive' || kind === 'other') && (
@@ -397,7 +433,7 @@ function NoPreview({ downloadUrl, name, reason, openUrl }: { downloadUrl: string
   );
 }
 
-function TextFilePreview({ url, mode, title }: { url: string; mode: 'plain' | 'markdown' | 'html'; title?: string }) {
+function TextFilePreview({ url, mode, title }: { url: string; mode: TextMode; title?: string }) {
   const [content, setContent] = useState<string | null>(null);
   const [error, setError] = useState(false);
 
@@ -423,10 +459,30 @@ function TextFilePreview({ url, mode, title }: { url: string; mode: 'plain' | 'm
   if (content === null) return <p className="text-sm text-ink/50">טוען…</p>;
 
   if (mode === 'html') {
-    // An empty sandbox: the page renders with its own styles, but its scripts,
-    // forms and navigation are all switched off, and it gets an opaque origin —
-    // so nothing inside it can reach this app's session.
-    return <iframe sandbox="" srcDoc={content} title={title} className="h-full w-full rounded-sm border border-rule bg-white" />;
+    // Scripts run, but without allow-same-origin the page gets an opaque origin
+    // and can't reach this app's storage, cookies or DOM; without allow-forms,
+    // allow-popups, allow-top-navigation, allow-modals and allow-downloads it
+    // can't submit, open windows, leave, prompt or save. The injected policy
+    // cuts off the network, and the app's own frame-src keeps the frame from
+    // navigating itself anywhere outside the site.
+    return (
+      <iframe
+        sandbox="allow-scripts"
+        srcDoc={withPreviewPolicy(content)}
+        title={title}
+        className="h-full w-full rounded-sm border border-rule bg-white"
+      />
+    );
+  }
+
+  if (mode === 'csv') return <CsvTable content={content} />;
+
+  if (mode === 'code') {
+    return (
+      <pre dir="ltr" className="h-full w-full overflow-auto rounded-sm border border-rule bg-ground/40 p-4 text-left font-mono text-xs leading-relaxed text-ink">
+        {content}
+      </pre>
+    );
   }
 
   if (mode === 'markdown') {
@@ -441,5 +497,50 @@ function TextFilePreview({ url, mode, title }: { url: string; mode: 'plain' | 'm
     <pre dir="auto" className="h-full w-full overflow-auto whitespace-pre-wrap break-words rounded-sm border border-rule bg-ground/40 p-4 text-start text-xs text-ink">
       {content}
     </pre>
+  );
+}
+
+/** Splits CSV text into rows, honoring quoted fields that hold commas, quotes or line breaks. */
+export function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let quoted = false;
+  const delimiter = !text.split('\n', 1)[0]!.includes(',') && text.includes(';') ? ';' : ',';
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]!;
+    if (quoted) {
+      if (ch === '"' && text[i + 1] === '"') { field += '"'; i++; }
+      else if (ch === '"') quoted = false;
+      else field += ch;
+    } else if (ch === '"') quoted = true;
+    else if (ch === delimiter) { row.push(field); field = ''; }
+    else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); rows.push(row); row = []; field = '';
+    } else field += ch;
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+function CsvTable({ content }: { content: string }) {
+  const [header, ...rows] = parseCsv(content.replace(/^\uFEFF/, ''));
+  if (!header) return <p className="text-sm text-ink/50">הקובץ ריק</p>;
+  return (
+    <div className="h-full w-full overflow-auto rounded-sm border border-rule bg-sheet">
+      <table dir="auto" className="w-full border-collapse text-xs">
+        <thead className="sticky top-0 bg-ground">
+          <tr>{header.map((h, i) => <th key={i} className="border-b border-rule px-3 py-2 text-start font-semibold">{h}</th>)}</tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} className="odd:bg-ground/30">
+              {header.map((_, j) => <td key={j} className="border-b border-rule/60 px-3 py-1.5">{r[j] ?? ''}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

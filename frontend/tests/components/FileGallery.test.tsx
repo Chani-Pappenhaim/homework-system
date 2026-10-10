@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { FileGallery } from '@/components/ui/file-gallery';
+import { FileGallery, parseCsv, withPreviewPolicy } from '@/components/ui/file-gallery';
 
 const PDF = {
   id: 'f1',
@@ -69,7 +69,7 @@ describe('FileGallery', () => {
     expect(container.querySelector('iframe')).toBeNull();
   });
 
-  it('renders an html file inside an empty sandbox', async () => {
+  it('runs an html file isolated from the app and cut off from the network', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('<h1>שלום</h1><script>alert(1)</script>')));
     const { baseElement } = render(<FileGallery files={[{ id: 'f5', name: 'page.html', url: '/files/download/f5/file.html?token=t', extension: 'html' }]} />);
     await userEvent.click(screen.getByRole('button', { name: /page.html/ }));
@@ -78,8 +78,34 @@ describe('FileGallery', () => {
       if (!f) throw new Error('no frame yet');
       return f as HTMLIFrameElement;
     });
-    expect(frame.getAttribute('sandbox')).toBe('');
-    expect(frame.getAttribute('srcdoc')).toContain('<h1>שלום</h1>');
+    expect(frame.getAttribute('sandbox')).toBe('allow-scripts');
+    const doc = frame.getAttribute('srcdoc')!;
+    expect(doc).toContain('<h1>שלום</h1>');
+    // The policy precedes every byte of the file, so none of its markup runs unguarded.
+    expect(doc.indexOf('Content-Security-Policy')).toBeLessThan(doc.indexOf('<h1>'));
+    vi.unstubAllGlobals();
+  });
+
+  it('opens a show-mode presentation in the office viewer', async () => {
+    const { baseElement } = render(<FileGallery files={[{ id: 'f9', name: 'מצגת', url: '/files/download/f9/file.ppsx?token=t', extension: 'ppsx' }]} />);
+    await userEvent.click(screen.getByRole('button', { name: /מצגת/ }));
+    expect(baseElement.querySelector('iframe')!.getAttribute('src')).toContain('view.officeapps.live.com');
+  });
+
+  it('shows a code file as left-to-right text', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('print("hi")')));
+    render(<FileGallery files={[{ id: 'f10', name: 'main.py', url: '/files/download/f10/file.py?token=t', extension: 'py' }]} />);
+    await userEvent.click(screen.getByRole('button', { name: /main.py/ }));
+    expect((await screen.findByText('print("hi")')).getAttribute('dir')).toBe('ltr');
+    vi.unstubAllGlobals();
+  });
+
+  it('shows a csv file as a table', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('שם,ציון\nרחל,95')));
+    render(<FileGallery files={[{ id: 'f11', name: 'grades.csv', url: '/files/download/f11/file.csv?token=t', extension: 'csv' }]} />);
+    await userEvent.click(screen.getByRole('button', { name: /grades.csv/ }));
+    expect(await screen.findByRole('columnheader', { name: 'ציון' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'רחל' })).toBeInTheDocument();
     vi.unstubAllGlobals();
   });
 
@@ -133,5 +159,24 @@ describe('FileGallery', () => {
     render(<FileGallery files={[PDF]} onDelete={onDelete} onToggleRequired={onToggleRequired} />);
     expect(screen.getByLabelText('מחיקת קובץ')).toBeInTheDocument();
     expect(screen.getByLabelText('סימון כקובץ חובה')).toBeInTheDocument();
+  });
+});
+
+describe('withPreviewPolicy', () => {
+  it('blocks every way of sending data out', () => {
+    const doc = withPreviewPolicy('<p>x</p>');
+    for (const rule of ["connect-src 'none'", "form-action 'none'", 'img-src data: blob:', "default-src 'none'"]) {
+      expect(doc).toContain(rule);
+    }
+  });
+});
+
+describe('parseCsv', () => {
+  it('keeps commas, quotes and line breaks inside quoted fields', () => {
+    expect(parseCsv('a,b\r\n"x, y","say ""hi""\nthere"')).toEqual([['a', 'b'], ['x, y', 'say "hi"\nthere']]);
+  });
+
+  it('reads semicolon-separated files', () => {
+    expect(parseCsv('a;b\n1;2')).toEqual([['a', 'b'], ['1', '2']]);
   });
 });
