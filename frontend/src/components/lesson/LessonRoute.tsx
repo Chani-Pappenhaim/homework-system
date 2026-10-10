@@ -3,7 +3,7 @@ import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { coursesApi } from '@/api/courses.api';
 import { lessonsApi } from '@/api/lessons.api';
-import { courseSlugs, lessonSegment, slugify } from '@/lib/slugs';
+import { courseSlugs, legacyCourseSlugs, lessonSegment, slugify } from '@/lib/slugs';
 
 type Area = 'teacher' | 'student';
 
@@ -47,7 +47,7 @@ function useCourseList() {
 function useCourseSlugs() {
   const query = useCourseList();
   const courses = query.data?.data.data.courses ?? [];
-  return { slugs: courseSlugs(courses), isLoading: query.isLoading };
+  return { slugs: courseSlugs(courses), legacy: legacyCourseSlugs(courses), isLoading: query.isLoading };
 }
 
 function useCourseLessons(courseId: string | undefined) {
@@ -68,12 +68,13 @@ function useCourseLessons(courseId: string | undefined) {
 export function CourseRoute({ area, children }: { area: Area; children: (course: CoursePageProps) => ReactNode }) {
   const { courseId: param = '' } = useParams<{ courseId: string }>();
   const location = useLocation();
-  const { slugs, isLoading } = useCourseSlugs();
+  const { slugs, legacy, isLoading } = useCourseSlugs();
 
   if (isLoading) return <Loading />;
   let courseId: string | undefined;
   if (slugs.has(param)) courseId = param;
-  else courseId = [...slugs].find(([, slug]) => slug === param)?.[0];
+  else courseId = [...slugs].find(([, slug]) => slug === param)?.[0]
+    ?? [...legacy].find(([, slug]) => slug === param)?.[0];
 
   if (!courseId) {
     // Not in the viewer's list — an id still opens the course (the server

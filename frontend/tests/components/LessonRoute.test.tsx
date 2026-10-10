@@ -58,7 +58,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   listCourses.mockResolvedValue({ data: { data: { courses: [
     { id: 'c1', name: 'תחביר בסיסי', createdAt: '2026-01-01' },
-    { id: 'c2', name: 'תחביר בסיסי', createdAt: '2026-02-01' },
+    { id: 'c2', name: 'תחביר בסיסי', groupName: 'כיתה ב', createdAt: '2026-02-01' },
+    { id: 'c3', name: 'מבוא', createdAt: '2026-03-01' },
   ] } } });
   getCourse.mockResolvedValue({ data: { data: { course: { id: 'c1', lessons: [
     { id: 'l1', topic: 'מבוא' }, { id: 'l2', topic: 'לולאות ותנאים' },
@@ -72,9 +73,14 @@ describe('course routes', () => {
     expect(await screen.findByText('course c1 slug תחביר-בסיסי')).toBeInTheDocument();
   });
 
-  it('numbers a second course with the same name', async () => {
+  it('tells a second course with the same name apart by its group', async () => {
+    renderAt(`${COURSE}-כיתה-ב`);
+    expect(await screen.findByText('course c2 slug תחביר-בסיסי-כיתה-ב')).toBeInTheDocument();
+  });
+
+  it('moves an older numbered address to the group one', async () => {
     renderAt(`${COURSE}-2`);
-    expect(await screen.findByText('course c2 slug תחביר-בסיסי-2')).toBeInTheDocument();
+    expect(await screen.findByText(`at ${COURSE}-כיתה-ב`)).toBeInTheDocument();
   });
 
   it('moves an id address to the name', async () => {
