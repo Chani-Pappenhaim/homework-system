@@ -1,5 +1,5 @@
 import api from './axios';
-import { uploadToCloudinary } from '@/lib/upload';
+import { uploadSignedThenRegister } from '@/lib/signed-upload';
 import type { MySubmission, PendingAssignment, SubmissionDTO } from '@/types';
 
 /** Videos are the one submission type large enough to threaten the backend's memory limit. */
@@ -28,23 +28,11 @@ export const submissionsApi = {
    */
   submitVideo: async (assignmentId: string, file: File, notes?: string, onProgress?: (percent: number) => void) => {
     const { data } = await api.post(`/assignments/${assignmentId}/video-upload-signature`);
-    const { apiKey, cloudName, timestamp, signature, folder, allowedFormats } = data.data;
-
-    const form = new FormData();
-    form.append('file', file);
-    form.append('api_key', apiKey);
-    form.append('timestamp', String(timestamp));
-    form.append('signature', signature);
-    form.append('folder', folder);
-    // Signed along with the rest, so it must be sent exactly as given.
-    if (allowedFormats) form.append('allowed_formats', allowedFormats);
-
-    const uploaded = await uploadToCloudinary(`https://api.cloudinary.com/v1_1/${cloudName}/video/upload`, form, onProgress);
-
-    return api.post(`/assignments/${assignmentId}/submit`, {
-      uploadedFile: { url: uploaded.secure_url, originalName: file.name },
-      notes,
-    });
+    return uploadSignedThenRegister(data.data, file, 'video', (uploaded) =>
+      api.post(`/assignments/${assignmentId}/submit`, {
+        uploadedFile: { url: uploaded.secure_url, originalName: file.name },
+        notes,
+      }), onProgress);
   },
 
   submitRepo: (assignmentId: string, repoName: string, notes?: string) =>
