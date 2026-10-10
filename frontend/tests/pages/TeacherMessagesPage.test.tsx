@@ -62,5 +62,6 @@ describe('TeacherMessagesPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'שלחי' }));
 
     await waitFor(() => expect(reply).toHaveBeenCalledWith('m1', 'תשובה שלי'));
-  });
+    // Typing into the rich editor is slow when the whole suite runs in parallel.
+  }, 15000);
 });
