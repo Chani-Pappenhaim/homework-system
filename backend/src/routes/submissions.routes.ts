@@ -9,6 +9,7 @@ import { uploadAttachment, uploadImport } from '../middleware/upload';
 const router = Router();
 router.use(verifyAccessTokenMiddleware);
 
+router.get('/import-template', requireRole('ADMIN'), submissionsController.downloadImportTemplate);
 router.post('/import', requireRole('ADMIN'), uploadImport.single('file'), requireFile, submissionsController.importSubmissions);
 router.post('/:id/submit', requireRole('STUDENT'), uploadAttachment.single('file'), submissionsController.submit);
 // Signed Cloudinary params for a video submission — the browser uploads directly

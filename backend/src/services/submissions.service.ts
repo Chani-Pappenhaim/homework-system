@@ -7,7 +7,7 @@ import { assertLessonAccess } from '../utils/access';
 import { computeSubmissionScore } from '../utils/grading';
 import { aiReviewQueue, emailQueue } from '../infrastructure/queues/queues';
 import type { EmailJobMap } from '../infrastructure/queues/job-types';
-import { cellText } from '../utils/excel';
+import { buildTemplateWorkbook, cellText } from '../utils/excel';
 import { getRepoStatus, normalizeRepoName, parseRepoRef } from '../utils/github';
 import ExcelJS from 'exceljs';
 
@@ -448,6 +448,11 @@ export async function allowExtraAiReview(submissionId: string) {
     where: { id: submissionId },
     data: { aiExtraAllowed: true },
   });
+}
+
+/** The blank sheet importSubmissions reads: assignment title, student email, repo. */
+export function buildSubmissionsTemplate(): Promise<Buffer> {
+  return buildTemplateWorkbook(['שם המטלה', 'מייל התלמידה', 'ריפו (שם, owner/repo או קישור)'], ['תרגיל 1', 'student@example.com', 'my-repo']);
 }
 
 export async function importSubmissions(buffer: Buffer) {
