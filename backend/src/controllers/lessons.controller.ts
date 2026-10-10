@@ -38,8 +38,8 @@ export async function getLesson(req: Request, res: Response) {
 
 export async function setProgress(req: Request, res: Response) {
   try {
-    const completed = req.body.completed !== false; // default true
-    const result = await lessonsService.setLessonProgress(req.user!.userId, req.params.id as string, completed);
+    const completed = req.body?.completed !== false; // default true
+    const result = await lessonsService.setLessonProgress(req.user!.userId, req.params.id as string, completed, req.user!.role);
     res.json({ success: true, data: result });
   } catch (err: any) {
     sendError(res, err);
@@ -57,7 +57,7 @@ export async function updateLesson(req: Request, res: Response) {
 
 export async function reorderLessons(req: Request, res: Response) {
   try {
-    await lessonsService.reorderLessons(req.body.lessons);
+    await lessonsService.reorderLessons(req.body?.lessons);
     res.json({ success: true, data: null });
   } catch (err: any) {
     sendError(res, err);

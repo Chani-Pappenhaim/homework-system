@@ -4,7 +4,7 @@ vi.mock('../../src/config/prisma', () => ({
   prisma: {
     assignment: { findUnique: vi.fn(), findMany: vi.fn(), findFirst: vi.fn() },
     user: { findUnique: vi.fn() },
-    submission: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+    submission: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
     grade: { findUnique: vi.fn(), upsert: vi.fn() },
   },
 }));
@@ -41,6 +41,7 @@ import {
   importSubmissions,
   getVideoUploadSignature,
   rerunAiReview,
+  requestAiReview,
 } from '../../src/services/submissions.service';
 
 process.env.CLOUDINARY_CLOUD_NAME = 'our-cloud';
@@ -476,5 +477,36 @@ describe('submissions.service rerunAiReview', () => {
   it('throws 404 for a missing submission', async () => {
     p.submission.findUnique.mockResolvedValue(null);
     await expect(rerunAiReview('nope')).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe('submissions.service.requestAiReview', () => {
+  const sub = (over: any = {}) => ({
+    id: 'sub1', studentId: 's1', githubUrl: 'https://github.com/dina/a', fileUrl: null, fileName: null,
+    aiStatus: 'none', aiReviewCount: 0, aiExtraAllowed: false, ...over,
+  });
+
+  it('claims the review with one conditional write and queues it', async () => {
+    p.submission.findUnique.mockResolvedValue(sub());
+    p.submission.updateMany.mockResolvedValue({ count: 1 });
+    await requestAiReview('sub1', 's1');
+    expect(p.submission.updateMany).toHaveBeenCalledWith({
+      where: { id: 'sub1', aiStatus: { not: 'pending' }, aiReviewCount: { lt: 1 } },
+      data: { aiStatus: 'pending', aiError: null },
+    });
+    expect(aiQueueAdd).toHaveBeenCalledTimes(1);
+  });
+
+  it('is a 409 and queues nothing when a parallel request won the race', async () => {
+    p.submission.findUnique.mockResolvedValue(sub());
+    p.submission.updateMany.mockResolvedValue({ count: 0 });
+    await expect(requestAiReview('sub1', 's1')).rejects.toMatchObject({ status: 409 });
+    expect(aiQueueAdd).not.toHaveBeenCalled();
+  });
+
+  it('is a 409 while a review is already pending', async () => {
+    p.submission.findUnique.mockResolvedValue(sub({ aiStatus: 'pending' }));
+    await expect(requestAiReview('sub1', 's1')).rejects.toMatchObject({ status: 409 });
+    expect(p.submission.updateMany).not.toHaveBeenCalled();
   });
 });

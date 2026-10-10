@@ -12,7 +12,7 @@ export const lessonsApi = {
   create: (courseId: string, data: { topic: string; lessonDate?: string; contentMd?: string; githubUrls?: string[]; hidden?: boolean; order?: number }) =>
     api.post<{ success: true; data: { lesson: { id: string } } }>(`/courses/${courseId}/lessons`, data),
 
-  update: (id: string, data: Partial<{ topic: string; lessonDate: string; contentMd: string; githubUrls: string[]; hidden: boolean; order: number }>) =>
+  update: (id: string, data: Partial<{ topic: string; lessonDate: string | null; contentMd: string; githubUrls: string[]; hidden: boolean }>) =>
     api.put(`/lessons/${id}`, data),
 
   delete: (id: string) =>

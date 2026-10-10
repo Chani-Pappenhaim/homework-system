@@ -181,7 +181,7 @@ describe('lessons controller', () => {
     (lessonsService.setLessonProgress as any).mockResolvedValue({ completed: true });
     const res = await request(app).post('/api/lessons/l1/progress').set(...bearer(student)).send({ completed: true });
     expect(res.status).toBe(200);
-    expect(lessonsService.setLessonProgress).toHaveBeenCalledWith('stud1', 'l1', true);
+    expect(lessonsService.setLessonProgress).toHaveBeenCalledWith('stud1', 'l1', true, 'STUDENT');
   });
 
   it('POST /api/lessons/:id/progress maps a blocked completion (missing required files) to a 400 envelope', async () => {

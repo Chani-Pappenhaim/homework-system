@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../src/config/prisma', () => ({
   prisma: {
+    $transaction: vi.fn((ops: unknown[]) => Promise.all(ops)),
     lesson: { findMany: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
     course: { findUnique: vi.fn() },
     lessonAccess: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), delete: vi.fn() },
@@ -127,11 +128,26 @@ describe('lessons.service.getLessonById', () => {
 
 describe('lessons.service.reorderLessons', () => {
   it('issues one update per lesson with its new order', async () => {
+    p.lesson.findMany.mockResolvedValue([{ courseId: 'c1' }, { courseId: 'c1' }]);
     p.lesson.update.mockResolvedValue({});
     await reorderLessons([{ id: 'l1', order: 2 }, { id: 'l2', order: 1 }]);
     expect(p.lesson.update).toHaveBeenCalledTimes(2);
     expect(p.lesson.update).toHaveBeenCalledWith({ where: { id: 'l1' }, data: { order: 2 } });
     expect(p.lesson.update).toHaveBeenCalledWith({ where: { id: 'l2' }, data: { order: 1 } });
+    expect(p.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses to mix lessons of different courses', async () => {
+    p.lesson.findMany.mockResolvedValue([{ courseId: 'c1' }, { courseId: 'c2' }]);
+    await expect(reorderLessons([{ id: 'l1', order: 0 }, { id: 'l9', order: 1 }])).rejects.toMatchObject({ status: 400 });
+    expect(p.lesson.update).not.toHaveBeenCalled();
+  });
+
+  it('is a 404 when a lesson is missing and a 400 for a malformed body', async () => {
+    p.lesson.findMany.mockResolvedValue([{ courseId: 'c1' }]);
+    await expect(reorderLessons([{ id: 'l1', order: 0 }, { id: 'gone', order: 1 }])).rejects.toMatchObject({ status: 404 });
+    await expect(reorderLessons(undefined as any)).rejects.toMatchObject({ status: 400 });
+    await expect(reorderLessons([{ id: 'l1', order: 'x' as any }])).rejects.toMatchObject({ status: 400 });
   });
 });
 
@@ -178,6 +194,20 @@ describe('lessons.service create / update / markdown', () => {
     p.lesson.update.mockResolvedValue({ id: 'l1' });
     await updateLesson('l1', { topic: 'New' });
     expect(p.lesson.update).toHaveBeenCalledWith({ where: { id: 'l1' }, data: { topic: 'New' } });
+  });
+  it('updateLesson stores the date as a Date, clears it with null and rejects garbage', async () => {
+    p.lesson.update.mockResolvedValue({});
+    await updateLesson('l1', { lessonDate: '2026-05-01' });
+    expect(p.lesson.update.mock.calls[0][0].data.lessonDate).toBeInstanceOf(Date);
+    await updateLesson('l1', { lessonDate: null });
+    expect(p.lesson.update.mock.calls[1][0].data.lessonDate).toBeNull();
+    await expect(updateLesson('l1', { lessonDate: 'soon' })).rejects.toMatchObject({ status: 400 });
+  });
+  it('updateLesson ignores fields outside the editable set and rejects an empty topic', async () => {
+    p.lesson.update.mockResolvedValue({});
+    await updateLesson('l1', { hidden: true, courseId: 'other', order: 4 } as any);
+    expect(p.lesson.update.mock.calls[0][0].data).toEqual({ hidden: true });
+    await expect(updateLesson('l1', { topic: '  ' })).rejects.toMatchObject({ status: 400 });
   });
   it('importMarkdown stores content into contentMd', async () => {
     p.lesson.update.mockResolvedValue({});
@@ -282,6 +312,14 @@ describe('lessons.service mandatory files', () => {
   });
 
   describe('setLessonProgress gating on required files', () => {
+    it('checks the student may open the lesson before recording anything', async () => {
+      assertLessonAccessMock.mockRejectedValue(Object.assign(new Error('x'), { status: 403 }));
+      await expect(setLessonProgress('s1', 'hidden', true)).rejects.toMatchObject({ status: 403 });
+      await expect(setLessonProgress('s1', 'hidden', false)).rejects.toMatchObject({ status: 403 });
+      expect(p.lessonProgress.upsert).not.toHaveBeenCalled();
+      expect(p.lessonProgress.deleteMany).not.toHaveBeenCalled();
+    });
+
     it('marks completion directly when the lesson has no required files', async () => {
       p.lessonFile.findMany.mockResolvedValue([]);
       p.lessonProgress.upsert.mockResolvedValue({});

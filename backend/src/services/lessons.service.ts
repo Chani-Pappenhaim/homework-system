@@ -203,7 +203,10 @@ export async function copyLesson(lessonId: string, targetCourseId?: string) {
   });
 }
 
-export async function setLessonProgress(studentId: string, lessonId: string, completed: boolean) {
+export async function setLessonProgress(studentId: string, lessonId: string, completed: boolean, role = 'STUDENT') {
+  // Without this a student could mark progress on a hidden lesson or one
+  // from another group just by knowing its id.
+  await assertLessonAccess(studentId, role, lessonId);
   if (completed) {
     await assertRequiredFilesViewed(studentId, lessonId);
     await prisma.lessonProgress.upsert({
@@ -217,22 +220,52 @@ export async function setLessonProgress(studentId: string, lessonId: string, com
   return { lessonId, completed };
 }
 
-export async function updateLesson(id: string, data: Partial<{
-  topic: string; lessonDate: string; contentMd: string;
-  githubUrls: string[]; hidden: boolean; order: number;
-}>) {
-  const { githubUrls, ...rest } = data;
-  return prisma.lesson.update({
-    where: { id },
-    data: {
-      ...rest,
-      ...(githubUrls !== undefined ? { githubUrls: cleanGithubUrls(githubUrls) } : {}),
-    },
-  });
+type LessonUpdate = Partial<{
+  topic: string; lessonDate: string | null; contentMd: string;
+  githubUrls: string[]; hidden: boolean;
+}>;
+
+function parseLessonDate(value: unknown): Date | null {
+  if (value === null || value === '') return null;
+  const date = new Date(value as string);
+  if (typeof value !== 'string' || Number.isNaN(date.getTime())) {
+    throw new AppError('Invalid lesson date', 'תאריך השיעור אינו תקין', 400);
+  }
+  return date;
+}
+
+// Only these fields come from the request; the course and the order are
+// changed through their own flows (copy, reorder), never through a PATCH body.
+export async function updateLesson(id: string, data: LessonUpdate) {
+  const body = (data ?? {}) as Record<string, unknown>;
+  const update: Record<string, unknown> = {};
+  if (body.topic !== undefined) {
+    if (typeof body.topic !== 'string' || !body.topic.trim()) {
+      throw new AppError('Topic is required', 'יש להזין נושא לשיעור', 400);
+    }
+    update.topic = body.topic.trim();
+  }
+  if (body.lessonDate !== undefined) update.lessonDate = parseLessonDate(body.lessonDate);
+  if (body.contentMd !== undefined) update.contentMd = typeof body.contentMd === 'string' ? body.contentMd : '';
+  if (typeof body.hidden === 'boolean') update.hidden = body.hidden;
+  if (Array.isArray(body.githubUrls)) update.githubUrls = cleanGithubUrls(body.githubUrls as string[]);
+  return prisma.lesson.update({ where: { id }, data: update });
 }
 
 export async function reorderLessons(lessons: { id: string; order: number }[]) {
-  await Promise.all(
+  const valid = Array.isArray(lessons) && lessons.length > 0
+    && lessons.every((l) => l && typeof l.id === 'string' && Number.isInteger(l.order));
+  if (!valid) throw new AppError('Invalid lesson order', 'רשימת הסדר אינה תקינה', 400);
+
+  const ids = [...new Set(lessons.map((l) => l.id))];
+  const found = await prisma.lesson.findMany({ where: { id: { in: ids } }, select: { courseId: true } });
+  if (found.length !== ids.length) throw new AppError('Lesson not found', 'חלק מהשיעורים לא נמצאו', 404);
+  if (new Set(found.map((l) => l.courseId)).size > 1) {
+    throw new AppError('Lessons from several courses', 'אפשר לסדר רק שיעורים של אותו קורס', 400);
+  }
+
+  // All or nothing, so a dropped connection can't leave half a new order.
+  await prisma.$transaction(
     lessons.map((l) => prisma.lesson.update({ where: { id: l.id }, data: { order: l.order } }))
   );
 }

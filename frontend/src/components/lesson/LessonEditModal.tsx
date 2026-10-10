@@ -35,7 +35,7 @@ export function LessonEditModal({ lesson, open, onClose }: {
   const saveMutation = useMutation({
     mutationFn: () => lessonsApi.update(lesson.id, {
       topic,
-      lessonDate: date || undefined,
+      lessonDate: date || null,
       contentMd,
       githubUrls: githubUrls.map((u) => u.trim()).filter(Boolean),
       hidden,

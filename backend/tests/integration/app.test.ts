@@ -220,14 +220,14 @@ describe('submissions controller — AI review (service-backed routes)', () => {
     expect(res.body.error).toBe('מכסת בדיקות ה-AI עבור הגשה זו נוצלה');
   });
 
-  it('request-ai-review returns 400 when a review is already pending', async () => {
+  it('request-ai-review returns 409 when a review is already pending', async () => {
     (submissionsService.requestAiReview as any).mockRejectedValue(
-      new AppError('Review already in progress', 'בדיקת AI כבר מתבצעת עבור הגשה זו', 400)
+      new AppError('Review already in progress', 'בדיקת AI כבר מתבצעת עבור הגשה זו', 409)
     );
     const res = await request(app)
       .post('/api/submissions/sub1/request-ai-review')
       .set('Authorization', `Bearer ${studentToken}`);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(409);
     expect(res.body.error).toBe('בדיקת AI כבר מתבצעת עבור הגשה זו');
   });
 

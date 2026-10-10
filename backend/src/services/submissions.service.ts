@@ -310,10 +310,18 @@ export async function requestAiReview(submissionId: string, studentId: string) {
     throw new AppError('AI review limit reached', 'מכסת בדיקות ה-AI עבור הגשה זו נוצלה', 400);
   }
   if (submission.aiStatus === 'pending') {
-    throw new AppError('Review already in progress', 'בדיקת AI כבר מתבצעת עבור הגשה זו', 400);
+    throw new AppError('Review already in progress', 'בדיקת AI כבר מתבצעת עבור הגשה זו', 409);
   }
 
-  await prisma.submission.update({ where: { id: submission.id }, data: { aiStatus: 'pending', aiError: null } });
+  // Claim the review in one conditional write: two quick clicks (or two tabs)
+  // both pass the checks above, but only one of them can flip the status.
+  const claimed = await prisma.submission.updateMany({
+    where: { id: submission.id, aiStatus: { not: 'pending' }, aiReviewCount: { lt: maxReviews } },
+    data: { aiStatus: 'pending', aiError: null },
+  });
+  if (claimed.count === 0) {
+    throw new AppError('Review already in progress', 'בדיקת AI כבר מתבצעת עבור הגשה זו', 409);
+  }
   await aiReviewQueue.add(
     'review',
     { submissionId: submission.id },
