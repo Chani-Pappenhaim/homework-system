@@ -95,7 +95,7 @@ export async function downloadImportTemplate(_req: Request, res: Response) {
 
 export async function resetPassword(req: Request, res: Response) {
   try {
-    await groupsService.resetStudentPassword(req.params.studentId as string);
+    await groupsService.resetStudentPassword(req.params.id as string, req.params.studentId as string);
     res.json({ success: true, data: null });
   } catch (err: any) {
     sendError(res, err);

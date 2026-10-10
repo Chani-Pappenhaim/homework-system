@@ -2,17 +2,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../src/config/prisma', () => ({
   prisma: {
+    $transaction: vi.fn((ops: unknown[]) => Promise.all(ops)),
+    course: { deleteMany: vi.fn() },
     user: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     studentGroup: { create: vi.fn(), delete: vi.fn(), count: vi.fn(), findUnique: vi.fn() },
     group: { findMany: vi.fn(), create: vi.fn(), findUnique: vi.fn(), update: vi.fn(), delete: vi.fn() },
   },
 }));
 
-// deleteGroup delegates course removal (with its storage cleanup) to courses.service.
-const { deleteCourseMock } = vi.hoisted(() => ({ deleteCourseMock: vi.fn() }));
-vi.mock('../../src/services/courses.service', () => ({
-  deleteCourse: deleteCourseMock,
-}));
+const { releaseMock } = vi.hoisted(() => ({ releaseMock: vi.fn() }));
+vi.mock('../../src/utils/file-refs', () => ({ releaseFileUrls: releaseMock }));
 
 vi.mock('bcryptjs', () => ({
   default: { hash: vi.fn(async () => 'hashed-pw'), compare: vi.fn() },
@@ -34,6 +33,7 @@ import ExcelJS from 'exceljs';
 import { prisma } from '../../src/config/prisma';
 import {
   addStudent,
+  updateStudent,
   removeStudent,
   resetStudentPassword,
   createGroup,
@@ -62,15 +62,27 @@ beforeEach(() => {
 
 describe('groups.service', () => {
   describe('addStudent', () => {
+    it("won't add a teacher's account to a group", async () => {
+      p.user.findUnique.mockResolvedValue({ id: 't1', name: 'T', role: 'ADMIN' });
+      await expect(addStudent('g1', 'T', 't@x.com')).rejects.toMatchObject({ status: 409 });
+      expect(p.studentGroup.create).not.toHaveBeenCalled();
+    });
+
+    it('updateStudent rejects an empty name', async () => {
+      p.studentGroup.findUnique.mockResolvedValue({ studentId: 's1', groupId: 'g1' });
+      await expect(updateStudent('g1', 's1', { name: '   ' })).rejects.toMatchObject({ status: 400 });
+      expect(p.user.update).not.toHaveBeenCalled();
+    });
+
     it('throws 409 when the student is already in this group', async () => {
-      p.user.findUnique.mockResolvedValue({ id: 'existing', name: 'A' });
+      p.user.findUnique.mockResolvedValue({ id: 'existing', name: 'A', role: 'STUDENT' });
       p.studentGroup.findUnique.mockResolvedValue({ studentId: 'existing', groupId: 'g1' });
       await expect(addStudent('g1', 'A', 'a@x.com')).rejects.toMatchObject({ status: 409 });
       expect(p.user.create).not.toHaveBeenCalled();
     });
 
     it('joins an existing account (from another group) to this group instead of erroring, with a warning if the name differs', async () => {
-      p.user.findUnique.mockResolvedValue({ id: 'existing', name: 'Old Name' });
+      p.user.findUnique.mockResolvedValue({ id: 'existing', name: 'Old Name', role: 'STUDENT' });
       p.studentGroup.findUnique.mockResolvedValue(null);
       p.studentGroup.create.mockResolvedValue({});
       const r = await addStudent('g1', 'New Name', 'a@x.com');
@@ -115,10 +127,20 @@ describe('groups.service', () => {
   });
 
   describe('resetStudentPassword', () => {
+    beforeEach(() => p.studentGroup.findUnique.mockResolvedValue({ student: { role: 'STUDENT' } }));
+
+    it('refuses an account outside the group or one that is not a student', async () => {
+      p.studentGroup.findUnique.mockResolvedValue(null);
+      await expect(resetStudentPassword('g1', 'other')).rejects.toMatchObject({ status: 404 });
+      p.studentGroup.findUnique.mockResolvedValue({ student: { role: 'ADMIN' } });
+      await expect(resetStudentPassword('g1', 't1')).rejects.toMatchObject({ status: 404 });
+      expect(p.user.update).not.toHaveBeenCalled();
+    });
+
     it('resets password, sets mustChangePassword and enqueues a reset-password email', async () => {
       p.user.update.mockResolvedValue({ email: 'a@x.com', name: 'A' });
       emailAdd.mockResolvedValue({});
-      await resetStudentPassword('s1');
+      await resetStudentPassword('g1', 's1');
       expect(p.user.update).toHaveBeenCalledWith({
         where: { id: 's1' },
         data: { password: 'hashed-pw', mustChangePassword: true, tokenVersion: { increment: 1 } },
@@ -130,7 +152,7 @@ describe('groups.service', () => {
       p.user.update.mockResolvedValue({ email: 'a@x.com', name: 'A' });
       emailAdd.mockRejectedValue(new Error('redis down'));
       const err = vi.spyOn(console, 'error').mockImplementation(() => {});
-      await expect(resetStudentPassword('s1')).resolves.toBeUndefined();
+      await expect(resetStudentPassword('g1', 's1')).resolves.toBeUndefined();
       expect(err).toHaveBeenCalled();
       err.mockRestore();
     });
@@ -205,23 +227,23 @@ describe('groups.service', () => {
       expect(p.group.delete).not.toHaveBeenCalled();
     });
 
-    it("deletes each of the group's courses first, then the group", async () => {
-      p.group.findUnique.mockResolvedValue({ id: 'g1', courses: [{ id: 'c1' }, { id: 'c2' }] });
-      deleteCourseMock.mockResolvedValue(undefined);
-      p.group.delete.mockResolvedValue({});
+    it('removes the courses and the group in one transaction, then releases their files', async () => {
+      p.group.findUnique.mockResolvedValue({ id: 'g1', courses: [
+        { id: 'c1', files: [{ url: 'u1' }], lessons: [{ files: [{ url: 'u2' }] }] },
+        { id: 'c2', files: [], lessons: [] },
+      ] });
       await deleteGroup('g1');
-      expect(deleteCourseMock).toHaveBeenCalledTimes(2);
-      expect(deleteCourseMock).toHaveBeenCalledWith('c1');
-      expect(deleteCourseMock).toHaveBeenCalledWith('c2');
+      expect(p.$transaction).toHaveBeenCalledTimes(1);
+      expect(p.course.deleteMany).toHaveBeenCalledWith({ where: { groupId: 'g1' } });
       expect(p.group.delete).toHaveBeenCalledWith({ where: { id: 'g1' } });
+      expect(releaseMock).toHaveBeenCalledWith(['u1', 'u2']);
     });
 
-    it('deletes a group with no courses directly', async () => {
+    it('releases nothing when the transaction fails', async () => {
       p.group.findUnique.mockResolvedValue({ id: 'g1', courses: [] });
-      p.group.delete.mockResolvedValue({});
-      await deleteGroup('g1');
-      expect(deleteCourseMock).not.toHaveBeenCalled();
-      expect(p.group.delete).toHaveBeenCalledWith({ where: { id: 'g1' } });
+      p.$transaction.mockRejectedValueOnce(new Error('db down'));
+      await expect(deleteGroup('g1')).rejects.toThrow('db down');
+      expect(releaseMock).not.toHaveBeenCalled();
     });
   });
 
@@ -230,6 +252,14 @@ describe('groups.service', () => {
       const buf = await xlsxBuffer([[null, 'a@x.com', null]]);
       const r = await importStudents('g1', buf);
       expect(r.errors.some((e) => e.includes('חסר שם או אימייל'))).toBe(true);
+    });
+
+    it("reports a row whose email belongs to a teacher instead of enrolling her", async () => {
+      p.user.findUnique.mockResolvedValue({ id: 't1', role: 'ADMIN' });
+      const r = await importStudents('g1', await xlsxBuffer([['T', 't@x.com', null]]));
+      expect(r.imported).toBe(0);
+      expect(r.errors[0]).toContain('שאינו תלמידה');
+      expect(p.studentGroup.create).not.toHaveBeenCalled();
     });
 
     it('creates a new student and counts it as imported', async () => {
@@ -245,7 +275,7 @@ describe('groups.service', () => {
     });
 
     it('counts an already-enrolled student as skipped, not imported', async () => {
-      p.user.findUnique.mockResolvedValue({ id: 's1' });
+      p.user.findUnique.mockResolvedValue({ id: 's1', role: 'STUDENT' });
       p.studentGroup.findUnique.mockResolvedValue({ studentId: 's1', groupId: 'g1' });
       const buf = await xlsxBuffer([['A', 'a@x.com', 'gh']]);
       const r = await importStudents('g1', buf);

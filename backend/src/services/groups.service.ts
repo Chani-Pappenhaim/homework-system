@@ -3,7 +3,7 @@ import { prisma } from '../config/prisma';
 import ExcelJS from 'exceljs';
 import { emailQueue } from '../infrastructure/queues/queues';
 import { AppError } from '../utils/errors';
-import { deleteCourse } from './courses.service';
+import { releaseFileUrls } from '../utils/file-refs';
 import { sendEmailVerification, changeEmail } from './auth.service';
 import { cellText, isValidEmail, normalizeGithubUsername, buildTemplateWorkbook } from '../utils/excel';
 
@@ -91,6 +91,12 @@ export async function updateGroup(id: string, data: Partial<GroupFields> & Group
  * name/GitHub username are never overwritten; a `warning` is returned instead
  * when the submitted name differs from the stored one.
  */
+// Teachers have accounts too; adding one to a group by her email would make
+// her a "student" of it, so only student accounts may join.
+function notAStudent() {
+  return new AppError('Email belongs to a non-student account', 'כתובת המייל שייכת לחשבון שאינו תלמידה', 409);
+}
+
 export async function addStudent(groupId: string, name: string, email: string, githubUsername?: string) {
   email = email.trim().toLowerCase();
   if (!isValidEmail(email)) throw new AppError('Invalid email address', 'כתובת אימייל לא תקינה', 400);
@@ -99,6 +105,7 @@ export async function addStudent(groupId: string, name: string, email: string, g
   const existing = await prisma.user.findUnique({ where: { email } });
 
   if (existing) {
+    if (existing.role !== 'STUDENT') throw notAStudent();
     const alreadyInGroup = await prisma.studentGroup.findUnique({
       where: { studentId_groupId: { studentId: existing.id, groupId } },
     });
@@ -162,7 +169,11 @@ export async function updateStudent(
   if (!inGroup) throw new AppError('Student not found in this group', 'התלמידה לא נמצאה בקבוצה זו', 404);
 
   const update: { name?: string; githubUsername?: string | null } = {};
-  if (data.name !== undefined) update.name = data.name.trim();
+  if (data.name !== undefined) {
+    const name = typeof data.name === 'string' ? data.name.trim() : '';
+    if (!name) throw new AppError('Name is required', 'יש להזין שם', 400);
+    update.name = name;
+  }
   if (data.githubUsername !== undefined) update.githubUsername = normalizeGithubUsername(data.githubUsername) || null;
   const emailChanged = data.email !== undefined && (await changeEmail(studentId, data.email));
 
@@ -171,22 +182,28 @@ export async function updateStudent(
   return { id: student.id, name: student.name, email: student.email, githubUsername: student.githubUsername };
 }
 
-// Deletes a group. Student memberships cascade automatically, but the
-// Course->Group relation is Restrict, so the group's courses must be removed
-// first. Student user accounts are left intact since they may belong to
-// other groups.
+// Deletes a group with its courses in one transaction — a failure halfway
+// can't leave a group stripped of some courses. Student memberships and
+// everything under the courses cascade in the DB; student accounts stay, since
+// they may belong to other groups. Stored files nothing else uses are released
+// afterwards, best-effort.
 export async function deleteGroup(id: string) {
   const group = await prisma.group.findUnique({
     where: { id },
-    include: { courses: { select: { id: true } } },
+    include: { courses: { include: { files: true, lessons: { include: { files: true } } } } },
   });
   if (!group) throw new AppError('Group not found', 'הקבוצה לא נמצאה', 404);
 
-  for (const course of group.courses) {
-    await deleteCourse(course.id);
-  }
+  const urls = group.courses.flatMap((c) => [
+    ...c.files.map((f) => f.url),
+    ...c.lessons.flatMap((l) => l.files.map((f) => f.url)),
+  ]);
 
-  await prisma.group.delete({ where: { id } });
+  await prisma.$transaction([
+    prisma.course.deleteMany({ where: { groupId: id } }),
+    prisma.group.delete({ where: { id } }),
+  ]);
+  await releaseFileUrls(urls);
 }
 
 export async function importStudents(groupId: string, buffer: Buffer) {
@@ -217,6 +234,10 @@ export async function importStudents(groupId: string, buffer: Buffer) {
   for (const { rowNumber, name, email, githubUsername } of rows) {
     try {
       let user = await prisma.user.findUnique({ where: { email } });
+      if (user && user.role !== 'STUDENT') {
+        errors.push(`שורה ${rowNumber}: ${email} שייך לחשבון שאינו תלמידה`);
+        continue;
+      }
       if (!user) {
         user = await prisma.user.create({
           data: {
@@ -247,7 +268,16 @@ export function buildStudentImportTemplate() {
   return buildTemplateWorkbook(['name', 'email', 'githubUsername'], ['ישראלה ישראלי', 'student@example.com', 'israela-gh']);
 }
 
-export async function resetStudentPassword(studentId: string) {
+// Scoped to the group in the URL: a teacher resets a student of that group,
+// never another teacher's password by passing her id.
+export async function resetStudentPassword(groupId: string, studentId: string) {
+  const membership = await prisma.studentGroup.findUnique({
+    where: { studentId_groupId: { studentId, groupId } },
+    select: { student: { select: { role: true } } },
+  });
+  if (!membership || membership.student.role !== 'STUDENT') {
+    throw new AppError('Student not found in this group', 'התלמידה לא נמצאה בקבוצה זו', 404);
+  }
   const hashed = await bcrypt.hash('12345678', 12);
   const user = await prisma.user.update({
     where: { id: studentId },
