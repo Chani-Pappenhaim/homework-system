@@ -117,7 +117,7 @@ export interface AssignmentDTO {
   allowGithub: boolean;
   allowFile: boolean;
   requirements?: ChecklistItem[];
-  aiInstructions?: string;
+  aiInstructions?: string | null;
 }
 
 export interface LessonDetailDTO {

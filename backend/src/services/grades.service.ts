@@ -1,15 +1,54 @@
 import { prisma } from '../config/prisma';
 import ExcelJS from 'exceljs';
 import { groupDisplayName } from '../utils/group-name';
+import { AppError } from '../utils/errors';
 
-export async function gradeSubmission(
-  submissionId: string, gradedById: string,
-  data: { submissionScore?: number; contentScore?: number; feedback?: string; checklist?: { id: string; text: string; checked: boolean }[] }
-) {
+type GradeInput = {
+  submissionScore?: number | null; contentScore?: number | null;
+  feedback?: string | null; checklist?: { id: string; text: string; checked: boolean }[] | null;
+};
+
+/** `undefined` leaves the score as it is, `null` clears it, otherwise 0–100. */
+function scoreField(value: unknown, label: string): number | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  const n = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(n) || n < 0 || n > 100) {
+    throw new AppError(`Invalid ${label}`, `${label} חייב להיות מספר בין 0 ל-100`, 400);
+  }
+  return n;
+}
+
+/**
+ * Only the fields the teacher actually edits are written — never the approval
+ * flag or the grader, which have their own actions — and every score is
+ * checked to be a real number in range.
+ */
+function gradeData(data: GradeInput) {
+  const out: Record<string, unknown> = {};
+  const submissionScore = scoreField(data?.submissionScore, 'ציון ההגשה');
+  const contentScore = scoreField(data?.contentScore, 'ציון התוכן');
+  if (submissionScore !== undefined) out.submissionScore = submissionScore;
+  if (contentScore !== undefined) out.contentScore = contentScore;
+  if (data?.feedback !== undefined) {
+    if (data.feedback !== null && typeof data.feedback !== 'string') throw new AppError('Invalid feedback', 'המשוב אינו תקין', 400);
+    out.feedback = data.feedback || null;
+  }
+  if (data?.checklist !== undefined) {
+    if (data.checklist !== null && !Array.isArray(data.checklist)) throw new AppError('Invalid checklist', 'רשימת הבדיקה אינה תקינה', 400);
+    out.checklist = data.checklist ?? undefined;
+  }
+  return out;
+}
+
+export async function gradeSubmission(submissionId: string, gradedById: string, data: GradeInput) {
+  const fields = gradeData(data);
+  const submission = await prisma.submission.findUnique({ where: { id: submissionId }, select: { id: true } });
+  if (!submission) throw new AppError('Submission not found', 'ההגשה לא נמצאה', 404);
   return prisma.grade.upsert({
     where: { submissionId },
-    create: { submissionId, gradedById, ...data },
-    update: { ...data, gradedAt: new Date(), gradedById },
+    create: { submissionId, gradedById, ...fields },
+    update: { ...fields, gradedAt: new Date(), gradedById },
   });
 }
 

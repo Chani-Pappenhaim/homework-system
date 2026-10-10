@@ -3,11 +3,14 @@ import { AppError } from '../utils/errors';
 import { assertLessonAccess } from '../utils/access';
 import { cellText } from '../utils/excel';
 import { toDeliveryUrl } from '../utils/storage';
+import { computeSubmissionScore } from '../utils/grading';
 import ExcelJS from 'exceljs';
 
 export async function getAssignments(lessonId: string, userId: string, role: string) {
   await assertLessonAccess(userId, role, lessonId);
-  return prisma.assignment.findMany({ where: { lessonId }, orderBy: { createdAt: 'asc' } });
+  const assignments = await prisma.assignment.findMany({ where: { lessonId }, orderBy: { createdAt: 'asc' } });
+  // aiInstructions is the teacher's private prompt to the AI — never ship it to a student.
+  return role === 'ADMIN' ? assignments : assignments.map(({ aiInstructions, ...rest }) => rest);
 }
 
 /**
@@ -23,24 +26,69 @@ function requireText(value: unknown, field: 'title' | 'description'): string {
   return text;
 }
 
+function parseDeadline(deadline: unknown): Date {
+  const date = new Date(deadline as string);
+  if (typeof deadline !== 'string' || Number.isNaN(date.getTime())) {
+    throw new AppError('Invalid deadline', 'תאריך ההגשה אינו תקין', 400);
+  }
+  return date;
+}
+
 /** `null` clears the deadline, a string sets it, `undefined` leaves it as it is. */
 function deadlineField(deadline: string | null | undefined) {
   if (deadline === undefined) return {};
   if (deadline === null || deadline === '') return { deadline: null };
-  return { deadline: new Date(deadline) };
+  return { deadline: parseDeadline(deadline) };
+}
+
+// Fields a teacher may set on an assignment; anything else in the request body
+// (lessonId, id, counters) is ignored rather than written through.
+const EDITABLE_FIELDS = ['allowedTypes', 'allowGithub', 'allowFile', 'requirements', 'aiInstructions'] as const;
+
+function editableFields(data: Record<string, unknown>) {
+  const out: Record<string, unknown> = {};
+  for (const key of EDITABLE_FIELDS) if (data[key] !== undefined) out[key] = data[key];
+  // An emptied instructions box clears the stored prompt.
+  if (typeof out.aiInstructions === 'string' && !out.aiInstructions.trim()) out.aiInstructions = null;
+  return out;
+}
+
+/**
+ * After the deadline moves, each submission's lateness follows the new date.
+ * An automatic submission score is recalculated with it; a score the teacher
+ * set herself is left alone.
+ */
+async function recomputeLateness(assignmentId: string, deadline: Date | null) {
+  const submissions = await prisma.submission.findMany({
+    where: { assignmentId },
+    select: { id: true, submittedAt: true, isLate: true, checklist: true, grade: { select: { gradedById: true } } },
+  });
+  for (const sub of submissions) {
+    const isLate = deadline ? sub.submittedAt > deadline : false;
+    if (isLate === sub.isLate) continue;
+    await prisma.submission.update({ where: { id: sub.id }, data: { isLate } });
+    if (sub.grade && !sub.grade.gradedById) {
+      await prisma.grade.update({
+        where: { submissionId: sub.id },
+        data: { submissionScore: computeSubmissionScore(isLate, sub.checklist) },
+      });
+    }
+  }
 }
 
 export async function createAssignment(lessonId: string, data: {
   title: string; description: string; deadline?: string | null;
   allowedTypes?: string[]; allowGithub?: boolean; allowFile?: boolean;
   requirements?: { id: string; text: string }[];
-  aiInstructions?: string;
+  aiInstructions?: string | null;
 }) {
-  const { deadline, ...rest } = data;
   const title = requireText(data.title, 'title');
   const description = requireText(data.description, 'description');
   return prisma.assignment.create({
-    data: { lessonId, ...rest, title, description, ...(deadline ? { deadline: new Date(deadline) } : {}) },
+    data: {
+      lessonId, ...editableFields(data), title, description,
+      ...(data.deadline ? { deadline: parseDeadline(data.deadline) } : {}),
+    },
   });
 }
 
@@ -48,15 +96,20 @@ export async function updateAssignment(id: string, data: Partial<{
   title: string; description: string; deadline: string | null;
   allowedTypes: string[]; allowGithub: boolean; allowFile: boolean;
   requirements: { id: string; text: string }[];
-  aiInstructions: string;
+  aiInstructions: string | null;
 }>) {
-  const { deadline, ...rest } = data;
-  if (data.title !== undefined) rest.title = requireText(data.title, 'title');
-  if (data.description !== undefined) rest.description = requireText(data.description, 'description');
-  return prisma.assignment.update({
-    where: { id },
-    data: { ...rest, ...deadlineField(deadline) },
-  });
+  const fields: Record<string, unknown> = { ...editableFields(data), ...deadlineField(data.deadline) };
+  if (data.title !== undefined) fields.title = requireText(data.title, 'title');
+  if (data.description !== undefined) fields.description = requireText(data.description, 'description');
+
+  const before = 'deadline' in fields
+    ? await prisma.assignment.findUnique({ where: { id }, select: { deadline: true } })
+    : null;
+  const assignment = await prisma.assignment.update({ where: { id }, data: fields });
+  if (before && before.deadline?.getTime() !== assignment.deadline?.getTime()) {
+    await recomputeLateness(id, assignment.deadline);
+  }
+  return assignment;
 }
 
 export async function deleteAssignment(id: string) {

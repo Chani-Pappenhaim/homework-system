@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../../src/config/prisma', () => ({
   prisma: {
     grade: { upsert: vi.fn() },
-    submission: { findMany: vi.fn() },
+    submission: { findMany: vi.fn(), findUnique: vi.fn() },
   },
 }));
 
@@ -15,6 +15,8 @@ const p = prisma as any;
 beforeEach(() => vi.clearAllMocks());
 
 describe('grades.service.gradeSubmission', () => {
+  beforeEach(() => p.submission.findUnique.mockResolvedValue({ id: 'sub1' }));
+
   it('upserts with create + update payloads', async () => {
     p.grade.upsert.mockResolvedValue({ id: 'gr1' });
     await gradeSubmission('sub1', 'teacher1', { submissionScore: 88, contentScore: 75, feedback: 'nice' });
@@ -23,6 +25,26 @@ describe('grades.service.gradeSubmission', () => {
     expect(arg.create).toMatchObject({ submissionId: 'sub1', gradedById: 'teacher1', submissionScore: 88, contentScore: 75, feedback: 'nice' });
     expect(arg.update).toMatchObject({ submissionScore: 88, contentScore: 75, feedback: 'nice', gradedById: 'teacher1' });
     expect(arg.update.gradedAt).toBeInstanceOf(Date);
+  });
+
+  it('rejects a score outside 0-100 or not a number', async () => {
+    await expect(gradeSubmission('sub1', 't1', { contentScore: 150 })).rejects.toMatchObject({ status: 400 });
+    await expect(gradeSubmission('sub1', 't1', { submissionScore: 'abc' as any })).rejects.toMatchObject({ status: 400 });
+    await expect(gradeSubmission('sub1', 't1', { contentScore: -1 })).rejects.toMatchObject({ status: 400 });
+    expect(p.grade.upsert).not.toHaveBeenCalled();
+  });
+
+  it('writes only the editable fields, never the approval flag', async () => {
+    p.grade.upsert.mockResolvedValue({});
+    await gradeSubmission('sub1', 't1', { contentScore: 90, contentApproved: true, submissionId: 'other' } as any);
+    const arg = p.grade.upsert.mock.calls[0][0];
+    expect(arg.update).not.toHaveProperty('contentApproved');
+    expect(arg.create.submissionId).toBe('sub1');
+  });
+
+  it('is a 404 for a submission that no longer exists', async () => {
+    p.submission.findUnique.mockResolvedValue(null);
+    await expect(gradeSubmission('gone', 't1', { contentScore: 80 })).rejects.toMatchObject({ status: 404 });
   });
 });
 

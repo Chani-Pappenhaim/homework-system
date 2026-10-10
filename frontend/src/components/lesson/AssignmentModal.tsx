@@ -64,7 +64,7 @@ export function AssignmentModal({ lessonId, lessonDate, value, onClose }: {
         // null (not undefined) so that removing the deadline of an existing
         // assignment actually clears it.
         deadline: deadline ? new Date(deadline).toISOString() : null,
-        aiInstructions: aiInstructions || undefined,
+        aiInstructions: aiInstructions.trim() ? aiInstructions : null,
         ...types,
       };
       if (value === 'new') return assignmentsApi.create(lessonId, data);
