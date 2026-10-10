@@ -9,7 +9,7 @@ import { coursesApi } from '@/api/courses.api';
 import { gradesApi } from '@/api/grades.api';
 import { aiUsageApi } from '@/api/aiUsage.api';
 import { Tape, StatusPill, type PillVariant } from '@/components/decor';
-import { cn } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import type { ReportRow } from '@/types';
 
@@ -17,10 +17,12 @@ function relTime(iso?: string): string {
   if (!iso) return '—';
   const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
   if (m < 1) return 'עכשיו';
-  if (m < 60) return `לפני ${m}′`;
+  if (m < 60) return m === 1 ? 'לפני דקה' : `לפני ${m} דקות`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `לפני ${h}ש׳`;
-  return `לפני ${Math.floor(h / 24)}י׳`;
+  if (h < 24) return h === 1 ? 'לפני שעה' : h === 2 ? 'לפני שעתיים' : `לפני ${h} שעות`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return d === 1 ? 'אתמול' : d === 2 ? 'לפני יומיים' : `לפני ${d} ימים`;
+  return formatDate(iso);
 }
 
 function greeting(): string {
@@ -124,7 +126,7 @@ export default function TeacherHomePage() {
                     </div>
                     {r.isLate && <span className="hidden text-[10px] font-semibold text-coral sm:inline">איחור</span>}
                     <StatusPill variant={st.variant} className="hidden sm:inline-flex">{st.label}</StatusPill>
-                    <span className="hidden w-16 text-left text-[11px] text-ink-soft md:inline">{relTime(r.submittedAt)}</span>
+                    <span className="hidden w-24 whitespace-nowrap text-left text-[11px] text-ink-soft md:inline">{relTime(r.submittedAt)}</span>
                     {r.submissionScore != null && (
                       <span className="w-8 text-left font-display text-base font-bold tabular text-clay">{r.submissionScore}</span>
                     )}
