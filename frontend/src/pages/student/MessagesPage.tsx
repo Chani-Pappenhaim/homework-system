@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, Clock, Trash2, Send, MessageSquarePlus } from 'lucide-react';
 import { messagesApi } from '@/api/messages.api';
+import { MAX_MESSAGE_LENGTH } from '@/lib/limits';
 import { Button } from '@/components/ui/button';
 import { MarkdownField } from '@/components/ui/markdown-field';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
@@ -161,6 +162,7 @@ export default function StudentMessagesPage() {
           </DialogHeader>
           <DialogBody className="space-y-3">
             <MarkdownField
+                    maxLength={MAX_MESSAGE_LENGTH}
               label="תוכן ההודעה"
               rows={5}
               placeholder="כתבי את ההודעה שלך..."
@@ -211,6 +213,7 @@ export default function StudentMessagesPage() {
 
                 <div className="pt-1">
                   <MarkdownField
+                    maxLength={MAX_MESSAGE_LENGTH}
                     label="כתיבת תגובה"
                     rows={4}
                     placeholder="כתבי תגובה למורה…"

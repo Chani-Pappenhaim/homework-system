@@ -152,8 +152,26 @@ export async function copyCourse(courseId: string, targetGroupId: string) {
 }
 
 
+// Links are rendered as plain <a href>, so anything but http(s) — a
+// `javascript:` URL above all — must never get stored.
+function webUrl(raw: unknown): string {
+  const typed = typeof raw === 'string' ? raw.trim() : '';
+  // "www.site.com" is how teachers usually paste a link; give it the scheme
+  // the page would add anyway. Anything that names its own scheme is checked.
+  const value = /^[a-z][a-z0-9+.-]*:/i.test(typed) ? typed : `https://${typed.replace(/^\/+/, '')}`;
+  try {
+    const url = new URL(value);
+    if (url.protocol === 'http:' || url.protocol === 'https:') return value;
+  } catch { /* falls through to the error */ }
+  throw new AppError('Invalid link URL', 'הקישור חייב להיות כתובת אינטרנט תקינה (http או https)', 400);
+}
+
 export async function addCourseLink(courseId: string, label: string, url: string, order = 0) {
-  return prisma.courseLink.create({ data: { courseId, label, url, order } });
+  const name = typeof label === 'string' ? label.trim() : '';
+  if (!name) throw new AppError('Label is required', 'יש להזין שם לקישור', 400);
+  return prisma.courseLink.create({
+    data: { courseId, label: name, url: webUrl(url), order: Number.isInteger(order) ? order : 0 },
+  });
 }
 
 export async function deleteCourseLink(courseId: string, linkId: string) {

@@ -98,6 +98,7 @@ export default function CourseFormPage(props: Partial<CoursePageProps>) {
   const addLinkMutation = useMutation({
     mutationFn: () => coursesApi.addLink(id!, newLink),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['course', id] }); setNewLink({ label: '', url: '' }); toast.success('הקישור נוסף'); },
+    onError: (e) => toast.error(getApiErrorMessage(e, 'הוספת הקישור נכשלה')),
   });
 
   const deleteLinkMutation = useMutation({

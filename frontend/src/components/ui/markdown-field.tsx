@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
  * A free-text field stored as Markdown: write it here, or load it from an
  * MD, HTML or Word file (converted on the server), and preview the result.
  */
-export function MarkdownField({ label, value, onChange, rows = 5, placeholder, required, id, showHint = true, inline = false }: {
+export function MarkdownField({ label, value, onChange, rows = 5, placeholder, required, id, showHint = true, inline = false, maxLength }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -24,6 +24,8 @@ export function MarkdownField({ label, value, onChange, rows = 5, placeholder, r
   showHint?: boolean;
   /** Preview it the way short inline text (a quiz question) is shown to students. */
   inline?: boolean;
+  /** The server's limit; a counter shows up as the text gets close to it. */
+  maxLength?: number;
 }) {
   const autoId = useId();
   const fieldId = id ?? autoId;
@@ -85,7 +87,13 @@ export function MarkdownField({ label, value, onChange, rows = 5, placeholder, r
           className="resize-y font-sans"
           placeholder={placeholder}
           required={required}
+          maxLength={maxLength}
         />
+      )}
+      {maxLength !== undefined && value.length > maxLength * 0.8 && (
+        <p className={cn('text-xs tabular', value.length > maxLength ? 'font-semibold text-clay' : 'text-ink-soft')}>
+          {value.length}/{maxLength} תווים
+        </p>
       )}
       {showHint && (
         <p className="text-xs text-ink-soft">

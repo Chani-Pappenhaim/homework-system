@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Mail, ChevronLeft, Clock, Trash2, Plus, Send, X } from 'lucide-react';
 import { messagesApi } from '@/api/messages.api';
+import { MAX_MESSAGE_LENGTH } from '@/lib/limits';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MarkdownField } from '@/components/ui/markdown-field';
@@ -228,6 +229,7 @@ export default function TeacherMessagesPage() {
 
                 <div className="pt-1">
                   <MarkdownField
+                    maxLength={MAX_MESSAGE_LENGTH}
                     label="כתיבת תגובה"
                     rows={4}
                     placeholder="כתבי תגובה לתלמידה…"
@@ -294,6 +296,7 @@ export default function TeacherMessagesPage() {
             </div>
             <div>
               <MarkdownField
+                    maxLength={MAX_MESSAGE_LENGTH}
                 label="תוכן ההודעה"
                 rows={5}
                 placeholder="כתבי הודעה לתלמידה…"

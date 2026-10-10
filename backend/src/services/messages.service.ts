@@ -11,10 +11,23 @@ async function enqueueEmail<T extends keyof EmailJobMap>(jobName: T, data: Email
   }
 }
 
+export const MAX_MESSAGE_LENGTH = 5000;
+
+// One check for every entry point that writes a message entry, so a huge paste
+// can't bloat the inbox (and the email built from it).
+function messageText(content: unknown): string {
+  const trimmed = typeof content === 'string' ? content.trim() : '';
+  if (!trimmed) throw new AppError('Message content is required', 'תוכן ההודעה נדרש', 400);
+  if (trimmed.length > MAX_MESSAGE_LENGTH) {
+    throw new AppError('Message too long', `ההודעה ארוכה מדי (עד ${MAX_MESSAGE_LENGTH} תווים)`, 400);
+  }
+  return trimmed;
+}
+
 const entriesInclude = { entries: { orderBy: { createdAt: 'asc' as const } } };
 
 export async function sendMessage(studentId: string, content: string, assignmentId?: string) {
-  const trimmed = content.trim();
+  const trimmed = messageText(content);
   const message = await prisma.teacherMessage.create({
     data: {
       studentId,
@@ -34,7 +47,7 @@ export async function sendMessage(studentId: string, content: string, assignment
 
 /** Lets the teacher start a new conversation with a student, instead of only ever replying to one the student started. */
 export async function sendTeacherMessage(studentId: string, content: string, assignmentId?: string) {
-  const trimmed = content.trim();
+  const trimmed = messageText(content);
   const message = await prisma.teacherMessage.create({
     data: {
       studentId,
@@ -76,7 +89,7 @@ export async function replyMessage(messageId: string, content: string) {
   });
   if (!conversation) throw new AppError('Message not found', 'ההודעה לא נמצאה', 404);
 
-  const trimmed = content.trim();
+  const trimmed = messageText(content);
   await prisma.messageEntry.create({ data: { messageId, fromTeacher: true, content: trimmed } });
   const updated = await prisma.teacherMessage.findUnique({ where: { id: messageId }, include: entriesInclude });
 
@@ -116,7 +129,7 @@ export async function studentReplyMessage(messageId: string, studentId: string, 
     throw new AppError('Message not found', 'הודעה לא נמצאה', 404);
   }
 
-  const trimmed = content.trim();
+  const trimmed = messageText(content);
   await prisma.messageEntry.create({ data: { messageId, fromTeacher: false, content: trimmed } });
   const updated = await prisma.teacherMessage.findUnique({ where: { id: messageId }, include: entriesInclude });
 

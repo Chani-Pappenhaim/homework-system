@@ -195,6 +195,17 @@ describe('courses.service create/update + links + files', () => {
     await addCourseLink('c1', 'Label', 'http://u', 3);
     expect(p.courseLink.create).toHaveBeenCalledWith({ data: { courseId: 'c1', label: 'Label', url: 'http://u', order: 3 } });
   });
+  it('addCourseLink only stores http(s) links with a name', async () => {
+    await expect(addCourseLink('c1', 'X', 'javascript:alert(1)')).rejects.toMatchObject({ status: 400 });
+    await expect(addCourseLink('c1', 'X', 'not a url at all')).rejects.toMatchObject({ status: 400 });
+    await expect(addCourseLink('c1', '  ', 'https://a.com')).rejects.toMatchObject({ status: 400 });
+    expect(p.courseLink.create).not.toHaveBeenCalled();
+  });
+  it('addCourseLink adds https:// to a link pasted without a scheme', async () => {
+    p.courseLink.create.mockResolvedValue({});
+    await addCourseLink('c1', 'Docs', 'www.example.com/a');
+    expect(p.courseLink.create.mock.calls[0][0].data.url).toBe('https://www.example.com/a');
+  });
   it('deleteCourseLink deletes by composite id', async () => {
     p.courseLink.delete.mockResolvedValue({});
     await deleteCourseLink('c1', 'lk1');
