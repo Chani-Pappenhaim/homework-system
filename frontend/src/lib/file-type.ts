@@ -26,4 +26,15 @@ export function getFileKindByExtension(ext: string): FileKind {
 
 /** Shown next to material uploads, so a teacher knows up front what students can open in place. */
 export const PREVIEWABLE_TYPES_HINT =
-  'תצוגה מקדימה באתר: תמונות, וידאו, שמע, PDF, Word, PowerPoint, Excel, HTML, טקסט ו-Markdown. קבצים מסוג אחר (zip וכדומה) זמינים להורדה בלבד.';
+  'תצוגה מקדימה באתר: PDF · תמונות (jpg, png, gif, webp, svg) · וידאו (mp4, webm, mov) · שמע (mp3, wav, m4a, ogg) · '
+  + 'Word ו-PowerPoint עד 10MB, Excel עד 5MB (docx, pptx, xlsx וגרסאות ישנות) · HTML · txt ו-md. '
+  + 'כל סוג אחר (zip, rar וכדומה) — להורדה בלבד.';
+
+/**
+ * The online Office viewer refuses larger files (Word/PowerPoint 10MB, Excel
+ * 5MB) and shows nothing useful when it does, so past these sizes the preview
+ * says so up front instead of opening an empty frame.
+ */
+export function officeViewerLimitBytes(ext: string): number {
+  return ext === 'xls' || ext === 'xlsx' ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
+}

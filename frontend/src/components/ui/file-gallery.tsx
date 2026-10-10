@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Image, Video, FileText, Music, Archive, File as FileIcon, FileCode, Download, ExternalLink, Pencil, X, Star, EyeOff, Eye } from 'lucide-react';
 import { cn, formatBytes } from '@/lib/utils';
-import { getFileKindByExtension, PREVIEWABLE_TYPES_HINT } from '@/lib/file-type';
+import { getFileKindByExtension, officeViewerLimitBytes, PREVIEWABLE_TYPES_HINT } from '@/lib/file-type';
 import { API_URL } from '@/lib/config';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
@@ -145,7 +145,7 @@ function FileTile({
           ) : kind === 'audio' ? (
             <audio src={url} className="w-full" controls />
           ) : kind === 'video' ? (
-            <video src={url} className="h-full w-full object-cover" />
+            <video src={url} preload="metadata" className="h-full w-full object-cover" />
           ) : (
             // No <iframe> thumbnails: a browser that can't render a type inline
             // (a PDF with the built-in viewer turned off, say) downloads it the
@@ -275,6 +275,11 @@ function FilePreviewBody({ file }: { file: GalleryFile }) {
   const url = resolveFileUrl(file.url);
   const downloadUrl = `${url}${url.includes('?') ? '&' : '?'}dl=1`;
   const [viewer, setViewer] = useState<OfficeViewer>('microsoft');
+  // A browser set to "download PDFs instead of opening them" saves the file the
+  // moment it lands in an <iframe> — the downloads that seemed to happen at
+  // random on click. Such a browser says so, and gets buttons instead.
+  const pdfInline = typeof navigator === 'undefined' || navigator.pdfViewerEnabled !== false;
+  const officeTooBig = isOffice && Number(file.sizeBytes ?? 0) > officeViewerLimitBytes(ext);
 
   return (
     <DialogContent size="full">
@@ -284,7 +289,7 @@ function FilePreviewBody({ file }: { file: GalleryFile }) {
           {file.sizeBytes && <p className="text-xs text-ink/50">{formatBytes(file.sizeBytes)}</p>}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {kind === 'doc' && isOffice && (
+          {kind === 'doc' && isOffice && !officeTooBig && (
             <button
               type="button"
               onClick={() => setViewer((v) => (v === 'microsoft' ? 'google' : 'microsoft'))}
@@ -325,10 +330,25 @@ function FilePreviewBody({ file }: { file: GalleryFile }) {
           <video src={url} controls className="max-h-full max-w-full rounded-sm" />
         )}
         {kind === 'audio' && <audio src={url} controls className="w-full" />}
-        {kind === 'pdf' && (
+        {kind === 'pdf' && pdfInline && (
           <iframe src={url} title={file.name} className="h-full w-full rounded-sm border border-rule" />
         )}
-        {kind === 'doc' && isOffice && (
+        {kind === 'pdf' && !pdfInline && (
+          <NoPreview
+            downloadUrl={downloadUrl}
+            name={file.name}
+            reason="הדפדפן שלך מוגדר להוריד קובצי PDF במקום להציג אותם, לכן אין כאן תצוגה מקדימה."
+            openUrl={url}
+          />
+        )}
+        {kind === 'doc' && officeTooBig && (
+          <NoPreview
+            downloadUrl={downloadUrl}
+            name={file.name}
+            reason={`הצופה המקוון של Office מציג קבצים עד ${officeViewerLimitBytes(ext) / 1024 / 1024}MB, והקובץ הזה גדול יותר.`}
+          />
+        )}
+        {kind === 'doc' && isOffice && !officeTooBig && (
           <iframe
             key={viewer}
             src={officeViewerUrl(url, viewer)}
@@ -341,21 +361,39 @@ function FilePreviewBody({ file }: { file: GalleryFile }) {
         )}
         {kind === 'html' && <TextFilePreview url={url} mode="html" title={file.name} />}
         {(kind === 'archive' || kind === 'other') && (
-          <div className="flex flex-col items-center gap-3 text-center">
-            <FileIcon size={40} className="text-ink/40" />
-            <p className="text-sm text-ink/70">אין תצוגה מקדימה זמינה לסוג קובץ זה</p>
-            <p className="max-w-md text-xs text-ink/50">{PREVIEWABLE_TYPES_HINT}</p>
-            <a
-              href={downloadUrl}
-              download={file.name}
-              className="rounded-input bg-indigo px-4 py-2 text-sm font-semibold text-sheet hover:bg-indigo/90"
-            >
-              הורדת הקובץ
-            </a>
-          </div>
+          <NoPreview downloadUrl={downloadUrl} name={file.name} reason="אין תצוגה מקדימה זמינה לסוג קובץ זה" />
         )}
       </div>
     </DialogContent>
+  );
+}
+
+function NoPreview({ downloadUrl, name, reason, openUrl }: { downloadUrl: string; name: string; reason: string; openUrl?: string }) {
+  return (
+    <div className="flex flex-col items-center gap-3 text-center">
+      <FileIcon size={40} className="text-ink/40" />
+      <p className="max-w-md text-sm text-ink/70">{reason}</p>
+      <p className="max-w-md text-xs text-ink/50">{PREVIEWABLE_TYPES_HINT}</p>
+      <div className="flex gap-2">
+        {openUrl && (
+          <a
+            href={openUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-input border border-rule px-4 py-2 text-sm font-semibold text-ink hover:bg-ground/40"
+          >
+            פתיחה בכרטיסייה חדשה
+          </a>
+        )}
+        <a
+          href={downloadUrl}
+          download={name}
+          className="rounded-input bg-indigo px-4 py-2 text-sm font-semibold text-sheet hover:bg-indigo/90"
+        >
+          הורדת הקובץ
+        </a>
+      </div>
+    </div>
   );
 }
 

@@ -106,6 +106,27 @@ describe('FileGallery', () => {
     expect(screen.getByText(/תצוגה מקדימה באתר:/)).toBeInTheDocument();
   });
 
+  it('offers buttons instead of a frame when the browser downloads pdfs', async () => {
+    Object.defineProperty(navigator, 'pdfViewerEnabled', { value: false, configurable: true });
+    try {
+      const { baseElement } = render(<FileGallery files={[PDF]} />);
+      await userEvent.click(screen.getByRole('button', { name: /חוזה/ }));
+      expect(baseElement.querySelector('iframe')).toBeNull();
+      expect(screen.getByText(/מוגדר להוריד קובצי PDF/)).toBeInTheDocument();
+      expect(screen.getAllByText('פתיחה בכרטיסייה חדשה').length).toBeGreaterThan(0);
+    } finally {
+      delete (navigator as { pdfViewerEnabled?: boolean }).pdfViewerEnabled;
+    }
+  });
+
+  it('explains a presentation too large for the online viewer instead of framing it', async () => {
+    const big = { id: 'p1', name: 'מצגת', url: '/files/download/p1?token=t', extension: 'pptx', sizeBytes: String(12 * 1024 * 1024) };
+    const { baseElement } = render(<FileGallery files={[big]} />);
+    await userEvent.click(screen.getByRole('button', { name: /מצגת/ }));
+    expect(baseElement.querySelector('iframe')).toBeNull();
+    expect(screen.getByText(/עד 10MB/, { selector: 'p.text-sm' })).toBeInTheDocument();
+  });
+
   it('keeps the teacher and student controls on the tiles', async () => {
     const onDelete = vi.fn();
     const onToggleRequired = vi.fn();
