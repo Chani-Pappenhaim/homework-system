@@ -37,15 +37,18 @@ model User {
   emailNotifications   Boolean   @default(true)
   createdAt            DateTime  @default(now())
 
-  studentGroups   StudentGroup[]
-  submissions     Submission[]
-  quizAttempts    QuizAttempt[]
-  gradesGiven     Grade[]
-  lessonAccess    LessonAccess[]
-  courseAccess    CourseAccess[]
-  lessonProgress  LessonProgress[]
-  lessonFileViews LessonFileView[]
-  teacherMessages TeacherMessage[]
+  studentGroups     StudentGroup[]
+  submissions       Submission[]
+  quizAttempts      QuizAttempt[]
+  gradesGiven       Grade[]
+  lessonAccess      LessonAccess[]
+  courseAccess      CourseAccess[]
+  lessonProgress    LessonProgress[]
+  lessonFileViews   LessonFileView[]
+  teacherMessages   TeacherMessage[]
+  attendance        AttendanceRecord[]
+  homeworkMarks     HomeworkMark[]
+  attendanceOptOuts AttendanceExclusion[]
 }
 
 model Group {
@@ -85,6 +88,9 @@ model Course {
   links   CourseLink[]
   files   CourseFile[]
   access  CourseAccess[]
+
+  attendanceSessions   AttendanceSession[]
+  attendanceExclusions AttendanceExclusion[]
 }
 
 model CourseLink {
@@ -126,6 +132,8 @@ model Lesson {
   quiz         Quiz?
   lessonAccess LessonAccess[]
   progress     LessonProgress[]
+
+  attendanceSessions AttendanceSession[]
 }
 
 // A student's self-marked completion of a lesson (presence of row = completed)
@@ -305,4 +313,73 @@ model QuizAttempt {
   isOfficial Boolean  @default(true)
 
   @@index([quizId, studentId])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  EXCUSED
+}
+
+// One meeting of a course. Linked to a lesson on the site, or standing on its
+// own for a meeting that happened in class only (then `title` names it).
+model AttendanceSession {
+  id        String   @id @default(uuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessonId  String?
+  lesson    Lesson?  @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  date      DateTime
+  title     String?
+  createdAt DateTime @default(now())
+
+  records  AttendanceRecord[]
+  homework ExtraHomework[]
+
+  @@index([courseId, date])
+}
+
+model AttendanceRecord {
+  sessionId String
+  studentId String
+  session   AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student   User              @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status    AttendanceStatus
+  // Teacher-only remark; never sent to the student.
+  note      String?
+  updatedAt DateTime          @updatedAt
+
+  @@id([sessionId, studentId])
+}
+
+// Homework given at a meeting outside the site's assignments, checked off by hand.
+model ExtraHomework {
+  id        String            @id @default(uuid())
+  sessionId String
+  session   AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  title     String
+  createdAt DateTime          @default(now())
+
+  marks HomeworkMark[]
+}
+
+model HomeworkMark {
+  homeworkId String
+  studentId  String
+  homework   ExtraHomework @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
+  student    User          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  done       Boolean
+
+  @@id([homeworkId, studentId])
+}
+
+// A student with personal access to a course (not through its group) whom the
+// teacher chose to leave off that course's attendance.
+model AttendanceExclusion {
+  courseId  String
+  studentId String
+  course    Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, studentId])
 }
