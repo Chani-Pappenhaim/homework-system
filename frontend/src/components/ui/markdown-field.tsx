@@ -89,7 +89,7 @@ export function MarkdownField({ label, value, onChange, rows = 5, placeholder, r
       )}
       {showHint && (
         <p className="text-xs text-ink-soft">
-          אפשר לעצב עם Markdown — כותרות (#), רשימות, קוד (```), קישורים — או לטעון קובץ Markdown, HTML או Word
+          אפשר לעצב את הטקסט (כותרות, רשימות, קוד) או לטעון אותו מקובץ Word, HTML, Markdown או טקסט.
         </p>
       )}
     </div>
