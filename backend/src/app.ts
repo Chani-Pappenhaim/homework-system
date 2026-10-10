@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import passport from 'passport';
 import { MulterError } from 'multer';
 import { generalRateLimit } from './middleware/rateLimit';
+import { originGuard } from './middleware/originGuard';
 import { configurePassport } from './config/passport';
 import { GENERIC_SERVER_ERROR } from './utils/http';
 
@@ -37,6 +38,7 @@ export function createApp() {
     origin: process.env.FRONTEND_URL,
     credentials: true,
   }));
+  app.use(originGuard(process.env.FRONTEND_URL));
   app.use(express.json());
   app.use(cookieParser());
 
