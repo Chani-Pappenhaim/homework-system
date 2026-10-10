@@ -290,13 +290,20 @@ export async function submitQuizAttempt(
   // The first attempt is the official grade and is never touched again; every
   // attempt after it is a fresh row, kept only for the student's own practice
   // history, so retrying can never change what the teacher sees as her score.
-  const hasOfficial = await prisma.quizAttempt.findFirst({
-    where: { quizId: quiz.id, studentId, isOfficial: true },
-    select: { id: true },
-  });
-  const isOfficial = !hasOfficial;
-  await prisma.quizAttempt.create({
-    data: { quizId: quiz.id, studentId, answers, score, isOfficial },
+  //
+  // Two submits at once (a double click, two tabs) would both see "no official
+  // attempt yet" and both be stored as official. A transaction-scoped advisory
+  // lock on this student+quiz makes the check-then-insert run one at a time.
+  const isOfficial = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`quiz-attempt:${quiz.id}:${studentId}`}))`;
+    const hasOfficial = await tx.quizAttempt.findFirst({
+      where: { quizId: quiz.id, studentId, isOfficial: true },
+      select: { id: true },
+    });
+    await tx.quizAttempt.create({
+      data: { quizId: quiz.id, studentId, answers, score, isOfficial: !hasOfficial },
+    });
+    return !hasOfficial;
   });
 
   return {

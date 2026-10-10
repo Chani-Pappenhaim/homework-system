@@ -6,6 +6,7 @@ vi.mock('../../src/config/prisma', () => ({
     lesson: { findUnique: vi.fn() },
     quizAttempt: { findFirst: vi.fn(), create: vi.fn(), findMany: vi.fn(), deleteMany: vi.fn() },
     $transaction: vi.fn(),
+    $executeRaw: vi.fn(),
   },
 }));
 
@@ -281,6 +282,22 @@ describe('quizzes.service.setQuizPublished', () => {
 });
 
 describe('quizzes.service.submitQuizAttempt', () => {
+  beforeEach(() => {
+    p.$transaction.mockImplementation((arg: any) => (typeof arg === 'function' ? arg(p) : Promise.all(arg)));
+  });
+
+  it('locks the student+quiz pair before deciding which attempt is official', async () => {
+    p.quiz.findUnique.mockResolvedValue({ id: 'q1', published: true, questions: [{ correctIndex: 0 }] });
+    p.quizAttempt.findFirst.mockResolvedValue({ id: 'first' });
+    const order: string[] = [];
+    p.$executeRaw.mockImplementation(async () => { order.push('lock'); });
+    p.quizAttempt.findFirst.mockImplementation(async () => { order.push('check'); return { id: 'first' }; });
+    const r = await submitQuizAttempt('l1', 's1', 'STUDENT', [0]);
+    expect(order).toEqual(['lock', 'check']);
+    expect(r.isOfficial).toBe(false);
+    expect(p.quizAttempt.create.mock.calls[0][0].data.isOfficial).toBe(false);
+  });
+
   it('refuses an attempt on an unpublished draft', async () => {
     p.quiz.findUnique.mockResolvedValue(draft);
     await expect(submitQuizAttempt('l1', 's1', 'STUDENT', [0, 1]))
