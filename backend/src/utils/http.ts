@@ -13,8 +13,10 @@ export const GENERIC_SERVER_ERROR =
  *   always logged so the real cause stays visible to developers.
  * - Anything else that's a 4xx keeps its raw `message` (legacy call sites not
  *   yet migrated to `AppError`).
- * - 5xx / anything unexpected returns GENERIC_SERVER_ERROR and logs the real
- *   error, so internal details never reach the client.
+ * - A 5xx `AppError` (e.g. an upstream AI/queue outage) still shows its
+ *   `clientMessage`: that text was written for the user on purpose.
+ * - Any other 5xx / unexpected error returns GENERIC_SERVER_ERROR and logs the
+ *   real error, so internal details never reach the client.
  */
 export function sendError(res: Response, err: any, fallbackStatus = 500): void {
   const status = typeof err?.status === 'number' ? err.status : fallbackStatus;
@@ -27,7 +29,7 @@ export function sendError(res: Response, err: any, fallbackStatus = 500): void {
   }
 
   const message =
-    isClientError && typeof err?.clientMessage === 'string' && err.clientMessage
+    typeof err?.clientMessage === 'string' && err.clientMessage
       ? err.clientMessage
       : isClientError && typeof err?.message === 'string' && err.message
         ? err.message

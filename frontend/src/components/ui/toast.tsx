@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle, AlertCircle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +25,14 @@ export function useToast() {
   return useContext(ToastContext);
 }
 
+// The mounted provider, reachable from code outside React (e.g. the query client's global error handler).
+let activeToast: ToastContextValue = noop;
+
+/** Shows an error toast from anywhere; a no-op until a ToastProvider is mounted. */
+export function showErrorToast(message: string) {
+  activeToast.error(message);
+}
+
 const DURATION = 3000;
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
@@ -46,6 +54,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     success: (m: string) => show(m, 'success'),
     error: (m: string) => show(m, 'error'),
   }), [show]);
+
+  useEffect(() => {
+    activeToast = value;
+    return () => { activeToast = noop; };
+  }, [value]);
 
   return (
     <ToastContext.Provider value={value}>

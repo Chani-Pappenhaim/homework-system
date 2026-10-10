@@ -1,10 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import './globals.css';
 import { useBootstrapAuth } from './hooks/useAuth';
-import { ToastProvider } from './components/ui/toast';
+import { ToastProvider, showErrorToast } from './components/ui/toast';
+import { getApiErrorMessage } from './lib/errors';
 import { ServerWakingBanner } from './components/ui/server-waking-banner';
 
 function Root() {
@@ -18,6 +19,14 @@ function Root() {
 }
 
 const queryClient = new QueryClient({
+  // Fallback for actions that don't handle their own failure: show the server's
+  // message instead of failing silently. Mutations with their own onError keep full control.
+  mutationCache: new MutationCache({
+    onError: (error, _variables, _context, mutation) => {
+      if (mutation.options.onError) return;
+      showErrorToast(getApiErrorMessage(error));
+    },
+  }),
   defaultOptions: {
     queries: {
       retry: (failureCount, error: any) => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ToastProvider, useToast } from '@/components/ui/toast';
+import { ToastProvider, useToast, showErrorToast } from '@/components/ui/toast';
 
 function Trigger({ message, variant }: { message: string; variant?: 'success' | 'error' }) {
   const toast = useToast();
@@ -45,5 +45,17 @@ describe('Toast', () => {
     await userEvent.click(screen.getByText('fire'));
     // No toast rendered, and nothing threw
     expect(screen.queryByText('בלי provider')).not.toBeInTheDocument();
+  });
+
+  it('showErrorToast reaches the mounted provider from outside React', () => {
+    render(<ToastProvider><span /></ToastProvider>);
+    act(() => showErrorToast('שגיאה מבחוץ'));
+    expect(screen.getByText('שגיאה מבחוץ')).toBeInTheDocument();
+  });
+
+  it('showErrorToast is a no-op once the provider unmounts', () => {
+    const { unmount } = render(<ToastProvider><span /></ToastProvider>);
+    unmount();
+    expect(() => showErrorToast('אחרי unmount')).not.toThrow();
   });
 });
