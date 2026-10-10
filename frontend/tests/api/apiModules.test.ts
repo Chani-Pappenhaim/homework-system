@@ -31,6 +31,7 @@ import { gradesApi } from '@/api/grades.api';
 import { quizzesApi } from '@/api/quizzes.api';
 import { messagesApi } from '@/api/messages.api';
 import { aiUsageApi } from '@/api/aiUsage.api';
+import { attendanceApi } from '@/api/attendance.api';
 
 const get = api.get as unknown as ReturnType<typeof vi.fn>;
 const post = api.post as unknown as ReturnType<typeof vi.fn>;
@@ -274,5 +275,42 @@ describe('messagesApi', () => {
 describe('aiUsageApi', () => {
   it('summary gets', () => {
     aiUsageApi.summary(); expect(get).toHaveBeenCalledWith('/ai-usage/summary');
+  });
+});
+
+describe('attendanceApi', () => {
+  it('reads and opens meetings for a course', () => {
+    attendanceApi.getCourse('c1'); expect(get).toHaveBeenCalledWith('/courses/c1/attendance');
+    attendanceApi.createSession('c1', { date: '2026-10-10', lessonId: null, title: 'חזרה' });
+    expect(post).toHaveBeenCalledWith('/courses/c1/attendance/sessions', { date: '2026-10-10', lessonId: null, title: 'חזרה' });
+    attendanceApi.createSessionsFromLessons('c1'); expect(post).toHaveBeenCalledWith('/courses/c1/attendance/sessions/from-lessons');
+    attendanceApi.setExclusion('c1', 's1', true);
+    expect(put).toHaveBeenCalledWith('/courses/c1/attendance/exclusions/s1', { excluded: true });
+  });
+
+  it('edits a meeting, its marks and its homework', () => {
+    attendanceApi.updateSession('a1', { title: 'x' }); expect(patch).toHaveBeenCalledWith('/attendance/sessions/a1', { title: 'x' });
+    attendanceApi.deleteSession('a1'); expect(del).toHaveBeenCalledWith('/attendance/sessions/a1');
+    attendanceApi.saveRecords('a1', [{ studentId: 's1', status: 'PRESENT' }]);
+    expect(put).toHaveBeenCalledWith('/attendance/sessions/a1/records', { records: [{ studentId: 's1', status: 'PRESENT' }] });
+    attendanceApi.addHomework('a1', 'תרגיל'); expect(post).toHaveBeenCalledWith('/attendance/sessions/a1/homework', { title: 'תרגיל' });
+    attendanceApi.renameHomework('h1', 'חדש'); expect(patch).toHaveBeenCalledWith('/attendance/homework/h1', { title: 'חדש' });
+    attendanceApi.deleteHomework('h1'); expect(del).toHaveBeenCalledWith('/attendance/homework/h1');
+    attendanceApi.saveHomeworkMarks('h1', [{ studentId: 's1', done: true }]);
+    expect(put).toHaveBeenCalledWith('/attendance/homework/h1/marks', { marks: [{ studentId: 's1', done: true }] });
+  });
+
+  it('downloads the template as a file and uploads a sheet as form data', () => {
+    attendanceApi.downloadTemplate('c1');
+    expect(get).toHaveBeenCalledWith('/courses/c1/attendance/template', { responseType: 'blob' });
+    const file = new File(['x'], 'a.xlsx');
+    attendanceApi.importFile('c1', file);
+    const [url, body] = post.mock.calls.at(-1)!;
+    expect(url).toBe('/courses/c1/attendance/import');
+    expect((body as FormData).get('file')).toBe(file);
+  });
+
+  it("reads the student's own attendance", () => {
+    attendanceApi.getMine(); expect(get).toHaveBeenCalledWith('/attendance/me');
   });
 });

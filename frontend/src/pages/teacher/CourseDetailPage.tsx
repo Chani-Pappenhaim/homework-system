@@ -2,10 +2,11 @@ import { toExternalUrl, todayISO, cn } from '@/lib/utils';
 import { lessonPath, type CoursePageProps } from '@/components/lesson/LessonRoute';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Edit, ExternalLink, Plus, Trash2, ClipboardCheck, ArrowUpDown, BookOpen, Users, Paperclip } from 'lucide-react';
+import { Edit, ExternalLink, Plus, Trash2, ClipboardCheck, ArrowUpDown, BookOpen, Users, Paperclip, CalendarCheck } from 'lucide-react';
 import { LessonReorderList } from '@/components/lesson/LessonReorderList';
 import { LessonCard } from '@/components/lesson/LessonCard';
 import { CourseAccessPanel } from '@/components/lesson/CourseAccessPanel';
+import { AttendancePanel } from '@/components/teacher/attendance/AttendancePanel';
 import { FileGallery } from '@/components/ui/file-gallery';
 import { MultiUrlInput } from '@/components/ui/multi-url-input';
 import { DateField } from '@/components/ui/date-field';
@@ -29,7 +30,7 @@ import { useToast } from '@/components/ui/toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useTabParam } from '@/hooks/useTabParam';
 
-const TABS = ['lessons', 'students', 'materials'] as const;
+const TABS = ['lessons', 'attendance', 'students', 'materials'] as const;
 
 function StatTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -144,6 +145,7 @@ export default function CourseDetailPage(props: Partial<CoursePageProps>) {
       <div className="flex flex-wrap items-center gap-2">
         {([
           ['lessons', BookOpen, `שיעורים (${course.lessons.length})`],
+          ['attendance', CalendarCheck, 'נוכחות'],
           ['students', Users, 'תלמידות נוספות'],
           ['materials', Paperclip, `חומרי עזר וקישורים (${course.links.length + course.files.length})`],
         ] as const).map(([key, Icon, label]) => (
@@ -200,6 +202,7 @@ export default function CourseDetailPage(props: Partial<CoursePageProps>) {
 
       )}
 
+      {tab === 'attendance' && <AttendancePanel courseId={course.id} />}
       {tab === 'students' && <CourseAccessPanel courseId={course.id} />}
 
       {/* Links + Files — independent, equal-weight sections, side by side on wide screens */}
