@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowDown, ArrowUp, GripVertical, Lock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripHorizontal } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
 import { cn } from '@/lib/utils';
+import { LessonCard, type LessonCardLesson } from './LessonCard';
 
-type Item = { id: string; topic: string; hidden?: boolean };
+type Item = LessonCardLesson & { id: string };
 
 function move<T>(list: T[], from: number, to: number): T[] {
   const next = [...list];
@@ -16,7 +17,11 @@ function move<T>(list: T[], from: number, to: number): T[] {
   return next;
 }
 
-/** Drag-and-drop (or arrow buttons) ordering of a course's lessons. */
+/**
+ * Drag-and-drop (or arrow buttons) ordering of a course's lessons, laid out as
+ * the same tiles the course page shows. In the right-to-left grid the right
+ * arrow moves a lesson earlier and the left arrow later.
+ */
 export function LessonReorderList({ courseId, lessons, onDone }: {
   courseId: string;
   lessons: Item[];
@@ -41,11 +46,14 @@ export function LessonReorderList({ courseId, lessons, onDone }: {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-ink/60">גררי שיעור למקום החדש, או השתמשי בחיצים. מספרי השיעורים יתעדכנו לפי הסדר.</p>
-      <ol className="space-y-1.5">
+      <p className="text-xs text-ink/60">אפשר לגרור שיעור למקום החדש, או להשתמש בחיצים. מספרי השיעורים יתעדכנו לפי הסדר.</p>
+      <ol className="flex flex-wrap gap-3">
         {items.map((l, i) => (
-          <li
+          <LessonCard
             key={l.id}
+            as="li"
+            lesson={l}
+            number={i + 1}
             draggable
             onDragStart={() => setDragIndex(i)}
             onDragOver={(e) => {
@@ -55,38 +63,30 @@ export function LessonReorderList({ courseId, lessons, onDone }: {
               setDragIndex(i);
             }}
             onDragEnd={() => setDragIndex(null)}
-            className={cn(
-              'flex cursor-grab items-center gap-3 rounded-lg border border-rule bg-sheet px-3 py-2 shadow-soft',
-              dragIndex === i && 'border-clay opacity-60'
-            )}
+            className={cn('cursor-grab', dragIndex === i && 'border-clay opacity-60')}
           >
-            <GripVertical size={14} className="shrink-0 text-ink/40" />
-            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-ground font-display text-xs font-bold tabular text-ink/60">
-              {i + 1}
-            </span>
-            <span className="flex flex-1 items-center gap-1 text-sm font-medium text-ink">
-              {l.hidden && <Lock size={11} className="shrink-0 text-ink/40" />}
-              {l.topic}
-            </span>
-            <button
-              type="button"
-              disabled={i === 0}
-              onClick={() => setItems((prev) => move(prev, i, i - 1))}
-              className="rounded p-1 text-ink/60 hover:bg-ground disabled:opacity-30"
-              aria-label="הזזה למעלה"
-            >
-              <ArrowUp size={14} />
-            </button>
-            <button
-              type="button"
-              disabled={i === items.length - 1}
-              onClick={() => setItems((prev) => move(prev, i, i + 1))}
-              className="rounded p-1 text-ink/60 hover:bg-ground disabled:opacity-30"
-              aria-label="הזזה למטה"
-            >
-              <ArrowDown size={14} />
-            </button>
-          </li>
+            <div className="flex w-full items-center justify-between">
+              <button
+                type="button"
+                disabled={i === 0}
+                onClick={() => setItems((prev) => move(prev, i, i - 1))}
+                className="rounded p-1 text-ink/60 hover:bg-ground disabled:opacity-30"
+                aria-label="הזזה אחורה"
+              >
+                <ChevronRight size={14} />
+              </button>
+              <GripHorizontal size={14} className="text-ink/40" />
+              <button
+                type="button"
+                disabled={i === items.length - 1}
+                onClick={() => setItems((prev) => move(prev, i, i + 1))}
+                className="rounded p-1 text-ink/60 hover:bg-ground disabled:opacity-30"
+                aria-label="הזזה קדימה"
+              >
+                <ChevronLeft size={14} />
+              </button>
+            </div>
+          </LessonCard>
         ))}
       </ol>
       <div className="flex justify-end gap-2">

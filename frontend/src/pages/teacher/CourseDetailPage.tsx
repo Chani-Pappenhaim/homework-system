@@ -1,9 +1,10 @@
-import { toExternalUrl, todayISO, formatDate, cn } from '@/lib/utils';
+import { toExternalUrl, todayISO, cn } from '@/lib/utils';
 import { lessonPath, type CoursePageProps } from '@/components/lesson/LessonRoute';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Edit, Lock, ExternalLink, Plus, Trash2, ClipboardCheck, ArrowUpDown, BookOpen, Users, Paperclip } from 'lucide-react';
+import { Edit, ExternalLink, Plus, Trash2, ClipboardCheck, ArrowUpDown, BookOpen, Users, Paperclip } from 'lucide-react';
 import { LessonReorderList } from '@/components/lesson/LessonReorderList';
+import { LessonCard } from '@/components/lesson/LessonCard';
 import { CourseAccessPanel } from '@/components/lesson/CourseAccessPanel';
 import { FileGallery } from '@/components/ui/file-gallery';
 import { MultiUrlInput } from '@/components/ui/multi-url-input';
@@ -176,31 +177,15 @@ export default function CourseDetailPage(props: Partial<CoursePageProps>) {
           ) : (
           <div className="flex flex-wrap gap-3">
             {course.lessons.map((l, i) => (
-              <button
+              <LessonCard
                 key={l.id}
+                lesson={l}
+                number={i + 1}
                 onClick={() => navigate(lessonPath('teacher', courseSlug!, i + 1, l.topic))}
                 onMouseEnter={() => qc.prefetchQuery({ queryKey: ['lesson', l.id], queryFn: () => lessonsApi.get(l.id) })}
                 onFocus={() => qc.prefetchQuery({ queryKey: ['lesson', l.id], queryFn: () => lessonsApi.get(l.id) })}
-                title={l.topic}
-                className={cn(
-                  'lift flex w-36 flex-col items-center gap-1.5 rounded-lg border border-rule p-3 text-center shadow-soft transition-colors hover:bg-butter/10',
-                  l.hidden ? 'bg-ground/40' : 'bg-sheet',
-                )}
-              >
-                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-ground font-display text-sm font-bold tabular text-ink/60">
-                  {i + 1}
-                </span>
-                <p className="flex min-h-[2lh] w-full items-center justify-center gap-1 text-xs font-bold text-ink line-clamp-2">
-                  {l.hidden && <Lock size={10} className="shrink-0 text-ink/40" />}
-                  {l.topic}
-                </p>
-                <p className="text-[10px] text-ink-soft">
-                  {l.lessonDate ? formatDate(l.lessonDate) : 'ללא תאריך'}
-                </p>
-                {Boolean(l.groupStudentCount) && (
-                  <p className="text-[10px] text-ink-soft">{l.completedCount ?? 0}/{l.groupStudentCount} סיימו</p>
-                )}
-              </button>
+                className="lift hover:bg-butter/10"
+              />
             ))}
             <button
               onClick={() => { setNewTopic(''); setNewDate(todayISO()); setNewContent(''); setNewGithubUrls(['']); setNewLessonModal(true); }}
