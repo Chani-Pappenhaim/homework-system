@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { LessonById, LessonByNumber } from '@/components/lesson/LessonRoute';
+import { CourseByName, LessonById, LessonByNumber } from '@/components/lesson/LessonRoute';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import AuthGuard from '@/components/guards/AuthGuard';
 import AdminGuard from '@/components/guards/AdminGuard';
@@ -59,8 +59,8 @@ function AppRoutes() {
           <Route path="groups/:id/edit" element={<GroupFormPage />} />
           <Route path="courses" element={<CoursesPage />} />
           <Route path="courses/new" element={<CourseFormPage />} />
-          <Route path="courses/:id/edit" element={<CourseFormPage />} />
-          <Route path="courses/:id" element={<CourseDetailPage />} />
+          <Route path="courses/:courseId/edit" element={<CourseByName area="teacher" page={CourseFormPage} />} />
+          <Route path="courses/:courseId" element={<CourseByName area="teacher" page={CourseDetailPage} />} />
           <Route path="courses/:courseId/lessons/:lessonNumber" element={<LessonByNumber area="teacher" page={LessonDetailPage} />} />
           <Route path="lessons/:id" element={<LessonById area="teacher" page={LessonDetailPage} />} />
           {/* Mirrors the student quiz route so the same lesson quiz is reachable from either role */}
@@ -75,7 +75,7 @@ function AppRoutes() {
         }>
           <Route index element={<StudentHomePage />} />
           <Route path="courses" element={<StudentCoursesPage />} />
-          <Route path="courses/:id" element={<StudentCourseDetailPage />} />
+          <Route path="courses/:courseId" element={<CourseByName area="student" page={StudentCourseDetailPage} />} />
           <Route path="courses/:courseId/lessons/:lessonNumber" element={<LessonByNumber area="student" page={StudentLessonDetailPage} />} />
           <Route path="lessons/:id" element={<LessonById area="student" page={StudentLessonDetailPage} />} />
           <Route path="assignments" element={<AssignmentsPage />} />

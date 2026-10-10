@@ -1,3 +1,4 @@
+import type { CoursePageProps } from '@/components/lesson/LessonRoute';
 import { toExternalUrl, cn, groupDisplayName } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -28,8 +29,9 @@ import { useTabParam } from '@/hooks/useTabParam';
 
 const COURSE_TABS = ['details', 'links'] as const;
 
-export default function CourseFormPage() {
-  const { id } = useParams();
+export default function CourseFormPage(props: Partial<CoursePageProps>) {
+  const params = useParams();
+  const id = props.courseId ?? params.id;
   const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
@@ -82,8 +84,10 @@ export default function CourseFormPage() {
     mutationFn: () => isEdit
       ? coursesApi.update(id!, { name, year, description, groupId })
       : coursesApi.create({ name, year, description, groupId }),
-    onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: ['courses'] });
+    onSuccess: async (res) => {
+      // The course's address comes from its name — wait for the list with the
+      // new name, or the page would open at the old address.
+      await qc.invalidateQueries({ queryKey: ['courses'] });
       toast.success(isEdit ? 'הקורס נשמר בהצלחה' : 'הקורס נוצר בהצלחה');
       const cid = isEdit ? id! : res.data.data.course.id;
       navigate(`/teacher/courses/${cid}`);

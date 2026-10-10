@@ -1,8 +1,9 @@
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { coursesApi } from '@/api/courses.api';
 import { lessonsApi } from '@/api/lessons.api';
+import { courseSlugs, lessonSegment, slugify } from '@/lib/slugs';
 
 type Area = 'teacher' | 'student';
 
@@ -12,18 +13,41 @@ export interface LessonPageProps {
   lessonNumber?: number;
 }
 
-/** A short, permanent key for a lesson — the start of its id. */
-function lessonKey(lessonId: string): string {
-  return lessonId.replace(/-/g, '').slice(0, 8);
+export interface CoursePageProps {
+  courseId: string;
+  /** The course's address segment — its name, or its id when it has none. */
+  courseSlug: string;
+}
+
+/** `/teacher/courses/תחביר-בסיסי` — a course page's address. */
+export function coursePath(area: Area, courseSlug: string): string {
+  return `/${area}/courses/${courseSlug}`;
 }
 
 /**
- * `/teacher/courses/c1/lessons/3-1a2b3c4d` — the address a lesson page lives at:
- * its current number in the course, plus a permanent key that keeps old links
- * pointing at the same lesson after the lessons are reordered.
+ * `/teacher/courses/תחביר-בסיסי/lessons/3-לולאות` — a lesson page's address:
+ * its current number in the course and its topic.
  */
-export function lessonPath(area: Area, courseId: string, lessonNumber: number, lessonId: string): string {
-  return `/${area}/courses/${courseId}/lessons/${lessonNumber}-${lessonKey(lessonId)}`;
+export function lessonPath(area: Area, courseSlug: string, lessonNumber: number, topic: string): string {
+  return `${coursePath(area, courseSlug)}/lessons/${lessonSegment(lessonNumber, topic)}`;
+}
+
+/** The pathname as written, Hebrew included — browsers hand it over percent-encoded. */
+function decodedPathname(pathname: string): string {
+  try { return decodeURI(pathname); } catch { return pathname; }
+}
+
+const Loading = () => <div className="p-6 font-sans text-ink/50">טוען…</div>;
+
+function useCourseList() {
+  return useQuery({ queryKey: ['courses'], queryFn: () => coursesApi.list() });
+}
+
+/** Every course the viewer can see, keyed by id, with its address segment. */
+function useCourseSlugs() {
+  const query = useCourseList();
+  const courses = query.data?.data.data.courses ?? [];
+  return { slugs: courseSlugs(courses), isLoading: query.isLoading };
 }
 
 function useCourseLessons(courseId: string | undefined) {
@@ -36,37 +60,96 @@ function useCourseLessons(courseId: string | undefined) {
 }
 
 /**
- * Renders a lesson addressed by its number in the course — the number the
- * course page shows on the lesson's tile. The key after the number identifies
- * the lesson itself, so when the order changed since the link was made (or the
- * viewer sees a different list, e.g. without hidden lessons) the address is
- * corrected to the lesson's current number. A bare number is looked up by
- * position and gets its key added.
+ * Resolves the course segment of any `/courses/:courseId/...` address — the
+ * course's name, or its id in links that only know the id — and moves the
+ * address to the name. A renamed course gets its new name in the address, so
+ * links made before the rename keep working through the id they redirect from.
  */
-export function LessonByNumber({ area, page: Page }: { area: Area; page: ComponentType<LessonPageProps> }) {
-  const { courseId, lessonNumber } = useParams<{ courseId: string; lessonNumber: string }>();
+export function CourseRoute({ area, children }: { area: Area; children: (course: CoursePageProps) => ReactNode }) {
+  const { courseId: param = '' } = useParams<{ courseId: string }>();
+  const location = useLocation();
+  const { slugs, isLoading } = useCourseSlugs();
+
+  if (isLoading) return <Loading />;
+  let courseId: string | undefined;
+  if (slugs.has(param)) courseId = param;
+  else courseId = [...slugs].find(([, slug]) => slug === param)?.[0];
+
+  if (!courseId) {
+    // Not in the viewer's list — an id still opens the course (the server
+    // decides whether the viewer may see it); an unknown name does not.
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(param)) return <>{children({ courseId: param, courseSlug: param })}</>;
+    return (
+      <div className="p-6 font-sans text-coral" dir="rtl">
+        הקורס לא נמצא. <Navigate to={`/${area}/courses`} replace />
+      </div>
+    );
+  }
+
+  const courseSlug = slugs.get(courseId)!;
+  if (param !== courseSlug) {
+    const segments = decodedPathname(location.pathname).split('/');
+    segments[segments.indexOf('courses') + 1] = courseSlug;
+    return <Navigate to={`${segments.join('/')}${location.search}`} replace />;
+  }
+  return <>{children({ courseId, courseSlug })}</>;
+}
+
+/** A course page behind {@link CourseRoute}. */
+export function CourseByName({ area, page: Page }: { area: Area; page: ComponentType<CoursePageProps> }) {
+  return <CourseRoute area={area}>{(course) => <Page key={course.courseId} {...course} />}</CourseRoute>;
+}
+
+/**
+ * Renders a lesson addressed by its number and topic. The topic identifies the
+ * lesson, so when the order changed since the link was made (or the viewer
+ * sees a different list, e.g. without hidden lessons) the address is corrected
+ * to the lesson's current number; a bare number is looked up by position. The
+ * number tells apart lessons that share a topic. Older addresses ending in the
+ * start of the lesson's id still resolve.
+ */
+export function LessonByNumber({ area, page }: { area: Area; page: ComponentType<LessonPageProps> }) {
+  return (
+    <CourseRoute area={area}>
+      {(course) => <LessonInCourse area={area} page={page} {...course} />}
+    </CourseRoute>
+  );
+}
+
+function LessonInCourse({ area, page: Page, courseId, courseSlug }: {
+  area: Area; page: ComponentType<LessonPageProps>;
+} & CoursePageProps) {
+  const { lessonNumber: segment = '' } = useParams<{ lessonNumber: string }>();
   const location = useLocation();
   const { data, isLoading, isError } = useCourseLessons(courseId);
   const lessons = data?.data.data.course.lessons ?? [];
 
-  if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
-  const match = /^(\d+)(?:-([0-9a-z]+))?$/i.exec(lessonNumber ?? '');
+  if (isLoading) return <Loading />;
+  const match = /^(\d+)(?:-(.+))?$/.exec(segment);
   const n = match ? Number(match[1]) : NaN;
-  const key = match?.[2]?.toLowerCase();
-  const index = key
-    ? lessons.findIndex((l) => lessonKey(l.id) === key)
-    : (n >= 1 && n <= lessons.length ? n - 1 : -1);
+  const rest = match?.[2]?.toLowerCase();
+  let index = -1;
+  if (rest) {
+    const named = lessons.flatMap((l, i) => (slugify(l.topic ?? '') === rest ? [i] : []));
+    index = named.includes(n - 1) ? n - 1 : named[0] ?? -1;
+    if (index < 0) index = lessons.findIndex((l) => l.id.replace(/-/g, '').slice(0, 8) === rest);
+  }
+  // No topic matched — the lesson was renamed since the link was made, or it is
+  // a bare number: go by position.
+  if (index < 0 && n >= 1 && n <= lessons.length) {
+    index = n - 1;
+  }
 
-  if (isError || !courseId || index < 0) {
+  if (isError || index < 0) {
     return (
       <div className="p-6 font-sans text-coral" dir="rtl">
-        השיעור לא נמצא. <Navigate to={courseId ? `/${area}/courses/${courseId}` : `/${area}`} replace />
+        השיעור לא נמצא. <Navigate to={coursePath(area, courseSlug)} replace />
       </div>
     );
   }
   const lesson = lessons[index];
-  const canonical = lessonPath(area, courseId, index + 1, lesson.id);
-  if (location.pathname !== canonical) {
+  const canonical = lessonPath(area, courseSlug, index + 1, lesson.topic ?? '');
+  if (decodedPathname(location.pathname) !== canonical) {
     return <Navigate to={`${canonical}${location.search}`} replace />;
   }
   return <Page key={lesson.id} lessonId={lesson.id} lessonNumber={index + 1} />;
@@ -89,13 +172,14 @@ export function LessonById({ area, page: Page }: { area: Area; page: ComponentTy
   });
   const courseId = lessonQuery.data?.data.data.lesson.courseId;
   const courseQuery = useCourseLessons(courseId);
+  const { slugs, isLoading: slugsLoading } = useCourseSlugs();
 
-  if (lessonQuery.isLoading || (courseId && courseQuery.isLoading)) {
-    return <div className="p-6 font-sans text-ink/50">טוען…</div>;
-  }
-  const index = courseQuery.data?.data.data.course.lessons.findIndex((l) => l.id === id) ?? -1;
+  if (lessonQuery.isLoading || (courseId && (courseQuery.isLoading || slugsLoading))) return <Loading />;
+  const lessons = courseQuery.data?.data.data.course.lessons ?? [];
+  const index = lessons.findIndex((l) => l.id === id);
   if (courseId && index >= 0) {
-    return <Navigate to={`${lessonPath(area, courseId, index + 1, id!)}${location.search}`} replace />;
+    const courseSlug = slugs.get(courseId) ?? courseId;
+    return <Navigate to={`${lessonPath(area, courseSlug, index + 1, lessons[index].topic ?? '')}${location.search}`} replace />;
   }
   return <Page lessonId={id!} />;
 }

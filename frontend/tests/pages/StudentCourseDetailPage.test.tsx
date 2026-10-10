@@ -46,7 +46,7 @@ describe('StudentCourseDetailPage', () => {
     renderPage();
     await screen.findByRole('heading', { name: 'קורס פייתון' });
     await userEvent.click(screen.getByRole('button', { name: '2' }));
-    expect(navigate).toHaveBeenCalledWith('/student/courses/c1/lessons/2-l2');
+    expect(navigate).toHaveBeenCalledWith('/student/courses/c1/lessons/2-b');
   });
 
   it('shows a not-found message when the course is missing', async () => {

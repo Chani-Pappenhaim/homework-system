@@ -1,5 +1,5 @@
 import { toExternalUrl, todayISO, formatDate, cn } from '@/lib/utils';
-import { lessonPath } from '@/components/lesson/LessonRoute';
+import { lessonPath, type CoursePageProps } from '@/components/lesson/LessonRoute';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Edit, Lock, ExternalLink, Plus, Trash2, ClipboardCheck, ArrowUpDown } from 'lucide-react';
@@ -37,8 +37,10 @@ function StatTile({ label, value, hint }: { label: string; value: string; hint?:
   );
 }
 
-export default function CourseDetailPage() {
-  const { id } = useParams<{ id: string }>();
+export default function CourseDetailPage(props: Partial<CoursePageProps>) {
+  const params = useParams<{ id: string }>();
+  const id = props.courseId ?? params.id;
+  const courseSlug = props.courseSlug ?? id;
   const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
@@ -105,7 +107,7 @@ export default function CourseDetailPage() {
             <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/reports?courseId=${id}`)}>
               <ClipboardCheck size={13} /> בדיקת הגשות
             </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/courses/${id}/edit`)}>
+            <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/courses/${courseSlug}/edit`)}>
               <Edit size={13} /> ערוך קורס
             </Button>
             <Button
@@ -151,7 +153,7 @@ export default function CourseDetailPage() {
             {course.lessons.map((l, i) => (
               <button
                 key={l.id}
-                onClick={() => navigate(lessonPath('teacher', course.id, i + 1, l.id))}
+                onClick={() => navigate(lessonPath('teacher', courseSlug!, i + 1, l.topic))}
                 onMouseEnter={() => qc.prefetchQuery({ queryKey: ['lesson', l.id], queryFn: () => lessonsApi.get(l.id) })}
                 onFocus={() => qc.prefetchQuery({ queryKey: ['lesson', l.id], queryFn: () => lessonsApi.get(l.id) })}
                 title={l.topic}

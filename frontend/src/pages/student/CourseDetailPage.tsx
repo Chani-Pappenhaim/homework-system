@@ -1,5 +1,5 @@
 import { toExternalUrl } from '@/lib/utils';
-import { lessonPath } from '@/components/lesson/LessonRoute';
+import { lessonPath, type CoursePageProps } from '@/components/lesson/LessonRoute';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, Check } from 'lucide-react';
@@ -12,8 +12,10 @@ import { cn } from '@/lib/utils';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 
-export default function StudentCourseDetailPage() {
-  const { id } = useParams<{ id: string }>();
+export default function StudentCourseDetailPage(props: Partial<CoursePageProps>) {
+  const params = useParams<{ id: string }>();
+  const id = props.courseId ?? params.id;
+  const courseSlug = props.courseSlug ?? id;
   const navigate = useNavigate();
   const qc = useQueryClient();
 
@@ -66,7 +68,7 @@ export default function StudentCourseDetailPage() {
             {course.lessons.map((l, i) => (
               <button
                 key={l.id}
-                onClick={() => navigate(lessonPath('student', course.id, i + 1, l.id))}
+                onClick={() => navigate(lessonPath('student', courseSlug!, i + 1, l.topic))}
                 onMouseEnter={() => prefetchLesson(l.id)}
                 onFocus={() => prefetchLesson(l.id)}
                 title={l.completed ? `${l.topic} (הושלם)` : l.topic}
