@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard, BookOpen, Users, BarChart2, Sparkles, MessageSquare,
   Bell, LogOut, Search,
@@ -26,6 +26,7 @@ export default function TeacherLayout() {
   const { user, clearAuth } = useAuthStore();
   const { search, setSearch } = useUiStore();
   const searchRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   const { data: unreadData } = useQuery({
@@ -55,6 +56,9 @@ export default function TeacherLayout() {
     await authApi.logout().catch(() => {});
     clearAuth();
     navigate('/login');
+    // Drop everything fetched for this user so the next login on this
+    // browser never sees her data, even briefly.
+    queryClient.clear();
   }
 
   const initials = (user?.name ?? 'עדי שלום').split(' ').map((w) => w[0]).slice(0, 2).join('');

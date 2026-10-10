@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Home, BookOpen, ClipboardList, MessageSquare, LogOut, UserRound, MailWarning, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import useAuthStore from '@/store/authStore';
@@ -19,6 +19,7 @@ const nav = [
 
 export default function StudentLayout() {
   const { user, clearAuth } = useAuthStore();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   const { data: unreadReplyData } = useQuery({
@@ -32,6 +33,9 @@ export default function StudentLayout() {
     await authApi.logout().catch(() => {});
     clearAuth();
     navigate('/login');
+    // Drop everything fetched for this user so the next login on this
+    // browser never sees her data, even briefly.
+    queryClient.clear();
   }
 
   const [bannerClosed, setBannerClosed] = useState(false);
