@@ -30,6 +30,7 @@ import StudentCoursesPage from '@/pages/student/CoursesPage';
 import StudentCourseDetailPage from '@/pages/student/CourseDetailPage';
 import StudentLessonDetailPage from '@/pages/student/LessonDetailPage';
 import AssignmentsPage from '@/pages/student/AssignmentsPage';
+import StudentAttendancePage from '@/pages/student/AttendancePage';
 import QuizPage from '@/pages/student/QuizPage';
 import StudentMessagesPage from '@/pages/student/MessagesPage';
 import ProfilePage from '@/pages/student/ProfilePage';
@@ -79,6 +80,7 @@ function AppRoutes() {
           <Route path="courses/:courseId/lessons/:lessonNumber" element={<LessonByNumber area="student" page={StudentLessonDetailPage} />} />
           <Route path="lessons/:id" element={<LessonById area="student" page={StudentLessonDetailPage} />} />
           <Route path="assignments" element={<AssignmentsPage />} />
+          <Route path="attendance" element={<StudentAttendancePage />} />
           <Route path="quiz/:lessonId" element={<QuizPage />} />
           <Route path="messages" element={<StudentMessagesPage />} />
           <Route path="profile" element={<ProfilePage />} />

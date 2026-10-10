@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Home, BookOpen, ClipboardList, MessageSquare, LogOut, UserRound, MailWarning, X } from 'lucide-react';
+import { Home, BookOpen, ClipboardList, MessageSquare, LogOut, UserRound, MailWarning, X, CalendarCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import useAuthStore from '@/store/authStore';
 import { authApi } from '@/api/auth.api';
@@ -13,6 +13,7 @@ const nav = [
   { to: '/student', label: 'בית', icon: Home, end: true },
   { to: '/student/courses', label: 'קורסים', icon: BookOpen },
   { to: '/student/assignments', label: 'מטלות', icon: ClipboardList },
+  { to: '/student/attendance', label: 'נוכחות', icon: CalendarCheck },
   { to: '/student/messages', label: 'הודעה למורה', icon: MessageSquare },
   { to: '/student/profile', label: 'הפרופיל שלי', icon: UserRound },
 ];

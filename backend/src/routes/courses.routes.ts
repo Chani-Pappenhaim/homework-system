@@ -2,7 +2,9 @@ import { Router } from 'express';
 import { verifyAccessTokenMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/role';
 import * as coursesController from '../controllers/courses.controller';
-import { uploadAttachment as upload } from '../middleware/upload';
+import * as attendanceController from '../controllers/attendance.controller';
+import { uploadAttachment as upload, uploadImport } from '../middleware/upload';
+import { requireFile } from '../middleware/requireFile';
 
 const router = Router();
 router.use(verifyAccessTokenMiddleware);
@@ -25,5 +27,12 @@ router.patch('/:id/files/:fileId/hidden', requireRole('ADMIN'), coursesControlle
 router.get('/:id/access', requireRole('ADMIN'), coursesController.getAccess);
 router.post('/:id/access', requireRole('ADMIN'), coursesController.grantAccess);
 router.delete('/:id/access/:studentId', requireRole('ADMIN'), coursesController.revokeAccess);
+
+router.get('/:id/attendance', requireRole('ADMIN'), attendanceController.getCourseAttendance);
+router.get('/:id/attendance/template', requireRole('ADMIN'), attendanceController.downloadTemplate);
+router.post('/:id/attendance/import', requireRole('ADMIN'), uploadImport.single('file'), requireFile, attendanceController.importAttendance);
+router.post('/:id/attendance/sessions', requireRole('ADMIN'), attendanceController.createSession);
+router.post('/:id/attendance/sessions/from-lessons', requireRole('ADMIN'), attendanceController.createSessionsFromLessons);
+router.put('/:id/attendance/exclusions/:studentId', requireRole('ADMIN'), attendanceController.setExclusion);
 
 export default router;

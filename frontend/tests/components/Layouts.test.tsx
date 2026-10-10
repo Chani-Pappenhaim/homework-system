@@ -81,6 +81,7 @@ describe('StudentLayout', () => {
     expect(screen.getAllByRole('link', { name: /בית/ }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', { name: /קורסים/ }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', { name: /מטלות/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /נוכחות/ })[0]).toHaveAttribute('href', '/student/attendance');
     expect(screen.getAllByRole('link', { name: /הודעה למורה/ }).length).toBeGreaterThan(0);
   });
 
