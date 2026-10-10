@@ -43,8 +43,21 @@ export function toUserDTO(user: UserWithGroups): UserDTO {
   };
 }
 
+/**
+ * Finds a user by email regardless of letter case or surrounding spaces —
+ * an address typed with a capital letter on a phone keyboard is still hers.
+ */
+export async function findUserByEmail(rawEmail: unknown): Promise<UserWithGroups | null> {
+  const email = typeof rawEmail === 'string' ? rawEmail.trim() : '';
+  if (!email) return null;
+  return prisma.user.findFirst({ where: { email: { equals: email, mode: 'insensitive' } }, include: groupsInclude });
+}
+
 export async function loginWithPassword(email: string, password: string): Promise<UserWithGroups> {
-  const user = await prisma.user.findUnique({ where: { email }, include: groupsInclude });
+  if (typeof password !== 'string' || !password) {
+    throw new AppError('Missing credentials', 'יש להזין אימייל וסיסמה', 400);
+  }
+  const user = await findUserByEmail(email);
   if (!user) throw new AppError('Invalid credentials', 'אימייל או סיסמה שגויים', 401);
   if (!user.password) throw new AppError('Use OAuth to login', 'יש להתחבר עם הכניסה החברתית (OAuth)', 403);
 
@@ -59,6 +72,9 @@ export async function getUserById(id: string): Promise<UserWithGroups | null> {
 }
 
 export async function changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+  if (typeof newPassword !== 'string' || typeof currentPassword !== 'string') {
+    throw new AppError('Missing password fields', 'יש להזין את הסיסמה הנוכחית והחדשה', 400);
+  }
   if (newPassword.length < 6) throw new AppError('Password too short (min 6 chars)', 'הסיסמה החדשה קצרה מדי (מינימום 6 תווים)', 400);
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -68,10 +84,11 @@ export async function changePassword(userId: string, currentPassword: string, ne
   if (!valid) throw new AppError('Current password is wrong', 'הסיסמה הנוכחית שגויה', 401);
 
   const hashed = await bcrypt.hash(newPassword, 12);
-  await prisma.user.update({ where: { id: userId }, data: { password: hashed, mustChangePassword: false } });
+  await prisma.user.update({ where: { id: userId }, data: { password: hashed, mustChangePassword: false, tokenVersion: { increment: 1 } } });
 }
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+const VERIFY_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
@@ -82,7 +99,7 @@ function hashToken(token: string): string {
  * this endpoint can't be used to enumerate registered emails.
  */
 export async function requestPasswordReset(email: string): Promise<void> {
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await findUserByEmail(email);
   if (!user) return;
 
   const rawToken = crypto.randomBytes(32).toString('hex');
@@ -109,7 +126,7 @@ export async function sendEmailVerification(userId: string): Promise<void> {
     const rawToken = crypto.randomBytes(32).toString('hex');
     const user = await prisma.user.update({
       where: { id: userId },
-      data: { emailVerifyTokenHash: hashToken(rawToken) },
+      data: { emailVerifyTokenHash: hashToken(rawToken), emailVerifyExpiresAt: new Date(Date.now() + VERIFY_TOKEN_TTL_MS) },
     });
     const verifyUrl = `${process.env.FRONTEND_URL}/verify-email?token=${rawToken}`;
     await emailQueue.add('verify-email', { email: user.email, name: user.name, verifyUrl });
@@ -121,9 +138,13 @@ export async function sendEmailVerification(userId: string): Promise<void> {
 export async function verifyEmail(token: string): Promise<void> {
   const user = token ? await prisma.user.findFirst({ where: { emailVerifyTokenHash: hashToken(token) } }) : null;
   if (!user) throw new AppError('Verification link invalid', 'הקישור אינו תקין או שכבר נעשה בו שימוש', 400);
+  // Links mailed before expiry was recorded have no date and stay valid.
+  if (user.emailVerifyExpiresAt && user.emailVerifyExpiresAt < new Date()) {
+    throw new AppError('Verification link expired', 'תוקף הקישור פג. אפשר לשלוח קישור חדש מדף הפרופיל', 400);
+  }
   await prisma.user.update({
     where: { id: user.id },
-    data: { emailVerifiedAt: new Date(), emailVerifyTokenHash: null },
+    data: { emailVerifiedAt: new Date(), emailVerifyTokenHash: null, emailVerifyExpiresAt: null },
   });
 }
 
@@ -168,6 +189,9 @@ export async function updateProfile(userId: string, data: {
 }
 
 export async function resetPasswordWithToken(token: string, newPassword: string): Promise<void> {
+  if (typeof token !== 'string' || !token || typeof newPassword !== 'string') {
+    throw new AppError('Missing reset fields', 'הקישור אינו תקין או שפג תוקפו', 400);
+  }
   if (newPassword.length < 6) throw new AppError('Password too short (min 6 chars)', 'הסיסמה החדשה קצרה מדי (מינימום 6 תווים)', 400);
 
   const user = await prisma.user.findFirst({ where: { resetTokenHash: hashToken(token) } });
@@ -178,6 +202,6 @@ export async function resetPasswordWithToken(token: string, newPassword: string)
   const hashed = await bcrypt.hash(newPassword, 12);
   await prisma.user.update({
     where: { id: user.id },
-    data: { password: hashed, mustChangePassword: false, resetTokenHash: null, resetTokenExpiresAt: null },
+    data: { password: hashed, mustChangePassword: false, resetTokenHash: null, resetTokenExpiresAt: null, tokenVersion: { increment: 1 } },
   });
 }

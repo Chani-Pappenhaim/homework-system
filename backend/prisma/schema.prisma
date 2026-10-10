@@ -28,6 +28,10 @@ model User {
   // never mailed past the verification email itself.
   emailVerifiedAt      DateTime?
   emailVerifyTokenHash String?
+  emailVerifyExpiresAt DateTime?
+  // Bumped whenever the password changes or is reset; a refresh token signed
+  // for an older version stops working, which signs out every other session.
+  tokenVersion         Int       @default(0)
   // The student's own choice whether to get notification emails (replies,
   // grades). Starts from her first group's default.
   emailNotifications   Boolean   @default(true)

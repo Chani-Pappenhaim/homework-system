@@ -251,7 +251,7 @@ export async function resetStudentPassword(studentId: string) {
   const hashed = await bcrypt.hash('12345678', 12);
   const user = await prisma.user.update({
     where: { id: studentId },
-    data: { password: hashed, mustChangePassword: true },
+    data: { password: hashed, mustChangePassword: true, tokenVersion: { increment: 1 } },
   });
   try {
     await emailQueue.add('reset-password', { email: user.email, name: user.name });

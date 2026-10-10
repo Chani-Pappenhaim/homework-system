@@ -34,7 +34,7 @@ vi.mock('../../src/services/grades.service', () => ({
 
 import request from 'supertest';
 import { createApp } from '../../src/app';
-import { signAccessToken } from '../../src/utils/jwt';
+import { signAccessToken, signRefreshToken } from '../../src/utils/jwt';
 import * as authService from '../../src/services/auth.service';
 import { AppError } from '../../src/utils/errors';
 import * as submissionsService from '../../src/services/submissions.service';
@@ -52,6 +52,37 @@ describe('health check', () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ success: true, data: { status: 'ok' } });
     expect(typeof res.body.data.uptime).toBe('number');
+  });
+});
+
+describe('temporary password and revoked sessions', () => {
+  const tempToken = signAccessToken({ userId: 'stud1', role: 'STUDENT', mustChangePassword: true });
+
+  it('blocks other routes until a temporary password is replaced', async () => {
+    const res = await request(app).get('/api/submissions/mine').set('Authorization', `Bearer ${tempToken}`);
+    expect(res.status).toBe(403);
+    expect(submissionsService.getMySubmissions).not.toHaveBeenCalled();
+  });
+
+  it('still lets her load her profile and change the password', async () => {
+    (authService.getUserById as any).mockResolvedValue({ id: 'stud1', role: 'STUDENT', mustChangePassword: false, tokenVersion: 1 });
+    const me = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${tempToken}`);
+    expect(me.status).toBe(200);
+    const change = await request(app).post('/api/auth/change-password')
+      .set('Authorization', `Bearer ${tempToken}`).send({ currentPassword: 'a', newPassword: 'bbbbbb' });
+    expect(change.status).toBe(200);
+    expect(typeof change.body.data.accessToken).toBe('string');
+    expect(change.headers['set-cookie']?.[0]).toMatch(/refreshToken=/);
+  });
+
+  it('rejects a refresh token signed before the last password change', async () => {
+    (authService.getUserById as any).mockResolvedValue({ id: 'stud1', role: 'STUDENT', mustChangePassword: false, tokenVersion: 2 });
+    const old = signRefreshToken({ userId: 'stud1', role: 'STUDENT', tokenVersion: 1 });
+    const res = await request(app).post('/api/auth/refresh').set('Cookie', `refreshToken=${old}`);
+    expect(res.status).toBe(401);
+    const current = signRefreshToken({ userId: 'stud1', role: 'STUDENT', tokenVersion: 2 });
+    const ok = await request(app).post('/api/auth/refresh').set('Cookie', `refreshToken=${current}`);
+    expect(ok.status).toBe(200);
   });
 });
 

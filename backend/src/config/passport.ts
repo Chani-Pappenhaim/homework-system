@@ -4,12 +4,13 @@ import { Strategy as GitHubStrategy } from 'passport-github2';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import bcrypt from 'bcryptjs';
 import { prisma } from './prisma';
+import { findUserByEmail } from '../services/auth.service';
 
 export function configurePassport(passport: PassportStatic) {
   passport.use(
     new LocalStrategy({ usernameField: 'email' }, async (email, password, done) => {
       try {
-        const user = await prisma.user.findUnique({ where: { email } });
+        const user = await findUserByEmail(email);
         if (!user) return done(null, false, { message: 'Invalid credentials' });
         if (!user.password) return done(null, false, { message: 'Use OAuth to login' });
 
@@ -37,7 +38,7 @@ export function configurePassport(passport: PassportStatic) {
             const email = profile.emails?.[0]?.value;
             if (!email) return done(new Error('No email from GitHub'));
 
-            const user = await prisma.user.findUnique({ where: { email } });
+            const user = await findUserByEmail(email);
             // Only accounts the teacher has already added may sign in. OAuth
             // links to an existing account by email — it never creates one.
             if (!user) return done(null, false, { message: 'unregistered' });
@@ -74,7 +75,7 @@ export function configurePassport(passport: PassportStatic) {
             const email = profile.emails?.[0]?.value;
             if (!email) return done(new Error('No email from Google'));
 
-            const user = await prisma.user.findUnique({ where: { email } });
+            const user = await findUserByEmail(email);
             // Only accounts the teacher has already added may sign in. OAuth
             // links to an existing account by email — it never creates one.
             if (!user) return done(null, false, { message: 'unregistered' });

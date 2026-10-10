@@ -4,6 +4,7 @@ vi.mock('../../src/config/prisma', () => ({
   prisma: {
     user: {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
       update: vi.fn(),
     },
   },
@@ -53,32 +54,46 @@ describe('auth.service', () => {
 
   describe('loginWithPassword', () => {
     it('throws 401 when user not found', async () => {
-      p.user.findUnique.mockResolvedValue(null);
+      p.user.findFirst.mockResolvedValue(null);
       await expect(loginWithPassword('none@x.com', 'pw')).rejects.toMatchObject({
         message: 'Invalid credentials', status: 401,
       });
     });
 
     it('throws 403 when the account has no password (OAuth-only)', async () => {
-      p.user.findUnique.mockResolvedValue({ id: 'u1', password: null });
+      p.user.findFirst.mockResolvedValue({ id: 'u1', password: null });
       await expect(loginWithPassword('o@x.com', 'pw')).rejects.toMatchObject({
         message: 'Use OAuth to login', status: 403,
       });
     });
 
     it('throws 401 when password does not match', async () => {
-      p.user.findUnique.mockResolvedValue({ id: 'u1', password: 'hash' });
+      p.user.findFirst.mockResolvedValue({ id: 'u1', password: 'hash' });
       bc.compare.mockResolvedValue(false);
       await expect(loginWithPassword('u@x.com', 'bad')).rejects.toMatchObject({ status: 401 });
     });
 
     it('returns the user on valid credentials', async () => {
       const user = { id: 'u1', password: 'hash', email: 'u@x.com' };
-      p.user.findUnique.mockResolvedValue(user);
+      p.user.findFirst.mockResolvedValue(user);
       bc.compare.mockResolvedValue(true);
       const result = await loginWithPassword('u@x.com', 'good');
       expect(result).toBe(user);
       expect(bc.compare).toHaveBeenCalledWith('good', 'hash');
+    });
+  
+    it('looks the email up case-insensitively, ignoring spaces', async () => {
+      p.user.findFirst.mockResolvedValue({ id: 'u1', password: 'hash' });
+      bc.compare.mockResolvedValue(true);
+      await loginWithPassword('  Dina@X.com ', 'good');
+      expect(p.user.findFirst.mock.calls[0][0].where).toEqual({ email: { equals: 'Dina@X.com', mode: 'insensitive' } });
+    });
+
+    it('rejects a missing email or password with 400/401 without querying a password', async () => {
+      await expect(loginWithPassword('u@x.com', undefined as any)).rejects.toMatchObject({ status: 400 });
+      p.user.findFirst.mockResolvedValue(null);
+      await expect(loginWithPassword(undefined as any, 'pw')).rejects.toMatchObject({ status: 401 });
+      expect(bc.compare).not.toHaveBeenCalled();
     });
   });
 
@@ -120,8 +135,15 @@ describe('auth.service', () => {
       expect(bc.hash).toHaveBeenCalledWith('newpassword', 12);
       expect(p.user.update).toHaveBeenCalledWith({
         where: { id: 'u1' },
-        data: { password: 'new-hash', mustChangePassword: false },
+        data: { password: 'new-hash', mustChangePassword: false, tokenVersion: { increment: 1 } },
       });
+    });
+  });
+
+  describe('changePassword input', () => {
+    it('rejects missing password fields with a 400', async () => {
+      await expect(changePassword('u1', undefined as any, undefined as any)).rejects.toMatchObject({ status: 400 });
+      expect(p.user.update).not.toHaveBeenCalled();
     });
   });
 });

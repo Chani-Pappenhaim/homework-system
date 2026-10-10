@@ -19,6 +19,10 @@ const REFRESH_SECRET = requireStrongSecret('JWT_REFRESH_SECRET');
 export interface TokenPayload {
   userId: string;
   role: string;
+  // Access token only: the user still has to replace a temporary password.
+  mustChangePassword?: boolean;
+  // Refresh token only: the user's tokenVersion when it was signed.
+  tokenVersion?: number;
 }
 
 export function signAccessToken(payload: TokenPayload): string {

@@ -1,4 +1,4 @@
-﻿import { Request, Response } from 'express';
+import { Request, Response } from 'express';
 import * as authService from '../services/auth.service';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt';
 import { sendError } from '../utils/http';
@@ -20,14 +20,29 @@ const refreshCookieOptions = {
   path: '/',
 };
 
+type SessionUser = { id: string; role: string; mustChangePassword: boolean; tokenVersion: number };
+
+/**
+ * Starts (or renews) a session: sets the refresh cookie and returns a fresh
+ * access token. The refresh token remembers the user's tokenVersion so a later
+ * password change can revoke it; the access token carries the temporary
+ * password flag the auth middleware enforces.
+ */
+function issueSession(res: Response, user: SessionUser): string {
+  const refreshToken = signRefreshToken({ userId: user.id, role: user.role, tokenVersion: user.tokenVersion });
+  res.cookie(REFRESH_COOKIE, refreshToken, { ...refreshCookieOptions, maxAge: REFRESH_MAX_AGE });
+  return signAccessToken({
+    userId: user.id,
+    role: user.role,
+    ...(user.mustChangePassword ? { mustChangePassword: true } : {}),
+  });
+}
+
 export async function login(req: Request, res: Response): Promise<void> {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body ?? {};
     const user = await authService.loginWithPassword(email, password);
-    const accessToken = signAccessToken({ userId: user.id, role: user.role });
-    const refreshToken = signRefreshToken({ userId: user.id, role: user.role });
-
-    res.cookie(REFRESH_COOKIE, refreshToken, { ...refreshCookieOptions, maxAge: REFRESH_MAX_AGE });
+    const accessToken = issueSession(res, user);
 
     res.json({ success: true, data: { user: authService.toUserDTO(user), accessToken } });
   } catch (err: any) {
@@ -43,11 +58,15 @@ export async function refresh(req: Request, res: Response): Promise<void> {
     const payload = verifyRefreshToken(token);
     const user = await authService.getUserById(payload.userId);
     if (!user) { res.status(401).json({ success: false, error: 'המשתמש לא נמצא' }); return; }
+    // Signed before the last password change — that session was revoked.
+    // Tokens from before versioning carry none and count as version 0.
+    if ((payload.tokenVersion ?? 0) !== user.tokenVersion) {
+      res.clearCookie(REFRESH_COOKIE, refreshCookieOptions);
+      res.status(401).json({ success: false, error: 'הסיסמה הוחלפה. אנא התחברו מחדש.' });
+      return;
+    }
 
-    const accessToken = signAccessToken({ userId: user.id, role: user.role });
-    const newRefreshToken = signRefreshToken({ userId: user.id, role: user.role });
-
-    res.cookie(REFRESH_COOKIE, newRefreshToken, { ...refreshCookieOptions, maxAge: REFRESH_MAX_AGE });
+    const accessToken = issueSession(res, user);
 
     res.json({ success: true, data: { accessToken } });
   } catch {
@@ -62,9 +81,13 @@ export async function logout(_req: Request, res: Response): Promise<void> {
 
 export async function changePassword(req: Request, res: Response): Promise<void> {
   try {
-    const { currentPassword, newPassword } = req.body;
+    const { currentPassword, newPassword } = req.body ?? {};
     await authService.changePassword(req.user!.userId, currentPassword, newPassword);
-    res.json({ success: true, data: null });
+    // Other sessions were revoked by the change; this one continues on a new
+    // token that no longer carries the temporary-password flag.
+    const user = await authService.getUserById(req.user!.userId);
+    const accessToken = user ? issueSession(res, user) : null;
+    res.json({ success: true, data: { accessToken } });
   } catch (err: any) {
     sendError(res, err, 400);
   }
@@ -72,7 +95,7 @@ export async function changePassword(req: Request, res: Response): Promise<void>
 
 export async function forgotPassword(req: Request, res: Response): Promise<void> {
   try {
-    await authService.requestPasswordReset(req.body.email);
+    await authService.requestPasswordReset(req.body?.email);
   } catch (err) {
     console.error('forgotPassword error:', err);
   }
@@ -83,7 +106,7 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
 
 export async function resetPasswordWithToken(req: Request, res: Response): Promise<void> {
   try {
-    const { token, newPassword } = req.body;
+    const { token, newPassword } = req.body ?? {};
     await authService.resetPasswordWithToken(token, newPassword);
     res.json({ success: true, data: null });
   } catch (err: any) {
@@ -131,10 +154,7 @@ export async function me(req: Request, res: Response): Promise<void> {
 
 export async function oauthCallback(req: Request, res: Response): Promise<void> {
   const user = req.user as any;
-  const accessToken = signAccessToken({ userId: user.id, role: user.role });
-  const refreshToken = signRefreshToken({ userId: user.id, role: user.role });
-
-  res.cookie(REFRESH_COOKIE, refreshToken, { ...refreshCookieOptions, maxAge: REFRESH_MAX_AGE });
+  const accessToken = issueSession(res, user);
 
   res.redirect(`${process.env.OAUTH_SUCCESS_REDIRECT}?token=${accessToken}`);
 }

@@ -121,7 +121,7 @@ describe('groups.service', () => {
       await resetStudentPassword('s1');
       expect(p.user.update).toHaveBeenCalledWith({
         where: { id: 's1' },
-        data: { password: 'hashed-pw', mustChangePassword: true },
+        data: { password: 'hashed-pw', mustChangePassword: true, tokenVersion: { increment: 1 } },
       });
       expect(emailAdd).toHaveBeenCalledWith('reset-password', { email: 'a@x.com', name: 'A' });
     });
