@@ -273,8 +273,9 @@ export async function reorderLessons(lessons: { id: string; order: number }[]) {
 
 // Signed params for a direct browser-to-Cloudinary upload — the file's bytes
 // never pass through this server, avoiding extra outbound bandwidth.
-export function getLessonUploadSignature(userId: string) {
-  return createUploadSignature('lessons', { uploaderId: userId });
+/** Tagged for the pending-upload cleanup only when the page asks (`tagged`). */
+export function getLessonUploadSignature(userId: string, tagged = false) {
+  return createUploadSignature('lessons', { uploaderId: tagged ? userId : undefined });
 }
 
 export async function uploadLessonFile(

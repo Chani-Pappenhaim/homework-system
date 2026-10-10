@@ -190,8 +190,9 @@ export async function deleteCourseLink(courseId: string, linkId: string) {
 }
 
 // Signed params for a direct browser-to-Cloudinary upload.
-export function getCourseUploadSignature(userId: string) {
-  return createUploadSignature('courses', { uploaderId: userId });
+/** Tagged for the pending-upload cleanup only when the page asks (`tagged`). */
+export function getCourseUploadSignature(userId: string, tagged = false) {
+  return createUploadSignature('courses', { uploaderId: tagged ? userId : undefined });
 }
 
 export async function uploadCourseFile(

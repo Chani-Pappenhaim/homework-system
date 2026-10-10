@@ -331,9 +331,16 @@ describe('submissions.service.getVideoUploadSignature', () => {
   it('returns signed params for the submissions folder', async () => {
     p.assignment.findUnique.mockResolvedValue(baseAssignment());
     signatureMock.mockReturnValue({ timestamp: 1, signature: 'sig', apiKey: 'k', cloudName: 'c', folder: 'submissions' });
-    const r = await getVideoUploadSignature('a1', 's1');
+    const r = await getVideoUploadSignature('a1', 's1', true);
     expect(signatureMock).toHaveBeenCalledWith('submissions', { uploaderId: 's1', allowedFormats: expect.arrayContaining(['mp4', 'mov']) });
     expect(r).toMatchObject({ signature: 'sig', folder: 'submissions' });
+  });
+
+  it('leaves the upload untagged for a page that does not ask for tags', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment());
+    signatureMock.mockReturnValue({});
+    await getVideoUploadSignature('a1', 's1');
+    expect(signatureMock.mock.calls[0][1].uploaderId).toBeUndefined();
   });
 });
 

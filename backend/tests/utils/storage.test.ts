@@ -110,6 +110,13 @@ describe('createUploadSignature', () => {
     );
     expect(r).toMatchObject({ tags: 'pending_upload,uploader_u1', allowedFormats: 'mp4', signature: 'sig' });
   });
+
+  it('signs no tags without an uploader, so an older page still matches the signature', () => {
+    signFn.mockReturnValue('sig');
+    const r = createUploadSignature('lessons', {});
+    expect(signFn.mock.calls[0][0]).not.toHaveProperty('tags');
+    expect(r).not.toHaveProperty('tags');
+  });
 });
 
 describe('isOwnUpload / assetRef', () => {

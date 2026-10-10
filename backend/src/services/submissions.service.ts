@@ -175,14 +175,14 @@ async function saveSubmission(
 const VIDEO_FORMATS = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'wmv', 'm4v', '3gp', 'mpeg', 'mpg', 'ogv'];
 
 /** Signed params so a student's browser can upload a video straight to Cloudinary. */
-export async function getVideoUploadSignature(assignmentId: string, studentId: string) {
+export async function getVideoUploadSignature(assignmentId: string, studentId: string, tagged = false) {
   const assignment = await prisma.assignment.findUnique({ where: { id: assignmentId } });
   if (!assignment) throw new AppError('Assignment not found', 'המטלה לא נמצאה', 404);
 
   await assertLessonAccess(studentId, 'STUDENT', assignment.lessonId);
   if (!assignment.allowFile) throw new AppError('File upload not allowed for this assignment', 'העלאת קובץ אינה מותרת במטלה זו', 400);
 
-  return createUploadSignature('submissions', { uploaderId: studentId, allowedFormats: VIDEO_FORMATS });
+  return createUploadSignature('submissions', { uploaderId: tagged ? studentId : undefined, allowedFormats: VIDEO_FORMATS });
 }
 
 interface SubmissionAiFields {

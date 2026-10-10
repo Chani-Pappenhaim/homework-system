@@ -138,7 +138,7 @@ describe('coursesApi', () => {
   it('uploadFile signs, uploads to Cloudinary, then posts the URL / deleteFile deletes', async () => {
     mockUploadSignatureAndCloudinary();
     await coursesApi.uploadFile('c1', new File(['x'], 'f.pdf'));
-    expect(post).toHaveBeenCalledWith('/courses/c1/upload-signature');
+    expect(post).toHaveBeenCalledWith('/courses/c1/upload-signature', { tagged: true });
     expect(uploadToCloudinary).toHaveBeenCalledWith(
       'https://api.cloudinary.com/v1_1/cloud/auto/upload', expect.any(FormData), undefined);
     expect(post).toHaveBeenCalledWith('/courses/c1/files', {
@@ -168,7 +168,7 @@ describe('lessonsApi', () => {
   it('uploadFile / deleteFile / importMd', async () => {
     mockUploadSignatureAndCloudinary();
     await lessonsApi.uploadFile('l1', new File(['x'], 'a'));
-    expect(post).toHaveBeenCalledWith('/lessons/l1/upload-signature');
+    expect(post).toHaveBeenCalledWith('/lessons/l1/upload-signature', { tagged: true });
     expect(post).toHaveBeenCalledWith('/lessons/l1/files', {
       uploadedFile: { url: 'https://cdn/x', bytes: 5, originalName: 'a' },
       name: undefined,

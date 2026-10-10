@@ -82,12 +82,17 @@ export const uploaderTag = (userId: string) => `uploader_${userId}`;
  * and `tags` marks the upload as pending and owned by `uploaderId` until it is
  * registered, so an upload that never gets registered can be found and removed.
  */
-export function createUploadSignature(folder: string, opts: { uploaderId: string; allowedFormats?: string[] }) {
+/**
+ * Without an uploader the upload is not tagged: a page loaded before tagging
+ * existed doesn't send the tags, and Cloudinary refuses any signed param it
+ * is missing. Such uploads are only cleaned up when registration fails.
+ */
+export function createUploadSignature(folder: string, opts: { uploaderId?: string; allowedFormats?: string[] }) {
   const timestamp = Math.round(Date.now() / 1000);
   const allowed = opts.allowedFormats?.join(',');
-  const tags = [PENDING_TAG, uploaderTag(opts.uploaderId)].join(',');
+  const tags = opts.uploaderId ? [PENDING_TAG, uploaderTag(opts.uploaderId)].join(',') : undefined;
   const signature = cloudinary.utils.api_sign_request(
-    { timestamp, folder, tags, ...(allowed ? { allowed_formats: allowed } : {}) },
+    { timestamp, folder, ...(tags ? { tags } : {}), ...(allowed ? { allowed_formats: allowed } : {}) },
     process.env.CLOUDINARY_API_SECRET as string
   );
   return {
@@ -96,7 +101,7 @@ export function createUploadSignature(folder: string, opts: { uploaderId: string
     apiKey: process.env.CLOUDINARY_API_KEY,
     cloudName: process.env.CLOUDINARY_CLOUD_NAME,
     folder,
-    tags,
+    ...(tags ? { tags } : {}),
     ...(allowed ? { allowedFormats: allowed } : {}),
   };
 }

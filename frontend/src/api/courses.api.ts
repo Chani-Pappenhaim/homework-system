@@ -43,7 +43,7 @@ export const coursesApi = {
    * relaying a buffered copy.
    */
   uploadFile: async (id: string, file: File, name?: string, onProgress?: (percent: number) => void) => {
-    const { data } = await api.post(`/courses/${id}/upload-signature`);
+    const { data } = await api.post(`/courses/${id}/upload-signature`, { tagged: true });
     return uploadSignedThenRegister(data.data, file, 'auto', (uploaded) =>
       api.post(`/courses/${id}/files`, {
         uploadedFile: { url: uploaded.secure_url, bytes: uploaded.bytes, originalName: file.name },

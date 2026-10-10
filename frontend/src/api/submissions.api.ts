@@ -27,7 +27,7 @@ export const submissionsApi = {
    * URL. Keeps large video files from ever being buffered in server memory.
    */
   submitVideo: async (assignmentId: string, file: File, notes?: string, onProgress?: (percent: number) => void) => {
-    const { data } = await api.post(`/assignments/${assignmentId}/video-upload-signature`);
+    const { data } = await api.post(`/assignments/${assignmentId}/video-upload-signature`, { tagged: true });
     return uploadSignedThenRegister(data.data, file, 'video', (uploaded) =>
       api.post(`/assignments/${assignmentId}/submit`, {
         uploadedFile: { url: uploaded.secure_url, originalName: file.name },

@@ -104,7 +104,7 @@ export async function deleteLink(req: Request, res: Response) {
 
 export async function getUploadSignature(req: Request, res: Response) {
   try {
-    const signature = coursesService.getCourseUploadSignature(req.user!.userId);
+    const signature = coursesService.getCourseUploadSignature(req.user!.userId, req.body?.tagged === true);
     res.json({ success: true, data: signature });
   } catch (err: any) {
     sendError(res, err);

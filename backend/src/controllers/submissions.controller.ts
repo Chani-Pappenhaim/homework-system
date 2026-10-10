@@ -57,7 +57,7 @@ export async function submit(req: Request, res: Response) {
 
 export async function getVideoUploadSignature(req: Request, res: Response) {
   try {
-    const signature = await submissionsService.getVideoUploadSignature(req.params.id as string, req.user!.userId);
+    const signature = await submissionsService.getVideoUploadSignature(req.params.id as string, req.user!.userId, req.body?.tagged === true);
     res.json({ success: true, data: signature });
   } catch (err: any) {
     sendError(res, err);
