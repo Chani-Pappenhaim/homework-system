@@ -135,6 +135,13 @@ describe('courses.service.getCourseById', () => {
     expect(r!.lessons).toHaveLength(2);
   });
 
+  it("counts only the course group's students as having finished a lesson", async () => {
+    p.course.findUnique.mockResolvedValue(course());
+    await getCourseById('c1', 'admin', 'ADMIN');
+    expect(p.lessonProgress.groupBy.mock.calls[0][0].where.student).toEqual({ studentGroups: { some: { groupId: 'g1' } } });
+    expect(p.studentGroup.count).toHaveBeenCalledWith({ where: { groupId: 'g1' } });
+  });
+
   it('STUDENT with group access sees only visible lessons', async () => {
     p.course.findUnique.mockResolvedValue(course());
     p.studentGroup.findFirst.mockResolvedValue({ id: 'sg' });

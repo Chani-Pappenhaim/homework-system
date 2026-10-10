@@ -88,7 +88,13 @@ export async function getCourseById(id: string, userId: string, role: string) {
     groupStudentCount = await prisma.studentGroup.count({ where: { groupId: course.groupId } });
     const counts = await prisma.lessonProgress.groupBy({
       by: ['lessonId'],
-      where: { lessonId: { in: visibleLessons.map((l) => l.id) } },
+      // Count only the group's own students, the same set the denominator
+      // counts — a student with a personal grant or who left the group would
+      // otherwise push the ratio past 100%.
+      where: {
+        lessonId: { in: visibleLessons.map((l) => l.id) },
+        student: { studentGroups: { some: { groupId: course.groupId } } },
+      },
       _count: { lessonId: true },
     });
     completedCountByLesson = Object.fromEntries(counts.map((c) => [c.lessonId, c._count.lessonId]));

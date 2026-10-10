@@ -63,6 +63,18 @@ describe('grades.service.getReport', () => {
     expect(p.submission.findMany.mock.calls[0][0].where.studentId).toBe('s1');
   });
 
+  it("names the student's group that owns the course, not just her first group", async () => {
+    p.submission.findMany.mockResolvedValue([{
+      student: { name: 'A', email: 'a@x.com', studentGroups: [
+        { groupId: 'g1', group: { name: 'Other' } }, { groupId: 'g2', group: { name: 'Course group' } },
+      ] },
+      assignment: { title: 'T', deadline: null, lesson: { topic: 'X', course: { name: 'C', groupId: 'g2' } } },
+      submittedAt: new Date(), isLate: false, grade: null,
+    }]);
+    const rows = await getReport({});
+    expect(rows[0].groupName).toContain('Course group');
+  });
+
   it('flattens submissions into report rows with grade fallbacks', async () => {
     p.submission.findMany.mockResolvedValue([
       {

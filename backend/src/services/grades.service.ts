@@ -82,7 +82,11 @@ export async function getReport(filters: ReportFilters) {
     studentId: s.studentId,
     studentName: s.student.name,
     studentEmail: s.student.email,
-    groupName: groupDisplayName(s.student.studentGroups[0]?.group),
+    // A student can be in several groups; name the one this course belongs to.
+    groupName: groupDisplayName(
+      (s.student.studentGroups.find((sg) => sg.groupId === s.assignment.lesson.course.groupId)
+        ?? s.student.studentGroups[0])?.group
+    ),
     courseName: s.assignment.lesson.course.name,
     lessonTopic: s.assignment.lesson.topic,
     assignmentTitle: s.assignment.title,
