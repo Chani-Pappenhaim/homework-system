@@ -17,6 +17,23 @@ async function enqueueEmail<T extends keyof EmailJobMap>(jobName: T, data: Email
   }
 }
 
+function urlExtension(url: string): string {
+  const match = /\.([a-z0-9]+)(?:[?#].*)?$/i.exec(url);
+  return match ? match[1]!.toLowerCase() : '';
+}
+
+/** A file the browser uploaded straight to our Cloudinary account, in the submissions folder. */
+function isOwnSubmissionUpload(url: string): boolean {
+  const cloud = process.env.CLOUDINARY_CLOUD_NAME?.trim();
+  if (!cloud) return false;
+  let parsed: URL;
+  try { parsed = new URL(url); } catch { return false; }
+  return parsed.protocol === 'https:'
+    && parsed.hostname === 'res.cloudinary.com'
+    && parsed.pathname.startsWith(`/${cloud}/`)
+    && /\/upload\/(?:[^/]+\/)*submissions\//.test(parsed.pathname);
+}
+
 export async function submitAssignment(
   assignmentId: string, studentId: string,
   payload: {
@@ -37,9 +54,11 @@ export async function submitAssignment(
 
   await assertLessonAccess(studentId, 'STUDENT', assignment.lessonId);
 
-  let fileUrl: string | undefined;
-  let fileName: string | undefined;
-  let githubUrl: string | undefined;
+  // Every submission is exactly one kind: whichever field doesn't apply is
+  // cleared, so a resubmission in another form leaves nothing of the old one.
+  let fileUrl: string | null = null;
+  let fileName: string | null = null;
+  let githubUrl: string | null = null;
 
   if (payload.repoName) {
     if (!assignment.allowGithub) throw new AppError('GitHub not allowed for this assignment', 'הגשת GitHub אינה מותרת במטלה זו', 400);
@@ -47,20 +66,38 @@ export async function submitAssignment(
     if (!student?.githubUsername) throw new AppError('No GitHub username set for your account', 'לא הוגדר שם משתמש GitHub בחשבון שלך — יש לעדכן אותו בפרופיל', 400);
     const repoName = normalizeRepoName(payload.repoName);
     if (!repoName) throw new AppError('Empty repo name', 'יש להזין שם ריפו', 400);
-    if ((await getRepoStatus(student.githubUsername, repoName)) === 'missing') {
+    const repoStatus = await getRepoStatus(student.githubUsername, repoName);
+    if (repoStatus === 'missing') {
       throw new AppError(
         `Repo ${student.githubUsername}/${repoName} not found`,
         `הריפו github.com/${student.githubUsername}/${repoName} לא נמצא. יש לבדוק את שם הריפו, את שם המשתמש בפרופיל, ושהריפו ציבורי`,
         400
       );
     }
+    // An unverified link is not accepted: it may well be a typo, and the
+    // teacher would only find out when grading.
+    if (repoStatus === 'unknown') {
+      throw new AppError(
+        'GitHub could not be reached to verify the repo',
+        'לא ניתן לאמת כרגע את הריפו מול GitHub. ההגשה לא נשמרה — יש לנסות שוב בעוד כמה דקות',
+        503
+      );
+    }
     githubUrl = `https://github.com/${student.githubUsername}/${repoName}`;
   } else if (payload.file || payload.uploadedFile) {
     if (!assignment.allowFile) throw new AppError('File upload not allowed for this assignment', 'העלאת קובץ אינה מותרת במטלה זו', 400);
     const originalName = payload.file ? payload.file.originalName : payload.uploadedFile!.originalName;
+    // The browser reports a direct upload's URL and name itself, so neither is
+    // trusted: the URL must be our own Cloudinary submissions folder (anything
+    // else would be fetched by the AI worker and shown to the teacher), and the
+    // type check covers the stored file's extension as well as the name.
+    if (payload.uploadedFile && !isOwnSubmissionUpload(payload.uploadedFile.url)) {
+      throw new AppError('Uploaded file URL is not ours', 'כתובת הקובץ שהועלה אינה תקינה', 400);
+    }
     if (assignment.allowedTypes.length > 0) {
       const ext = originalName.split('.').pop()?.toLowerCase() ?? '';
-      if (!assignment.allowedTypes.includes(ext)) {
+      const storedExt = payload.uploadedFile ? urlExtension(payload.uploadedFile.url) : ext;
+      if (!assignment.allowedTypes.includes(ext) || (storedExt && !assignment.allowedTypes.includes(storedExt))) {
         throw new AppError(
           `File type not allowed. Allowed: ${assignment.allowedTypes.join(', ')}`,
           `סוג הקובץ אינו מורשה. סוגים מותרים: ${assignment.allowedTypes.join(', ')}`,
@@ -87,11 +124,25 @@ export async function submitAssignment(
   const existing = await prisma.submission.findUnique({
     where: { assignmentId_studentId: { assignmentId, studentId } },
   });
+  if (existing?.aiStatus === 'pending') {
+    throw new AppError(
+      'AI review in progress',
+      'בדיקת AI של ההגשה הקודמת עדיין רצה — אפשר להגיש מחדש כשהיא תסתיים',
+      409
+    );
+  }
 
+  // New content makes the old AI review and the teacher's approval stale: the
+  // review is cleared and the content score goes back to unpublished, so an
+  // approved grade never ends up on work nobody looked at. The review count
+  // stays, or resubmitting would refill the AI quota.
   const submission = existing
     ? await prisma.submission.update({
         where: { id: existing.id },
-        data: { fileUrl, fileName, githubUrl, notes, checklist, submittedAt: new Date(), isLate },
+        data: {
+          fileUrl, fileName, githubUrl, notes, checklist, submittedAt: new Date(), isLate,
+          aiStatus: 'none', aiScore: null, aiCodeReview: null, aiVerbalReview: null, aiApproved: false, aiError: null,
+        },
       })
     : await prisma.submission.create({
         data: { assignmentId, studentId, fileUrl, fileName, githubUrl, notes, checklist, isLate },
@@ -103,11 +154,14 @@ export async function submitAssignment(
   await prisma.grade.upsert({
     where: { submissionId: submission.id },
     create: { submissionId: submission.id, submissionScore },
-    update: { submissionScore },
+    update: { submissionScore, contentApproved: false },
   });
 
   return submission;
 }
+
+/** The only uploads a student's browser sends to Cloudinary directly; everything else goes through the server. */
+const VIDEO_FORMATS = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'wmv', 'm4v', '3gp', 'mpeg', 'mpg', 'ogv'];
 
 /** Signed params so a student's browser can upload a video straight to Cloudinary. */
 export async function getVideoUploadSignature(assignmentId: string, studentId: string) {
@@ -117,7 +171,7 @@ export async function getVideoUploadSignature(assignmentId: string, studentId: s
   await assertLessonAccess(studentId, 'STUDENT', assignment.lessonId);
   if (!assignment.allowFile) throw new AppError('File upload not allowed for this assignment', 'העלאת קובץ אינה מותרת במטלה זו', 400);
 
-  return createUploadSignature('submissions');
+  return createUploadSignature('submissions', VIDEO_FORMATS);
 }
 
 interface SubmissionAiFields {
@@ -155,18 +209,24 @@ export async function getMySubmissions(studentId: string) {
     where: { id: studentId },
     include: {
       studentGroups: { select: { groupId: true } },
+      courseAccess: { select: { courseId: true } },
       lessonAccess: { select: { lessonId: true } },
     },
   });
   const groupIds = student?.studentGroups.map((sg) => sg.groupId) ?? [];
+  const accessCourseIds = student?.courseAccess.map((ca) => ca.courseId) ?? [];
   const accessLessonIds = student?.lessonAccess.map((la) => la.lessonId) ?? [];
 
+  // The same reach as assertLessonAccess: her group's courses, courses and
+  // lessons opened to her personally — never a hidden lesson or course.
   const allAssignments = await prisma.assignment.findMany({
     where: {
       lesson: {
         hidden: false,
+        course: { hidden: false },
         OR: [
-          { course: { hidden: false, groupId: { in: groupIds } } },
+          { course: { groupId: { in: groupIds } } },
+          { courseId: { in: accessCourseIds } },
           { id: { in: accessLessonIds } },
         ],
       },

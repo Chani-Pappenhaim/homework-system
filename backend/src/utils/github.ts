@@ -22,24 +22,31 @@ export function githubHeaders(): Record<string, string> {
   return headers;
 }
 
-/**
- * Checks a public GitHub repo exists. 'unknown' means GitHub couldn't be asked
- * (network block, rate limit, outage) — callers should not reject on it.
- */
-export async function getRepoStatus(owner: string, repo: string): Promise<RepoStatus> {
+async function statusFrom(url: string, init: RequestInit): Promise<RepoStatus> {
   try {
-    const res = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, {
-      headers: githubHeaders(),
-      signal: AbortSignal.timeout(5000),
-    });
+    const res = await fetch(url, { ...init, signal: AbortSignal.timeout(5000) });
     if (res.ok) return 'exists';
     if (res.status === 404) return 'missing';
-    console.warn(`[github] repo check for ${owner}/${repo} got ${res.status} — accepting without verification`);
+    console.warn(`[github] ${url} got ${res.status}`);
     return 'unknown';
   } catch (err) {
-    console.warn(`[github] repo check for ${owner}/${repo} failed — accepting without verification`, err);
+    console.warn(`[github] ${url} failed`, err);
     return 'unknown';
   }
+}
+
+/**
+ * Checks a public GitHub repo exists. The REST API is asked first; when it
+ * can't answer (rate limit, outage) the repo's public page is tried, which
+ * GitHub serves under separate limits — a private or missing repo is a 404
+ * there too. 'unknown' means neither could be reached, so the repo was not
+ * verified either way.
+ */
+export async function getRepoStatus(owner: string, repo: string): Promise<RepoStatus> {
+  const path = `${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+  const fromApi = await statusFrom(`https://api.github.com/repos/${path}`, { headers: githubHeaders() });
+  if (fromApi !== 'unknown') return fromApi;
+  return statusFrom(`https://github.com/${path}`, { method: 'HEAD', headers: { 'User-Agent': 'homework-app' }, redirect: 'follow' });
 }
 
 /**

@@ -43,6 +43,9 @@ import {
   rerunAiReview,
 } from '../../src/services/submissions.service';
 
+process.env.CLOUDINARY_CLOUD_NAME = 'our-cloud';
+const OWN_UPLOAD = 'https://res.cloudinary.com/our-cloud/video/upload/v1/submissions/clip.mp4';
+
 async function xlsxBuffer(rows: string[][]): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   const sheet = wb.addWorksheet('S');
@@ -106,14 +109,13 @@ describe('submissions.service.submitAssignment', () => {
     expect(p.grade.upsert).not.toHaveBeenCalled();
   });
 
-  it('still accepts the submission when GitHub cannot be reached', async () => {
+  it('rejects the submission with a retry message when GitHub cannot verify the repo', async () => {
     p.assignment.findUnique.mockResolvedValue(baseAssignment());
     p.user.findUnique.mockResolvedValue({ id: 's1', githubUsername: 'dina' });
     p.submission.findUnique.mockResolvedValue(null);
-    p.submission.create.mockImplementation(({ data }: any) => Promise.resolve(data));
     repoStatusMock.mockResolvedValue('unknown');
-    const r: any = await submitAssignment('a1', 's1', { repoName: 'my-repo' });
-    expect(r.githubUrl).toBe('https://github.com/dina/my-repo');
+    await expect(submitAssignment('a1', 's1', { repoName: 'my-repo' })).rejects.toMatchObject({ status: 503 });
+    expect(p.submission.create).not.toHaveBeenCalled();
   });
 
   it('throws 400 when repo submitted but student has no githubUsername', async () => {
@@ -167,17 +169,53 @@ describe('submissions.service.submitAssignment', () => {
     p.submission.findUnique.mockResolvedValue(null);
     p.submission.create.mockImplementation(({ data }: any) => Promise.resolve(data));
     const r: any = await submitAssignment('a1', 's1', {
-      uploadedFile: { url: 'https://cdn/clip.mp4', originalName: 'clip.mp4' },
+      uploadedFile: { url: OWN_UPLOAD, originalName: 'clip.mp4' },
     });
     expect(uploadMock).not.toHaveBeenCalled();
-    expect(r.fileUrl).toBe('https://cdn/clip.mp4');
+    expect(r.fileUrl).toBe(OWN_UPLOAD);
     expect(r.fileName).toBe('clip.mp4');
+  });
+
+  it('rejects an uploaded file url that is not from our own storage', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment({ allowedTypes: ['mp4'] }));
+    await expect(submitAssignment('a1', 's1', {
+      uploadedFile: { url: 'https://evil.example/clip.mp4', originalName: 'clip.mp4' },
+    })).rejects.toMatchObject({ status: 400 });
+    await expect(submitAssignment('a1', 's1', {
+      uploadedFile: { url: 'https://res.cloudinary.com/other-cloud/video/upload/submissions/clip.mp4', originalName: 'clip.mp4' },
+    })).rejects.toMatchObject({ status: 400 });
+    expect(p.submission.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects an uploaded file whose stored extension is not allowed, whatever its name', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment({ allowedTypes: ['mp4'] }));
+    await expect(submitAssignment('a1', 's1', {
+      uploadedFile: { url: OWN_UPLOAD.replace('.mp4', '.exe'), originalName: 'clip.mp4' },
+    })).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('refuses a resubmission while its AI review is still running', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment());
+    p.user.findUnique.mockResolvedValue({ id: 's1', githubUsername: 'dina' });
+    p.submission.findUnique.mockResolvedValue({ id: 'sub1', aiStatus: 'pending' });
+    await expect(submitAssignment('a1', 's1', { repoName: 'my-repo' })).rejects.toMatchObject({ status: 409 });
+    expect(p.submission.update).not.toHaveBeenCalled();
+  });
+
+  it('a resubmission clears the old AI review and the teacher approval', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment());
+    p.user.findUnique.mockResolvedValue({ id: 's1', githubUsername: 'dina' });
+    p.submission.findUnique.mockResolvedValue({ id: 'sub1', aiStatus: 'done', fileUrl: 'old', fileName: 'old.pdf' });
+    p.submission.update.mockImplementation(({ data }: any) => Promise.resolve({ id: 'sub1', ...data }));
+    const r: any = await submitAssignment('a1', 's1', { repoName: 'my-repo' });
+    expect(r).toMatchObject({ aiStatus: 'none', aiScore: null, aiApproved: false, fileUrl: null, fileName: null });
+    expect(p.grade.upsert.mock.calls[0][0].update).toMatchObject({ contentApproved: false });
   });
 
   it('rejects an already-uploaded file whose extension is not allowed', async () => {
     p.assignment.findUnique.mockResolvedValue(baseAssignment({ allowedTypes: ['pdf'] }));
     await expect(submitAssignment('a1', 's1', {
-      uploadedFile: { url: 'https://cdn/clip.mp4', originalName: 'clip.mp4' },
+      uploadedFile: { url: OWN_UPLOAD, originalName: 'clip.mp4' },
     })).rejects.toMatchObject({ status: 400 });
   });
 
@@ -232,7 +270,7 @@ describe('submissions.service.getVideoUploadSignature', () => {
     p.assignment.findUnique.mockResolvedValue(baseAssignment());
     signatureMock.mockReturnValue({ timestamp: 1, signature: 'sig', apiKey: 'k', cloudName: 'c', folder: 'submissions' });
     const r = await getVideoUploadSignature('a1', 's1');
-    expect(signatureMock).toHaveBeenCalledWith('submissions');
+    expect(signatureMock).toHaveBeenCalledWith('submissions', expect.arrayContaining(['mp4', 'mov']));
     expect(r).toMatchObject({ signature: 'sig', folder: 'submissions' });
   });
 });
@@ -241,7 +279,7 @@ describe('submissions.service.getMySubmissions', () => {
   it('splits assignments into pending (no submission) and submitted (with grade)', async () => {
     p.user.findUnique.mockResolvedValue({
       studentGroups: [{ groupId: 'g1' }],
-      lessonAccess: [{ lessonId: 'l9' }],
+      courseAccess: [], lessonAccess: [{ lessonId: 'l9' }],
     });
     p.assignment.findMany.mockResolvedValue([
       { id: 'a1', title: 'Pending one', deadline: new Date('2999-01-01'),
@@ -260,7 +298,7 @@ describe('submissions.service.getMySubmissions', () => {
   });
 
   it('always shows submissionScore but hides contentScore until the teacher approves it', async () => {
-    p.user.findUnique.mockResolvedValue({ studentGroups: [], lessonAccess: [] });
+    p.user.findUnique.mockResolvedValue({ studentGroups: [], courseAccess: [], lessonAccess: [] });
     p.assignment.findMany.mockResolvedValue([
       { id: 'a2', title: 'Not approved', deadline: null,
         lesson: { topic: 'T', course: { name: 'C' } },
@@ -273,7 +311,7 @@ describe('submissions.service.getMySubmissions', () => {
   });
 
   it('reveals contentScore once the teacher approves it', async () => {
-    p.user.findUnique.mockResolvedValue({ studentGroups: [], lessonAccess: [] });
+    p.user.findUnique.mockResolvedValue({ studentGroups: [], courseAccess: [], lessonAccess: [] });
     p.assignment.findMany.mockResolvedValue([
       { id: 'a2', title: 'Approved', deadline: null,
         lesson: { topic: 'T', course: { name: 'C' } },
@@ -286,7 +324,7 @@ describe('submissions.service.getMySubmissions', () => {
   });
 
   it('submitted item has null grade when not graded yet', async () => {
-    p.user.findUnique.mockResolvedValue({ studentGroups: [], lessonAccess: [] });
+    p.user.findUnique.mockResolvedValue({ studentGroups: [], courseAccess: [], lessonAccess: [] });
     p.assignment.findMany.mockResolvedValue([
       { id: 'a2', title: 'Ungraded', deadline: null,
         lesson: { topic: 'T', course: { name: 'C' } },

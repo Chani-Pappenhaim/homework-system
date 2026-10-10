@@ -28,7 +28,7 @@ export const submissionsApi = {
    */
   submitVideo: async (assignmentId: string, file: File, notes?: string, onProgress?: (percent: number) => void) => {
     const { data } = await api.post(`/assignments/${assignmentId}/video-upload-signature`);
-    const { apiKey, cloudName, timestamp, signature, folder } = data.data;
+    const { apiKey, cloudName, timestamp, signature, folder, allowedFormats } = data.data;
 
     const form = new FormData();
     form.append('file', file);
@@ -36,6 +36,8 @@ export const submissionsApi = {
     form.append('timestamp', String(timestamp));
     form.append('signature', signature);
     form.append('folder', folder);
+    // Signed along with the rest, so it must be sent exactly as given.
+    if (allowedFormats) form.append('allowed_formats', allowedFormats);
 
     const uploaded = await uploadToCloudinary(`https://api.cloudinary.com/v1_1/${cloudName}/video/upload`, form, onProgress);
 

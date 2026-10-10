@@ -71,10 +71,16 @@ export async function destroyByUrl(url: string): Promise<void> {
  * The file bytes never touch our Node process this way, which avoids the
  * memory overhead of buffering large uploads (e.g. video) server-side.
  */
-export function createUploadSignature(folder: string) {
+/**
+ * Signed params for a direct browser upload into `folder`. `allowedFormats`,
+ * when given, is part of the signature, so Cloudinary refuses any other file
+ * type even if someone reuses the signature outside the app.
+ */
+export function createUploadSignature(folder: string, allowedFormats?: string[]) {
   const timestamp = Math.round(Date.now() / 1000);
+  const allowed = allowedFormats?.join(',');
   const signature = cloudinary.utils.api_sign_request(
-    { timestamp, folder },
+    { timestamp, folder, ...(allowed ? { allowed_formats: allowed } : {}) },
     process.env.CLOUDINARY_API_SECRET as string
   );
   return {
@@ -83,6 +89,7 @@ export function createUploadSignature(folder: string) {
     apiKey: process.env.CLOUDINARY_API_KEY,
     cloudName: process.env.CLOUDINARY_CLOUD_NAME,
     folder,
+    ...(allowed ? { allowedFormats: allowed } : {}),
   };
 }
 

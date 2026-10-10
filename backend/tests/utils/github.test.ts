@@ -25,9 +25,21 @@ describe('getRepoStatus', () => {
     expect(await getRepoStatus('dina', 'a')).toBe('exists');
     expect(await getRepoStatus('dina', 'b')).toBe('missing');
   });
-  it('is unknown on a rate limit or network failure', async () => {
+  it('checks the public repo page when the API is rate-limited', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({ ok: false, status: 403 }).mockRejectedValueOnce(new Error('blocked')));
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 403 }).mockResolvedValueOnce({ ok: true, status: 200 })
+      .mockResolvedValueOnce({ ok: false, status: 429 }).mockResolvedValueOnce({ ok: false, status: 404 });
+    vi.stubGlobal('fetch', fetchMock);
+    expect(await getRepoStatus('dina', 'a')).toBe('exists');
+    expect(fetchMock.mock.calls[1][0]).toBe('https://github.com/dina/a');
+    expect(await getRepoStatus('dina', 'b')).toBe('missing');
+  });
+  it('is unknown only when both the API and the public page fail', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 403 }).mockRejectedValueOnce(new Error('blocked'))
+      .mockRejectedValueOnce(new Error('blocked')).mockResolvedValueOnce({ ok: false, status: 503 }));
     expect(await getRepoStatus('dina', 'a')).toBe('unknown');
     expect(await getRepoStatus('dina', 'b')).toBe('unknown');
   });
