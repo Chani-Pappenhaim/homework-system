@@ -3,6 +3,7 @@ import { AppError } from '../utils/errors';
 import { assertLessonAccess } from '../utils/access';
 import { cellText } from '../utils/excel';
 import { toDeliveryUrl } from '../utils/storage';
+import { releaseFileUrls, submissionFileUrls } from '../utils/file-refs';
 import { computeSubmissionScore } from '../utils/grading';
 import ExcelJS from 'exceljs';
 
@@ -112,8 +113,12 @@ export async function updateAssignment(id: string, data: Partial<{
   return assignment;
 }
 
+// Submissions go with the assignment by cascade; their stored files are
+// released afterwards, best-effort.
 export async function deleteAssignment(id: string) {
+  const submitted = await submissionFileUrls({ assignmentId: id });
   await prisma.assignment.delete({ where: { id } });
+  await releaseFileUrls(submitted);
 }
 
 export async function importAssignments(buffer: Buffer) {

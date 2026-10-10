@@ -1,7 +1,8 @@
 import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
-import { uploadBuffer, createUploadSignature, toFileDTO } from '../utils/storage';
-import { releaseFileUrls } from '../utils/file-refs';
+import { uploadBuffer, createUploadSignature, toFileDTO, destroyByUrl, isOwnUpload } from '../utils/storage';
+import { confirmUpload, discardPendingUpload } from '../utils/pending-uploads';
+import { releaseFileUrls, submissionFileUrls } from '../utils/file-refs';
 import { assertCourseAccess } from '../utils/access';
 import { groupDisplayName, groupNameSelect } from '../utils/group-name';
 
@@ -189,8 +190,8 @@ export async function deleteCourseLink(courseId: string, linkId: string) {
 }
 
 // Signed params for a direct browser-to-Cloudinary upload.
-export function getCourseUploadSignature() {
-  return createUploadSignature('courses');
+export function getCourseUploadSignature(userId: string) {
+  return createUploadSignature('courses', { uploaderId: userId });
 }
 
 export async function uploadCourseFile(
@@ -199,13 +200,25 @@ export async function uploadCourseFile(
   displayName: string | undefined,
   userId: string
 ) {
+  const direct = !('buffer' in file);
+  if (direct && !isOwnUpload(file.url, 'courses')) {
+    throw new AppError('Uploaded file URL is not ours', 'כתובת הקובץ שהועלה אינה תקינה', 400);
+  }
   const { url, bytes } = 'buffer' in file
     ? await uploadBuffer(file.buffer, file.mimeType, 'courses', file.originalName)
     : file;
-  const created = await prisma.courseFile.create({
-    data: { courseId, name: displayName?.trim() || file.originalName, url, sizeBytes: bytes },
-  });
-  return toFileDTO(created, 'course', userId);
+  try {
+    const created = await prisma.courseFile.create({
+      data: { courseId, name: displayName?.trim() || file.originalName, url, sizeBytes: bytes },
+    });
+    if (direct) await confirmUpload(url);
+    return toFileDTO(created, 'course', userId);
+  } catch (err) {
+    // Not saved, so nothing will ever point at the stored file.
+    if (direct) await discardPendingUpload(url, userId);
+    else await destroyByUrl(url).catch((e) => console.error('[storage] cleanup failed:', url, e));
+    throw err;
+  }
 }
 
 export async function setCourseFileHidden(courseId: string, fileId: string, hidden: boolean, userId: string) {
@@ -266,6 +279,7 @@ export async function deleteCourse(id: string) {
   const urls = [
     ...course.files.map((f) => f.url),
     ...course.lessons.flatMap((l) => l.files.map((f) => f.url)),
+    ...(await submissionFileUrls({ assignment: { lesson: { courseId: id } } })),
   ];
 
   await prisma.course.delete({ where: { id } });

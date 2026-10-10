@@ -1,6 +1,8 @@
 import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
-import { uploadBuffer, createUploadSignature, toDeliveryUrl } from '../utils/storage';
+import { uploadBuffer, createUploadSignature, toDeliveryUrl, destroyByUrl, isOwnUpload } from '../utils/storage';
+import { confirmUpload, discardPendingUpload } from '../utils/pending-uploads';
+import { releaseFileUrls } from '../utils/file-refs';
 import { assertLessonAccess } from '../utils/access';
 import { computeSubmissionScore } from '../utils/grading';
 import { aiReviewQueue, emailQueue } from '../infrastructure/queues/queues';
@@ -22,29 +24,37 @@ function urlExtension(url: string): string {
   return match ? match[1]!.toLowerCase() : '';
 }
 
-/** A file the browser uploaded straight to our Cloudinary account, in the submissions folder. */
-function isOwnSubmissionUpload(url: string): boolean {
-  const cloud = process.env.CLOUDINARY_CLOUD_NAME?.trim();
-  if (!cloud) return false;
-  let parsed: URL;
-  try { parsed = new URL(url); } catch { return false; }
-  return parsed.protocol === 'https:'
-    && parsed.hostname === 'res.cloudinary.com'
-    && parsed.pathname.startsWith(`/${cloud}/`)
-    && /\/upload\/(?:[^/]+\/)*submissions\//.test(parsed.pathname);
-}
-
-export async function submitAssignment(
-  assignmentId: string, studentId: string,
-  payload: {
-    repoName?: string;
-    notes?: string;
-    checklist?: unknown;
-    file?: { buffer: Buffer; originalName: string; mimeType: string };
+type SubmitPayload = {
+  repoName?: string;
+  notes?: string;
+  checklist?: unknown;
+  file?: { buffer: Buffer; originalName: string; mimeType: string };
     // Already uploaded straight from the browser to Cloudinary (videos) —
     // the server only ever sees the resulting URL, never the file bytes.
     uploadedFile?: { url: string; originalName: string };
+};
+
+/**
+ * Whatever the outcome, no stored file is left that nothing points at: a
+ * rejected or failed submission removes the file it brought, and a successful
+ * one removes the file it replaced.
+ */
+export async function submitAssignment(assignmentId: string, studentId: string, payload: SubmitPayload) {
+  const uploaded: { url: string | null } = { url: null };
+  try {
+    const { submission, replacedFileUrl } = await saveSubmission(assignmentId, studentId, payload, uploaded);
+    if (payload.uploadedFile) await confirmUpload(payload.uploadedFile.url);
+    if (replacedFileUrl && replacedFileUrl !== submission.fileUrl) await releaseFileUrls([replacedFileUrl]);
+    return submission;
+  } catch (err) {
+    if (uploaded.url) await destroyByUrl(uploaded.url).catch((e) => console.error('[storage] cleanup failed:', uploaded.url, e));
+    if (payload.uploadedFile) await discardPendingUpload(payload.uploadedFile.url, studentId);
+    throw err;
   }
+}
+
+async function saveSubmission(
+  assignmentId: string, studentId: string, payload: SubmitPayload, uploaded: { url: string | null }
 ) {
   const assignment = await prisma.assignment.findUnique({
     where: { id: assignmentId },
@@ -53,6 +63,18 @@ export async function submitAssignment(
   if (!assignment) throw new AppError('Assignment not found', 'המטלה לא נמצאה', 404);
 
   await assertLessonAccess(studentId, 'STUDENT', assignment.lessonId);
+
+  // Checked before anything is uploaded, so a refusal costs no upload.
+  const existing = await prisma.submission.findUnique({
+    where: { assignmentId_studentId: { assignmentId, studentId } },
+  });
+  if (existing?.aiStatus === 'pending') {
+    throw new AppError(
+      'AI review in progress',
+      'בדיקת AI של ההגשה הקודמת עדיין רצה — אפשר להגיש מחדש כשהיא תסתיים',
+      409
+    );
+  }
 
   // Every submission is exactly one kind: whichever field doesn't apply is
   // cleared, so a resubmission in another form leaves nothing of the old one.
@@ -91,7 +113,7 @@ export async function submitAssignment(
     // trusted: the URL must be our own Cloudinary submissions folder (anything
     // else would be fetched by the AI worker and shown to the teacher), and the
     // type check covers the stored file's extension as well as the name.
-    if (payload.uploadedFile && !isOwnSubmissionUpload(payload.uploadedFile.url)) {
+    if (payload.uploadedFile && !isOwnUpload(payload.uploadedFile.url, 'submissions')) {
       throw new AppError('Uploaded file URL is not ours', 'כתובת הקובץ שהועלה אינה תקינה', 400);
     }
     if (assignment.allowedTypes.length > 0) {
@@ -106,8 +128,8 @@ export async function submitAssignment(
       }
     }
     if (payload.file) {
-      const uploaded = await uploadBuffer(payload.file.buffer, payload.file.mimeType, 'submissions', payload.file.originalName);
-      fileUrl = uploaded.url;
+      fileUrl = (await uploadBuffer(payload.file.buffer, payload.file.mimeType, 'submissions', payload.file.originalName)).url;
+      uploaded.url = fileUrl;
     } else {
       fileUrl = payload.uploadedFile!.url;
     }
@@ -120,17 +142,6 @@ export async function submitAssignment(
   const notes = payload.notes ?? null;
   // undefined leaves the stored checklist untouched on resubmit; a real array replaces it.
   const checklist = payload.checklist === undefined ? undefined : (payload.checklist as any);
-
-  const existing = await prisma.submission.findUnique({
-    where: { assignmentId_studentId: { assignmentId, studentId } },
-  });
-  if (existing?.aiStatus === 'pending') {
-    throw new AppError(
-      'AI review in progress',
-      'בדיקת AI של ההגשה הקודמת עדיין רצה — אפשר להגיש מחדש כשהיא תסתיים',
-      409
-    );
-  }
 
   // New content makes the old AI review and the teacher's approval stale: the
   // review is cleared and the content score goes back to unpublished, so an
@@ -157,7 +168,7 @@ export async function submitAssignment(
     update: { submissionScore, contentApproved: false },
   });
 
-  return submission;
+  return { submission, replacedFileUrl: existing?.fileUrl ?? null };
 }
 
 /** The only uploads a student's browser sends to Cloudinary directly; everything else goes through the server. */
@@ -171,7 +182,7 @@ export async function getVideoUploadSignature(assignmentId: string, studentId: s
   await assertLessonAccess(studentId, 'STUDENT', assignment.lessonId);
   if (!assignment.allowFile) throw new AppError('File upload not allowed for this assignment', 'העלאת קובץ אינה מותרת במטלה זו', 400);
 
-  return createUploadSignature('submissions', VIDEO_FORMATS);
+  return createUploadSignature('submissions', { uploaderId: studentId, allowedFormats: VIDEO_FORMATS });
 }
 
 interface SubmissionAiFields {

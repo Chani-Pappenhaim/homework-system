@@ -8,6 +8,7 @@ vi.mock('../../src/config/prisma', () => ({
     lessonAccess: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), delete: vi.fn() },
     lessonFile: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(), count: vi.fn().mockResolvedValue(0) },
     courseFile: { count: vi.fn().mockResolvedValue(0) },
+    submission: { count: vi.fn().mockResolvedValue(0), findMany: vi.fn().mockResolvedValue([]) },
     lessonProgress: { findUnique: vi.fn(), upsert: vi.fn(), deleteMany: vi.fn() },
     lessonFileView: { findMany: vi.fn().mockResolvedValue([]), upsert: vi.fn() },
   },
@@ -24,6 +25,8 @@ vi.mock('../../src/utils/storage', async (importOriginal) => ({
   uploadBuffer: uploadMock,
   destroyByUrl: destroyMock,
 }));
+const { confirmMock, discardMock } = vi.hoisted(() => ({ confirmMock: vi.fn(), discardMock: vi.fn() }));
+vi.mock('../../src/utils/pending-uploads', () => ({ confirmUpload: confirmMock, discardPendingUpload: discardMock }));
 vi.mock('../../src/utils/access', () => ({
   assertLessonAccess: assertLessonAccessMock,
   assertCourseAccess: assertCourseAccessMock,
@@ -227,12 +230,39 @@ describe('lessons.service file upload/delete', () => {
   });
 
   it('uploadLessonFile stores an already-uploaded url without calling Cloudinary again', async () => {
+    process.env.CLOUDINARY_CLOUD_NAME = 'our-cloud';
+    const url = 'https://res.cloudinary.com/our-cloud/image/upload/v1/lessons/x.pdf';
     p.lessonFile.create.mockImplementation(({ data }: any) => Promise.resolve(data));
-    const r: any = await uploadLessonFile('l1', { url: 'https://cdn/x.pdf', bytes: 99, originalName: 'x.pdf' }, undefined, 'u1');
+    const r: any = await uploadLessonFile('l1', { url, bytes: 99, originalName: 'x.pdf' }, undefined, 'u1');
     expect(uploadMock).not.toHaveBeenCalled();
-    expect(p.lessonFile.create).toHaveBeenCalledWith({ data: expect.objectContaining({ lessonId: 'l1', name: 'x.pdf', url: 'https://cdn/x.pdf' }) });
+    expect(p.lessonFile.create).toHaveBeenCalledWith({ data: expect.objectContaining({ lessonId: 'l1', name: 'x.pdf', url }) });
     expect(r).toMatchObject({ lessonId: 'l1', name: 'x.pdf', extension: 'pdf' });
     expect(r.url).toMatch(/^\/files\/download\//);
+    // Registered, so it is no longer a pending upload the sweep would remove.
+    expect(confirmMock).toHaveBeenCalledWith(url);
+  });
+
+  it('uploadLessonFile refuses an uploaded url outside our own storage', async () => {
+    process.env.CLOUDINARY_CLOUD_NAME = 'our-cloud';
+    await expect(uploadLessonFile('l1', { url: 'https://evil.example/x.pdf', bytes: 1, originalName: 'x.pdf' }, undefined, 'u1'))
+      .rejects.toMatchObject({ status: 400 });
+    expect(p.lessonFile.create).not.toHaveBeenCalled();
+    expect(discardMock).not.toHaveBeenCalled();
+  });
+
+  it('uploadLessonFile removes the uploaded file when saving it fails', async () => {
+    process.env.CLOUDINARY_CLOUD_NAME = 'our-cloud';
+    const url = 'https://res.cloudinary.com/our-cloud/raw/upload/v1/lessons/x.zip';
+    p.lessonFile.create.mockRejectedValueOnce(new Error('db down'));
+    await expect(uploadLessonFile('l1', { url, bytes: 1, originalName: 'x.zip' }, undefined, 'u1')).rejects.toThrow('db down');
+    expect(discardMock).toHaveBeenCalledWith(url, 'u1');
+
+    uploadMock.mockResolvedValue({ url: 'https://cdn/y.pdf', bytes: 1, resourceType: 'image', publicId: 'p' });
+    destroyMock.mockResolvedValue(undefined);
+    p.lessonFile.create.mockRejectedValueOnce(new Error('db down'));
+    await expect(uploadLessonFile('l1', { buffer: Buffer.from('y'), mimeType: 'application/pdf', originalName: 'y.pdf' }, undefined, 'u1'))
+      .rejects.toThrow('db down');
+    expect(destroyMock).toHaveBeenCalledWith('https://cdn/y.pdf');
   });
 
   it('uploadLessonFile uses the given display name over the original filename', async () => {
@@ -374,6 +404,16 @@ describe('lessons.service.deleteLesson', () => {
     await deleteLesson('l1');
     expect(destroyMock).toHaveBeenCalledTimes(2);
     expect(p.lesson.delete).toHaveBeenCalledWith({ where: { id: 'l1' } });
+  });
+
+  it("also releases the students' submission files, which the cascade leaves behind", async () => {
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', files: [] });
+    p.submission.findMany.mockResolvedValueOnce([{ fileUrl: 'https://cdn/sub.mp4' }]);
+    destroyMock.mockResolvedValue({});
+    p.lesson.delete.mockResolvedValue({});
+    await deleteLesson('l1');
+    expect(p.submission.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ assignment: { lessonId: 'l1' } }) }));
+    expect(destroyMock).toHaveBeenCalledWith('https://cdn/sub.mp4');
   });
 
   it('still deletes the lesson when a storage destroy fails', async () => {

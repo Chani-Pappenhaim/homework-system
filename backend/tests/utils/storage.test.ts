@@ -1,15 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { uploadFn, destroyFn } = vi.hoisted(() => ({
+const { uploadFn, destroyFn, signFn } = vi.hoisted(() => ({
   uploadFn: vi.fn(),
   destroyFn: vi.fn(),
+  signFn: vi.fn(),
 }));
 
 vi.mock('../../src/config/cloudinary', () => ({
-  cloudinary: { uploader: { upload: uploadFn, destroy: destroyFn } },
+  cloudinary: { uploader: { upload: uploadFn, destroy: destroyFn }, utils: { api_sign_request: signFn } },
 }));
 
-import { uploadBuffer, destroyByUrl, toFileDTO, extractPublicId } from '../../src/utils/storage';
+import { uploadBuffer, destroyByUrl, toFileDTO, extractPublicId, createUploadSignature, isOwnUpload, assetRef } from '../../src/utils/storage';
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -79,11 +80,50 @@ describe('destroyByUrl', () => {
     // 'auto' uploads store a pdf as 'image', so a url that looks 'raw' can miss
     // on the first guess — the asset would otherwise stay billed forever.
     destroyFn
-      .mockResolvedValueOnce({ result: 'not found' }) // guessed: raw
+      .mockResolvedValueOnce({ result: 'not found' }) // guessed: raw, id with extension
+      .mockResolvedValueOnce({ result: 'not found' }) // raw, id without it
       .mockResolvedValueOnce({ result: 'ok' });        // image
     await destroyByUrl('https://res.cloudinary.com/x/raw/upload/v1/lessons/a.pdf');
-    expect(destroyFn).toHaveBeenCalledTimes(2);
-    expect(destroyFn).toHaveBeenNthCalledWith(1, 'lessons/a', { resource_type: 'raw' });
-    expect(destroyFn).toHaveBeenNthCalledWith(2, 'lessons/a', { resource_type: 'image' });
+    expect(destroyFn).toHaveBeenCalledTimes(3);
+    expect(destroyFn).toHaveBeenNthCalledWith(1, 'lessons/a.pdf', { resource_type: 'raw' });
+    expect(destroyFn).toHaveBeenNthCalledWith(2, 'lessons/a', { resource_type: 'raw' });
+    expect(destroyFn).toHaveBeenNthCalledWith(3, 'lessons/a', { resource_type: 'image' });
+  });
+
+  it("addresses a raw file by its full public id, extension included", async () => {
+    // Cloudinary keeps a raw asset's extension in its public id; without it a
+    // docx or zip is "not found" and never actually deleted.
+    destroyFn.mockResolvedValue({ result: 'ok' });
+    await destroyByUrl('https://res.cloudinary.com/x/raw/upload/v1/lessons/notes_ab12.docx');
+    expect(destroyFn).toHaveBeenCalledTimes(1);
+    expect(destroyFn).toHaveBeenCalledWith('lessons/notes_ab12.docx', { resource_type: 'raw' });
+  });
+});
+
+describe('createUploadSignature', () => {
+  it('signs pending and uploader tags along with the folder', () => {
+    signFn.mockReturnValue('sig');
+    const r = createUploadSignature('submissions', { uploaderId: 'u1', allowedFormats: ['mp4'] });
+    expect(signFn).toHaveBeenCalledWith(
+      expect.objectContaining({ folder: 'submissions', tags: 'pending_upload,uploader_u1', allowed_formats: 'mp4' }),
+      process.env.CLOUDINARY_API_SECRET,
+    );
+    expect(r).toMatchObject({ tags: 'pending_upload,uploader_u1', allowedFormats: 'mp4', signature: 'sig' });
+  });
+});
+
+describe('isOwnUpload / assetRef', () => {
+  it('accepts only our own cloud and the given folder', () => {
+    process.env.CLOUDINARY_CLOUD_NAME = 'our-cloud';
+    expect(isOwnUpload('https://res.cloudinary.com/our-cloud/raw/upload/v1/lessons/a.zip', 'lessons')).toBe(true);
+    expect(isOwnUpload('https://res.cloudinary.com/our-cloud/raw/upload/v1/courses/a.zip', 'lessons')).toBe(false);
+    expect(isOwnUpload('https://res.cloudinary.com/other/raw/upload/v1/lessons/a.zip', 'lessons')).toBe(false);
+    expect(isOwnUpload('http://res.cloudinary.com/our-cloud/raw/upload/v1/lessons/a.zip', 'lessons')).toBe(false);
+  });
+
+  it('keeps the extension in a raw public id only', () => {
+    expect(assetRef('https://res.cloudinary.com/c/raw/upload/v1/lessons/a.zip')).toEqual({ publicId: 'lessons/a.zip', resourceType: 'raw' });
+    expect(assetRef('https://res.cloudinary.com/c/video/upload/v9/submissions/b.mp4')).toEqual({ publicId: 'submissions/b', resourceType: 'video' });
+    expect(assetRef('https://example.com/x.pdf')).toBeNull();
   });
 });

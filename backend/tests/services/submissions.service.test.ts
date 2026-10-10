@@ -14,10 +14,17 @@ const { uploadMock, signatureMock, assertAccessMock } = vi.hoisted(() => ({
   signatureMock: vi.fn(),
   assertAccessMock: vi.fn(),
 }));
-vi.mock('../../src/utils/storage', () => ({
+const { destroyMock, confirmMock, discardMock, releaseMock } = vi.hoisted(() => ({
+  destroyMock: vi.fn(), confirmMock: vi.fn(), discardMock: vi.fn(), releaseMock: vi.fn(),
+}));
+vi.mock('../../src/utils/storage', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/utils/storage')>()),
   uploadBuffer: uploadMock,
   createUploadSignature: signatureMock,
+  destroyByUrl: destroyMock,
 }));
+vi.mock('../../src/utils/pending-uploads', () => ({ confirmUpload: confirmMock, discardPendingUpload: discardMock }));
+vi.mock('../../src/utils/file-refs', () => ({ releaseFileUrls: releaseMock }));
 vi.mock('../../src/utils/access', () => ({
   assertLessonAccess: assertAccessMock,
 }));
@@ -213,6 +220,60 @@ describe('submissions.service.submitAssignment', () => {
     expect(p.grade.upsert.mock.calls[0][0].update).toMatchObject({ contentApproved: false });
   });
 
+  it('confirms a direct upload once the submission is saved', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment());
+    p.submission.findUnique.mockResolvedValue(null);
+    p.submission.create.mockImplementation(({ data }: any) => Promise.resolve(data));
+    await submitAssignment('a1', 's1', { uploadedFile: { url: OWN_UPLOAD, originalName: 'clip.mp4' } });
+    expect(confirmMock).toHaveBeenCalledWith(OWN_UPLOAD);
+    expect(discardMock).not.toHaveBeenCalled();
+  });
+
+  it('removes a direct upload the server refused, so it does not stay in storage unseen', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment({ allowedTypes: ['pdf'] }));
+    p.submission.findUnique.mockResolvedValue(null);
+    await expect(submitAssignment('a1', 's1', { uploadedFile: { url: OWN_UPLOAD, originalName: 'clip.mp4' } }))
+      .rejects.toMatchObject({ status: 400 });
+    expect(discardMock).toHaveBeenCalledWith(OWN_UPLOAD, 's1');
+    expect(confirmMock).not.toHaveBeenCalled();
+  });
+
+  it('removes a file it uploaded itself when saving the submission fails', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment());
+    p.submission.findUnique.mockResolvedValue(null);
+    uploadMock.mockResolvedValue({ url: 'https://cdn/new.pdf', bytes: 1, resourceType: 'image', publicId: 'p' });
+    destroyMock.mockResolvedValue(undefined);
+    p.submission.create.mockRejectedValue(new Error('db down'));
+    await expect(submitAssignment('a1', 's1', { file: { buffer: Buffer.from('x'), originalName: 'w.pdf', mimeType: 'application/pdf' } }))
+      .rejects.toThrow('db down');
+    expect(destroyMock).toHaveBeenCalledWith('https://cdn/new.pdf');
+  });
+
+  it('checks for a running AI review before uploading anything', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment());
+    p.submission.findUnique.mockResolvedValue({ id: 'sub1', aiStatus: 'pending' });
+    await expect(submitAssignment('a1', 's1', { file: { buffer: Buffer.from('x'), originalName: 'w.pdf', mimeType: 'application/pdf' } }))
+      .rejects.toMatchObject({ status: 409 });
+    expect(uploadMock).not.toHaveBeenCalled();
+  });
+
+  it('releases the file a resubmission replaced', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment());
+    p.user.findUnique.mockResolvedValue({ id: 's1', githubUsername: 'dina' });
+    p.submission.findUnique.mockResolvedValue({ id: 'sub1', aiStatus: 'done', fileUrl: 'https://cdn/old.pdf' });
+    p.submission.update.mockImplementation(({ data }: any) => Promise.resolve({ id: 'sub1', ...data }));
+    await submitAssignment('a1', 's1', { repoName: 'my-repo' });
+    expect(releaseMock).toHaveBeenCalledWith(['https://cdn/old.pdf']);
+  });
+
+  it('keeps the stored file when a resubmission brings the same one', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment());
+    p.submission.findUnique.mockResolvedValue({ id: 'sub1', aiStatus: 'done', fileUrl: OWN_UPLOAD });
+    p.submission.update.mockImplementation(({ data }: any) => Promise.resolve({ id: 'sub1', ...data }));
+    await submitAssignment('a1', 's1', { uploadedFile: { url: OWN_UPLOAD, originalName: 'clip.mp4' } });
+    expect(releaseMock).not.toHaveBeenCalled();
+  });
+
   it('rejects an already-uploaded file whose extension is not allowed', async () => {
     p.assignment.findUnique.mockResolvedValue(baseAssignment({ allowedTypes: ['pdf'] }));
     await expect(submitAssignment('a1', 's1', {
@@ -271,7 +332,7 @@ describe('submissions.service.getVideoUploadSignature', () => {
     p.assignment.findUnique.mockResolvedValue(baseAssignment());
     signatureMock.mockReturnValue({ timestamp: 1, signature: 'sig', apiKey: 'k', cloudName: 'c', folder: 'submissions' });
     const r = await getVideoUploadSignature('a1', 's1');
-    expect(signatureMock).toHaveBeenCalledWith('submissions', expect.arrayContaining(['mp4', 'mov']));
+    expect(signatureMock).toHaveBeenCalledWith('submissions', { uploaderId: 's1', allowedFormats: expect.arrayContaining(['mp4', 'mov']) });
     expect(r).toMatchObject({ signature: 'sig', folder: 'submissions' });
   });
 });

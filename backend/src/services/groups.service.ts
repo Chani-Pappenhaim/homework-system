@@ -3,7 +3,7 @@ import { prisma } from '../config/prisma';
 import ExcelJS from 'exceljs';
 import { emailQueue } from '../infrastructure/queues/queues';
 import { AppError } from '../utils/errors';
-import { releaseFileUrls } from '../utils/file-refs';
+import { releaseFileUrls, submissionFileUrls } from '../utils/file-refs';
 import { sendEmailVerification, changeEmail } from './auth.service';
 import { cellText, isValidEmail, normalizeGithubUsername, buildTemplateWorkbook } from '../utils/excel';
 
@@ -198,6 +198,7 @@ export async function deleteGroup(id: string) {
     ...c.files.map((f) => f.url),
     ...c.lessons.flatMap((l) => l.files.map((f) => f.url)),
   ]);
+  urls.push(...await submissionFileUrls({ assignment: { lesson: { course: { groupId: id } } } }));
 
   await prisma.$transaction([
     prisma.course.deleteMany({ where: { groupId: id } }),

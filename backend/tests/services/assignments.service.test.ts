@@ -10,6 +10,8 @@ vi.mock('../../src/config/prisma', () => ({
 
 const { assertLessonAccessMock } = vi.hoisted(() => ({ assertLessonAccessMock: vi.fn() }));
 vi.mock('../../src/utils/access', () => ({ assertLessonAccess: assertLessonAccessMock }));
+const { releaseMock, submittedUrlsMock } = vi.hoisted(() => ({ releaseMock: vi.fn(), submittedUrlsMock: vi.fn() }));
+vi.mock('../../src/utils/file-refs', () => ({ releaseFileUrls: releaseMock, submissionFileUrls: submittedUrlsMock }));
 
 import ExcelJS from 'exceljs';
 import { prisma } from '../../src/config/prisma';
@@ -43,10 +45,13 @@ describe('assignments.service.getAssignments / deleteAssignment', () => {
     expect(p.assignment.findMany).toHaveBeenCalledWith({ where: { lessonId: 'l1' }, orderBy: { createdAt: 'asc' } });
     expect(r).toEqual([{ id: 'a1' }]);
   });
-  it('deleteAssignment deletes by id', async () => {
+  it('deleteAssignment deletes by id, then releases the files submitted to it', async () => {
+    submittedUrlsMock.mockResolvedValue(['https://cdn/sub.pdf']);
     p.assignment.delete.mockResolvedValue({});
     await deleteAssignment('a1');
+    expect(submittedUrlsMock).toHaveBeenCalledWith({ assignmentId: 'a1' });
     expect(p.assignment.delete).toHaveBeenCalledWith({ where: { id: 'a1' } });
+    expect(releaseMock).toHaveBeenCalledWith(['https://cdn/sub.pdf']);
   });
 });
 

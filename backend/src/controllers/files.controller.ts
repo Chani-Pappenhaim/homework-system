@@ -3,6 +3,7 @@ import { Readable } from 'node:stream';
 import { prisma } from '../config/prisma';
 import { verifyFileToken } from '../utils/jwt';
 import { toDeliveryUrl } from '../utils/storage';
+import { discardPendingUpload } from '../utils/pending-uploads';
 import { assertLessonAccess, assertCourseAccess } from '../utils/access';
 import { contentDisposition, ensureExtension, extensionOf, resolveContentType } from '../utils/mime';
 
@@ -160,4 +161,14 @@ export async function download(req: Request, res: Response) {
   });
   res.on('close', () => body.destroy());
   body.pipe(res);
+}
+
+export async function discardUpload(req: Request, res: Response) {
+  const url = req.body?.url;
+  if (typeof url !== 'string' || !url) {
+    res.status(400).json({ success: false, error: 'חסרה כתובת קובץ' });
+    return;
+  }
+  const removed = await discardPendingUpload(url, req.user!.userId);
+  res.json({ success: true, data: { removed } });
 }

@@ -66,7 +66,7 @@ export async function reorderLessons(req: Request, res: Response) {
 
 export async function getUploadSignature(req: Request, res: Response) {
   try {
-    const signature = lessonsService.getLessonUploadSignature();
+    const signature = lessonsService.getLessonUploadSignature(req.user!.userId);
     res.json({ success: true, data: signature });
   } catch (err: any) {
     sendError(res, err);

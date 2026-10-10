@@ -1,7 +1,8 @@
 import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
-import { uploadBuffer, createUploadSignature, toFileDTO } from '../utils/storage';
-import { releaseFileUrls } from '../utils/file-refs';
+import { uploadBuffer, createUploadSignature, toFileDTO, destroyByUrl, isOwnUpload } from '../utils/storage';
+import { confirmUpload, discardPendingUpload } from '../utils/pending-uploads';
+import { releaseFileUrls, submissionFileUrls } from '../utils/file-refs';
 import { assertLessonAccess, assertCourseAccess } from '../utils/access';
 
 // Older lessons only have the legacy single `githubUrl` column populated;
@@ -272,8 +273,8 @@ export async function reorderLessons(lessons: { id: string; order: number }[]) {
 
 // Signed params for a direct browser-to-Cloudinary upload — the file's bytes
 // never pass through this server, avoiding extra outbound bandwidth.
-export function getLessonUploadSignature() {
-  return createUploadSignature('lessons');
+export function getLessonUploadSignature(userId: string) {
+  return createUploadSignature('lessons', { uploaderId: userId });
 }
 
 export async function uploadLessonFile(
@@ -282,13 +283,25 @@ export async function uploadLessonFile(
   displayName: string | undefined,
   userId: string
 ) {
+  const direct = !('buffer' in file);
+  if (direct && !isOwnUpload(file.url, 'lessons')) {
+    throw new AppError('Uploaded file URL is not ours', 'כתובת הקובץ שהועלה אינה תקינה', 400);
+  }
   const { url, bytes } = 'buffer' in file
     ? await uploadBuffer(file.buffer, file.mimeType, 'lessons', file.originalName)
     : file;
-  const created = await prisma.lessonFile.create({
-    data: { lessonId, name: displayName?.trim() || file.originalName, url, sizeBytes: bytes },
-  });
-  return toFileDTO(created, 'lesson', userId);
+  try {
+    const created = await prisma.lessonFile.create({
+      data: { lessonId, name: displayName?.trim() || file.originalName, url, sizeBytes: bytes },
+    });
+    if (direct) await confirmUpload(url);
+    return toFileDTO(created, 'lesson', userId);
+  } catch (err) {
+    // Not saved, so nothing will ever point at the stored file.
+    if (direct) await discardPendingUpload(url, userId);
+    else await destroyByUrl(url).catch((e) => console.error('[storage] cleanup failed:', url, e));
+    throw err;
+  }
 }
 
 export async function deleteLessonFile(lessonId: string, fileId: string) {
@@ -316,9 +329,10 @@ export async function deleteLesson(id: string) {
     include: { files: true },
   });
   if (!lesson) throw new AppError('Lesson not found', 'השיעור לא נמצא', 404);
+  const submitted = await submissionFileUrls({ assignment: { lessonId: id } });
 
   await prisma.lesson.delete({ where: { id } });
-  await releaseFileUrls(lesson.files.map((f) => f.url));
+  await releaseFileUrls([...lesson.files.map((f) => f.url), ...submitted]);
 }
 
 export async function importMarkdown(lessonId: string, content: string) {

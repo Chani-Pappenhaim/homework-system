@@ -9,6 +9,7 @@ vi.mock('../../src/config/prisma', () => ({
     courseFile: { findUnique: vi.fn(), delete: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn().mockResolvedValue(0) },
     courseAccess: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), deleteMany: vi.fn() },
     lessonFile: { count: vi.fn().mockResolvedValue(0) },
+    submission: { count: vi.fn().mockResolvedValue(0), findMany: vi.fn().mockResolvedValue([]) },
     courseLink: { create: vi.fn(), delete: vi.fn() },
     lessonProgress: { findMany: vi.fn(), groupBy: vi.fn() },
   },
@@ -25,6 +26,8 @@ vi.mock('../../src/utils/storage', async (importOriginal) => ({
   uploadBuffer: uploadMock,
   destroyByUrl: destroyMock,
 }));
+const { confirmMock, discardMock } = vi.hoisted(() => ({ confirmMock: vi.fn(), discardMock: vi.fn() }));
+vi.mock('../../src/utils/pending-uploads', () => ({ confirmUpload: confirmMock, discardPendingUpload: discardMock }));
 vi.mock('../../src/utils/access', () => ({
   assertCourseAccess: assertCourseAccessMock,
 }));
@@ -231,10 +234,13 @@ describe('courses.service create/update + links + files', () => {
   });
 
   it('uploadCourseFile stores an already-uploaded url without calling Cloudinary again', async () => {
+    process.env.CLOUDINARY_CLOUD_NAME = 'our-cloud';
+    const url = 'https://res.cloudinary.com/our-cloud/image/upload/v1/courses/x.pdf';
     p.courseFile.create.mockImplementation(({ data }: any) => Promise.resolve(data));
-    const r: any = await uploadCourseFile('c1', { url: 'https://cdn/x.pdf', bytes: 42, originalName: 'x.pdf' }, undefined, 'u1');
+    const r: any = await uploadCourseFile('c1', { url, bytes: 42, originalName: 'x.pdf' }, undefined, 'u1');
     expect(uploadMock).not.toHaveBeenCalled();
-    expect(p.courseFile.create).toHaveBeenCalledWith({ data: expect.objectContaining({ courseId: 'c1', name: 'x.pdf', url: 'https://cdn/x.pdf' }) });
+    expect(p.courseFile.create).toHaveBeenCalledWith({ data: expect.objectContaining({ courseId: 'c1', name: 'x.pdf', url }) });
+    expect(confirmMock).toHaveBeenCalledWith(url);
     expect(r).toMatchObject({ courseId: 'c1', name: 'x.pdf', extension: 'pdf' });
     expect(r.url).toMatch(/^\/files\/download\//);
   });
