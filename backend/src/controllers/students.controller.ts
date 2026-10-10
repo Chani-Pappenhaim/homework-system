@@ -36,3 +36,21 @@ export async function searchStudents(req: Request, res: Response) {
     sendError(res, err);
   }
 }
+
+export async function overview(_req: Request, res: Response) {
+  try {
+    const students = await studentsService.getStudentsOverview();
+    res.json({ success: true, data: { students } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function profile(req: Request, res: Response) {
+  try {
+    const profile = await studentsService.getStudentProfile(req.params.id as string);
+    res.json({ success: true, data: profile });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
