@@ -26,9 +26,11 @@ export default function ChangePasswordPage() {
 
     setLoading(true);
     try {
-      await authApi.changePassword(current, next);
-      if (user && accessToken) {
-        setAuth({ ...user, mustChangePassword: false }, accessToken);
+      const res = await authApi.changePassword(current, next);
+      // The server revokes the old session and hands back a new token.
+      const newToken: string | null = res.data?.data?.accessToken ?? accessToken;
+      if (user && newToken) {
+        setAuth({ ...user, mustChangePassword: false }, newToken);
       }
       navigate(user?.role === 'ADMIN' ? '/teacher' : '/student');
     } catch (err: any) {

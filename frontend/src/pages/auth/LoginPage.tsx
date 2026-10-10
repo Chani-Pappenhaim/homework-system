@@ -48,7 +48,7 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const res = await authApi.login(email, password);
+      const res = await authApi.login(email.trim(), password);
       const { user, accessToken } = res.data.data;
       setAuth(user, accessToken);
       if (user.mustChangePassword) {

@@ -68,9 +68,16 @@ function isApplicationResponse(error: any): boolean {
   return typeof data === 'object' && data !== null && (data as any).success === false;
 }
 
+const SAFE_METHODS = ['get', 'head', 'options'];
+
 function isColdStartError(error: any): boolean {
-  if (error?.code === 'ECONNABORTED') return true; // client-side timeout
-  if (!error?.response) return true;                // no response at all (network / DNS / refused)
+  // A timeout or a dropped connection may come after the server already acted
+  // on the request; repeating a submission or a grade could do it twice. Only
+  // read requests are retried blind — a write is retried only when a gateway
+  // answered, which proves the app never saw it.
+  const safe = SAFE_METHODS.includes(String(error?.config?.method ?? 'get').toLowerCase());
+  if (error?.code === 'ECONNABORTED') return safe;  // client-side timeout
+  if (!error?.response) return safe;                // no response at all (network / DNS / refused)
   if (isApplicationResponse(error)) return false;   // the app answered — retrying changes nothing
   return [502, 503, 504].includes(error.response.status); // gateway still bringing the app up
 }
