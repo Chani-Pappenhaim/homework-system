@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FileUpload } from '@/components/ui/file-upload';
+import { PreviewableTypes } from '@/components/ui/previewable-types';
 
 function getFileInput(container: HTMLElement) {
   return container.querySelector('input[type="file"]') as HTMLInputElement;
@@ -82,5 +83,23 @@ describe('FileUpload', () => {
       expect(onFile).not.toHaveBeenCalled();
       expect(screen.queryByDisplayValue('my-report')).not.toBeInTheDocument();
     });
+  });
+});
+
+describe('PreviewableTypes', () => {
+  it('spells out a group on tap without opening the file picker around it', async () => {
+    const { container } = render(<FileUpload onFile={() => {}} hint={<PreviewableTypes />} />);
+    const clickPicker = vi.spyOn(getFileInput(container), 'click');
+    const video = screen.getByRole('button', { name: /וידאו/ });
+    expect(video).toHaveAttribute('title', 'mp4, webm, mov');
+
+    await userEvent.click(video);
+    expect(screen.getByRole('status')).toHaveTextContent('וידאו: mp4, webm, mov');
+    expect(video).toHaveAttribute('aria-expanded', 'true');
+    expect(clickPicker).not.toHaveBeenCalled();
+
+    await userEvent.click(video);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByText(/להורדה בלבד/)).toBeInTheDocument();
   });
 });

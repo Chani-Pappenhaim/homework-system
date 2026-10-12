@@ -13,7 +13,7 @@ interface FileUploadProps {
   /** When true, after picking a file the user can give it a display name before uploading. */
   withName?: boolean;
   /** Small print under the drop zone (e.g. which types can be previewed). */
-  hint?: string;
+  hint?: React.ReactNode;
 }
 
 function FileUpload({ onFile, accept, label = 'גרור קובץ לכאן או לחצי לבחירה', className, withName, hint }: FileUploadProps) {
@@ -109,7 +109,7 @@ function FileUpload({ onFile, accept, label = 'גרור קובץ לכאן או �
     >
       <Upload className="mx-auto mb-2 text-ink/60" size={24} />
       <p className="text-sm font-bold text-ink/70">{label}</p>
-      {hint && <p className="mt-1 text-xs text-ink/50">{hint}</p>}
+      {hint && <div className="mt-1 text-xs text-ink/50">{hint}</div>}
       <input
         ref={inputRef}
         type="file"

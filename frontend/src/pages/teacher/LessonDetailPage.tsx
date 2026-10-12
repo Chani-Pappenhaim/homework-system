@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { BackLink } from '@/components/ui/back-link';
 import { FileUpload } from '@/components/ui/file-upload';
-import { PREVIEWABLE_TYPES_HINT } from '@/lib/file-type';
+import { PreviewableTypes } from '@/components/ui/previewable-types';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { FileGallery } from '@/components/ui/file-gallery';
 import { useToast } from '@/components/ui/toast';
@@ -266,7 +266,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
         <CardContent className="space-y-2">
           <FileUpload
             withName
-            hint={PREVIEWABLE_TYPES_HINT}
+            hint={<PreviewableTypes className="mt-1.5" />}
             onFile={(file, name) => uploadFileMutation.mutate({ file, name })}
             label={uploadFileMutation.isPending ? `מעלה... ${uploadProgress ?? 0}%` : 'גרור קובץ להעלאה או לחצי לבחירה'}
           />
