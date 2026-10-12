@@ -244,6 +244,44 @@ describe('quizzes.service.getQuiz — the teacher owns the draft', () => {
     expect(remove).toHaveBeenCalled();
   });
 
+  /** A job that reached 'completed' — between the quiz read and the job read, in the tests below. */
+  function completedJob(remove = vi.fn().mockResolvedValue(undefined)) {
+    return { finishedOn: Date.now(), progress: {}, getState: vi.fn().mockResolvedValue('completed'), remove };
+  }
+
+  it('shows the new quiz, not "create one", when generation finished between the two reads', async () => {
+    p.quiz.findUnique.mockResolvedValueOnce(null).mockResolvedValue(draft);
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
+    quizGetJob.mockResolvedValueOnce(completedJob()).mockResolvedValue(undefined);
+
+    const r: any = await getQuiz('l1', 'admin', 'ADMIN');
+
+    expect(r.status).toBe('ready');
+    expect(r.quiz.questions).toHaveLength(2);
+  });
+
+  it('shows the regenerated questions, not the old ones, when regeneration finished between the two reads', async () => {
+    const fresh = { ...draft, questions: [{ id: 'n1', question: 'New?', options: ['x', 'y'], correctIndex: 1 }] };
+    p.quiz.findUnique.mockResolvedValueOnce(draft).mockResolvedValue(fresh);
+    quizGetJob.mockResolvedValueOnce(completedJob()).mockResolvedValue(undefined);
+
+    const r: any = await getQuiz('l1', 'admin', 'ADMIN');
+
+    expect(r.quiz.questions.map((q: any) => q.id)).toEqual(['n1']);
+    expect(r.regeneration).toBeNull();
+  });
+
+  it('reads the quiz again only once, even when the finished job cannot be removed', async () => {
+    p.quiz.findUnique.mockResolvedValue(null);
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
+    quizGetJob.mockResolvedValue(completedJob(vi.fn().mockRejectedValue(new Error('redis down'))));
+
+    const r: any = await getQuiz('l1', 'admin', 'ADMIN');
+
+    expect(r.status).toBe('none');
+    expect(p.quiz.findUnique).toHaveBeenCalledTimes(2);
+  });
+
   it('throws 404 when the lesson does not exist', async () => {
     p.quiz.findUnique.mockResolvedValue(null);
     p.lesson.findUnique.mockResolvedValue(null);

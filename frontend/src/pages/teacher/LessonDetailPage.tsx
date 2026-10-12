@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Github, Edit, Trash2, Plus, BookOpen, Lock, ClipboardList, Paperclip, ChevronRight, ChevronLeft, Sparkles, Copy } from 'lucide-react';
@@ -14,6 +14,7 @@ import { PreviewableTypes } from '@/components/ui/previewable-types';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { FileGallery } from '@/components/ui/file-gallery';
 import { useToast } from '@/components/ui/toast';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { LessonEditModal } from '@/components/lesson/LessonEditModal';
 import { LessonCopyModal } from '@/components/lesson/LessonCopyModal';
 import { AssignmentModal } from '@/components/lesson/AssignmentModal';
@@ -78,19 +79,28 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
     next.delete('section');
     return next;
   }, { replace: true });
+  // Leaving the open assignment with a grade still unsaved asks first, the
+  // same as switching to another student does inside it.
+  const gradeDirtyRef = useRef(false);
+  const onGradeDirtyChange = useCallback((dirty: boolean) => { gradeDirtyRef.current = dirty; }, []);
+  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
+  const leaveAssignment = (leave: () => void) => {
+    if (gradeDirtyRef.current) setPendingLeave(() => leave);
+    else leave();
+  };
   // Leaving the assignments tab closes the open assignment in the same update —
   // otherwise the deep-link effect below sees it still in the URL and pulls the
   // page straight back to the assignments tab.
   const switchTab = (next: typeof TABS[number]) => {
     if (next === 'assignments' || !targetAssignmentId) { setTab(next); return; }
-    setSearchParams((p) => {
+    leaveAssignment(() => setSearchParams((p) => {
       const params = new URLSearchParams(p);
       if (next === 'content') params.delete('tab'); else params.set('tab', next);
       params.delete('assignmentId');
       params.delete('submissionId');
       params.delete('section');
       return params;
-    }, { replace: true });
+    }, { replace: true }));
   };
   // The assignment's tab and the student being graded replace the history
   // entry, so "back" leaves the assignment rather than replaying every click.
@@ -373,7 +383,8 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
           onSectionChange={setAssignmentSection}
           selectedSubmissionId={targetSubmissionId}
           onSelectSubmission={selectSubmission}
-          onBack={closeAssignment}
+          onDirtyChange={onGradeDirtyChange}
+          onBack={() => leaveAssignment(closeAssignment)}
           onEdit={() => setAssignmentModal(assignment)}
           onDelete={() => confirmDeleteAssignment(assignment)}
         />
@@ -416,6 +427,20 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
       <LessonEditModal lesson={lesson} open={lessonEditOpen} onClose={() => setLessonEditOpen(false)} />
       <LessonCopyModal lesson={lesson} open={copyOpen} onClose={() => setCopyOpen(false)} />
       <AssignmentModal lessonId={lesson.id} lessonDate={lesson.lessonDate} value={assignmentModal} onClose={() => setAssignmentModal(null)} />
+      <ConfirmDialog
+        open={Boolean(pendingLeave)}
+        onOpenChange={(open) => { if (!open) setPendingLeave(null); }}
+        title="לצאת בלי לשמור?"
+        description="השינויים בציון עוד לא נשמרו, והם יאבדו ביציאה מהמטלה."
+        confirmLabel="יציאה בלי לשמור"
+        cancelLabel="הישארות"
+        onConfirm={() => {
+          const leave = pendingLeave;
+          setPendingLeave(null);
+          gradeDirtyRef.current = false;
+          leave?.();
+        }}
+      />
     </div>
   );
 }

@@ -65,6 +65,13 @@ describe('StudentsPage', () => {
     expect(screen.getByText('רחל')).toBeInTheDocument();
     expect(screen.queryByText('לאה')).not.toBeInTheDocument();
   });
+
+  it('says the list failed to load instead of claiming there are no students', async () => {
+    overview.mockRejectedValue({ response: { data: { error: 'אין חיבור לשרת' } } });
+    renderWithProviders(<StudentsPage />);
+    expect(await screen.findByText('אין חיבור לשרת')).toBeInTheDocument();
+    expect(screen.queryByText('עדיין אין תלמידות במערכת')).not.toBeInTheDocument();
+  });
 });
 
 const fullProfile = {

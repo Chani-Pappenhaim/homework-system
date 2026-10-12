@@ -22,13 +22,15 @@ const SECTION_LABELS: Record<AssignmentSection, { label: string; icon: typeof Fi
  * their own tabs instead of stacking above the students.
  */
 export function AssignmentView({
-  assignment, section, onSectionChange, selectedSubmissionId, onSelectSubmission, onBack, onEdit, onDelete,
+  assignment, section, onSectionChange, selectedSubmissionId, onSelectSubmission, onDirtyChange, onBack, onEdit, onDelete,
 }: {
   assignment: AssignmentDTO;
   section: AssignmentSection;
   onSectionChange: (section: AssignmentSection) => void;
   selectedSubmissionId: string | undefined;
   onSelectSubmission: (submissionId: string) => void;
+  /** Unsaved grade edits — the page asks before leaving the assignment with them. */
+  onDirtyChange?: (dirty: boolean) => void;
   onBack: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -82,17 +84,17 @@ export function AssignmentView({
         </div>
       </div>
 
-      <div role="tabpanel">
-        {section === 'submissions' && (
-          <SubmissionsWorkstation
-            assignment={assignment}
-            selectedId={selectedSubmissionId}
-            onSelect={onSelectSubmission}
-          />
-        )}
-        {section === 'details' && <AssignmentDetails assignment={assignment} />}
-        {section === 'ai' && <AiInstructions assignment={assignment} onEdit={onEdit} />}
+      {/* Hidden rather than unmounted, so a grade she is typing survives a look at the brief. */}
+      <div role="tabpanel" hidden={section !== 'submissions'}>
+        <SubmissionsWorkstation
+          assignment={assignment}
+          selectedId={selectedSubmissionId}
+          onSelect={onSelectSubmission}
+          onDirtyChange={onDirtyChange}
+        />
       </div>
+      {section === 'details' && <div role="tabpanel"><AssignmentDetails assignment={assignment} /></div>}
+      {section === 'ai' && <div role="tabpanel"><AiInstructions assignment={assignment} onEdit={onEdit} /></div>}
     </Card>
   );
 }

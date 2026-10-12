@@ -20,10 +20,12 @@ const canApprove = (s: SubmissionDTO) => s.grade?.contentScore != null && !s.gra
  * student lives in the URL (`submissionId`), so the grades report can link
  * straight to her and a refresh stays on her.
  */
-export function SubmissionsWorkstation({ assignment, selectedId, onSelect }: {
+export function SubmissionsWorkstation({ assignment, selectedId, onSelect, onDirtyChange: reportDirty }: {
   assignment: AssignmentDTO;
   selectedId: string | undefined;
   onSelect: (submissionId: string) => void;
+  /** Unsaved grade edits, so the page can ask before leaving the assignment too. */
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const qc = useQueryClient();
   const toast = useToast();
@@ -55,7 +57,10 @@ export function SubmissionsWorkstation({ assignment, selectedId, onSelect }: {
 
   // Switching away from unsaved edits asks first.
   const dirtyRef = useRef(false);
-  const onDirtyChange = useCallback((dirty: boolean) => { dirtyRef.current = dirty; }, []);
+  const onDirtyChange = useCallback((dirty: boolean) => {
+    dirtyRef.current = dirty;
+    reportDirty?.(dirty);
+  }, [reportDirty]);
   const [pendingSwitch, setPendingSwitch] = useState<SubmissionDTO | null>(null);
   const goTo = (target: SubmissionDTO | undefined, { force = false } = {}) => {
     if (!target || target.id === current?.id) return;

@@ -79,12 +79,11 @@ export interface QuizGenerationProgress {
 type GenerationState =
   | { status: 'generating'; progress: QuizGenerationProgress }
   | { status: 'failed'; message: string }
+  /** Finished successfully — the quiz row is the answer, and may be newer than one read before. */
+  | { status: 'done' }
   | null;
 
-/**
- * Reads the generation job for a lesson. null means there is none, or it
- * finished successfully (the quiz row is then the answer).
- */
+/** Reads the generation job for a lesson. null means there is none. */
 async function readGenerationState(lessonId: string, role: string): Promise<GenerationState> {
   const job = await quizQueue.getJob(jobIdFor(lessonId));
   if (!job) return null;
@@ -133,7 +132,7 @@ async function readGenerationState(lessonId: string, role: string): Promise<Gene
   // console via attachLifecycleLogging's 'failed' listener; the worker recorded
   // its kind in the progress, which is all the message needs.
   if (state === 'failed') return { status: 'failed', message: failureMessage(progress.lastFailure, role) };
-  return null;
+  return { status: 'done' };
 }
 
 /** Lesson files a generation with "include files" would leave out. */
@@ -211,6 +210,17 @@ async function lessonOr404(lessonId: string) {
  */
 export async function getQuiz(lessonId: string, userId: string, role: string) {
   await assertLessonAccess(userId, role, lessonId);
+  return readQuiz(lessonId, role);
+}
+
+/**
+ * The quiz row is read before the generation job. A job that finished between
+ * the two reads saved questions the first read did not see — the page would
+ * show "create a quiz" over a quiz that exists, or the old questions of a
+ * draft with nothing left to poll for. So a finished job means one more read;
+ * `settled` stops it there (the job is removed by then, or failed to be).
+ */
+async function readQuiz(lessonId: string, role: string, settled = false): Promise<any> {
   const isTeacher = role === 'ADMIN';
 
   const quiz = await prisma.quiz.findUnique({ where: { lessonId } });
@@ -243,6 +253,9 @@ export async function getQuiz(lessonId: string, userId: string, role: string) {
       }),
       excludedFilesOf(lessonId),
     ]);
+    if (regeneration?.status === 'done') {
+      return settled ? { ...ready, regeneration: null, excludedFiles } : readQuiz(lessonId, role, true);
+    }
     return { ...ready, regeneration, excludedFiles };
   }
 
@@ -262,7 +275,11 @@ export async function getQuiz(lessonId: string, userId: string, role: string) {
   const excludedFiles = await excludedFilesOf(lessonId);
   try {
     const generation = await readGenerationState(lessonId, role);
-    if (generation) return { ...generation, excludedFiles };
+    if (generation?.status === 'done') {
+      if (!settled) return readQuiz(lessonId, role, true);
+    } else if (generation) {
+      return { ...generation, excludedFiles };
+    }
   } catch (err: any) {
     console.error('[quiz] could not read generation state for lesson', lessonId, err);
     return { status: 'failed' as const, message: failedMessage(role), excludedFiles };

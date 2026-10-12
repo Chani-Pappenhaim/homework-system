@@ -9,6 +9,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { unwrap } from '@/lib/api-utils';
+import { getApiErrorMessage } from '@/lib/errors';
 import { cn } from '@/lib/utils';
 import { scoreTone } from '@/lib/scores';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -72,7 +73,7 @@ export default function StudentsPage() {
   const [group, setGroup] = useState('');
   const [onlyAttention, setOnlyAttention] = useState(false);
 
-  const { data, isLoading } = useQuery({ queryKey: ['students', 'overview'], queryFn: () => studentsApi.overview() });
+  const { data, isLoading, error } = useQuery({ queryKey: ['students', 'overview'], queryFn: () => studentsApi.overview() });
   const students = unwrap(data)?.students ?? [];
 
   const groupOptions = useMemo(
@@ -118,6 +119,8 @@ export default function StudentsPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[0, 1, 2].map((i) => <Skeleton key={i} className="h-44" />)}
         </div>
+      ) : error ? (
+        <EmptyState>{getApiErrorMessage(error)}</EmptyState>
       ) : shown.length === 0 ? (
         <EmptyState>{students.length === 0 ? 'עדיין אין תלמידות במערכת' : 'אין תלמידות שמתאימות לחיפוש'}</EmptyState>
       ) : (

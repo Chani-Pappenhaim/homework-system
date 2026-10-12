@@ -274,14 +274,62 @@ describe('TeacherLessonDetailPage — grading workstation', () => {
     expect(grade).not.toHaveBeenCalled();
   });
 
+  it('keeps an unsaved grade while she looks at the brief', async () => {
+    renderAt('');
+    await screen.findByRole('heading', { name: 'מרים' });
+    await userEvent.type(screen.getByPlaceholderText('90'), '70');
+
+    await userEvent.click(screen.getByRole('tab', { name: /פרטי המטלה/ }));
+    expect(await within(screen.getByRole('tabpanel')).findByText('דרישה 1')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('tab', { name: /הגשות/ }));
+
+    expect((screen.getByPlaceholderText('90') as HTMLInputElement).value).toBe('70');
+    expect(screen.getByText('יש שינויים שלא נשמרו')).toBeInTheDocument();
+  });
+
+  it('asks before leaving the assignment with an unsaved grade', async () => {
+    renderAt('');
+    await screen.findByRole('heading', { name: 'מרים' });
+    await userEvent.type(screen.getByPlaceholderText('90'), '70');
+
+    await userEvent.click(screen.getByRole('button', { name: /חזרה לרשימת המטלות/ }));
+    expect(await screen.findByText('לצאת בלי לשמור?')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'הישארות' }));
+    expect((screen.getByPlaceholderText('90') as HTMLInputElement).value).toBe('70');
+
+    // Another lesson tab leaves the assignment too.
+    await userEvent.click(screen.getByRole('button', { name: /קבצים מצורפים/ }));
+    await userEvent.click(await screen.findByRole('button', { name: 'יציאה בלי לשמור' }));
+    expect(await screen.findByText('אין קבצים מצורפים')).toBeInTheDocument();
+    expect(grade).not.toHaveBeenCalled();
+  });
+
+  it('has the browser ask before closing the page only while a grade is unsaved', async () => {
+    renderAt('');
+    await screen.findByRole('heading', { name: 'מרים' });
+    const unload = () => {
+      const e = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(e);
+      return e.defaultPrevented;
+    };
+    expect(unload()).toBe(false);
+
+    await userEvent.type(screen.getByPlaceholderText('90'), '70');
+    expect(unload()).toBe(true);
+
+    await userEvent.clear(screen.getByPlaceholderText('90'));
+    expect(unload()).toBe(false);
+  });
+
   it('keeps the brief and the AI instructions in their own tabs', async () => {
     renderAt('');
     await screen.findByRole('heading', { name: 'מרים' });
     expect(screen.getByRole('tab', { name: /הגשות/ })).toHaveAttribute('aria-selected', 'true');
 
     await userEvent.click(screen.getByRole('tab', { name: /פרטי המטלה/ }));
-    expect(await screen.findByText('דרישה 1')).toBeInTheDocument();
-    expect(screen.getByText('קישור GitHub')).toBeInTheDocument();
+    const details = screen.getByRole('tabpanel');
+    expect(await within(details).findByText('דרישה 1')).toBeInTheDocument();
+    expect(within(details).getByText('קישור GitHub')).toBeInTheDocument();
     expect(screen.queryByRole('list', { name: 'הגשות' })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('tab', { name: /הנחיות AI/ }));

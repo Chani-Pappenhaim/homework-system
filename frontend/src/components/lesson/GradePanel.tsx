@@ -64,6 +64,15 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
 
   const dirty = !sameForm(form, baseline);
   useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
+  // Once the panel is gone, nothing of it is left unsaved.
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+  // Closing or reloading the page would drop what she typed: the browser asks first.
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
 
   const setField = <K extends keyof GradeForm>(key: K, value: GradeForm[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
