@@ -1,4 +1,5 @@
-import { Bot, ChevronRight, ClipboardCheck, Edit, FileText, Trash2 } from 'lucide-react';
+import { useId, useState, type ReactNode } from 'react';
+import { Bot, ChevronDown, ChevronRight, ClipboardCheck, Edit, FileText, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
@@ -98,37 +99,61 @@ export function AssignmentView({
 
 function AssignmentDetails({ assignment }: { assignment: AssignmentDTO }) {
   const methods = [assignment.allowFile && 'העלאת קובץ', assignment.allowGithub && 'קישור GitHub'].filter(Boolean);
+  const methodsText = methods.length > 0 ? methods.join(' או ') : '—';
+  const deadlineText = assignment.deadline ? formatDate(assignment.deadline) : 'ללא';
+  const requirements = assignment.requirements ?? [];
   return (
-    <dl className="grid grid-cols-1 gap-x-4 gap-y-3 px-5 py-4 text-sm sm:grid-cols-[8rem_1fr]">
-      <dt className="text-xs font-medium text-ink/50">תיאור</dt>
-      <dd className="text-ink/85">
+    <div className="divide-y divide-rule/20 px-5 py-1">
+      <DetailSection title="תיאור">
         {assignment.description
           ? <MarkdownRenderer content={assignment.description} />
           : <span className="text-ink/50">אין תיאור</span>}
-      </dd>
+      </DetailSection>
 
-      <dt className="text-xs font-medium text-ink/50">מועד אחרון</dt>
-      <dd className="text-ink">{assignment.deadline ? formatDate(assignment.deadline) : 'ללא'}</dd>
+      <DetailSection title="מועד אחרון" summary={deadlineText}>
+        <span className="text-ink">{deadlineText}</span>
+      </DetailSection>
 
-      <dt className="text-xs font-medium text-ink/50">אופן ההגשה</dt>
-      <dd className="text-ink">
-        {methods.length > 0 ? methods.join(' או ') : '—'}
+      <DetailSection title="אופן ההגשה" summary={methodsText}>
+        <span className="text-ink">{methodsText}</span>
         {assignment.allowFile && assignment.allowedTypes.length > 0 && (
           <span className="text-xs text-ink/55"> ({assignment.allowedTypes.join(', ')})</span>
         )}
-      </dd>
+      </DetailSection>
 
-      {assignment.requirements && assignment.requirements.length > 0 && (
-        <>
-          <dt className="text-xs font-medium text-ink/50">דרישות</dt>
-          <dd>
-            <ul className="list-disc space-y-1 pr-4 text-ink/85">
-              {assignment.requirements.map((r) => <li key={r.id}>{r.text}</li>)}
-            </ul>
-          </dd>
-        </>
+      {requirements.length > 0 && (
+        <DetailSection
+          title="דרישות"
+          summary={requirements.length === 1 ? 'דרישה אחת' : `${requirements.length} דרישות`}
+        >
+          <ul className="list-disc space-y-1 pr-4 text-ink/85">
+            {requirements.map((r) => <li key={r.id}>{r.text}</li>)}
+          </ul>
+        </DetailSection>
       )}
-    </dl>
+    </div>
+  );
+}
+
+/** A part of the assignment's details that the teacher can fold away; folded, it keeps a short summary. */
+function DetailSection({ title, summary, children }: { title: string; summary?: string; children: ReactNode }) {
+  const [open, setOpen] = useState(true);
+  const bodyId = useId();
+  return (
+    <section>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={bodyId}
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2 py-2.5 text-right text-xs font-semibold text-ink/60 hover:text-ink"
+      >
+        <ChevronDown size={15} className={cn('shrink-0 transition-transform', !open && 'rotate-90')} />
+        {title}
+        {!open && summary && <span className="truncate font-normal text-ink/50">· {summary}</span>}
+      </button>
+      {open && <div id={bodyId} className="pb-3 pr-6 text-sm text-ink/85">{children}</div>}
+    </section>
   );
 }
 

@@ -288,6 +288,27 @@ describe('TeacherLessonDetailPage — grading workstation', () => {
     expect(await screen.findByText(/לא הוגדרו הנחיות מיוחדות/)).toBeInTheDocument();
   });
 
+  it('folds and unfolds each part of the assignment details', async () => {
+    renderAt('&section=details');
+    const requirements = await screen.findByRole('button', { name: 'דרישות' });
+    const details = screen.getByRole('tabpanel');
+    expect(requirements).toHaveAttribute('aria-expanded', 'true');
+    expect(within(details).getByText('דרישה 1')).toBeInTheDocument();
+
+    await userEvent.click(requirements);
+    expect(requirements).toHaveAttribute('aria-expanded', 'false');
+    expect(within(details).queryByText('דרישה 1')).not.toBeInTheDocument();
+    expect(requirements).toHaveTextContent('דרישה אחת');
+
+    // Folding one part leaves the others as they were.
+    await userEvent.click(screen.getByRole('button', { name: 'מועד אחרון' }));
+    expect(screen.getByRole('button', { name: /מועד אחרון/ })).toHaveTextContent('2026');
+    expect(screen.getByRole('button', { name: 'אופן ההגשה' })).toHaveAttribute('aria-expanded', 'true');
+
+    await userEvent.click(requirements);
+    expect(within(details).getByText('דרישה 1')).toBeInTheDocument();
+  });
+
   it('moves to another lesson tab straight from an open assignment', async () => {
     renderAt('&tab=assignments&section=details');
     await screen.findByRole('tab', { name: /פרטי המטלה/ });
