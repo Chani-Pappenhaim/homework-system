@@ -2,6 +2,7 @@ import axios from 'axios';
 import useAuthStore from '@/store/authStore';
 import useServerStatus from '@/store/serverStatus';
 import { API_URL } from '@/lib/config';
+import { readJwtTimes } from '@/lib/jwt';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -37,14 +38,68 @@ function requestSettled() {
   }
 }
 
-api.interceptors.request.use((config) => {
+// ---------------------------------------------------------------------------
+// Access-token refresh
+// ---------------------------------------------------------------------------
+// One refresh at a time: requests that need it meanwhile wait for the same one.
+let refreshing: Promise<string> | null = null;
+
+function refreshAccessToken(): Promise<string> {
+  if (!refreshing) {
+    refreshing = axios
+      .post<{ success: true; data: { accessToken: string } }>(`${API_URL}/auth/refresh`, {}, { withCredentials: true })
+      .then((r) => {
+        const token = r.data.data.accessToken;
+        useAuthStore.getState().setAccessToken(token);
+        return token;
+      })
+      .finally(() => { refreshing = null; });
+  }
+  return refreshing;
+}
+
+// Refresh shortly before the token runs out rather than after a request bounces
+// with 401 — otherwise a large upload is sent in full, refused, and sent again.
+const REFRESH_AHEAD_MS = 60_000;
+
+// The browser's clock may be off. A token's `iat` is the server's clock at the
+// moment it was issued, which is when it arrives here, so the gap between the
+// two is recorded on arrival and expiry is measured by the server's clock.
+let clockOffset = { token: null as string | null, ms: 0 };
+function recordClockOffset(token: string | null) {
+  if (!token || token === clockOffset.token) return;
+  const iat = readJwtTimes(token)?.iat;
+  clockOffset = { token, ms: iat ? iat * 1000 - Date.now() : 0 };
+}
+recordClockOffset(useAuthStore.getState().accessToken);
+useAuthStore.subscribe((state) => recordClockOffset(state.accessToken));
+
+function expiresSoon(token: string): boolean {
+  const exp = readJwtTimes(token)?.exp;
+  if (!exp) return false;
+  const serverNow = Date.now() + (token === clockOffset.token ? clockOffset.ms : 0);
+  return exp * 1000 - serverNow < REFRESH_AHEAD_MS;
+}
+
+// Signing in and refreshing do not use the access token.
+const NO_TOKEN_URLS = ['/auth/login', '/auth/refresh'];
+
+api.interceptors.request.use(async (config) => {
   // Count each logical request only once — a retry re-enters here with the same
   // config, and we must not double-count it or the banner never clears.
   if (!(config as any)._counted) {
     (config as any)._counted = true;
     requestStarted();
   }
-  const token = useAuthStore.getState().accessToken;
+  let token = useAuthStore.getState().accessToken;
+  if (token && expiresSoon(token) && !NO_TOKEN_URLS.some((url) => config.url?.startsWith(url))) {
+    try {
+      token = await refreshAccessToken();
+    } catch {
+      // Send it as is: if the token really expired, the 401 handler below
+      // retries the refresh and signs out when that fails too.
+    }
+  }
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -84,8 +139,6 @@ function isColdStartError(error: any): boolean {
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-let refreshing: Promise<string> | null = null;
-
 api.interceptors.response.use(
   (res) => { requestSettled(); return res; },
   async (error) => {
@@ -94,14 +147,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && original && !original._retry) {
       original._retry = true;
       try {
-        if (!refreshing) {
-          refreshing = axios
-            .post<{ success: true; data: { accessToken: string } }>(`${API_URL}/auth/refresh`, {}, { withCredentials: true })
-            .then((r) => r.data.data.accessToken)
-            .finally(() => { refreshing = null; });
-        }
-        const token = await refreshing;
-        useAuthStore.getState().setAccessToken(token);
+        const token = await refreshAccessToken();
         original.headers.Authorization = `Bearer ${token}`;
         // Same logical request continues on the retry — do not settle here.
         return api(original);
