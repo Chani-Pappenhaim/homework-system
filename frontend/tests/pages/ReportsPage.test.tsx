@@ -12,10 +12,14 @@ vi.mock('@/api/grades.api', () => ({
 }));
 vi.mock('@/api/groups.api', () => ({ groupsApi: { list: vi.fn() } }));
 vi.mock('@/api/courses.api', () => ({ coursesApi: { list: vi.fn() } }));
+vi.mock('@/api/submissions.api', () => ({
+  submissionsApi: { importSubmissions: vi.fn(), downloadImportTemplate: vi.fn() },
+}));
 
 import { gradesApi } from '@/api/grades.api';
 import { groupsApi } from '@/api/groups.api';
 import { coursesApi } from '@/api/courses.api';
+import { submissionsApi } from '@/api/submissions.api';
 
 const report = gradesApi.report as unknown as ReturnType<typeof vi.fn>;
 const groupsList = groupsApi.list as unknown as ReturnType<typeof vi.fn>;
@@ -64,5 +68,34 @@ describe('ReportsPage', () => {
     await userEvent.selectOptions(groupSelect, 'g1');
     expect(await screen.findByRole('button', { name: 'נקה פילטרים' })).toBeInTheDocument();
     await waitFor(() => expect(report).toHaveBeenCalledWith({ groupId: 'g1' }));
+  });
+
+  it('imports submissions from Excel and lists the rows that were not imported', async () => {
+    report.mockResolvedValue({ data: { data: { report: [] } } });
+    (submissionsApi.importSubmissions as any).mockResolvedValue({
+      data: { data: { imported: 2, skipped: 1, errors: ['שורה 4: הריפו github.com/dina/x לא נמצא (או שאינו ציבורי)'] } },
+    });
+    renderWithProviders(<ReportsPage />);
+    await userEvent.click(await screen.findByRole('button', { name: /ייבוא הגשות/ }));
+    expect(await screen.findByText('ייבוא הגשות מ-Excel')).toBeInTheDocument();
+
+    const input = document.body.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(input, new File(['x'], 'subs.xlsx'));
+    await userEvent.click(screen.getByRole('button', { name: 'העלה קובץ' }));
+
+    expect(await screen.findByText(/יובאו 2/)).toBeInTheDocument();
+    expect(screen.getByText(/שורה 4: הריפו/)).toBeInTheDocument();
+    expect(submissionsApi.importSubmissions).toHaveBeenCalledWith(expect.any(File));
+  });
+
+  it('downloads the submissions import template', async () => {
+    report.mockResolvedValue({ data: { data: { report: [] } } });
+    (submissionsApi.downloadImportTemplate as any).mockResolvedValue({ data: new Blob(['x']) });
+    URL.createObjectURL = vi.fn(() => 'blob:x');
+    URL.revokeObjectURL = vi.fn();
+    renderWithProviders(<ReportsPage />);
+    await userEvent.click(await screen.findByRole('button', { name: /ייבוא הגשות/ }));
+    await userEvent.click(await screen.findByRole('button', { name: /הורדת קובץ לדוגמא/ }));
+    await waitFor(() => expect(submissionsApi.downloadImportTemplate).toHaveBeenCalled());
   });
 });

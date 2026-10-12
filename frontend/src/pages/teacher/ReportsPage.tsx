@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Download, ClipboardCheck } from 'lucide-react';
+import { Download, ClipboardCheck, Upload } from 'lucide-react';
 import { gradesApi } from '@/api/grades.api';
 import { groupsApi } from '@/api/groups.api';
 import { coursesApi } from '@/api/courses.api';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
+import { SubmissionsImportDialog } from '@/components/teacher/SubmissionsImportDialog';
 import { formatDate, formatDateTime, groupDisplayName } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import type { ReportRow } from '@/types';
@@ -26,6 +27,7 @@ export default function ReportsPage() {
   const [courseId, setCourseId] = useState(searchParams.get('courseId') ?? '');
   const [studentId, setStudentId] = useState(searchParams.get('studentId') ?? '');
   const [exportError, setExportError] = useState('');
+  const [importOpen, setImportOpen] = useState(false);
 
   const { data: groupsData } = useQuery({ queryKey: ['groups'], queryFn: () => groupsApi.list() });
   const { data: coursesData } = useQuery({ queryKey: ['courses'], queryFn: () => coursesApi.list() });
@@ -85,9 +87,14 @@ export default function ReportsPage() {
             <Button variant="outline" size="sm" loading={exportMutation.isPending} onClick={() => exportMutation.mutate()}>
               <Download size={13} /> ייצוא Excel
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+              <Upload size={13} /> ייבוא הגשות
+            </Button>
           </>
         }
       />
+
+      <SubmissionsImportDialog open={importOpen} onOpenChange={setImportOpen} />
 
       {/* Filters */}
       <Card>

@@ -47,6 +47,12 @@ vi.mock('../../src/services/groups.service', () => ({
   resetStudentPassword: vi.fn(),
   createStudentAccount: vi.fn(),
 }));
+vi.mock('../../src/services/students.service', () => ({
+  findStudentByEmail: vi.fn(),
+  searchStudents: vi.fn(),
+  getStudentsOverview: vi.fn(),
+  getStudentProfile: vi.fn(),
+}));
 vi.mock('../../src/services/lessons.service', () => ({
   getLessons: vi.fn(),
   createLesson: vi.fn(),
@@ -94,6 +100,7 @@ import * as lessonsService from '../../src/services/lessons.service';
 import * as assignmentsService from '../../src/services/assignments.service';
 import * as quizzesService from '../../src/services/quizzes.service';
 import * as aiUsageService from '../../src/services/ai-usage.service';
+import * as studentsService from '../../src/services/students.service';
 
 const p = prisma as any;
 const app = createApp();
@@ -404,5 +411,28 @@ describe('client-feedback routes', () => {
     const res = await request(app).post('/api/students').set(...bearer(student)).send({ name: 'A', email: 'a@x.com' });
     expect(res.status).toBe(403);
     expect(groupsService.createStudentAccount).not.toHaveBeenCalled();
+  });
+
+  it('GET /api/students/overview and /:id/profile serve the students page', async () => {
+    (studentsService.getStudentsOverview as any).mockResolvedValue([{ id: 's1' }]);
+    (studentsService.getStudentProfile as any).mockResolvedValue({ student: { id: 's1' }, work: [] });
+    const list = await request(app).get('/api/students/overview').set(...bearer(admin));
+    expect(list.body.data.students).toEqual([{ id: 's1' }]);
+    const one = await request(app).get('/api/students/s1/profile').set(...bearer(admin));
+    expect(one.body.data.student).toEqual({ id: 's1' });
+    expect(studentsService.getStudentProfile).toHaveBeenCalledWith('s1');
+  });
+
+  it('the students page endpoints are admin-only', async () => {
+    expect((await request(app).get('/api/students/overview').set(...bearer(student))).status).toBe(403);
+    expect((await request(app).get('/api/students/s1/profile').set(...bearer(student))).status).toBe(403);
+    expect(studentsService.getStudentProfile).not.toHaveBeenCalled();
+  });
+
+  it('GET /api/submissions/import-template downloads the sheet, admin-only', async () => {
+    const res = await request(app).get('/api/submissions/import-template').set(...bearer(admin));
+    expect(res.status).toBe(200);
+    expect(res.headers['content-disposition']).toContain('submissions-import-template.xlsx');
+    expect((await request(app).get('/api/submissions/import-template').set(...bearer(student))).status).toBe(403);
   });
 });

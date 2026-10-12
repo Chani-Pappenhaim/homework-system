@@ -24,6 +24,8 @@ import TeacherQuizPage from '@/pages/teacher/QuizPage';
 import ReportsPage from '@/pages/teacher/ReportsPage';
 import TeacherMessagesPage from '@/pages/teacher/MessagesPage';
 import AiUsagePage from '@/pages/teacher/AiUsagePage';
+import StudentsPage from '@/pages/teacher/StudentsPage';
+import StudentDetailPage from '@/pages/teacher/StudentDetailPage';
 
 import StudentHomePage from '@/pages/student/HomePage';
 import StudentCoursesPage from '@/pages/student/CoursesPage';
@@ -66,6 +68,8 @@ function AppRoutes() {
           <Route path="lessons/:id" element={<LessonById area="teacher" page={LessonDetailPage} />} />
           {/* Mirrors the student quiz route so the same lesson quiz is reachable from either role */}
           <Route path="quiz/:lessonId" element={<TeacherQuizPage />} />
+          <Route path="students" element={<StudentsPage />} />
+          <Route path="students/:id" element={<StudentDetailPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="messages" element={<TeacherMessagesPage />} />
           <Route path="ai-usage" element={<AiUsagePage />} />

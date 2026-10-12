@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  LayoutDashboard, BookOpen, Users, BarChart2, Sparkles, MessageSquare,
+  LayoutDashboard, BookOpen, Users, GraduationCap, BarChart2, Sparkles, MessageSquare,
   Bell, LogOut, Search,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,7 @@ const nav = [
   { to: '/teacher', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
   { to: '/teacher/courses', label: 'קורסים', icon: BookOpen },
   { to: '/teacher/groups', label: 'קבוצות', icon: Users },
+  { to: '/teacher/students', label: 'תלמידות', icon: GraduationCap },
   { to: '/teacher/reports', label: 'ציונים', icon: BarChart2 },
   { to: '/teacher/ai-usage', label: 'שימוש AI', icon: Sparkles },
   { to: '/teacher/messages', label: 'הודעות', icon: MessageSquare },

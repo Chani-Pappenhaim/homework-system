@@ -78,6 +78,17 @@ export async function getSubmission(req: Request, res: Response) {
   }
 }
 
+export async function downloadImportTemplate(_req: Request, res: Response) {
+  try {
+    const buffer = await submissionsService.buildSubmissionsTemplate();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=submissions-import-template.xlsx');
+    res.send(buffer);
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
 export async function importSubmissions(req: Request, res: Response) {
   try {
     const result = await submissionsService.importSubmissions(req.file!.buffer);

@@ -32,6 +32,7 @@ import { quizzesApi } from '@/api/quizzes.api';
 import { messagesApi } from '@/api/messages.api';
 import { aiUsageApi } from '@/api/aiUsage.api';
 import { attendanceApi } from '@/api/attendance.api';
+import { studentsApi } from '@/api/students.api';
 
 const get = api.get as unknown as ReturnType<typeof vi.fn>;
 const post = api.post as unknown as ReturnType<typeof vi.fn>;
@@ -226,6 +227,17 @@ describe('submissionsApi', () => {
   it('importSubmissions posts FormData', () => {
     submissionsApi.importSubmissions(new File(['x'], 'a.xlsx'));
     expect(post).toHaveBeenCalledWith('/submissions/import', expect.any(FormData));
+  });
+  it('downloadImportTemplate fetches a blob', () => {
+    submissionsApi.downloadImportTemplate();
+    expect(get).toHaveBeenCalledWith('/submissions/import-template', { responseType: 'blob' });
+  });
+});
+
+describe('studentsApi', () => {
+  it('overview and profile hit the students page endpoints', () => {
+    studentsApi.overview(); expect(get).toHaveBeenCalledWith('/students/overview');
+    studentsApi.profile('s1'); expect(get).toHaveBeenCalledWith('/students/s1/profile');
   });
 });
 

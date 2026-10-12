@@ -9,6 +9,13 @@ export function isVideoFile(file: File): boolean {
   return ['mp4', 'mov', 'avi', 'mkv', 'webm', 'wmv', 'm4v'].includes(ext);
 }
 
+/** Per-row outcome of an Excel submissions import; each error names its sheet row. */
+export interface SubmissionsImportResult {
+  imported: number;
+  skipped: number;
+  errors: string[];
+}
+
 export const submissionsApi = {
   submitFile: (assignmentId: string, file: File, notes?: string, onProgress?: (percent: number) => void) => {
     const form = new FormData();
@@ -47,8 +54,11 @@ export const submissionsApi = {
   importSubmissions: (file: File) => {
     const form = new FormData();
     form.append('file', file);
-    return api.post('/submissions/import', form);
+    return api.post<{ success: true; data: SubmissionsImportResult }>('/submissions/import', form);
   },
+
+  downloadImportTemplate: () =>
+    api.get('/submissions/import-template', { responseType: 'blob' }),
 
   requestAiReview: (submissionId: string) =>
     api.post(`/submissions/${submissionId}/request-ai-review`),
