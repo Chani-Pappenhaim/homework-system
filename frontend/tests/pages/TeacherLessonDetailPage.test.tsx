@@ -87,7 +87,8 @@ describe('TeacherLessonDetailPage', () => {
     });
     renderPage();
     await openAssignment();
-    expect(await screen.findByText('רותי')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'רותי' })).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'הגשות' })).toHaveTextContent('רותי');
   });
 
   it('keeps the open assignment in the address, so a refresh lands on it', async () => {
@@ -100,7 +101,7 @@ describe('TeacherLessonDetailPage', () => {
     expect(getSubmissions).toHaveBeenCalledWith(lesson.assignments[0].id);
   });
 
-  it('opens the grade modal with the suggested score prefilled for an ungraded submission', async () => {
+  it('opens the first ungraded submission with the suggested score prefilled', async () => {
     // not late, 1 unchecked requirement => 100 - 0 - 5 = 95
     getSubmissions.mockResolvedValue({
       data: { data: { submissions: [
@@ -109,10 +110,7 @@ describe('TeacherLessonDetailPage', () => {
     });
     renderPage();
     await openAssignment();
-    await userEvent.click(await screen.findByRole('button', { name: 'בדוק עכשיו' }));
-
-    const dialogHeading = await screen.findByText(/ציון — רותי/);
-    expect(dialogHeading).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'רותי' })).toBeInTheDocument();
     const scoreInput = screen.getByPlaceholderText('85') as HTMLInputElement;
     expect(scoreInput.value).toBe('95');
   });
@@ -125,9 +123,6 @@ describe('TeacherLessonDetailPage', () => {
     });
     renderPage();
     await openAssignment();
-    // Exact name: /ערוך/ also matches the "ערוך שיעור" button and would open
-    // the lesson editor instead of the grade modal.
-    await userEvent.click(await screen.findByRole('button', { name: 'ערוך' }));
     const submissionInput = await screen.findByPlaceholderText('85') as HTMLInputElement;
     const contentInput = screen.getByPlaceholderText('90') as HTMLInputElement;
     expect(submissionInput.value).toBe('77');
@@ -143,7 +138,6 @@ describe('TeacherLessonDetailPage', () => {
     grade.mockResolvedValue({ data: {} });
     renderPage();
     await openAssignment();
-    await userEvent.click(await screen.findByRole('button', { name: 'בדוק עכשיו' }));
 
     // Both inputs render; submissionScore prefilled to the suggestion (95), content empty.
     const submissionInput = await screen.findByPlaceholderText('85') as HTMLInputElement;
@@ -168,7 +162,6 @@ describe('TeacherLessonDetailPage', () => {
     approveAi.mockResolvedValue({ data: {} });
     renderPage();
     await openAssignment();
-    await userEvent.click(await screen.findByRole('button', { name: 'בדוק עכשיו' }));
 
     expect(await screen.findByText(/בדיקת AI — ציון: 88/)).toBeInTheDocument();
     const approveBtn = screen.getByRole('button', { name: /אשרי ציון AI לתלמידה/ });
@@ -199,5 +192,99 @@ describe('TeacherLessonDetailPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'קבצים מצורפים' }));
     await userEvent.click(screen.getByRole('button', { name: 'סימון כקובץ חובה' }));
     await waitFor(() => expect(setFileRequired).toHaveBeenCalledWith('l1', 'f1', true));
+  });
+});
+
+describe('TeacherLessonDetailPage — grading workstation', () => {
+  const sub = (id: string, studentName: string, grade: object | null) => ({
+    id, studentName, studentEmail: `${id}@x.com`, submittedAt: '2026-07-10T10:00:00Z', isLate: false,
+    githubUrl: 'https://github.com/a/b', grade,
+  });
+  // Server order is newest-first; the station lists them by name: אביגיל, יעל, מרים.
+  const submissions = [
+    sub('s-m', 'מרים', null),
+    sub('s-y', 'יעל', { submissionScore: 90, gradedAt: '' }),
+    sub('s-a', 'אביגיל', { submissionScore: 80, gradedAt: '' }),
+  ];
+
+  function renderAt(query: string) {
+    return renderWithProviders(<TeacherLessonDetailPage />, {
+      path: '/teacher/lesson/:id',
+      initialEntries: [`/teacher/lesson/l1?assignmentId=a1${query}`],
+    });
+  }
+
+  beforeEach(() => {
+    getSubmissions.mockResolvedValue({ data: { data: { submissions } } });
+    grade.mockResolvedValue({ data: {} });
+  });
+
+  it('lists the students by name and starts on the first one waiting for a grade', async () => {
+    renderAt('');
+    expect(await screen.findByRole('heading', { name: 'מרים' })).toBeInTheDocument();
+    const names = within(screen.getByRole('list', { name: 'הגשות' })).getAllByRole('listitem').map((li) => li.textContent);
+    expect(names[0]).toContain('אביגיל');
+    expect(names[2]).toContain('מרים');
+    expect(screen.getByText('3 מתוך 3')).toBeInTheDocument();
+    expect(screen.getByText('נבדקו 2 מתוך 3')).toBeInTheDocument();
+    // The last one: nowhere further to go.
+    expect(screen.getByRole('button', { name: 'הבאה' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /שמרי ועברי לבאה/ })).not.toBeInTheDocument();
+  });
+
+  it('switches student from the list and with next', async () => {
+    renderAt('');
+    await screen.findByRole('heading', { name: 'מרים' });
+    await userEvent.click(within(screen.getByRole('list', { name: 'הגשות' })).getByRole('button', { name: /אביגיל/ }));
+    expect(await screen.findByRole('heading', { name: 'אביגיל' })).toBeInTheDocument();
+    expect(screen.getByText('1 מתוך 3')).toBeInTheDocument();
+    expect((screen.getByPlaceholderText('85') as HTMLInputElement).value).toBe('80');
+
+    await userEvent.click(screen.getByRole('button', { name: 'הבאה' }));
+    expect(await screen.findByRole('heading', { name: 'יעל' })).toBeInTheDocument();
+    expect((screen.getByPlaceholderText('85') as HTMLInputElement).value).toBe('90');
+  });
+
+  it('opens the student named in the link and saves her grade before moving to the next', async () => {
+    renderAt('&submissionId=s-a');
+    expect(await screen.findByRole('heading', { name: 'אביגיל' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /שמרי ועברי לבאה/ }));
+
+    await waitFor(() => expect(grade).toHaveBeenCalledWith('s-a', expect.objectContaining({ submissionScore: 80 })));
+    expect(await screen.findByRole('heading', { name: 'יעל' })).toBeInTheDocument();
+    expect(screen.getByText('2 מתוך 3')).toBeInTheDocument();
+  });
+
+  it('asks before leaving a grade with unsaved changes', async () => {
+    renderAt('');
+    await screen.findByRole('heading', { name: 'מרים' });
+    await userEvent.type(screen.getByPlaceholderText('90'), '70');
+    expect(screen.getByText('יש שינויים שלא נשמרו')).toBeInTheDocument();
+
+    const list = screen.getByRole('list', { name: 'הגשות' });
+    await userEvent.click(within(list).getByRole('button', { name: /יעל/ }));
+    expect(await screen.findByText('לעבור בלי לשמור?')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'הישארות' }));
+    expect(screen.getByRole('heading', { name: 'מרים' })).toBeInTheDocument();
+    expect((screen.getByPlaceholderText('90') as HTMLInputElement).value).toBe('70');
+
+    await userEvent.click(within(list).getByRole('button', { name: /יעל/ }));
+    await userEvent.click(await screen.findByRole('button', { name: 'מעבר בלי לשמור' }));
+    expect(await screen.findByRole('heading', { name: 'יעל' })).toBeInTheDocument();
+    expect(grade).not.toHaveBeenCalled();
+  });
+
+  it('keeps the brief and the AI instructions in their own tabs', async () => {
+    renderAt('');
+    await screen.findByRole('heading', { name: 'מרים' });
+    expect(screen.getByRole('tab', { name: /הגשות/ })).toHaveAttribute('aria-selected', 'true');
+
+    await userEvent.click(screen.getByRole('tab', { name: /פרטי המטלה/ }));
+    expect(await screen.findByText('דרישה 1')).toBeInTheDocument();
+    expect(screen.getByText('קישור GitHub')).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'הגשות' })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('tab', { name: /הנחיות AI/ }));
+    expect(await screen.findByText(/לא הוגדרו הנחיות מיוחדות/)).toBeInTheDocument();
   });
 });

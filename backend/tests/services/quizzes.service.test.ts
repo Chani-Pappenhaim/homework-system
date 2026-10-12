@@ -4,6 +4,7 @@ vi.mock('../../src/config/prisma', () => ({
   prisma: {
     quiz: { findUnique: vi.fn(), update: vi.fn() },
     lesson: { findUnique: vi.fn() },
+    lessonFile: { findMany: vi.fn() },
     quizAttempt: { findFirst: vi.fn(), create: vi.fn(), findMany: vi.fn(), deleteMany: vi.fn() },
     $transaction: vi.fn(),
     $executeRaw: vi.fn(),
@@ -34,6 +35,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   assertLessonAccessMock.mockResolvedValue(undefined);
   quizGetJob.mockResolvedValue(undefined); // no prior generation job by default
+  p.lessonFile.findMany.mockResolvedValue([]);
   p.$transaction.mockImplementation(async (ops: any[]) => Promise.all(ops));
 });
 
@@ -43,6 +45,22 @@ const questions = [
 ];
 const draft = { id: 'qz1', questions, published: false };
 const live = { id: 'qz1', questions, published: true };
+
+/** An unfinished BullMQ job, recently active — override what a test is about. */
+function runningJob(overrides: Record<string, unknown> = {}) {
+  const now = Date.now();
+  return {
+    finishedOn: undefined,
+    timestamp: now - 5_000,
+    processedOn: now - 4_000,
+    attemptsMade: 0,
+    opts: { attempts: 3 },
+    progress: { stage: 'generating', at: now - 3_000 },
+    getState: vi.fn().mockResolvedValue('active'),
+    remove: vi.fn(),
+    ...overrides,
+  };
+}
 
 describe('quizzes.service.getQuiz — the teacher owns the draft', () => {
   it('shows the teacher her unpublished draft, with the correct answers', async () => {
@@ -100,13 +118,109 @@ describe('quizzes.service.getQuiz — the teacher owns the draft', () => {
     p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
     // An unfinished job has no finishedOn — the same shape BullMQ returns.
     const getState = vi.fn().mockResolvedValue('active');
-    quizGetJob.mockResolvedValue({ finishedOn: undefined, getState, remove: vi.fn() });
+    quizGetJob.mockResolvedValue(runningJob({ getState }));
     const r: any = await getQuiz('l1', 'admin', 'ADMIN');
     expect(r.status).toBe('generating');
     // Her page repeats this call every 5 seconds while she waits, and getState
     // costs one Redis command per state it has to rule out. finishedOn came
     // back with the job itself, so this path must stay at a single command.
     expect(getState).not.toHaveBeenCalled();
+  });
+
+  it('reports the stage, the attempt and the time since she clicked', async () => {
+    p.quiz.findUnique.mockResolvedValue(null);
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
+    const now = Date.now();
+    quizGetJob.mockResolvedValue(runningJob({
+      timestamp: now - 90_000,
+      processedOn: now - 20_000,
+      attemptsMade: 1,
+      progress: { stage: 'generating', at: now - 10_000, lastFailure: 'timeout' },
+      data: { lessonId: 'l1', includeFiles: true },
+    }));
+    const r: any = await getQuiz('l1', 'admin', 'ADMIN');
+    expect(r.progress).toMatchObject({
+      stage: 'generating', attempt: 2, maxAttempts: 3, lastFailure: 'timeout', withFiles: true,
+    });
+    expect(r.progress.elapsedSeconds).toBeGreaterThanOrEqual(89);
+  });
+
+  it('says "queued" while no worker has picked the job up', async () => {
+    p.quiz.findUnique.mockResolvedValue(null);
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
+    quizGetJob.mockResolvedValue(runningJob({ processedOn: undefined }));
+    const r: any = await getQuiz('l1', 'admin', 'ADMIN');
+    expect(r.progress.stage).toBe('queued');
+  });
+
+  it('gives up on a job that stopped reporting, instead of spinning forever', async () => {
+    p.quiz.findUnique.mockResolvedValue(null);
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
+    const old = Date.now() - 6 * 60 * 1000;
+    const remove = vi.fn().mockResolvedValue(undefined);
+    quizGetJob.mockResolvedValue(runningJob({
+      timestamp: old, processedOn: old, progress: { stage: 'generating', at: old }, remove,
+    }));
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const r: any = await getQuiz('l1', 'admin', 'ADMIN');
+    errSpy.mockRestore();
+    expect(remove).toHaveBeenCalled();
+    expect(r.status).toBe('failed');
+    expect(r.message).toContain('נעצרה באמצע');
+  });
+
+  it('keeps showing a silent job as running while a live worker still holds its lock', async () => {
+    p.quiz.findUnique.mockResolvedValue(null);
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
+    const old = Date.now() - 6 * 60 * 1000;
+    quizGetJob.mockResolvedValue(runningJob({
+      timestamp: old, processedOn: old, remove: vi.fn().mockRejectedValue(new Error('locked')),
+    }));
+    const r: any = await getQuiz('l1', 'admin', 'ADMIN');
+    expect(r.status).toBe('generating');
+  });
+
+  it('tells the teacher why it failed, per failure kind, without the raw error', async () => {
+    p.quiz.findUnique.mockResolvedValue(null);
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
+    quizGetJob.mockResolvedValue({
+      finishedOn: Date.now(),
+      getState: vi.fn().mockResolvedValue('failed'),
+      failedReason: 'Gemini API error: 429 quota',
+      progress: { stage: 'retrying', at: Date.now(), lastFailure: 'rate-limit' },
+      remove: vi.fn().mockResolvedValue(undefined),
+    });
+    const r: any = await getQuiz('l1', 'admin', 'ADMIN');
+    expect(r.status).toBe('failed');
+    expect(r.message).toContain('מכסת השימוש');
+    expect(r.message).not.toContain('429');
+  });
+
+  it('lists the files generation would leave out, next to the checkbox', async () => {
+    p.quiz.findUnique.mockResolvedValue(null);
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
+    p.lessonFile.findMany.mockResolvedValue([{ name: 'notes.docx' }, { name: 'code.zip' }, { name: 'talk.mp4' }]);
+    const r: any = await getQuiz('l1', 'admin', 'ADMIN');
+    expect(r.status).toBe('none');
+    expect(r.excludedFiles).toEqual(['code.zip', 'talk.mp4']);
+  });
+
+  it('shows the teacher what a draft was built from, and its regeneration state', async () => {
+    const sourceFiles = { included: ['a.pdf'], skipped: [{ name: 'b.zip', reason: 'unsupported' }] };
+    p.quiz.findUnique.mockResolvedValue({ ...draft, sourceFiles });
+    quizGetJob.mockResolvedValue(runningJob());
+    const r: any = await getQuiz('l1', 'admin', 'ADMIN');
+    expect(r.status).toBe('ready');
+    expect(r.quiz.sourceFiles).toEqual(sourceFiles);
+    expect(r.regeneration.status).toBe('generating');
+    expect(r.excludedFiles).toEqual([]);
+  });
+
+  it('never tells a student which files the quiz came from', async () => {
+    p.quiz.findUnique.mockResolvedValue({ ...live, sourceFiles: { included: ['a.pdf'], skipped: [] } });
+    const r: any = await getQuiz('l1', 's1', 'STUDENT');
+    expect(r.quiz).not.toHaveProperty('sourceFiles');
+    expect(r).not.toHaveProperty('excludedFiles');
   });
 
   it('reports a failed generation to the teacher with its reason, and clears the job', async () => {
@@ -141,11 +255,11 @@ describe('quizzes.service.requestQuizGeneration', () => {
   it('enqueues a generation job with a BullMQ-legal id', async () => {
     p.quiz.findUnique.mockResolvedValue(null);
     p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
-    const r = await requestQuizGeneration('l1', 'ADMIN');
+    const r = await requestQuizGeneration('l1', 'ADMIN', false);
     expect(r).toEqual({ status: 'generating' });
     expect(quizAdd).toHaveBeenCalledWith(
       'generate',
-      { lessonId: 'l1', lessonContent: '# content' },
+      { lessonId: 'l1', includeFiles: false, replace: false },
       { jobId: 'quiz-l1' },
     );
     const jobId: string = quizAdd.mock.calls[0][2].jobId;
@@ -155,14 +269,37 @@ describe('quizzes.service.requestQuizGeneration', () => {
 
   it('refuses to overwrite an existing quiz', async () => {
     p.quiz.findUnique.mockResolvedValue(draft);
-    await expect(requestQuizGeneration('l1', 'ADMIN')).rejects.toMatchObject({ status: 409 });
+    await expect(requestQuizGeneration('l1', 'ADMIN', false)).rejects.toMatchObject({ status: 409 });
+    expect(quizAdd).not.toHaveBeenCalled();
+  });
+
+  it('passes the "include files" choice to the worker, which reads them', async () => {
+    p.quiz.findUnique.mockResolvedValue(null);
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
+    await requestQuizGeneration('l1', 'ADMIN', true);
+    expect(quizAdd.mock.calls[0][1]).toEqual({ lessonId: 'l1', includeFiles: true, replace: false });
+    // Downloading files is the worker's job: the request must return at once.
+    expect(p.lessonFile.findMany).not.toHaveBeenCalled();
+  });
+
+  it('regenerates an unpublished draft when asked to replace it', async () => {
+    p.quiz.findUnique.mockResolvedValue(draft);
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
+    const r = await requestQuizGeneration('l1', 'ADMIN', false, true);
+    expect(r).toEqual({ status: 'generating' });
+    expect(quizAdd.mock.calls[0][1]).toEqual({ lessonId: 'l1', includeFiles: false, replace: true });
+  });
+
+  it('refuses to regenerate a published quiz, which students may be sitting', async () => {
+    p.quiz.findUnique.mockResolvedValue(live);
+    await expect(requestQuizGeneration('l1', 'ADMIN', false, true)).rejects.toMatchObject({ status: 409 });
     expect(quizAdd).not.toHaveBeenCalled();
   });
 
   it('refuses when the lesson has no content to work from', async () => {
     p.quiz.findUnique.mockResolvedValue(null);
     p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: null });
-    await expect(requestQuizGeneration('l1', 'ADMIN')).rejects.toMatchObject({ status: 409 });
+    await expect(requestQuizGeneration('l1', 'ADMIN', false)).rejects.toMatchObject({ status: 409 });
     expect(quizAdd).not.toHaveBeenCalled();
   });
 
@@ -170,7 +307,7 @@ describe('quizzes.service.requestQuizGeneration', () => {
     p.quiz.findUnique.mockResolvedValue(null);
     p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
     quizGetJob.mockResolvedValue({ getState: vi.fn().mockResolvedValue('active'), remove: vi.fn() });
-    const r = await requestQuizGeneration('l1', 'ADMIN');
+    const r = await requestQuizGeneration('l1', 'ADMIN', false);
     expect(r).toEqual({ status: 'generating' });
     expect(quizAdd).not.toHaveBeenCalled();
   });
@@ -180,7 +317,7 @@ describe('quizzes.service.requestQuizGeneration', () => {
     p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
     const remove = vi.fn().mockResolvedValue(undefined);
     quizGetJob.mockResolvedValue({ getState: vi.fn().mockResolvedValue('failed'), remove });
-    await requestQuizGeneration('l1', 'ADMIN');
+    await requestQuizGeneration('l1', 'ADMIN', false);
     expect(remove).toHaveBeenCalled();
     expect(quizAdd).toHaveBeenCalled();
   });
@@ -189,7 +326,7 @@ describe('quizzes.service.requestQuizGeneration', () => {
     p.quiz.findUnique.mockResolvedValue(null);
     p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
     quizAdd.mockRejectedValueOnce(new Error('connect ECONNREFUSED redis:6379'));
-    await expect(requestQuizGeneration('l1', 'ADMIN')).rejects.toMatchObject({ status: 502 });
+    await expect(requestQuizGeneration('l1', 'ADMIN', false)).rejects.toMatchObject({ status: 502 });
   });
 });
 

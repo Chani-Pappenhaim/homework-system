@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Github, Edit, Trash2, Plus, BookOpen, Lock, ClipboardList, Paperclip, ChevronRight, ChevronLeft, Sparkles, Copy } from 'lucide-react';
@@ -10,15 +10,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { BackLink } from '@/components/ui/back-link';
 import { FileUpload } from '@/components/ui/file-upload';
-import { PREVIEWABLE_TYPES_HINT } from '@/lib/file-type';
+import { PreviewableTypes } from '@/components/ui/previewable-types';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { FileGallery } from '@/components/ui/file-gallery';
 import { useToast } from '@/components/ui/toast';
 import { LessonEditModal } from '@/components/lesson/LessonEditModal';
 import { LessonCopyModal } from '@/components/lesson/LessonCopyModal';
 import { AssignmentModal } from '@/components/lesson/AssignmentModal';
-import { AssignmentSubmissionsTable } from '@/components/lesson/AssignmentSubmissionsTable';
-import { GradeModal } from '@/components/lesson/GradeModal';
+import { AssignmentView, ASSIGNMENT_SECTIONS, type AssignmentSection } from '@/components/lesson/AssignmentView';
 import { LessonAccessPanel } from '@/components/lesson/LessonAccessPanel';
 import { QuizResultsCard } from '@/components/lesson/QuizResultsCard';
 import QuizPanel from '@/components/teacher/QuizPanel';
@@ -28,7 +27,7 @@ import { getApiErrorMessage } from '@/lib/errors';
 import { useTabParam } from '@/hooks/useTabParam';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import type { LessonPageProps } from '@/components/lesson/LessonRoute';
-import type { AssignmentDTO, SubmissionDTO, QuizResultsDTO } from '@/types';
+import type { AssignmentDTO, QuizResultsDTO } from '@/types';
 
 const TABS = ['content', 'files', 'assignments', 'access', 'quiz'] as const;
 
@@ -39,8 +38,6 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
   const [searchParams, setSearchParams] = useSearchParams();
   const qc = useQueryClient();
   const toast = useToast();
-  const [descExpanded, setDescExpanded] = useState(false);
-  const [gradeModal, setGradeModal] = useState<SubmissionDTO | null>(null);
   const [assignmentModal, setAssignmentModal] = useState<AssignmentDTO | null | 'new'>(null);
   const [lessonEditOpen, setLessonEditOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
@@ -61,20 +58,38 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
   const assignment = targetAssignmentId ? lesson?.assignments.find((a) => a.id === targetAssignmentId) : undefined;
   const viewingAssignment = Boolean(assignment);
   const viewingQuiz = searchParams.get('view') === 'manage';
+  const rawSection = searchParams.get('section');
+  const assignmentSection: AssignmentSection = ASSIGNMENT_SECTIONS.includes(rawSection as AssignmentSection)
+    ? rawSection as AssignmentSection
+    : 'submissions';
 
   const openAssignment = (assignmentId: string) => setSearchParams((p) => {
     const next = new URLSearchParams(p);
     next.set('tab', 'assignments');
     next.set('assignmentId', assignmentId);
     next.delete('submissionId');
+    next.delete('section');
     return next;
   });
   const closeAssignment = () => setSearchParams((p) => {
     const next = new URLSearchParams(p);
     next.delete('assignmentId');
     next.delete('submissionId');
+    next.delete('section');
     return next;
   }, { replace: true });
+  // The assignment's tab and the student being graded replace the history
+  // entry, so "back" leaves the assignment rather than replaying every click.
+  const setAssignmentSection = (section: AssignmentSection) => setSearchParams((p) => {
+    const next = new URLSearchParams(p);
+    if (section === 'submissions') next.delete('section'); else next.set('section', section);
+    return next;
+  }, { replace: true });
+  const selectSubmission = useCallback((submissionId: string) => setSearchParams((p) => {
+    const next = new URLSearchParams(p);
+    next.set('submissionId', submissionId);
+    return next;
+  }, { replace: true }), [setSearchParams]);
   const setViewingQuiz = (open: boolean) => setSearchParams((p) => {
     const next = new URLSearchParams(p);
     if (open) next.set('view', 'manage'); else next.delete('view');
@@ -95,9 +110,6 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
   useEffect(() => {
     if (assignment && tab !== 'assignments') setTab('assignments');
   }, [assignment, tab, setTab]);
-
-  // Switching assignments shouldn't carry over an expanded description from the previous one.
-  useEffect(() => setDescExpanded(false), [targetAssignmentId]);
 
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const uploadFileMutation = useMutation({
@@ -254,7 +266,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
         <CardContent className="space-y-2">
           <FileUpload
             withName
-            hint={PREVIEWABLE_TYPES_HINT}
+            hint={<PreviewableTypes className="mt-1.5" />}
             onFile={(file, name) => uploadFileMutation.mutate({ file, name })}
             label={uploadFileMutation.isPending ? `מעלה... ${uploadProgress ?? 0}%` : 'גרור קובץ להעלאה או לחצי לבחירה'}
           />
@@ -341,73 +353,16 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
       )}
 
       {viewingAssignment && assignment && (
-        <Card>
-          <CardHeader>
-            <button
-              onClick={closeAssignment}
-              className="flex items-center gap-1 text-sm font-semibold text-ink-soft hover:text-ink"
-            >
-              <ChevronRight size={15} /> חזרה לרשימת המטלות
-            </button>
-          </CardHeader>
-
-          <div>
-            {/* Assignment info */}
-            <div className="px-5 py-3 bg-ground/60 border-b border-rule/20">
-              <div className="flex items-start justify-between gap-2">
-                <dl className="grid flex-1 grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
-                  <dt className="text-xs font-medium text-ink/50">מטלה</dt>
-                  <dd className="font-bold text-ink">{assignment.title}</dd>
-                  {assignment.description && (
-                    <>
-                      <dt className="text-xs font-medium text-ink/50">תיאור</dt>
-                      <dd className="text-ink/80">
-                        <div className={cn(!descExpanded && 'max-h-12 overflow-hidden')}>
-                          <MarkdownRenderer content={assignment.description} />
-                        </div>
-                        {assignment.description.length > 120 && (
-                          <button
-                            onClick={() => setDescExpanded((v) => !v)}
-                            className="mt-1 text-xs font-semibold text-clay hover:underline"
-                          >
-                            {descExpanded ? 'הצג פחות' : 'הצג עוד'}
-                          </button>
-                        )}
-                      </dd>
-                    </>
-                  )}
-                  {assignment.deadline && (
-                    <>
-                      <dt className="text-xs font-medium text-ink/50">מועד אחרון</dt>
-                      <dd className="font-medium text-ink">{formatDate(assignment.deadline)}</dd>
-                    </>
-                  )}
-                  {assignment.aiInstructions && (
-                    <>
-                      <dt className="text-xs font-medium text-ink/50">הנחיות AI</dt>
-                      <dd className="text-ink/80"><MarkdownRenderer content={assignment.aiInstructions} /></dd>
-                    </>
-                  )}
-                </dl>
-                <div className="flex gap-1 shrink-0">
-                  <Button size="sm" variant="outline" onClick={() => setAssignmentModal(assignment)}>
-                    <Edit size={12} /> עריכה
-                  </Button>
-                  <Button size="sm" variant="destructive" onClick={() => confirmDeleteAssignment(assignment)}>
-                    <Trash2 size={12} /> מחיקה
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            <AssignmentSubmissionsTable
-              assignmentId={assignment.id}
-              onGrade={setGradeModal}
-              autoOpenSubmissionId={assignment.id === targetAssignmentId ? targetSubmissionId : undefined}
-              onAutoOpenHandled={() => setSearchParams((p) => { const next = new URLSearchParams(p); next.delete('submissionId'); return next; }, { replace: true })}
-            />
-          </div>
-        </Card>
+        <AssignmentView
+          assignment={assignment}
+          section={assignmentSection}
+          onSectionChange={setAssignmentSection}
+          selectedSubmissionId={targetSubmissionId}
+          onSelectSubmission={selectSubmission}
+          onBack={closeAssignment}
+          onEdit={() => setAssignmentModal(assignment)}
+          onDelete={() => confirmDeleteAssignment(assignment)}
+        />
       )}
       </div>
       )}
@@ -447,7 +402,6 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
       <LessonEditModal lesson={lesson} open={lessonEditOpen} onClose={() => setLessonEditOpen(false)} />
       <LessonCopyModal lesson={lesson} open={copyOpen} onClose={() => setCopyOpen(false)} />
       <AssignmentModal lessonId={lesson.id} lessonDate={lesson.lessonDate} value={assignmentModal} onClose={() => setAssignmentModal(null)} />
-      <GradeModal submission={gradeModal} assignment={assignment} onClose={() => setGradeModal(null)} />
     </div>
   );
 }

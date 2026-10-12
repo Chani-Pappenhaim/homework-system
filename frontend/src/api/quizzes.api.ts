@@ -7,9 +7,12 @@ export const quizzesApi = {
     api.get<{ success: true; data: QuizStateDTO }>(`/lessons/${lessonId}/quiz`),
 
   // --- teacher only -------------------------------------------------------
-  /** Queue an AI generation. The only quiz route that can cost money. */
-  generate: (lessonId: string, includeFiles: boolean) =>
-    api.post(`/lessons/${lessonId}/quiz/generate`, { includeFiles }),
+  /**
+   * Queue an AI generation. The only quiz route that can cost money. `replace`
+   * regenerates an unpublished draft; the server refuses it for a published quiz.
+   */
+  generate: (lessonId: string, includeFiles: boolean, replace = false) =>
+    api.post(`/lessons/${lessonId}/quiz/generate`, { includeFiles, replace }),
 
   updateQuestions: (lessonId: string, questions: QuizQuestionDTO[]) =>
     api.put(`/lessons/${lessonId}/quiz`, { questions }),

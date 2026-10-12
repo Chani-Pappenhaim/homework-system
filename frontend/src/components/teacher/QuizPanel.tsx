@@ -1,16 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Sparkles, Eye, EyeOff, Save, RotateCcw, AlertTriangle } from 'lucide-react';
+import { Sparkles, Eye, EyeOff, Save, RotateCcw, AlertTriangle, RefreshCw } from 'lucide-react';
 import { quizzesApi } from '@/api/quizzes.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/dialog';
 import { AutoTextarea } from '@/components/ui/auto-textarea';
 import { MarkdownField } from '@/components/ui/markdown-field';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
 import { cn } from '@/lib/utils';
 import type { QuizQuestionDTO, QuizStateDTO } from '@/types';
+import { GenerationProgress, IncludeFilesOption, SourceFilesLine } from './QuizGenerationInfo';
 
 /**
  * Teacher-facing quiz editor: generate questions with AI, review and correct
@@ -26,30 +28,56 @@ export default function QuizPanel({
   const [draft, setDraft] = useState<QuizQuestionDTO[] | null>(null);
   const [error, setError] = useState('');
   const [includeFiles, setIncludeFiles] = useState(false);
+  const [regenerateOpen, setRegenerateOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['quiz', lessonId],
     queryFn: () => quizzesApi.get(lessonId),
-    // Only poll while the AI is actually working.
-    refetchInterval: (query) =>
-      (query.state.data?.data as any)?.data?.status === 'generating' ? 5000 : false,
+    // Only poll while the AI is actually working — on a first quiz or a replacement.
+    refetchInterval: (query) => {
+      const s = (query.state.data?.data as any)?.data as QuizStateDTO | undefined;
+      return s?.status === 'generating' || s?.regeneration?.status === 'generating' ? 5000 : false;
+    },
   });
 
   const state = (data?.data as any)?.data as QuizStateDTO | undefined;
   const quiz = state?.quiz;
+  const regeneration = state?.regeneration;
+  const regenerating = regeneration?.status === 'generating';
 
   // Load the server's questions into the editor, without overwriting local edits in progress.
   useEffect(() => {
     if (quiz && draft === null) setDraft(quiz.questions);
   }, [quiz, draft]);
 
+  // A finished regeneration replaced the questions under the editor: load the
+  // new ones. Editing was locked meanwhile, so no local change is lost.
+  const wasRegenerating = useRef(false);
+  useEffect(() => {
+    if (wasRegenerating.current && !regenerating) {
+      setDraft(null);
+      qc.invalidateQueries({ queryKey: ['quiz-results', lessonId] });
+    }
+    wasRegenerating.current = regenerating;
+  }, [regenerating, qc, lessonId]);
+
+  // The server reports a failed regeneration once and then forgets it; keep the
+  // message on screen until her next action.
+  useEffect(() => {
+    if (regeneration?.status === 'failed') setError(regeneration.message);
+  }, [regeneration]);
+
   const generateMutation = useMutation({
-    mutationFn: () => quizzesApi.generate(lessonId, includeFiles),
+    mutationFn: (replace: boolean) => quizzesApi.generate(lessonId, includeFiles, replace),
     onSuccess: () => {
       setError('');
+      setRegenerateOpen(false);
       qc.invalidateQueries({ queryKey: ['quiz', lessonId] });
     },
-    onError: (e: any) => setError(getApiErrorMessage(e, 'לא הצלחנו להתחיל את יצירת הבוחן')),
+    onError: (e: any) => {
+      setRegenerateOpen(false);
+      setError(getApiErrorMessage(e, 'לא הצלחנו להתחיל את יצירת הבוחן'));
+    },
   });
 
   const saveMutation = useMutation({
@@ -127,9 +155,15 @@ export default function QuizPanel({
     return (
       <Card accent="indigo">
         {header}
-        <CardContent className="flex items-center gap-3">
-          <div className="size-5 animate-spin rounded-full border-2 border-rule border-t-clay" />
-          <p className="text-sm text-ink/70">ה-AI כותב שאלות על תוכן השיעור…</p>
+        <CardContent>
+          {state.progress ? (
+            <GenerationProgress progress={state.progress} />
+          ) : (
+            <div className="flex items-center gap-3">
+              <div className="size-5 animate-spin rounded-full border-2 border-rule border-t-clay" />
+              <p className="text-sm text-ink/70">ה-AI כותב שאלות על תוכן השיעור…</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     );
@@ -147,22 +181,18 @@ export default function QuizPanel({
                 ה-AI יכתוב 10 שאלות אמריקאיות על תוכן השיעור. תוכלי לערוך אותן לפני שהתלמידות רואות אותן.
               </p>}
           {hasFiles && (
-            <label className="flex items-center gap-2 text-sm text-ink/70">
-              <input
-                type="checkbox"
-                checked={includeFiles}
-                onChange={(e) => setIncludeFiles(e.target.checked)}
-                className="accent-clay"
-              />
-              כללי גם את הקבצים המצורפים לשיעור (עשוי להעלות את עלות היצירה)
-            </label>
+            <IncludeFilesOption
+              checked={includeFiles}
+              onChange={setIncludeFiles}
+              excludedFiles={state.excludedFiles ?? []}
+            />
           )}
           {errorLine}
           <Button
             variant="clay"
             loading={generateMutation.isPending}
             disabled={!hasContent}
-            onClick={() => generateMutation.mutate()}
+            onClick={() => generateMutation.mutate(false)}
           >
             <Sparkles size={14} /> {state.status === 'failed' ? 'נסי שוב' : 'צרי בוחן בעזרת AI'}
           </Button>
@@ -185,13 +215,24 @@ export default function QuizPanel({
             ? 'הבוחן גלוי לתלמידות. עריכה תמחק את כל התשובות שכבר נענו.'
             : 'עברי על השאלות, תקני מה שצריך, ואז פרסמי. עד לפרסום התלמידות לא רואות דבר.'}
         </p>
+        <SourceFilesLine sourceFiles={quiz.sourceFiles} />
         <p className="text-xs text-ink/50">
           שאלות ותשובות תומכות ב-Markdown: `קוד` בשורה, ``` לבלוק קוד, **הדגשה** וקישורים. את טקסט השאלה אפשר גם לטעון מקובץ Markdown, HTML או Word.
         </p>
 
+        {regeneration?.status === 'generating' && (
+          <div className="space-y-2 rounded-card border border-clay/30 bg-clay/5 p-3">
+            <GenerationProgress progress={regeneration.progress} replacing />
+            <p className="text-xs text-ink/50">
+              השאלות הנוכחיות נשארות עד שהחדשות יהיו מוכנות. בינתיים אי אפשר לערוך או לפרסם אותן.
+            </p>
+          </div>
+        )}
+
         {errorLine}
 
-        <div className="space-y-4">
+        {/* A disabled fieldset disables every input and button inside it at once. */}
+        <fieldset disabled={regenerating} className={cn('space-y-4', regenerating && 'opacity-60')}>
           {draft.map((q, qi) => (
             <div key={q.id} className="rounded-card border border-rule/60 bg-ground/30 p-3">
               <div className="mb-2">
@@ -236,8 +277,8 @@ export default function QuizPanel({
               <p className="mt-1.5 pr-6 text-[11px] text-ink/40">סמני בעיגול את התשובה הנכונה</p>
             </div>
           ))}
-        </div>
 
+        {/* Inside the fieldset too: no saving or publishing while new questions are on their way. */}
         <div className="flex flex-wrap items-center gap-2 border-t border-rule/40 pt-3">
           <Button
             variant="default"
@@ -256,6 +297,13 @@ export default function QuizPanel({
 
           <div className="flex-1" />
 
+          {/* Only a draft: students may already be sitting a published quiz. */}
+          {!quiz.published && hasContent && (
+            <Button variant="ghost" onClick={() => setRegenerateOpen(true)}>
+              <RefreshCw size={14} /> צרי מחדש
+            </Button>
+          )}
+
           <Button
             variant={quiz.published ? 'outline' : 'clay'}
             loading={publishMutation.isPending}
@@ -267,11 +315,40 @@ export default function QuizPanel({
             {quiz.published ? <><EyeOff size={14} /> החזירי לטיוטה</> : <><Eye size={14} /> פרסמי לתלמידות</>}
           </Button>
         </div>
+        </fieldset>
 
         {dirty && (
           <p className="text-xs text-ink/50">יש שינויים שלא נשמרו. שמרי אותם כדי לאפשר פרסום.</p>
         )}
       </CardContent>
+
+      <Dialog open={regenerateOpen} onOpenChange={setRegenerateOpen}>
+        <DialogContent size="sm">
+          <DialogHeader>
+            <DialogTitle>ליצור את הבוחן מחדש?</DialogTitle>
+          </DialogHeader>
+          <DialogBody className="space-y-3">
+            <p className="text-sm text-ink/70">
+              ה-AI יכתוב שאלות חדשות במקום השאלות הנוכחיות — כולל העריכות שלך
+              {dirty && ' ושינויים שעוד לא נשמרו'}. תשובות שכבר הוגשו לבוחן יימחקו.
+              עד שהשאלות החדשות יהיו מוכנות, הנוכחיות נשארות.
+            </p>
+            {hasFiles && (
+              <IncludeFilesOption
+                checked={includeFiles}
+                onChange={setIncludeFiles}
+                excludedFiles={state?.excludedFiles ?? []}
+              />
+            )}
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="clay" loading={generateMutation.isPending} onClick={() => generateMutation.mutate(true)}>
+              <Sparkles size={14} /> צרי מחדש
+            </Button>
+            <Button variant="outline" onClick={() => setRegenerateOpen(false)}>ביטול</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

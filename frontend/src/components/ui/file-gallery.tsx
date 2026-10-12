@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Image, Video, FileText, Music, Archive, File as FileIcon, FileCode, Download, ExternalLink, Pencil, X, Star, EyeOff, Eye } from 'lucide-react';
 import { cn, formatBytes } from '@/lib/utils';
-import { getFileKindByExtension, officeViewerLimitBytes, OFFICE_EXTENSIONS, PREVIEWABLE_TYPES_HINT, TEXT_EXTENSIONS } from '@/lib/file-type';
+import { getFileKindByExtension, officeViewerLimitBytes, OFFICE_EXTENSIONS, TEXT_EXTENSIONS } from '@/lib/file-type';
+import { PreviewableTypes } from '@/components/ui/previewable-types';
 import { API_URL } from '@/lib/config';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
@@ -409,7 +410,7 @@ function NoPreview({ downloadUrl, name, reason, openUrl }: { downloadUrl: string
     <div className="flex flex-col items-center gap-3 text-center">
       <FileIcon size={40} className="text-ink/40" />
       <p className="max-w-md text-sm text-ink/70">{reason}</p>
-      <p className="max-w-md text-xs text-ink/50">{PREVIEWABLE_TYPES_HINT}</p>
+      <PreviewableTypes className="max-w-md" />
       <div className="flex gap-2">
         {openUrl && (
           <a

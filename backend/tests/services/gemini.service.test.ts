@@ -5,7 +5,7 @@ vi.mock('../../src/config/prisma', () => ({
 }));
 
 import { prisma } from '../../src/config/prisma';
-import { reviewCode, generateQuiz } from '../../src/services/gemini.service';
+import { reviewCode, generateQuiz, GeminiError } from '../../src/services/gemini.service';
 
 /** A Gemini 200 response carrying `text` as the single candidate part. */
 function geminiOk(text: string, usage: Record<string, number> = {}) {
@@ -89,7 +89,7 @@ describe('gemini.service — failure reporting', () => {
 
   it('reports an unreachable API (DNS/TLS) rather than a bare fetch failure', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('unable to get local issuer certificate')));
-    await expect(generateQuiz('content')).rejects.toThrow(/Cannot reach the Gemini API: unable to get local issuer certificate/);
+    await expect(generateQuiz('content')).rejects.toThrow(/Cannot reach the Gemini API after [\d.]+s: unable to get local issuer certificate/);
   });
 
   it('unwraps the cause chain that node\'s "fetch failed" hides', async () => {
@@ -184,5 +184,43 @@ describe('gemini.service.generateQuiz', () => {
   it('throws on an empty array', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(geminiOk('[]')));
     await expect(generateQuiz('x')).rejects.toThrow(/no questions/);
+  });
+});
+
+describe('gemini.service.generateQuiz — attached files', () => {
+  const q = { id: '1', question: 'Q?', options: ['a', 'b'], correctIndex: 0 };
+  beforeEach(() => p.aiUsageLog.create.mockResolvedValue({}));
+
+  it('sends each PDF or image as a file part, named, after the lesson text', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(geminiOk(JSON.stringify([q])));
+    vi.stubGlobal('fetch', fetchMock);
+    await generateQuiz('תוכן השיעור', [{ name: 'notes.pdf', mimeType: 'application/pdf', data: 'QUJD' }]);
+    const parts = JSON.parse(fetchMock.mock.calls[0][1].body).contents[0].parts;
+    expect(parts).toEqual([
+      { text: expect.stringContaining('תוכן השיעור') },
+      { text: 'קובץ מצורף: notes.pdf' },
+      { inline_data: { mime_type: 'application/pdf', data: 'QUJD' } },
+    ]);
+  });
+
+  it('sends the lesson text alone when nothing is attached', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(geminiOk(JSON.stringify([q])));
+    vi.stubGlobal('fetch', fetchMock);
+    await generateQuiz('x');
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).contents[0].parts).toHaveLength(1);
+  });
+
+  it('keeps the HTTP status on the error, so a refused file can be told apart', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false, status: 400, text: async () => JSON.stringify({ error: { message: 'Unable to process input image' } }),
+    }));
+    const err = await generateQuiz('x').catch((e) => e);
+    expect(err).toBeInstanceOf(GeminiError);
+    expect(err).toMatchObject({ status: 400, kind: 'config', retryable: false });
+  });
+
+  it('marks a rate limit as worth retrying', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 429, text: async () => '' }));
+    expect(await generateQuiz('x').catch((e) => e)).toMatchObject({ status: 429, kind: 'rate-limit', retryable: true });
   });
 });

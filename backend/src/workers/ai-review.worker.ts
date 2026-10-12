@@ -1,7 +1,7 @@
-import { Worker } from 'bullmq';
+import { Worker, UnrecoverableError } from 'bullmq';
 import type IORedis from 'ioredis';
 import { prisma } from '../config/prisma';
-import { reviewCode } from '../services/gemini.service';
+import { reviewCode, GeminiError } from '../services/gemini.service';
 import { fetchGithubCode, extractZipCode, extractDocxText } from '../utils/code-extraction';
 import { toDeliveryUrl } from '../utils/storage';
 import type { AiReviewJobData } from '../infrastructure/queues/job-types';
@@ -84,8 +84,10 @@ export function registerAiReviewWorker(connection: IORedis): Worker<AiReviewJobD
       } catch (err) {
         // Only give up once BullMQ has exhausted its retries; a transient failure
         // should not burn the student's single review attempt.
+        // A wrong key or a blocked prompt fails the same way every time, so it is final too.
+        const permanent = err instanceof GeminiError && !err.retryable;
         const isFinalAttempt =
-          err instanceof AiReviewInputError || job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
+          err instanceof AiReviewInputError || permanent || job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
         // The submission id is what a developer needs to match a student's report to this line.
         console.error(
           `[ai-review] submission ${submissionId} attempt ${job.attemptsMade + 1}/${job.opts.attempts ?? 1} failed:`,
@@ -96,6 +98,7 @@ export function registerAiReviewWorker(connection: IORedis): Worker<AiReviewJobD
             .update({ where: { id: submissionId }, data: { aiStatus: 'error', aiError: aiReviewClientMessage(err) } })
             .catch(() => {});
         }
+        if (permanent) throw new UnrecoverableError(err.message);
         throw err;
       }
     },

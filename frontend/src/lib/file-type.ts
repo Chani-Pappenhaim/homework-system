@@ -42,12 +42,28 @@ export function getFileKindByExtension(ext: string): FileKind {
   return EXT_MAP[ext.toLowerCase()] ?? 'other';
 }
 
-/** Shown next to material uploads, so a teacher knows up front what students can open in place. */
-export const PREVIEWABLE_TYPES_HINT =
-  'תצוגה מקדימה באתר: PDF · תמונות (jpg, png, gif, webp, svg) · וידאו (mp4, webm, mov) · שמע (mp3, wav, m4a, ogg) · '
-  + 'Word ו-PowerPoint עד 10MB, Excel עד 5MB (docx, pptx, ppsx, xlsx, גרסאות ישנות ו-OpenOffice) · HTML · '
-  + 'טקסט וקוד (txt, md, csv, json, py, js, java, cs, sql ועוד). '
-  + 'כל סוג אחר (zip, rar וכדומה) — להורדה בלבד.';
+/**
+ * What students can open in place, grouped for the hint beside uploads (one
+ * icon per group, the types in its tooltip). Anything else downloads.
+ */
+export interface PreviewableGroup {
+  key: 'document' | 'image' | 'video' | 'audio' | 'code';
+  label: string;
+  detail: string;
+}
+
+export const PREVIEWABLE_GROUPS: PreviewableGroup[] = [
+  {
+    key: 'document', label: 'מסמכים',
+    detail: 'PDF · Word ו-PowerPoint עד 10MB · Excel עד 5MB (docx, pptx, ppsx, xlsx, גרסאות ישנות ו-OpenOffice) · HTML',
+  },
+  { key: 'image', label: 'תמונות', detail: 'jpg, png, gif, webp, svg' },
+  { key: 'video', label: 'וידאו', detail: 'mp4, webm, mov' },
+  { key: 'audio', label: 'שמע', detail: 'mp3, wav, m4a, ogg' },
+  { key: 'code', label: 'טקסט וקוד', detail: 'txt, md, csv, json, py, js, java, cs, sql ועוד' },
+];
+
+export const DOWNLOAD_ONLY_NOTE = 'כל סוג אחר (zip, rar וכדומה) — להורדה בלבד';
 
 /**
  * The online Office viewer refuses larger files (Word/PowerPoint 10MB, Excel

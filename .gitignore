@@ -45,6 +45,12 @@ coverage/
 # Personal Claude/agent instruction files — kept locally, not in repo
 CLAUDE.md
 AGENT_SPEC.md
+SPEC_*.md
+memory/
+scratchpad_project_summary_for_llm.md
+בקשה-לנטפרי.md
+הוראות-הרצה-ומה-נשאר.md
+חומר עזר שלי לא לAI!/
         
 ##
 

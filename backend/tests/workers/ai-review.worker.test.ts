@@ -22,6 +22,11 @@ vi.mock('../../src/config/prisma', () => ({
 }));
 vi.mock('../../src/services/gemini.service', () => ({
   reviewCode: vi.fn(),
+  GeminiError: class extends Error {
+    constructor(message: string, public kind?: string, public retryable?: boolean, public status?: number) {
+      super(message);
+    }
+  },
 }));
 vi.mock('../../src/utils/code-extraction', () => ({
   fetchGithubCode: vi.fn(),
