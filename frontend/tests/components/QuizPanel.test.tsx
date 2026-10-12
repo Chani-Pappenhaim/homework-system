@@ -29,8 +29,8 @@ const state = (over: Record<string, unknown>) => ({ data: { data: over } });
 const withQuiz = (published: boolean) =>
   state({ status: 'ready', quiz: { id: 'qz1', published, questionCount: 1, questions } });
 
-function renderPanel(hasContent = true) {
-  return renderWithProviders(<QuizPanel lessonId="l1" hasContent={hasContent} />);
+function renderPanel(hasContent = true, hasFiles = false) {
+  return renderWithProviders(<QuizPanel lessonId="l1" hasContent={hasContent} hasFiles={hasFiles} />);
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -43,7 +43,7 @@ describe('QuizPanel — creating', () => {
 
     const button = await screen.findByRole('button', { name: /צרי בוחן בעזרת AI/ });
     await userEvent.click(button);
-    await waitFor(() => expect(generate).toHaveBeenCalledWith('l1', false));
+    await waitFor(() => expect(generate).toHaveBeenCalledWith('l1', false, false));
   });
 
   it('cannot generate from a lesson with no content', async () => {
@@ -132,5 +132,112 @@ describe('QuizPanel — publishing', () => {
     expect(screen.getByRole('button', { name: /פרסמי לתלמידות/ })).toBeDisabled();
     expect(screen.getByText('יש שינויים שלא נשמרו. שמרי אותם כדי לאפשר פרסום.')).toBeInTheDocument();
     expect(setPublished).not.toHaveBeenCalled();
+  });
+});
+
+const progress = (over: Record<string, unknown> = {}) => ({
+  stage: 'generating', attempt: 1, maxAttempts: 3, withFiles: false, elapsedSeconds: 42, ...over,
+});
+
+describe('QuizPanel — generation progress', () => {
+  it('shows the current stage and how long it has been running', async () => {
+    getQuiz.mockResolvedValue(state({ status: 'generating', progress: progress({ withFiles: true }) }));
+    renderPanel();
+    expect(await screen.findByText('ה-AI כותב שאלות על תוכן השיעור…')).toBeInTheDocument();
+    expect(screen.getByText('קריאת הקבצים')).toBeInTheDocument();
+    expect(screen.getByText('כתיבת השאלות').closest('li')).toHaveAttribute('aria-current', 'step');
+    expect(screen.getByText(/עברו 0:4\d/)).toBeInTheDocument();
+    expect(screen.getByText(/אפשר לצאת מהעמוד/)).toBeInTheDocument();
+  });
+
+  it('leaves out the file-reading stage when no files were asked for', async () => {
+    getQuiz.mockResolvedValue(state({ status: 'generating', progress: progress() }));
+    renderPanel();
+    await screen.findByText('כתיבת השאלות');
+    expect(screen.queryByText('קריאת הקבצים')).not.toBeInTheDocument();
+  });
+
+  it('says which attempt it is on and why the previous one failed', async () => {
+    getQuiz.mockResolvedValue(state({
+      status: 'generating', progress: progress({ attempt: 2, lastFailure: 'timeout' }),
+    }));
+    renderPanel();
+    expect(await screen.findByText('ניסיון 2 מתוך 3 — בניסיון הקודם ה-AI לא ענה בזמן')).toBeInTheDocument();
+  });
+});
+
+describe('QuizPanel — lesson files', () => {
+  it('lists the files that would be left out, once she chooses to include files', async () => {
+    getQuiz.mockResolvedValue(state({ status: 'none', excludedFiles: ['code.zip', 'talk.mp4'] }));
+    generate.mockResolvedValue(state({ status: 'generating' }));
+    renderPanel(true, true);
+
+    const checkbox = await screen.findByRole('checkbox', { name: /כללי גם את הקבצים/ });
+    expect(screen.queryByText(/לא ייכללו/)).not.toBeInTheDocument();
+    await userEvent.click(checkbox);
+    expect(screen.getByText('לא ייכללו: code.zip, talk.mp4')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /צרי בוחן בעזרת AI/ }));
+    await waitFor(() => expect(generate).toHaveBeenCalledWith('l1', true, false));
+  });
+
+  it('says what a generated quiz was built from', async () => {
+    getQuiz.mockResolvedValue(state({
+      status: 'ready',
+      quiz: {
+        id: 'qz1', published: false, questionCount: 1, questions,
+        sourceFiles: { included: ['a.pdf', 'b.docx'], skipped: [{ name: 'c.zip', reason: 'unsupported' }] },
+      },
+    }));
+    renderPanel();
+    expect(await screen.findByText(/נוצר מתוך תוכן השיעור ו-2 קבצים/)).toBeInTheDocument();
+    expect(screen.getByText('· לא נכללו: c.zip (סוג קובץ שלא נקרא)')).toBeInTheDocument();
+  });
+});
+
+describe('QuizPanel — regenerating', () => {
+  it('regenerates a draft after she confirms', async () => {
+    getQuiz.mockResolvedValue(withQuiz(false));
+    generate.mockResolvedValue(state({ status: 'generating' }));
+    renderPanel();
+
+    await userEvent.click(await screen.findByRole('button', { name: /צרי מחדש/ }));
+    expect(await screen.findByText('ליצור את הבוחן מחדש?')).toBeInTheDocument();
+    expect(generate).not.toHaveBeenCalled();
+
+    const dialogButtons = screen.getAllByRole('button', { name: /צרי מחדש/ });
+    await userEvent.click(dialogButtons[dialogButtons.length - 1]!);
+    await waitFor(() => expect(generate).toHaveBeenCalledWith('l1', false, true));
+  });
+
+  it('does not offer to regenerate a published quiz', async () => {
+    getQuiz.mockResolvedValue(withQuiz(true));
+    renderPanel();
+    await screen.findByText('פורסם לתלמידות');
+    expect(screen.queryByRole('button', { name: /צרי מחדש/ })).not.toBeInTheDocument();
+  });
+
+  it('keeps the old questions visible but locked while new ones are generated', async () => {
+    getQuiz.mockResolvedValue(state({
+      status: 'ready',
+      quiz: { id: 'qz1', published: false, questionCount: 1, questions },
+      regeneration: { status: 'generating', progress: progress() },
+    }));
+    renderPanel();
+
+    expect(await screen.findByText('ה-AI כותב שאלות חדשות על תוכן השיעור…')).toBeInTheDocument();
+    expect(screen.getByLabelText('שאלה 1')).toBeDisabled();
+    expect(screen.getByRole('button', { name: /פרסמי לתלמידות/ })).toBeDisabled();
+  });
+
+  it('shows why a regeneration failed, and keeps the old questions', async () => {
+    getQuiz.mockResolvedValue(state({
+      status: 'ready',
+      quiz: { id: 'qz1', published: false, questionCount: 1, questions },
+      regeneration: { status: 'failed', message: 'הגענו כרגע למכסת השימוש ב-AI. נסי שוב בעוד כמה דקות.' },
+    }));
+    renderPanel();
+    expect(await screen.findByText(/מכסת השימוש/)).toBeInTheDocument();
+    expect(screen.getByLabelText('שאלה 1')).not.toBeDisabled();
   });
 });

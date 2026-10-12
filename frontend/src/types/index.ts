@@ -201,14 +201,50 @@ export interface QuizResultsDTO {
 
 export type QuizStatus = 'ready' | 'generating' | 'none' | 'unavailable' | 'failed';
 
+export type QuizGenerationStage = 'queued' | 'reading-files' | 'generating' | 'saving' | 'retrying';
+
+/** Why the previous attempt failed — the server maps the final one to a message itself. */
+export type QuizFailureKind =
+  | 'timeout' | 'rate-limit' | 'unavailable' | 'config' | 'blocked' | 'bad-output' | 'no-content' | 'stuck' | 'unknown';
+
+export interface QuizGenerationProgressDTO {
+  stage: QuizGenerationStage;
+  attempt: number;
+  maxAttempts: number;
+  withFiles: boolean;
+  /** Since the teacher clicked, not since the current attempt began. */
+  elapsedSeconds: number;
+  lastFailure?: QuizFailureKind;
+}
+
+export type QuizSkipReason = 'unsupported' | 'too-large' | 'unreadable' | 'empty' | 'timeout' | 'too-many';
+
+/** What the AI was given when the quiz was generated. null when it was given the lesson text only. */
+export interface QuizSourceFilesDTO {
+  included: string[];
+  skipped: { name: string; reason: QuizSkipReason }[];
+}
+
+export type QuizRegenerationDTO =
+  | { status: 'generating'; progress: QuizGenerationProgressDTO }
+  | { status: 'failed'; message: string };
+
 export interface QuizStateDTO {
   status: QuizStatus;
   message?: string;
+  /** While status is 'generating'. */
+  progress?: QuizGenerationProgressDTO;
+  /** Teacher only: lesson files a generation with "include files" would leave out. */
+  excludedFiles?: string[];
+  /** Teacher only, on an unpublished draft: a new version being generated to replace it. */
+  regeneration?: QuizRegenerationDTO | null;
   quiz?: {
     id: string;
     published: boolean;
     questionCount: number;
     questions: QuizQuestionDTO[];
+    /** Teacher only. */
+    sourceFiles?: QuizSourceFilesDTO | null;
   };
 }
 
