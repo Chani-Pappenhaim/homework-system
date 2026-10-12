@@ -1,3 +1,5 @@
+import type { GeminiFailureKind } from '../../services/gemini.service';
+
 // Typed payloads for every BullMQ job. Keeping these next to the queue
 // definitions lets producers (controllers/services) and consumers (workers)
 // share one contract instead of passing untyped `any` job data.
@@ -52,7 +54,35 @@ export type EmailJobData = EmailJobMap[EmailJobName];
 // ---- quiz queue ------------------------------------------------------------
 export interface QuizJobData {
   lessonId: string;
-  lessonContent: string;
+  /** Feed the lesson's attached files to the AI alongside the lesson text. */
+  includeFiles?: boolean;
+  /**
+   * Replace the lesson's existing draft. The old questions stay until the new
+   * ones are ready, and a draft published meanwhile is never replaced.
+   */
+  replace?: boolean;
+}
+
+/** Stored on Quiz.sourceFiles — what the teacher is told the quiz was built from. */
+export interface QuizSourceFiles {
+  included: string[];
+  skipped: { name: string; reason: string }[];
+}
+
+/** Where a generation job stands, as the teacher's page displays it. */
+export type QuizGenerationStage = 'queued' | 'reading-files' | 'generating' | 'saving' | 'retrying';
+
+/** Why a generation attempt failed — mapped to a user-facing message by the service. */
+export type QuizFailureKind = GeminiFailureKind | 'no-content' | 'stuck' | 'unknown';
+
+/**
+ * Stored on the job with job.updateProgress(). `at` is when the stage began, so
+ * a job that stops reporting can be told apart from one that is merely slow.
+ */
+export interface QuizJobProgress {
+  stage: QuizGenerationStage;
+  at: number;
+  lastFailure?: QuizFailureKind;
 }
 
 // ---- ai-review queue -------------------------------------------------------

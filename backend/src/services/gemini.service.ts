@@ -1,4 +1,5 @@
 import { prisma } from '../config/prisma';
+import type { InlineAttachment } from '../utils/code-extraction';
 
 // Read lazily (not at module load) so a missing key produces a clear error at
 // call time instead of an `undefined` sneaking into the request URL.
@@ -24,6 +25,39 @@ interface AiReviewResult {
 // How long a single Gemini call may take before we give up. Without this a
 // hung connection leaves the job waiting indefinitely.
 const REQUEST_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS ?? 60_000);
+
+/**
+ * Why a Gemini call failed, in terms a caller can act on. The raw provider text
+ * stays in `message` for the logs; callers map `kind` to a user-facing message.
+ */
+export type GeminiFailureKind =
+  | 'config'      // missing/invalid key, retired model — retrying cannot help
+  | 'timeout'     // no answer within REQUEST_TIMEOUT_MS
+  | 'rate-limit'  // 429 — quota or per-minute limit
+  | 'unavailable' // network fault or a 5xx from Google
+  | 'blocked'     // safety filter refused the prompt or the answer
+  | 'bad-output'; // empty, truncated, or not the JSON we asked for
+
+/**
+ * A classified Gemini failure. `retryable` tells a queue whether another
+ * attempt has any chance of succeeding.
+ */
+export class GeminiError extends Error {
+  constructor(
+    message: string,
+    readonly kind: GeminiFailureKind,
+    readonly retryable: boolean,
+    /** Google's HTTP status, when it answered at all. */
+    readonly status?: number
+  ) {
+    super(message);
+    this.name = 'GeminiError';
+  }
+}
+
+// finishReason values meaning a safety filter, not a glitch, produced the empty
+// answer — the same content will be refused again.
+const BLOCKED_FINISH_REASONS = new Set(['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'SPII', 'RECITATION']);
 
 /**
  * Flattens an error and its `cause` chain into one line.
@@ -53,12 +87,16 @@ function describeError(err: any): string {
 async function callGemini(
   systemPrompt: string,
   userMessage: string,
-  usageType: string
+  usageType: string,
+  attachments: InlineAttachment[] = []
 ): Promise<any> {
   const apiKey = geminiApiKey();
   if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not configured — AI features are disabled');
+    throw new GeminiError('GEMINI_API_KEY is not configured — AI features are disabled', 'config', false);
   }
+
+  const startedAt = Date.now();
+  const elapsed = () => `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;
 
   let response: Response;
   try {
@@ -69,7 +107,17 @@ async function callGemini(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemPrompt }] },
-          contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+          contents: [{
+            role: 'user',
+            parts: [
+              { text: userMessage },
+              // Each file is preceded by its name so the model can tell them apart.
+              ...attachments.flatMap((a) => [
+                { text: `קובץ מצורף: ${a.name}` },
+                { inline_data: { mime_type: a.mimeType, data: a.data } },
+              ]),
+            ],
+          }],
           generationConfig: { responseMimeType: 'application/json' },
         }),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -77,11 +125,15 @@ async function callGemini(
     );
   } catch (err: any) {
     if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
-      throw new Error(`Gemini API timed out after ${REQUEST_TIMEOUT_MS}ms`);
+      throw new GeminiError(
+        `Gemini API timed out after ${REQUEST_TIMEOUT_MS}ms (${usageType}, model ${GEMINI_MODEL})`,
+        'timeout',
+        true
+      );
     }
     // Network-level failure: no DNS, no route, or a TLS chain this process does
     // not trust (an SSL-inspecting network whose root CA is not installed).
-    throw new Error(`Cannot reach the Gemini API: ${describeError(err)}`);
+    throw new GeminiError(`Cannot reach the Gemini API after ${elapsed()}: ${describeError(err)}`, 'unavailable', true);
   }
 
   if (!response.ok) {
@@ -93,12 +145,19 @@ async function callGemini(
       /* not JSON — keep the raw excerpt */
     }
     if (response.status === 404) {
-      throw new Error(
+      throw new GeminiError(
         `Gemini API error: 404 — the model "${GEMINI_MODEL}" is not available. ` +
-          `Set GEMINI_MODEL to a current model. (${detail})`
+          `Set GEMINI_MODEL to a current model. (${detail})`,
+        'config',
+        false
       );
     }
-    throw new Error(`Gemini API error: ${response.status} ${detail}`);
+    const message = `Gemini API error: ${response.status} ${detail}`;
+    if (response.status === 429) throw new GeminiError(message, 'rate-limit', true, 429);
+    if (response.status >= 500) throw new GeminiError(message, 'unavailable', true, response.status);
+    // 400 (Google answers an invalid key with 400 INVALID_ARGUMENT), 401, 403:
+    // the request itself is wrong, so the same request will fail again.
+    throw new GeminiError(message, 'config', false, response.status);
   }
 
   const data = (await response.json()) as any;
@@ -121,14 +180,21 @@ async function callGemini(
   if (typeof text !== 'string' || !text.trim()) {
     // A blocked prompt or a response truncated at the token limit both arrive
     // as a 200 with no usable text; finishReason says which.
-    const reason = candidate?.finishReason ?? data.promptFeedback?.blockReason ?? 'unknown';
-    throw new Error(`Gemini returned no content (finishReason: ${reason})`);
+    const blockReason = data.promptFeedback?.blockReason;
+    const reason = candidate?.finishReason ?? blockReason ?? 'unknown';
+    const message = `Gemini returned no content (finishReason: ${reason})`;
+    if (blockReason || BLOCKED_FINISH_REASONS.has(reason)) {
+      throw new GeminiError(message, 'blocked', false);
+    }
+    throw new GeminiError(message, 'bad-output', true);
   }
+
+  console.log(`[gemini] ${usageType} answered in ${elapsed()} (tokens in ${tokensInput}, out ${tokensOutput})`);
 
   try {
     return JSON.parse(text);
   } catch {
-    throw new Error(`Gemini returned malformed JSON: ${text.slice(0, 200)}`);
+    throw new GeminiError(`Gemini returned malformed JSON: ${text.slice(0, 200)}`, 'bad-output', true);
   }
 }
 
@@ -170,11 +236,11 @@ export interface QuizQuestion {
 }
 
 /**
- * Generates a Hebrew multiple-choice quiz from lesson content. Usage is
- * logged as 'quiz_generation' so it counts under quizzes in the AI-usage
- * report.
+ * Generates a Hebrew multiple-choice quiz from lesson content, plus any lesson
+ * files Gemini reads itself (PDFs, images). Usage is logged as
+ * 'quiz_generation' so it counts under quizzes in the AI-usage report.
  */
-export async function generateQuiz(lessonContent: string): Promise<QuizQuestion[]> {
+export async function generateQuiz(lessonContent: string, attachments: InlineAttachment[] = []): Promise<QuizQuestion[]> {
   const systemPrompt = `את מחוללת חידונים לקורס תכנות.
 בהתבסס על תוכן השיעור, צרי בדיוק 10 שאלות רב-ברירה בעברית.
 לכל שאלה בדיוק 4 אפשרויות, ורק אחת נכונה.
@@ -185,13 +251,14 @@ export async function generateQuiz(lessonContent: string): Promise<QuizQuestion[
   const parsed = await callGemini(
     systemPrompt,
     `תוכן השיעור:\n${lessonContent}`,
-    'quiz_generation'
+    'quiz_generation',
+    attachments
   );
 
   // Gemini may wrap the array in an object; accept both shapes.
   const questions = Array.isArray(parsed) ? parsed : parsed?.questions;
   if (!Array.isArray(questions) || questions.length === 0) {
-    throw new Error('Quiz generation returned no questions');
+    throw new GeminiError('Quiz generation returned no questions', 'bad-output', true);
   }
 
   // Scoring assumes every question has options and a valid correctIndex. A
@@ -208,7 +275,7 @@ export async function generateQuiz(lessonContent: string): Promise<QuizQuestion[
       q.correctIndex < q.options.length
   );
   if (valid.length === 0) {
-    throw new Error('Quiz generation returned no usable questions');
+    throw new GeminiError('Quiz generation returned no usable questions', 'bad-output', true);
   }
 
   // ids are used as React keys and must be unique whatever the model returned.

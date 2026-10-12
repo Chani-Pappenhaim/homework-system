@@ -294,6 +294,10 @@ model Quiz {
   // has reviewed the AI's questions and published it, so nobody can sit an exam
   // that is mid-edit.
   published Boolean  @default(false)
+  // Which lesson files the AI actually read for this quiz, and which it could
+  // not — { included: string[], skipped: { name, reason }[] }. Null when the
+  // teacher generated from the lesson text alone.
+  sourceFiles Json?
   createdAt DateTime @default(now())
 
   attempts QuizAttempt[]

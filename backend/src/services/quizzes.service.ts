@@ -3,7 +3,10 @@ import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
 import { assertLessonAccess } from '../utils/access';
 import { quizQueue } from '../infrastructure/queues/queues';
-import { extractLessonFilesText } from '../utils/code-extraction';
+import { quizExcludedFiles } from '../utils/code-extraction';
+import type {
+  QuizJobProgress, QuizFailureKind, QuizGenerationStage, QuizSourceFiles,
+} from '../infrastructure/queues/job-types';
 
 /**
  * A quiz belongs to the teacher, not to whoever opened the page first.
@@ -30,6 +33,117 @@ function failedMessage(role: string): string {
   return role === 'ADMIN'
     ? 'יצירת הבוחן נכשלה. נסי שוב מאוחר יותר; אם זה נמשך, פני לתמיכה הטכנית.'
     : 'יצירת הבוחן נכשלה. פני למורה.';
+}
+
+/**
+ * Why generation failed, in words that tell the teacher what to do next. Each
+ * maps a QuizFailureKind recorded by the worker; the provider's raw error stays
+ * in the server log.
+ */
+const TEACHER_FAILURE_MESSAGES: Record<Exclude<QuizFailureKind, 'no-content' | 'unknown'>, string> = {
+  timeout: 'ה-AI לא הספיק לענות בזמן, גם אחרי כמה ניסיונות. נסי שוב בעוד כמה דקות; אם צירפת קבצים גדולים, אפשר לנסות גם בלעדיהם.',
+  'rate-limit': 'הגענו כרגע למכסת השימוש ב-AI. נסי שוב בעוד כמה דקות.',
+  unavailable: 'שירות ה-AI לא זמין כרגע. נסי שוב בעוד כמה דקות.',
+  config: 'שירות ה-AI לא מוגדר כראוי בשרת, ולכן ניסיון נוסף לא יעזור. פני לתמיכה הטכנית.',
+  blocked: 'מסנן התוכן של ה-AI סירב לעבד את תוכן השיעור. נסי לנסח מחדש קטעים רגישים, או ליצור בלי הקבצים המצורפים.',
+  'bad-output': 'ה-AI החזיר תשובה לא תקינה. נסי שוב.',
+  stuck: 'יצירת הבוחן נעצרה באמצע (כנראה השרת הופעל מחדש). נסי שוב.',
+};
+
+function failureMessage(kind: QuizFailureKind | undefined, role: string): string {
+  if (kind === 'no-content') return noContentMessage(role);
+  if (role !== 'ADMIN' || !kind || kind === 'unknown') return failedMessage(role);
+  return TEACHER_FAILURE_MESSAGES[kind];
+}
+
+/**
+ * How long a generation may go without reporting a new stage before it counts
+ * as stuck. The slowest real stages give up on their own after a minute (one
+ * Gemini call, reading the files), so five minutes of silence means nobody is
+ * working on the job: the server restarted under it, or no worker is running.
+ */
+const STUCK_AFTER_MS = 5 * 60 * 1000;
+
+/** Where a running generation stands, as the teacher's page shows it. */
+export interface QuizGenerationProgress {
+  stage: QuizGenerationStage;
+  attempt: number;
+  maxAttempts: number;
+  /** The teacher asked for the lesson files — her page then shows the reading stage. */
+  withFiles: boolean;
+  /** Since she clicked, not since the current attempt began. */
+  elapsedSeconds: number;
+  lastFailure?: QuizFailureKind;
+}
+
+type GenerationState =
+  | { status: 'generating'; progress: QuizGenerationProgress }
+  | { status: 'failed'; message: string }
+  | null;
+
+/**
+ * Reads the generation job for a lesson. null means there is none, or it
+ * finished successfully (the quiz row is then the answer).
+ */
+async function readGenerationState(lessonId: string, role: string): Promise<GenerationState> {
+  const job = await quizQueue.getJob(jobIdFor(lessonId));
+  if (!job) return null;
+  const progress: Partial<QuizJobProgress> = typeof job.progress === 'object' ? job.progress as Partial<QuizJobProgress> : {};
+
+  // While the AI is working, this runs every 5 seconds from her open page —
+  // it is the most repeated Redis read in the app. getState() has to probe
+  // one key per possible state to answer, whereas `finishedOn` already came
+  // back with the job in the single read above and is set only once the job
+  // reaches a terminal state. So the polling case costs one command, and
+  // the expensive question is asked once, at the end.
+  if (!job.finishedOn) {
+    const now = Date.now();
+    const lastSign = Math.max(progress.at ?? 0, job.processedOn ?? 0, job.timestamp);
+    if (now - lastSign > STUCK_AFTER_MS) {
+      // remove() refuses a job whose lock a live worker still holds — that one
+      // is only slow, and keeps showing as in progress.
+      const removed = await job.remove().then(() => true, () => false);
+      if (removed) {
+        console.error(
+          `[quiz] lesson ${lessonId}: no progress for ${Math.round((now - lastSign) / 1000)}s ` +
+            `(stage ${progress.stage ?? 'queued'}) — removed as stuck`
+        );
+        return { status: 'failed', message: failureMessage('stuck', role) };
+      }
+    }
+    const maxAttempts = job.opts.attempts ?? 1;
+    return {
+      status: 'generating',
+      progress: {
+        // No worker has picked it up yet.
+        stage: job.processedOn ? (progress.stage ?? 'generating') : 'queued',
+        attempt: Math.min(job.attemptsMade + 1, maxAttempts),
+        maxAttempts,
+        withFiles: Boolean(job.data?.includeFiles),
+        elapsedSeconds: Math.round((now - job.timestamp) / 1000),
+        ...(progress.lastFailure && { lastFailure: progress.lastFailure }),
+      },
+    };
+  }
+
+  const state = await job.getState();
+  // Clear the id either way so the next generate request starts a fresh job.
+  await job.remove().catch(() => {});
+  // job.failedReason (the provider's raw error) already reached the server
+  // console via attachLifecycleLogging's 'failed' listener; the worker recorded
+  // its kind in the progress, which is all the message needs.
+  if (state === 'failed') return { status: 'failed', message: failureMessage(progress.lastFailure, role) };
+  return null;
+}
+
+/** Lesson files a generation with "include files" would leave out. */
+async function excludedFilesOf(lessonId: string): Promise<string[]> {
+  const files = await prisma.lessonFile.findMany({
+    where: { lessonId },
+    select: { name: true },
+    orderBy: { uploadedAt: 'asc' },
+  });
+  return quizExcludedFiles(files.map((f) => f.name));
 }
 
 /** What a student is told whenever there is no quiz she may take. */
@@ -90,9 +204,10 @@ async function lessonOr404(lessonId: string) {
 /**
  * Reads the quiz for a lesson.
  *
- * The teacher sees the draft, the correct answers and the generation state.
- * A student sees a quiz only once it is published, and never sees correctIndex,
- * a failure reason or the fact that a draft exists.
+ * The teacher sees the draft, the correct answers, the generation state and
+ * which lesson files the AI did or would leave out. A student sees a quiz only
+ * once it is published, and never sees correctIndex, a failure reason or the
+ * fact that a draft exists.
  */
 export async function getQuiz(lessonId: string, userId: string, role: string) {
   await assertLessonAccess(userId, role, lessonId);
@@ -102,7 +217,7 @@ export async function getQuiz(lessonId: string, userId: string, role: string) {
 
   if (quiz && (isTeacher || quiz.published)) {
     const questions = quiz.questions as any[];
-    return {
+    const ready = {
       status: 'ready' as const,
       quiz: {
         id: quiz.id,
@@ -114,8 +229,21 @@ export async function getQuiz(lessonId: string, userId: string, role: string) {
           options: q.options,
           ...(isTeacher && { correctIndex: q.correctIndex }),
         })),
+        ...(isTeacher && { sourceFiles: (quiz.sourceFiles as QuizSourceFiles | null) ?? null }),
       },
     };
+    if (!isTeacher || quiz.published) return ready;
+
+    // A draft can be regenerated; the old questions stay on her page meanwhile,
+    // next to the progress of the new ones.
+    const [regeneration, excludedFiles] = await Promise.all([
+      readGenerationState(lessonId, role).catch((err) => {
+        console.error('[quiz] could not read regeneration state for lesson', lessonId, err);
+        return null;
+      }),
+      excludedFilesOf(lessonId),
+    ]);
+    return { ...ready, regeneration, excludedFiles };
   }
 
   // Past this point there is nothing the student may take: either no quiz at
@@ -130,48 +258,40 @@ export async function getQuiz(lessonId: string, userId: string, role: string) {
   }
 
   // No quiz yet — report where generation stands so the teacher's page can show
-  // a spinner, an error, or the "create quiz" button.
+  // its progress, an error, or the "create quiz" button.
+  const excludedFiles = await excludedFilesOf(lessonId);
   try {
-    const job = await quizQueue.getJob(jobIdFor(lessonId));
-    if (job) {
-      // While the AI is working, this runs every 5 seconds from her open page —
-      // it is the most repeated Redis read in the app. getState() has to probe
-      // one key per possible state to answer, whereas `finishedOn` already came
-      // back with the job in the single read above and is set only once the job
-      // reaches a terminal state. So the polling case costs one command, and
-      // the expensive question is asked once, at the end.
-      if (!job.finishedOn) return { status: 'generating' as const };
-
-      const state = await job.getState();
-      if (state === 'failed') {
-        // job.failedReason (the provider's raw error) already reached the server
-        // console via attachLifecycleLogging's 'failed' listener — no need to log it
-        // again here, and it must never reach the client (see failedMessage above).
-        // Clear the id so the next generate request starts a fresh attempt.
-        await job.remove().catch(() => {});
-        return { status: 'failed' as const, message: failedMessage(role) };
-      }
-      if (state !== 'completed') return { status: 'generating' as const };
-      await job.remove().catch(() => {});
-    }
+    const generation = await readGenerationState(lessonId, role);
+    if (generation) return { ...generation, excludedFiles };
   } catch (err: any) {
     console.error('[quiz] could not read generation state for lesson', lessonId, err);
-    return { status: 'failed' as const, message: failedMessage(role) };
+    return { status: 'failed' as const, message: failedMessage(role), excludedFiles };
   }
 
-  return { status: 'none' as const };
+  return { status: 'none' as const, excludedFiles };
 }
 
 /**
  * Teacher-only: queue an AI generation for this lesson.
  *
- * Refuses when a quiz already exists — replacing one silently would discard
- * questions she may have edited, along with every attempt already made on it.
+ * With `replace`, regenerates a draft: allowed only while it is unpublished,
+ * since students may already be sitting a published quiz. Without it, refuses
+ * when a quiz exists — replacing one silently would discard questions she may
+ * have edited.
  */
-export async function requestQuizGeneration(lessonId: string, role: string, includeFiles: boolean) {
+export async function requestQuizGeneration(
+  lessonId: string, role: string, includeFiles: boolean, replace = false
+) {
   const existing = await prisma.quiz.findUnique({ where: { lessonId } });
-  if (existing) {
+  if (existing && !replace) {
     throw new AppError('Quiz already exists for this lesson', 'כבר קיים בוחן לשיעור זה', 409);
+  }
+  if (existing?.published) {
+    throw new AppError(
+      'Cannot regenerate a published quiz',
+      'אי אפשר ליצור מחדש בוחן שכבר פורסם לתלמידות. כדי ליצור אותו מחדש, החזירי אותו קודם לטיוטה.',
+      409
+    );
   }
 
   const lesson = await lessonOr404(lessonId);
@@ -181,18 +301,8 @@ export async function requestQuizGeneration(lessonId: string, role: string, incl
 
   // Files are opt-in (checkbox, default off) because feeding them to Gemini
   // can meaningfully raise the cost of a single generation — the markdown
-  // description alone stays the default.
-  let lessonContent = lesson.contentMd;
-  if (includeFiles) {
-    const files = await prisma.lessonFile.findMany({ where: { lessonId } });
-    if (files.length > 0) {
-      const filesText = await extractLessonFilesText(files);
-      if (filesText) {
-        lessonContent = `${lessonContent}\n\n--- קבצים מצורפים לשיעור ---\n${filesText}`;
-      }
-    }
-  }
-
+  // description alone stays the default. They are read by the worker, not
+  // here, so this request returns at once however slow the downloads are.
   const jobId = jobIdFor(lessonId);
   try {
     // jobId dedups generation: a double click must not bill two Gemini calls.
@@ -207,7 +317,7 @@ export async function requestQuizGeneration(lessonId: string, role: string, incl
       await job.remove().catch(() => {});
     }
 
-    await quizQueue.add('generate', { lessonId, lessonContent }, { jobId });
+    await quizQueue.add('generate', { lessonId, includeFiles, replace: Boolean(existing) }, { jobId });
   } catch (err: any) {
     console.error('[quiz] could not enqueue generation for lesson', lessonId, err);
     throw new AppError('Failed to enqueue quiz generation', failedMessage(role), 502);

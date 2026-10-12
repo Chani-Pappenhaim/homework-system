@@ -75,43 +75,184 @@ export async function extractDocxText(buffer: Buffer): Promise<string> {
   return result.value;
 }
 
+// ---- lesson attachments (quiz generation) ---------------------------------
 // Same per-file caps as code extraction above — this feeds the same Gemini
 // call budget, just from lesson attachments instead of a submission.
-const ATTACHMENT_MAX_FILES = 10;
+export const ATTACHMENT_MAX_FILES = 10;
 const ATTACHMENT_MAX_FILE_CHARS = 5000;
+// A file this large is a video or a scanned book, not lesson notes; downloading
+// it would only slow the job down to throw most of it away.
+const ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024;
+// A hung download must not hold the whole generation hostage: each file gets
+// its own limit, and all of them together get a second, overall one.
+const ATTACHMENT_FETCH_TIMEOUT_MS = 15_000;
+const ATTACHMENT_TOTAL_BUDGET_MS = 60_000;
+// Slide XML is small; a huge entry is a zip bomb, not a slide.
+const PPTX_MAX_SLIDE_BYTES = 1024 * 1024;
+// PDFs and images travel inside the Gemini request itself, base64-encoded (a
+// third larger). Google refuses a request over 20MB, so all of them together
+// must stay well below that once encoded.
+export const ATTACHMENT_INLINE_MAX_TOTAL_BYTES = 14 * 1024 * 1024;
+
+/** Read as plain UTF-8 text. */
+const TEXT_EXTENSIONS = new Set([
+  'txt', 'md', 'csv', 'json', 'xml', 'sql', 'sh', 'yml', 'yaml',
+  ...CODE_EXTENSIONS.map((ext) => ext.slice(1)),
+]);
 
 /**
- * Best-effort text extraction from a lesson's attached files, for the
- * optional "include attached files" quiz-generation toggle. Only formats we
- * can actually turn into text are read (.docx, .txt, .md) — images, PDFs,
- * spreadsheets, zips etc. are silently skipped rather than failing the whole
- * generation, since the teacher only asked for extra context, not a guarantee
- * every file is used.
+ * Sent to Gemini as the file itself rather than as extracted text: Gemini reads
+ * PDFs (layout, tables and all) and looks at images natively, so neither needs
+ * a parser here. Only the formats Gemini documents as supported are listed.
  */
-export async function extractLessonFilesText(
-  files: { name: string; url: string }[]
-): Promise<string> {
-  const contents: string[] = [];
+const INLINE_MIME_TYPES: Record<string, string> = {
+  pdf: 'application/pdf',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  webp: 'image/webp',
+  heic: 'image/heic',
+  heif: 'image/heif',
+};
 
-  for (const file of files.slice(0, ATTACHMENT_MAX_FILES)) {
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    if (ext !== 'docx' && ext !== 'txt' && ext !== 'md') continue;
+const extensionOf = (name: string) => name.split('.').pop()?.toLowerCase() ?? '';
+
+/**
+ * Whether quiz generation can use this file at all — as text, or handed to
+ * Gemini as a file. The teacher's page lists the rest as "not included".
+ */
+export function isQuizReadableFile(name: string): boolean {
+  const ext = extensionOf(name);
+  return ext === 'docx' || ext === 'pptx' || TEXT_EXTENSIONS.has(ext) || ext in INLINE_MIME_TYPES;
+}
+
+/**
+ * The files generation will leave out before reading anything: formats it
+ * cannot use, and whatever is past the file limit. What the teacher is told
+ * next to the "include files" checkbox.
+ */
+export function quizExcludedFiles(names: string[]): string[] {
+  // Same counting as extractLessonFiles: only usable files count toward the limit.
+  let readable = 0;
+  return names.filter((name) => !isQuizReadableFile(name) || ++readable > ATTACHMENT_MAX_FILES);
+}
+
+function decodeXmlEntities(text: string): string {
+  return text.replace(/&(#x[0-9a-f]+|#\d+|lt|gt|amp|quot|apos);/gi, (whole, entity: string) => {
+    const lower = entity.toLowerCase();
+    if (lower.startsWith('#x')) return String.fromCodePoint(parseInt(lower.slice(2), 16));
+    if (lower.startsWith('#')) return String.fromCodePoint(parseInt(lower.slice(1), 10));
+    return ({ lt: '<', gt: '>', amp: '&', quot: '"', apos: "'" } as Record<string, string>)[lower] ?? whole;
+  });
+}
+
+/**
+ * Text of a PowerPoint deck, slide by slide. A .pptx is a zip whose slides are
+ * ppt/slides/slideN.xml; the visible text sits in <a:t> runs, grouped into
+ * paragraphs by <a:p>.
+ */
+export function extractPptxText(buffer: Buffer): string {
+  const slideNumber = (entryName: string) => Number(entryName.match(/slide(\d+)\.xml$/)?.[1] ?? 0);
+  const slides = new AdmZip(buffer)
+    .getEntries()
+    .filter((e) => /^ppt\/slides\/slide\d+\.xml$/.test(e.entryName) && e.header.size <= PPTX_MAX_SLIDE_BYTES)
+    .sort((a, b) => slideNumber(a.entryName) - slideNumber(b.entryName));
+
+  return slides
+    .map((entry) => {
+      const xml = entry.getData().toString('utf8');
+      const paragraphs = xml
+        .split('</a:p>')
+        .map((p) => [...p.matchAll(/<a:t(?:\s[^>]*)?>([^<]*)<\/a:t>/g)].map((m) => decodeXmlEntities(m[1]!)).join(''))
+        .filter((line) => line.trim());
+      return paragraphs.length ? `שקופית ${slideNumber(entry.entryName)}:\n${paragraphs.join('\n')}` : '';
+    })
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+export type SkippedFileReason = 'unsupported' | 'too-large' | 'unreadable' | 'empty' | 'timeout' | 'too-many';
+
+/** A file handed to Gemini as-is (see INLINE_MIME_TYPES). */
+export interface InlineAttachment {
+  name: string;
+  mimeType: string;
+  /** base64 */
+  data: string;
+}
+
+export interface LessonFilesExtraction {
+  /** Ready to append to the prompt; empty when no file had text. */
+  text: string;
+  inline: InlineAttachment[];
+  used: string[];
+  skipped: { name: string; reason: SkippedFileReason }[];
+}
+
+/**
+ * Content of the lesson files for quiz generation, in the order given: text
+ * for documents and slides, the file itself for PDFs and images. A file that
+ * cannot be used is skipped and reported rather than failing the generation —
+ * the lesson text alone is still worth a quiz.
+ */
+export async function extractLessonFiles(
+  files: { name: string; url: string; sizeBytes?: bigint | number | null }[]
+): Promise<LessonFilesExtraction> {
+  const result: LessonFilesExtraction = { text: '', inline: [], used: [], skipped: [] };
+  const contents: string[] = [];
+  const deadline = Date.now() + ATTACHMENT_TOTAL_BUDGET_MS;
+  let inlineBytes = 0;
+  let attempted = 0;
+
+  for (const file of files) {
+    const ext = extensionOf(file.name);
+    const skip = (reason: SkippedFileReason) => result.skipped.push({ name: file.name, reason });
+
+    if (!isQuizReadableFile(file.name)) { skip('unsupported'); continue; }
+    // Reported, not silently dropped: she should know the eleventh file was not read.
+    if (++attempted > ATTACHMENT_MAX_FILES) { skip('too-many'); continue; }
+    if (file.sizeBytes != null && Number(file.sizeBytes) > ATTACHMENT_MAX_BYTES) { skip('too-large'); continue; }
+    const mimeType = INLINE_MIME_TYPES[ext];
+    if (mimeType && file.sizeBytes != null && inlineBytes + Number(file.sizeBytes) > ATTACHMENT_INLINE_MAX_TOTAL_BYTES) {
+      skip('too-large');
+      continue;
+    }
+
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) { skip('timeout'); continue; }
 
     try {
-      const res = await fetch(toDeliveryUrl(file.url));
-      if (!res.ok) continue;
+      const res = await fetch(toDeliveryUrl(file.url), {
+        signal: AbortSignal.timeout(Math.min(ATTACHMENT_FETCH_TIMEOUT_MS, remaining)),
+      });
+      if (!res.ok) { skip('unreadable'); continue; }
+      // Older rows have no sizeBytes; the response header is the next best check.
+      if (Number(res.headers.get('content-length') ?? 0) > ATTACHMENT_MAX_BYTES) { skip('too-large'); continue; }
 
-      const text = ext === 'docx'
-        ? await extractDocxText(Buffer.from(await res.arrayBuffer()))
-        : await res.text();
-
-      if (text.trim()) {
-        contents.push(`--- ${file.name} ---\n${text.slice(0, ATTACHMENT_MAX_FILE_CHARS)}`);
+      if (mimeType) {
+        const buffer = Buffer.from(await res.arrayBuffer());
+        if (buffer.length === 0) { skip('empty'); continue; }
+        // Checked again on the real size: older rows have no sizeBytes.
+        if (inlineBytes + buffer.length > ATTACHMENT_INLINE_MAX_TOTAL_BYTES) { skip('too-large'); continue; }
+        inlineBytes += buffer.length;
+        result.inline.push({ name: file.name, mimeType, data: buffer.toString('base64') });
+        result.used.push(file.name);
+        continue;
       }
-    } catch {
-      // One unreadable file must not block quiz generation for the rest.
+
+      let text: string;
+      if (ext === 'docx') text = await extractDocxText(Buffer.from(await res.arrayBuffer()));
+      else if (ext === 'pptx') text = extractPptxText(Buffer.from(await res.arrayBuffer()));
+      else text = await res.text();
+
+      if (!text.trim()) { skip('empty'); continue; }
+      contents.push(`--- ${file.name} ---\n${text.slice(0, ATTACHMENT_MAX_FILE_CHARS)}`);
+      result.used.push(file.name);
+    } catch (err: any) {
+      skip(err?.name === 'TimeoutError' || err?.name === 'AbortError' ? 'timeout' : 'unreadable');
     }
   }
 
-  return contents.join('\n\n');
+  result.text = contents.join('\n\n');
+  return result;
 }

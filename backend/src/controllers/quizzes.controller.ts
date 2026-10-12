@@ -13,11 +13,11 @@ export async function getQuiz(req: Request, res: Response) {
   }
 }
 
-/** Starts AI generation of the quiz draft. Teacher-only. */
+/** Starts AI generation of the quiz draft, or regenerates an unpublished one. Teacher-only. */
 export async function generate(req: Request, res: Response) {
   try {
     const result = await quizzesService.requestQuizGeneration(
-      req.params.id as string, req.user!.role, req.body?.includeFiles === true
+      req.params.id as string, req.user!.role, req.body?.includeFiles === true, req.body?.replace === true
     );
     res.status(202).json({ success: true, data: result });
   } catch (err: any) {
