@@ -287,4 +287,18 @@ describe('TeacherLessonDetailPage — grading workstation', () => {
     await userEvent.click(screen.getByRole('tab', { name: /הנחיות AI/ }));
     expect(await screen.findByText(/לא הוגדרו הנחיות מיוחדות/)).toBeInTheDocument();
   });
+
+  it('moves to another lesson tab straight from an open assignment', async () => {
+    renderAt('&tab=assignments&section=details');
+    await screen.findByRole('tab', { name: /פרטי המטלה/ });
+
+    await userEvent.click(screen.getByRole('button', { name: /קבצים מצורפים/ }));
+    expect(await screen.findByText('אין קבצים מצורפים')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /חזרה לרשימת המטלות/ })).not.toBeInTheDocument();
+
+    // Back on the assignments tab: the list, not the assignment left behind.
+    await userEvent.click(screen.getByRole('button', { name: 'מטלות' }));
+    expect(await screen.findByRole('button', { name: /מטלה ראשית/ })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /פרטי המטלה/ })).not.toBeInTheDocument();
+  });
 });

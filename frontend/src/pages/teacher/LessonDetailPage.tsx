@@ -78,6 +78,20 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
     next.delete('section');
     return next;
   }, { replace: true });
+  // Leaving the assignments tab closes the open assignment in the same update —
+  // otherwise the deep-link effect below sees it still in the URL and pulls the
+  // page straight back to the assignments tab.
+  const switchTab = (next: typeof TABS[number]) => {
+    if (next === 'assignments' || !targetAssignmentId) { setTab(next); return; }
+    setSearchParams((p) => {
+      const params = new URLSearchParams(p);
+      if (next === 'content') params.delete('tab'); else params.set('tab', next);
+      params.delete('assignmentId');
+      params.delete('submissionId');
+      params.delete('section');
+      return params;
+    }, { replace: true });
+  };
   // The assignment's tab and the student being graded replace the history
   // entry, so "back" leaves the assignment rather than replaying every click.
   const setAssignmentSection = (section: AssignmentSection) => setSearchParams((p) => {
@@ -209,7 +223,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
       {/* Content / Access — tab toggle on wide screens instead of a permanent 3-col split */}
       <div className="flex items-center gap-2">
         <button
-          onClick={() => setTab('content')}
+          onClick={() => switchTab('content')}
           className={cn(
             'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
             tab === 'content' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
@@ -218,7 +232,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
           <BookOpen size={15} /> תוכן שיעור
         </button>
         <button
-          onClick={() => setTab('files')}
+          onClick={() => switchTab('files')}
           className={cn(
             'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
             tab === 'files' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
@@ -227,7 +241,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
           <Paperclip size={15} /> קבצים מצורפים
         </button>
         <button
-          onClick={() => setTab('assignments')}
+          onClick={() => switchTab('assignments')}
           className={cn(
             'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
             tab === 'assignments' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
@@ -236,7 +250,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
           <ClipboardList size={15} /> מטלות
         </button>
         <button
-          onClick={() => setTab('access')}
+          onClick={() => switchTab('access')}
           className={cn(
             'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
             tab === 'access' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
@@ -245,7 +259,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
           <Lock size={15} /> הרשאות
         </button>
         <button
-          onClick={() => setTab('quiz')}
+          onClick={() => switchTab('quiz')}
           className={cn(
             'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
             tab === 'quiz' ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
