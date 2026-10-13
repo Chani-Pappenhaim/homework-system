@@ -437,8 +437,19 @@ describe('submissions.service.getSubmissionById', () => {
       aiScore: 62, aiVerbalReview: 'summary', aiCodeReview: 'code notes',
     });
     const r: any = await getSubmissionById('sub1', 's1', 'STUDENT');
-    expect(r.aiCodeReview).toBe('code notes'); // the review itself is hers right away
+    // the comments are hers right away; only the score waits for the teacher
+    expect(r.aiCodeReview).toBe('code notes');
+    expect(r.aiVerbalReview).toBe('summary');
     expect(r.aiScore).toBeNull();
+  });
+
+  it('sends no comments while the review has not finished', async () => {
+    p.submission.findUnique.mockResolvedValue({
+      id: 'sub1', studentId: 's1', aiStatus: 'pending', aiApproved: false,
+      aiScore: null, aiVerbalReview: 'stale', aiCodeReview: 'stale',
+    });
+    const r: any = await getSubmissionById('sub1', 's1', 'STUDENT');
+    expect(r.aiCodeReview).toBeNull();
     expect(r.aiVerbalReview).toBeNull();
   });
 

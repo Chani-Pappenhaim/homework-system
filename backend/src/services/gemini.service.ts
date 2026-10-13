@@ -210,6 +210,8 @@ export async function reviewCode(
 2. verbal_review: הערכה מילולית כללית על העבודה (2-3 משפטים)
 3. score: ציון מספרי מ-0 עד 100
 
+ההערות (code_review ו-verbal_review) מוצגות לתלמידה לפני שהמורה מאשרת את הציון, ולכן אסור שיופיע בהן ציון, מספר נקודות או ניחוש של הציון — הציון רק בשדה score.
+
 ${aiInstructions ? `הנחיות ספציפיות למטלה זו:\n${aiInstructions}` : ''}
 
 החזירי JSON בלבד בפורמט:

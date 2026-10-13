@@ -240,11 +240,18 @@ function SubmittedDetail({ item, onDeleted }: { item: MySubmission; onDeleted: (
         </div>
       )}
 
-      {item.aiStatus === 'done' && item.aiApproved && (
+      {item.aiStatus === 'done' && (
         <div className="border border-rule/15 rounded-input p-3 text-sm space-y-1">
           <p className="font-medium text-ink">בדיקת AI</p>
-          <p className="font-semibold">ציון: {item.aiScore}</p>
+          {item.aiApproved && item.aiScore != null ? (
+            <p className="font-semibold">ציון: {item.aiScore}</p>
+          ) : (
+            <p className="text-xs text-ink/50">הציון יוצג אחרי שהמורה תאשר אותו</p>
+          )}
           {item.aiVerbalReview && <p className="text-ink/70 text-xs">{item.aiVerbalReview}</p>}
+          {item.aiCodeReview && (
+            <pre className="text-xs bg-ground/60 rounded p-2 whitespace-pre-wrap">{item.aiCodeReview}</pre>
+          )}
         </div>
       )}
 

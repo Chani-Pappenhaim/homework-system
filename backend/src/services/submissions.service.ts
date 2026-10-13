@@ -197,22 +197,21 @@ interface SubmissionAiFields {
 /**
  * What a student is allowed to see of an AI review.
  *
- * The code review is hers as soon as it is ready; the score and the verbal
- * summary are the teacher's call and stay server-side until she approves.
- * Hiding them in the client is not hiding them — the values were being sent
- * over the wire and were visible in devtools.
+ * The comments (code review and verbal summary) are hers as soon as the review
+ * is done; the score is the teacher's call and stays server-side until she
+ * approves. Hiding it in the client is not hiding it — the value would still
+ * be sent over the wire and be visible in devtools.
  */
 export function toStudentAiView(sub: SubmissionAiFields) {
-  const base = {
+  const done = sub.aiStatus === 'done';
+  return {
     aiStatus: sub.aiStatus,
     aiApproved: sub.aiApproved,
-    aiCodeReview: sub.aiStatus === 'done' ? sub.aiCodeReview : null,
+    aiCodeReview: done ? sub.aiCodeReview : null,
+    aiVerbalReview: done ? sub.aiVerbalReview : null,
     aiError: sub.aiStatus === 'error' ? (sub.aiError ?? null) : null,
+    aiScore: done && sub.aiApproved ? sub.aiScore : null,
   };
-  if (!sub.aiApproved) {
-    return { ...base, aiScore: null, aiVerbalReview: null };
-  }
-  return { ...base, aiScore: sub.aiScore, aiVerbalReview: sub.aiVerbalReview };
 }
 
 export async function getMySubmissions(studentId: string) {
