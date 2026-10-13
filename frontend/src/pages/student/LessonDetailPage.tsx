@@ -381,15 +381,23 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                     )}
                   </div>
                 )}
-                {sub.aiStatus === 'done' && sub.aiApproved && (
+                {sub.aiStatus === 'done' && (
                   <div className="space-y-2 pt-1">
-                    <p className="font-semibold text-ink">ציון: {sub.aiScore}</p>
-                    <p className="text-ink/70 text-xs">{sub.aiVerbalReview}</p>
-                    <button className="text-xs text-clay underline" onClick={() => setShowAiReview(!showAiReview)}>
-                      {showAiReview ? 'הסתירי הערות קוד' : 'הצגי הערות קוד'}
-                    </button>
-                    {showAiReview && (
-                      <pre className="text-xs bg-ground/60 rounded p-2 whitespace-pre-wrap">{sub.aiCodeReview}</pre>
+                    {sub.aiApproved && sub.aiScore != null ? (
+                      <p className="font-semibold text-ink">ציון: {sub.aiScore}</p>
+                    ) : (
+                      <p className="text-xs text-ink/50">הציון יוצג אחרי שהמורה תאשר אותו</p>
+                    )}
+                    {sub.aiVerbalReview && <p className="text-ink/70 text-xs">{sub.aiVerbalReview}</p>}
+                    {sub.aiCodeReview && (
+                      <>
+                        <button className="text-xs text-clay underline" onClick={() => setShowAiReview(!showAiReview)}>
+                          {showAiReview ? 'הסתירי הערות קוד' : 'הצגי הערות קוד'}
+                        </button>
+                        {showAiReview && (
+                          <pre className="text-xs bg-ground/60 rounded p-2 whitespace-pre-wrap">{sub.aiCodeReview}</pre>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
