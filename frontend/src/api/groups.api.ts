@@ -1,6 +1,15 @@
 import api from './axios';
 import type { GroupDTO, GroupDetailDTO } from '@/types';
 
+/** Outcome of checking (dryRun) or running a student import; each error names its sheet row. */
+export interface StudentImportResult {
+  dryRun: boolean;
+  totalRows: number;
+  toAdd: number;
+  alreadyInGroup: number;
+  errors: string[];
+}
+
 export const groupsApi = {
   list: () =>
     api.get<{ success: true; data: { groups: GroupDTO[] } }>('/groups'),
@@ -29,10 +38,13 @@ export const groupsApi = {
   updateStudent: (groupId: string, studentId: string, data: Partial<{ name: string; email: string; githubUsername: string }>) =>
     api.put(`/groups/${groupId}/students/${studentId}`, data),
 
-  importStudents: (groupId: string, file: File) => {
+  /** With dryRun the server only checks the file and reports what would happen. */
+  importStudents: (groupId: string, file: File, dryRun = false) => {
     const form = new FormData();
     form.append('file', file);
-    return api.post(`/groups/${groupId}/import`, form);
+    return api.post<{ success: true; data: StudentImportResult }>(
+      `/groups/${groupId}/import`, form, dryRun ? { params: { dryRun: 'true' } } : undefined,
+    );
   },
 
   downloadImportTemplate: () =>

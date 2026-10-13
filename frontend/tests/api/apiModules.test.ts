@@ -102,7 +102,11 @@ describe('groupsApi', () => {
   });
   it('importStudents posts FormData', () => {
     groupsApi.importStudents('g1', new File(['x'], 'a.xlsx'));
-    expect(post).toHaveBeenCalledWith('/groups/g1/import', expect.any(FormData));
+    expect(post).toHaveBeenCalledWith('/groups/g1/import', expect.any(FormData), undefined);
+  });
+  it('importStudents with dryRun only asks the server to check the file', () => {
+    groupsApi.importStudents('g1', new File(['x'], 'a.xlsx'), true);
+    expect(post).toHaveBeenCalledWith('/groups/g1/import', expect.any(FormData), { params: { dryRun: 'true' } });
   });
   it('resetPassword posts', () => {
     groupsApi.resetPassword('g1', 's1');

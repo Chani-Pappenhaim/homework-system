@@ -34,13 +34,25 @@ export function normalizeGithubUsername(raw: string): string {
   return (match ? match[1] : trimmed).replace(/^@/, '');
 }
 
-/** Builds a one-sheet xlsx template with a header row and one example row. */
-export async function buildTemplateWorkbook(headers: string[], example: (string | number)[]): Promise<Buffer> {
+/**
+ * Builds an xlsx template with a header row and one example row. Instructions,
+ * when given, go on a second sheet (one line per row) so the first sheet stays
+ * the one that is read back.
+ */
+export async function buildTemplateWorkbook(
+  headers: string[], example: (string | number)[], instructions?: string[]
+): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet('Template');
   sheet.addRow(headers);
   sheet.getRow(1).font = { bold: true };
   sheet.addRow(example);
   sheet.columns.forEach((col) => { col.width = 24; });
+  if (instructions?.length) {
+    const help = workbook.addWorksheet('הוראות', { views: [{ rightToLeft: true }] });
+    instructions.forEach((line) => help.addRow([line]));
+    help.getRow(1).font = { bold: true };
+    help.getColumn(1).width = 90;
+  }
   return workbook.xlsx.writeBuffer() as unknown as Promise<Buffer>;
 }
