@@ -207,38 +207,93 @@ export async function deleteGroup(id: string) {
   await releaseFileUrls(urls);
 }
 
-export async function importStudents(groupId: string, buffer: Buffer) {
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer as any);
-  const sheet = workbook.worksheets[0];
+/** Column order of the student import sheet; the first row is headers and is not read. */
+const STUDENT_IMPORT_COLUMNS = [
+  { header: 'שם מלא (חובה)', example: 'ישראלה ישראלי' },
+  { header: 'אימייל (חובה)', example: 'student@example.com' },
+  { header: 'שם משתמש GitHub (רשות)', example: 'israela-gh' },
+];
 
-  let imported = 0;
-  let skipped = 0;
-  const errors: string[] = [];
+export type StudentImportResult = {
+  dryRun: boolean;
+  /** Data rows read from the sheet (blank rows aside). */
+  totalRows: number;
+  /** Rows that add a student to the group — added already, or to be added when dryRun. */
+  toAdd: number;
+  /** Rows whose student is already in the group. */
+  alreadyInGroup: number;
+  /** One line per row that is not imported, in Hebrew, starting with its row number. */
+  errors: string[];
+};
 
-  const hashed = await bcrypt.hash('12345678', 12);
+/**
+ * Reads the sheet and checks every row. With dryRun nothing is written, so the
+ * teacher sees each problem and decides whether to add only the valid rows or
+ * fix the file first; without it, the valid rows are added and the rest are
+ * reported again.
+ */
+export async function importStudents(groupId: string, buffer: Buffer, { dryRun = false } = {}): Promise<StudentImportResult> {
   const group = await prisma.group.findUnique({ where: { id: groupId }, select: { emailNotificationsDefault: true } });
   if (!group) throw new AppError('Group not found', 'הקבוצה לא נמצאה', 404);
 
+  const workbook = new ExcelJS.Workbook();
+  try {
+    await workbook.xlsx.load(buffer as any);
+  } catch {
+    throw new AppError('Not a readable xlsx file', 'לא ניתן לקרוא את הקובץ. יש להעלות קובץ Excel בפורמט xlsx', 400);
+  }
+  const sheet = workbook.worksheets[0];
+  if (!sheet) throw new AppError('Workbook has no sheets', 'בקובץ אין גיליון', 400);
+
+  const errors: { rowNumber: number; message: string }[] = [];
   const rows: Array<{ rowNumber: number; name: string; email: string; githubUsername: string | null }> = [];
+  const firstRowByEmail = new Map<string, number>();
+  let totalRows = 0;
 
   sheet.eachRow((row, rowNumber) => {
-    if (rowNumber === 1) return; // skip header
+    if (rowNumber === 1) return; // headers
     const name = cellText(row.getCell(1)).trim();
     const email = cellText(row.getCell(2)).trim().toLowerCase();
-    const githubUsername = normalizeGithubUsername(cellText(row.getCell(3))) || null;
-    if (!name || !email) { errors.push(`שורה ${rowNumber}: חסר שם או אימייל`); return; }
-    if (!isValidEmail(email)) { errors.push(`שורה ${rowNumber}: כתובת אימייל לא תקינה (${email})`); return; }
-    rows.push({ rowNumber, name, email, githubUsername });
+    const github = cellText(row.getCell(3)).trim();
+    if (!name && !email && !github) return; // a row left blank
+    totalRows++;
+
+    const problems: string[] = [];
+    if (!name) problems.push('חסר שם');
+    if (!email) problems.push('חסרה כתובת אימייל');
+    else if (!isValidEmail(email)) problems.push(`כתובת האימייל "${email}" אינה תקינה`);
+    else if (firstRowByEmail.has(email)) problems.push(`האימייל ${email} כבר מופיע בשורה ${firstRowByEmail.get(email)}`);
+    if (problems.length) { errors.push({ rowNumber, message: problems.join(', ') }); return; }
+
+    firstRowByEmail.set(email, rowNumber);
+    rows.push({ rowNumber, name, email, githubUsername: normalizeGithubUsername(github) || null });
   });
+
+  if (totalRows === 0) {
+    throw new AppError(
+      'No student rows in the file',
+      'לא נמצאו תלמידות בקובץ. השורה הראשונה היא שורת כותרות, והתלמידות מתחילות מהשורה השנייה',
+      400
+    );
+  }
+
+  let toAdd = 0;
+  let alreadyInGroup = 0;
+  const hashed = dryRun ? '' : await bcrypt.hash('12345678', 12);
 
   for (const { rowNumber, name, email, githubUsername } of rows) {
     try {
       let user = await prisma.user.findUnique({ where: { email } });
       if (user && user.role !== 'STUDENT') {
-        errors.push(`שורה ${rowNumber}: ${email} שייך לחשבון שאינו תלמידה`);
+        errors.push({ rowNumber, message: `${email} שייך לחשבון של מורה ולא של תלמידה` });
         continue;
       }
+      const inGroup = user && await prisma.studentGroup.findUnique({
+        where: { studentId_groupId: { studentId: user.id, groupId } },
+      });
+      if (inGroup) { alreadyInGroup++; continue; }
+      if (dryRun) { toAdd++; continue; }
+
       if (!user) {
         user = await prisma.user.create({
           data: {
@@ -248,25 +303,33 @@ export async function importStudents(groupId: string, buffer: Buffer) {
         });
         await sendEmailVerification(user.id);
       }
-      const exists = await prisma.studentGroup.findUnique({
-        where: { studentId_groupId: { studentId: user.id, groupId } },
-      });
-      if (!exists) {
-        await prisma.studentGroup.create({ data: { studentId: user.id, groupId } });
-        imported++;
-      } else {
-        skipped++;
-      }
-    } catch {
-      errors.push(`שורה ${rowNumber}: שגיאה בעיבוד ${email}`);
+      await prisma.studentGroup.create({ data: { studentId: user.id, groupId } });
+      toAdd++;
+    } catch (err) {
+      console.error(`[groups] import row ${rowNumber} failed:`, err);
+      errors.push({ rowNumber, message: `שגיאה בהוספת ${email}` });
     }
   }
 
-  return { imported, skipped, errors };
+  errors.sort((a, b) => a.rowNumber - b.rowNumber);
+  return { dryRun, totalRows, toAdd, alreadyInGroup, errors: errors.map((e) => `שורה ${e.rowNumber}: ${e.message}`) };
 }
 
 export function buildStudentImportTemplate() {
-  return buildTemplateWorkbook(['name', 'email', 'githubUsername'], ['ישראלה ישראלי', 'student@example.com', 'israela-gh']);
+  return buildTemplateWorkbook(
+    STUDENT_IMPORT_COLUMNS.map((c) => c.header),
+    STUDENT_IMPORT_COLUMNS.map((c) => c.example),
+    [
+      'הוראות מילוי',
+      'כל שורה היא תלמידה אחת. השורה הראשונה היא שורת כותרות ולא נקראת.',
+      'סדר העמודות קובע, לא שם הכותרת:',
+      'עמודה A — שם מלא — חובה',
+      'עמודה B — אימייל — חובה. כל אימייל פעם אחת בקובץ',
+      'עמודה C — שם משתמש GitHub או קישור לפרופיל — רשות, אפשר להשאיר ריק',
+      'תלמידה שכבר יש לה חשבון מצורפת לקבוצה עם החשבון הקיים. תלמידה חדשה מקבלת סיסמה זמנית 12345678.',
+      'לפני ההוספה תוצג בדיקה של הקובץ עם כל השגיאות, ואפשר לבחור להוסיף רק את השורות התקינות.',
+    ],
+  );
 }
 
 // Scoped to the group in the URL: a teacher resets a student of that group,

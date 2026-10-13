@@ -263,6 +263,7 @@ export async function getMySubmissions(studentId: string) {
       const grade = await prisma.grade.findUnique({ where: { submissionId: sub.id } });
       submitted.push({
         submissionId: sub.id, id: sub.id,
+        deleteBlockedReason: submissionDeleteBlock({ ...sub, grade }),
         assignmentId: assignment.id, assignmentTitle: assignment.title,
         lessonTopic: assignment.lesson.topic, courseName: assignment.lesson.course.name,
         submittedAt: sub.submittedAt, isLate: sub.isLate, notes: sub.notes,
@@ -448,6 +449,54 @@ export async function allowExtraAiReview(submissionId: string) {
     where: { id: submissionId },
     data: { aiExtraAllowed: true },
   });
+}
+
+type DeletableSubmission = {
+  aiStatus: string;
+  aiReviewCount: number;
+  grade: { gradedById: string | null; contentScore: number | null; feedback: string | null; contentApproved: boolean } | null;
+};
+
+/**
+ * Why the student may not delete her submission, or null when she may. Once
+ * the teacher graded or commented, deleting would throw her work away; once an
+ * AI review ran, deleting and resubmitting would refill the AI quota.
+ */
+export function submissionDeleteBlock(sub: DeletableSubmission): string | null {
+  if (sub.aiStatus === 'pending') return 'בדיקת AI של ההגשה עדיין רצה — אפשר למחוק כשהיא תסתיים';
+  const g = sub.grade;
+  if (g && (g.gradedById || g.contentScore != null || g.feedback || g.contentApproved)) {
+    return 'המורה כבר בדקה את ההגשה, ולכן אי אפשר למחוק אותה. אפשר לפנות אליה בהודעה';
+  }
+  if (sub.aiReviewCount > 0) return 'כבר בוצעה בדיקת AI על ההגשה, ולכן אי אפשר למחוק אותה. אפשר לפנות למורה בהודעה';
+  return null;
+}
+
+/**
+ * The student deletes her own submission, so the assignment is open to submit
+ * again. Its grade goes with it (cascade) and its stored file is released.
+ */
+export async function deleteMySubmission(submissionId: string, studentId: string) {
+  const submission = await prisma.submission.findUnique({ where: { id: submissionId }, include: { grade: true } });
+  if (!submission || submission.studentId !== studentId) throw new AppError('Submission not found', 'ההגשה לא נמצאה', 404);
+  const block = submissionDeleteBlock(submission);
+  if (block) throw new AppError('Submission can no longer be deleted', block, 409);
+
+  // The same conditions in the delete itself: an AI review claimed or a grade
+  // saved between the read and here keeps the submission.
+  const deleted = await prisma.submission.deleteMany({
+    where: {
+      id: submissionId, studentId, aiStatus: { not: 'pending' }, aiReviewCount: 0,
+      OR: [
+        { grade: { is: null } },
+        { grade: { is: { gradedById: null, contentScore: null, feedback: null, contentApproved: false } } },
+      ],
+    },
+  });
+  if (deleted.count === 0) {
+    throw new AppError('Submission changed while deleting', 'ההגשה השתנתה בינתיים ולא נמחקה — יש לרענן את הדף', 409);
+  }
+  if (submission.fileUrl) await releaseFileUrls([submission.fileUrl]);
 }
 
 /** The blank sheet importSubmissions reads: assignment title, student email, repo. */

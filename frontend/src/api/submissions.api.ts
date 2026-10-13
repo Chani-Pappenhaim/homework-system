@@ -51,6 +51,10 @@ export const submissionsApi = {
   get: (id: string) =>
     api.get<{ success: true; data: { submission: SubmissionDTO } }>(`/submissions/${id}`),
 
+  /** Student-only: deletes her own submission so the assignment can be submitted again. */
+  deleteMine: (submissionId: string) =>
+    api.delete(`/submissions/${submissionId}`),
+
   importSubmissions: (file: File) => {
     const form = new FormData();
     form.append('file', file);

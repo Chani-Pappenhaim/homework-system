@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
 import useAuthStore from '@/store/authStore';
 import QuizContent from '@/components/student/QuizContent';
+import { DeleteSubmissionButton } from '@/components/student/DeleteSubmissionButton';
 import { cn, formatDate, formatDateTime, isOverdue, toExternalUrl } from '@/lib/utils';
 import { getApiErrorMessage } from '@/lib/errors';
 import { useTeacherRequest } from '@/hooks/useTeacherRequest';
@@ -320,6 +321,8 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                 </div>
               )}
             </div>
+
+            <DeleteSubmissionButton submission={sub} />
 
             {(sub.githubUrl || sub.fileUrl) && (
               <div className="border border-rule/15 rounded-input p-3 text-sm space-y-2">

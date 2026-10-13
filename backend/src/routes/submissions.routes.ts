@@ -25,5 +25,7 @@ router.post('/:id/approve-content', requireRole('ADMIN'), submissionsController.
 router.post('/bulk-approve-content', requireRole('ADMIN'), submissionsController.bulkApproveContentScore);
 router.get('/mine', submissionsController.mySubmissions);
 router.get('/:id', submissionsController.getSubmission);
+// The student deletes her own submission, so she can submit the assignment again.
+router.delete('/:id', requireRole('STUDENT'), submissionsController.deleteMine);
 
 export default router;

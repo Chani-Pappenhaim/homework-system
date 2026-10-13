@@ -79,7 +79,9 @@ export async function updateStudent(req: Request, res: Response) {
 
 export async function importStudents(req: Request, res: Response) {
   try {
-    const result = await groupsService.importStudents(req.params.id as string, req.file!.buffer);
+    // ?dryRun=true only checks the file; the teacher then confirms the real import.
+    const dryRun = req.query.dryRun === 'true';
+    const result = await groupsService.importStudents(req.params.id as string, req.file!.buffer, { dryRun });
     res.json({ success: true, data: result });
   } catch (err: any) {
     sendError(res, err);

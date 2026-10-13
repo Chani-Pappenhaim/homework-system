@@ -248,17 +248,55 @@ describe('groups.service', () => {
   });
 
   describe('importStudents', () => {
-    it('collects synchronous validation errors for rows missing name/email', async () => {
-      const buf = await xlsxBuffer([[null, 'a@x.com', null]]);
-      const r = await importStudents('g1', buf);
-      expect(r.errors.some((e) => e.includes('חסר שם או אימייל'))).toBe(true);
+    it('names what is missing in each row', async () => {
+      p.user.findUnique.mockResolvedValue(null);
+      const buf = await xlsxBuffer([[null, 'a@x.com', null], ['B', null, 'gh'], ['C', 'not-an-email', null]]);
+      const r = await importStudents('g1', buf, { dryRun: true });
+      expect(r.errors).toEqual([
+        'שורה 2: חסר שם',
+        'שורה 3: חסרה כתובת אימייל',
+        'שורה 4: כתובת האימייל "not-an-email" אינה תקינה',
+      ]);
+      expect(r.totalRows).toBe(3);
+      expect(r.toAdd).toBe(0);
+    });
+
+    it('reports an email that appears twice in the file and keeps the first', async () => {
+      p.user.findUnique.mockResolvedValue(null);
+      const r = await importStudents('g1', await xlsxBuffer([['A', 'a@x.com', null], ['A2', 'A@x.com', null]]), { dryRun: true });
+      expect(r.toAdd).toBe(1);
+      expect(r.errors).toEqual(['שורה 3: האימייל a@x.com כבר מופיע בשורה 2']);
+    });
+
+    it('ignores blank rows and refuses a file with no student rows', async () => {
+      await expect(importStudents('g1', await xlsxBuffer([[null, null, null]]))).rejects.toMatchObject({ status: 400 });
+    });
+
+    it('a dry run counts the rows to add without writing anything', async () => {
+      p.user.findUnique.mockResolvedValue(null);
+      const r = await importStudents('g1', await xlsxBuffer([['A', 'a@x.com', null], ['B', null, null]]), { dryRun: true });
+      expect(r).toMatchObject({ dryRun: true, totalRows: 2, toAdd: 1, alreadyInGroup: 0 });
+      expect(r.errors).toHaveLength(1);
+      expect(p.user.create).not.toHaveBeenCalled();
+      expect(p.studentGroup.create).not.toHaveBeenCalled();
+      expect(sendVerificationMock).not.toHaveBeenCalled();
+    });
+
+    it('the real import adds the valid rows and reports the rest', async () => {
+      p.user.findUnique.mockResolvedValue(null);
+      p.user.create.mockResolvedValue({ id: 's1' });
+      p.studentGroup.create.mockResolvedValue({});
+      const r = await importStudents('g1', await xlsxBuffer([['A', 'a@x.com', null], ['B', null, null]]));
+      expect(r).toMatchObject({ dryRun: false, toAdd: 1 });
+      expect(r.errors).toEqual(['שורה 3: חסרה כתובת אימייל']);
+      expect(p.studentGroup.create).toHaveBeenCalledTimes(1);
     });
 
     it("reports a row whose email belongs to a teacher instead of enrolling her", async () => {
       p.user.findUnique.mockResolvedValue({ id: 't1', role: 'ADMIN' });
       const r = await importStudents('g1', await xlsxBuffer([['T', 't@x.com', null]]));
-      expect(r.imported).toBe(0);
-      expect(r.errors[0]).toContain('שאינו תלמידה');
+      expect(r.toAdd).toBe(0);
+      expect(r.errors[0]).toContain('חשבון של מורה');
       expect(p.studentGroup.create).not.toHaveBeenCalled();
     });
 
@@ -269,8 +307,8 @@ describe('groups.service', () => {
       p.studentGroup.create.mockResolvedValue({});
       const buf = await xlsxBuffer([['A', 'a@x.com', 'gh']]);
       const r = await importStudents('g1', buf);
-      expect(r.imported).toBe(1);
-      expect(r.skipped).toBe(0);
+      expect(r.toAdd).toBe(1);
+      expect(r.alreadyInGroup).toBe(0);
       expect(p.studentGroup.create).toHaveBeenCalledTimes(1);
     });
 
@@ -279,8 +317,8 @@ describe('groups.service', () => {
       p.studentGroup.findUnique.mockResolvedValue({ studentId: 's1', groupId: 'g1' });
       const buf = await xlsxBuffer([['A', 'a@x.com', 'gh']]);
       const r = await importStudents('g1', buf);
-      expect(r.imported).toBe(0);
-      expect(r.skipped).toBe(1);
+      expect(r.toAdd).toBe(0);
+      expect(r.alreadyInGroup).toBe(1);
       expect(p.studentGroup.create).not.toHaveBeenCalled();
     });
   });

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Trash2, RotateCcw, UserPlus, Download, Pencil, MailCheck, MailWarning, BellOff } from 'lucide-react';
+import { Trash2, RotateCcw, UserPlus, Pencil, MailCheck, MailWarning, BellOff } from 'lucide-react';
 import { groupsApi } from '@/api/groups.api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,11 +14,11 @@ import {
 } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { FileUpload } from '@/components/ui/file-upload';
+import { StudentsImportPanel } from '@/components/teacher/StudentsImportPanel';
 import { BackLink } from '@/components/ui/back-link';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
-import { downloadBlob, groupDisplayName } from '@/lib/utils';
+import { groupDisplayName } from '@/lib/utils';
 import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function GroupFormPage() {
@@ -147,18 +147,6 @@ export default function GroupFormPage() {
     setEditEmail(s.email);
     setEditGithub(s.githubUsername ?? '');
     setEditError('');
-  }
-
-  const downloadTemplateMutation = useMutation({
-    mutationFn: () => groupsApi.downloadImportTemplate(),
-    onSuccess: (res) => downloadBlob(res.data as Blob, 'students-import-template.xlsx'),
-  });
-
-  async function handleImport(file: File) {
-    await groupsApi.importStudents(id!, file);
-    qc.invalidateQueries({ queryKey: ['group', id] });
-    setAddModal(false);
-    toast.success('התלמידות יובאו בהצלחה');
   }
 
   return (
@@ -365,17 +353,7 @@ export default function GroupFormPage() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-3">
-            <p className="text-xs text-ink/70">קובץ Excel עם עמודות: name | email | github (אופציונלי)</p>
-            <button
-              type="button"
-              onClick={() => downloadTemplateMutation.mutate()}
-              className="flex items-center gap-1.5 text-xs font-semibold text-clay hover:underline"
-            >
-              <Download size={13} /> הורדת קובץ לדוגמא
-            </button>
-            <FileUpload accept=".xlsx" onFile={handleImport} label="גרור קובץ Excel לכאן" />
-          </div>
+          <StudentsImportPanel groupId={id!} onDone={() => setAddModal(false)} />
         )}
           </DialogBody>
         </DialogContent>

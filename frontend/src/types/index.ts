@@ -281,6 +281,8 @@ export interface SubmissionDTO {
 export interface MySubmission {
   submissionId: string;
   id: string;
+  /** Why she can no longer delete it (graded, AI-reviewed); null when she can. */
+  deleteBlockedReason?: string | null;
   assignmentId: string;
   assignmentTitle: string;
   lessonTopic: string;
