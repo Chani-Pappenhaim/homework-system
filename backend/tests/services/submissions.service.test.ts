@@ -4,7 +4,7 @@ vi.mock('../../src/config/prisma', () => ({
   prisma: {
     assignment: { findUnique: vi.fn(), findMany: vi.fn(), findFirst: vi.fn() },
     user: { findUnique: vi.fn() },
-    submission: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
+    submission: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
     grade: { findUnique: vi.fn(), upsert: vi.fn() },
   },
 }));
@@ -49,6 +49,7 @@ import {
   getVideoUploadSignature,
   rerunAiReview,
   requestAiReview,
+  deleteMySubmission,
 } from '../../src/services/submissions.service';
 
 process.env.CLOUDINARY_CLOUD_NAME = 'our-cloud';
@@ -675,5 +676,48 @@ describe('submissions.service.requestAiReview', () => {
     p.submission.findUnique.mockResolvedValue(sub({ aiStatus: 'pending' }));
     await expect(requestAiReview('sub1', 's1')).rejects.toMatchObject({ status: 409 });
     expect(p.submission.updateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('submissions.service.deleteMySubmission', () => {
+  const ownSub = (over: any = {}) => ({
+    id: 'sub1', studentId: 's1', fileUrl: 'https://res.cloudinary.com/x/raw/upload/v1/submissions/a.zip',
+    aiStatus: 'none', aiReviewCount: 0,
+    grade: { gradedById: null, contentScore: null, feedback: null, contentApproved: false },
+    ...over,
+  });
+
+  it('deletes her own untouched submission and releases its file', async () => {
+    p.submission.findUnique.mockResolvedValue(ownSub());
+    p.submission.deleteMany.mockResolvedValue({ count: 1 });
+    await deleteMySubmission('sub1', 's1');
+    expect(p.submission.deleteMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: 'sub1', studentId: 's1', aiReviewCount: 0 }),
+    }));
+    expect(releaseMock).toHaveBeenCalledWith([ownSub().fileUrl]);
+  });
+
+  it("answers 404 for another student's submission", async () => {
+    p.submission.findUnique.mockResolvedValue(ownSub({ studentId: 'other' }));
+    await expect(deleteMySubmission('sub1', 's1')).rejects.toMatchObject({ status: 404 });
+    expect(p.submission.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['the teacher gave feedback', { grade: { gradedById: 't1', contentScore: null, feedback: 'טוב', contentApproved: false } }],
+    ['the teacher gave a content score', { grade: { gradedById: null, contentScore: 90, feedback: null, contentApproved: false } }],
+    ['an AI review already ran', { aiReviewCount: 1 }],
+    ['an AI review is running', { aiStatus: 'pending' }],
+  ])('refuses when %s', async (_label, over) => {
+    p.submission.findUnique.mockResolvedValue(ownSub(over));
+    await expect(deleteMySubmission('sub1', 's1')).rejects.toMatchObject({ status: 409 });
+    expect(p.submission.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('keeps the file when the submission changed before the delete ran', async () => {
+    p.submission.findUnique.mockResolvedValue(ownSub());
+    p.submission.deleteMany.mockResolvedValue({ count: 0 });
+    await expect(deleteMySubmission('sub1', 's1')).rejects.toMatchObject({ status: 409 });
+    expect(releaseMock).not.toHaveBeenCalled();
   });
 });

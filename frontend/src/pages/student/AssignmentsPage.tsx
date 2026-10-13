@@ -8,6 +8,7 @@ import { Card, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { PageHeader } from '@/components/ui/page-header';
+import { DeleteSubmissionButton } from '@/components/student/DeleteSubmissionButton';
 import { cn, formatDate, formatDateTime, isOverdue } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import type { MySubmission, PendingAssignment } from '@/types';
@@ -115,7 +116,7 @@ export default function AssignmentsPage() {
             {viewing.type === 'pending' ? (
               <PendingDetail item={viewing.item} onGoToLesson={() => navigate(`/student/lessons/${viewing.item.lessonId}`)} />
             ) : (
-              <SubmittedDetail item={viewing.item} />
+              <SubmittedDetail item={viewing.item} onDeleted={() => setViewing(null)} />
             )}
           </div>
         </Card>
@@ -209,7 +210,7 @@ function PendingDetail({ item, onGoToLesson }: { item: PendingAssignment; onGoTo
   );
 }
 
-function SubmittedDetail({ item }: { item: MySubmission }) {
+function SubmittedDetail({ item, onDeleted }: { item: MySubmission; onDeleted: () => void }) {
   return (
     <>
       <div>
@@ -265,6 +266,8 @@ function SubmittedDetail({ item }: { item: MySubmission }) {
           {item.grade.feedback && <MarkdownRenderer content={item.grade.feedback} className="text-xs" />}
         </div>
       )}
+
+      <DeleteSubmissionButton submission={item} onDeleted={onDeleted} />
     </>
   );
 }

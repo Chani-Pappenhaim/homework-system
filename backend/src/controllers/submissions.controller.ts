@@ -55,6 +55,15 @@ export async function submit(req: Request, res: Response) {
   }
 }
 
+export async function deleteMine(req: Request, res: Response) {
+  try {
+    await submissionsService.deleteMySubmission(req.params.id as string, req.user!.userId);
+    res.json({ success: true, data: null });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
 export async function getVideoUploadSignature(req: Request, res: Response) {
   try {
     const signature = await submissionsService.getVideoUploadSignature(req.params.id as string, req.user!.userId, req.body?.tagged === true);
