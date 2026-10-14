@@ -43,7 +43,13 @@ export default function TeacherMessagesPage() {
 
   const markReadMutation = useMutation({
     mutationFn: (id: string) => messagesApi.markRead(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['teacher-messages'] }),
+    // The inbox badges (header bell, menu tab, the students' pages) count
+    // unread entries on their own, so they refresh together with the list.
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['teacher-messages'] });
+      qc.invalidateQueries({ queryKey: ['unread-messages'] });
+      qc.invalidateQueries({ queryKey: ['students'] });
+    },
   });
 
   const replyMutation = useMutation({
@@ -83,16 +89,24 @@ export default function TeacherMessagesPage() {
   const messages: MessageDTO[] = unwrap(data)?.messages ?? [];
   const openMsg = messages.find((m) => m.id === openId) ?? null;
 
+  function unreadEntries(msg: MessageDTO) {
+    return msg.entries.filter((e) => !e.fromTeacher && !e.isRead);
+  }
   function isUnread(msg: MessageDTO) {
-    return msg.entries.some((e) => !e.fromTeacher && !e.isRead);
+    return unreadEntries(msg).length > 0;
   }
 
-  // Opening a conversation, from the list or from an email link, marks what it has new as read — once per conversation.
+  // Opening a conversation, from the list or from an email link, marks what it
+  // has new as read — and so does a new entry arriving while it is open. Once
+  // per newest unread entry, so a refetch before the mark lands doesn't resend it.
   const markedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!openMsg) { markedRef.current = null; return; }
-    if (markedRef.current === openMsg.id || !isUnread(openMsg)) return;
-    markedRef.current = openMsg.id;
+    const newest = unreadEntries(openMsg).at(-1);
+    if (!newest) return;
+    const mark = `${openMsg.id}:${newest.id}`;
+    if (markedRef.current === mark) return;
+    markedRef.current = mark;
     markReadMutation.mutate(openMsg.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openMsg]);

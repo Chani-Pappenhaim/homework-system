@@ -37,7 +37,11 @@ const twoConversations = {
   },
 };
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  // jsdom has no layout; the open thread scrolls to its last entry.
+  Element.prototype.scrollIntoView = vi.fn();
+});
 
 describe('StudentMessagesPage', () => {
   // The compose form now lives in a dialog opened via "הודעה חדשה", not an
@@ -139,6 +143,19 @@ describe('StudentMessagesPage', () => {
       await userEvent.click(within(screen.getByRole('dialog')).getAllByRole('button', { name: 'סגירה' }).at(-1)!);
       await userEvent.click(screen.getByRole('button', { name: /הודעה חדשה/ }));
       expect(url()).toBe('?compose=1');
+    });
+
+    it('marks a new teacher reply that arrives while the conversation is open', async () => {
+      const { queryClient } = renderWithProviders(<StudentMessagesPage />, { initialEntries: ['/?highlight=m1'] });
+      await waitFor(() => expect(markMineRead).toHaveBeenCalledTimes(1));
+      const [m1, ...rest] = twoConversations.data.data.messages;
+      const later = { ...m1, entries: [
+        ...m1.entries.map((e) => ({ ...e, isRead: true })),
+        { id: 'late', fromTeacher: true, content: 'עוד תשובה', isRead: false, createdAt: '2026-07-03T09:00:00Z' },
+      ] };
+      getMine.mockResolvedValue({ data: { data: { messages: [later, ...rest] } } });
+      await queryClient.invalidateQueries({ queryKey: ['my-messages'] });
+      await waitFor(() => expect(markMineRead).toHaveBeenCalledTimes(2));
     });
 
     it('shows the list for a link to a conversation that was deleted', async () => {
