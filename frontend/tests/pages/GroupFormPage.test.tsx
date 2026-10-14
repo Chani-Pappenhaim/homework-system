@@ -11,13 +11,14 @@ vi.mock('react-router-dom', async (importOriginal) => {
 });
 
 vi.mock('@/api/groups.api', () => ({
-  groupsApi: { get: vi.fn(), create: vi.fn(), update: vi.fn(), addStudent: vi.fn(), removeStudent: vi.fn(), resetPassword: vi.fn(), importStudents: vi.fn() },
+  groupsApi: { get: vi.fn(), create: vi.fn(), update: vi.fn(), addStudent: vi.fn(), removeStudent: vi.fn(), updateStudent: vi.fn(), resetPassword: vi.fn(), importStudents: vi.fn() },
 }));
 
 import { groupsApi } from '@/api/groups.api';
 const getGroup = groupsApi.get as unknown as ReturnType<typeof vi.fn>;
 const createGroup = groupsApi.create as unknown as ReturnType<typeof vi.fn>;
 const addStudent = groupsApi.addStudent as unknown as ReturnType<typeof vi.fn>;
+const updateStudent = groupsApi.updateStudent as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -66,7 +67,7 @@ describe('GroupFormPage (new)', () => {
 describe('GroupFormPage (edit)', () => {
   const group = {
     id: 'g1', name: 'קבוצה א', seminar: 'סמינר', year: '2026', studentCount: 1, createdAt: '',
-    students: [{ id: 's1', name: 'דנה', email: 'dana@x.com', createdAt: '' }],
+    students: [{ id: 's1', name: 'דנה', email: 'dana@x.com', githubUsername: 'dana-gh', createdAt: '' }],
     courses: [],
   };
 
@@ -96,5 +97,20 @@ describe('GroupFormPage (edit)', () => {
     await userEvent.type(screen.getByPlaceholderText('student@example.com'), 'miri@x.com');
     await userEvent.click(screen.getByRole('button', { name: 'הוסף תלמידה' }));
     await waitFor(() => expect(addStudent).toHaveBeenCalledWith('g1', { name: 'מרים', email: 'miri@x.com', githubUsername: undefined }));
+  });
+
+  it("clears a student's GitHub username when the field is emptied", async () => {
+    getGroup.mockResolvedValue({ data: { data: { group } } });
+    updateStudent.mockResolvedValue({ data: {} });
+    renderEdit();
+    await screen.findByText('דנה');
+    await userEvent.click(screen.getByTitle('עריכת פרטים'));
+    const github = screen.getByLabelText('שם משתמש GitHub (אופציונלי)');
+    expect(github).toHaveValue('dana-gh');
+    await userEvent.clear(github);
+    expect(screen.getByText(/הגשות שכבר הוגשו לא ייפגעו/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'שמור שינויים' }));
+    // An empty string (not undefined) tells the server to remove the username
+    await waitFor(() => expect(updateStudent).toHaveBeenCalledWith('g1', 's1', { name: 'דנה', email: 'dana@x.com', githubUsername: '' }));
   });
 });

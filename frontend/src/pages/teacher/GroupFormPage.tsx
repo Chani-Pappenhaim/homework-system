@@ -15,6 +15,7 @@ import {
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { StudentsImportPanel } from '@/components/teacher/StudentsImportPanel';
+import { StudentEditDialog, type EditableStudent } from '@/components/teacher/StudentEditDialog';
 import { BackLink } from '@/components/ui/back-link';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
@@ -43,11 +44,7 @@ export default function GroupFormPage() {
   const [removeOneTarget, setRemoveOneTarget] = useState<{ id: string; name: string } | null>(null);
   const [removeBulkOpen, setRemoveBulkOpen] = useState(false);
   const [resetTarget, setResetTarget] = useState<{ id: string; name: string } | null>(null);
-  const [editTarget, setEditTarget] = useState<{ id: string; name: string; email: string; githubUsername?: string } | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editEmail, setEditEmail] = useState('');
-  const [editGithub, setEditGithub] = useState('');
-  const [editError, setEditError] = useState('');
+  const [editTarget, setEditTarget] = useState<EditableStudent | null>(null);
   const [studentQuery, setStudentQuery] = useState('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
@@ -121,32 +118,12 @@ export default function GroupFormPage() {
     onSuccess: () => { setResetTarget(null); toast.success('הסיסמא אופסה ל-12345678'); },
   });
 
-  const editStudentMutation = useMutation({
-    mutationFn: () => groupsApi.updateStudent(id!, editTarget!.id, {
-      name: editName, email: editEmail, githubUsername: editGithub || undefined,
-    }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['group', id] });
-      setEditTarget(null);
-      toast.success('פרטי התלמידה עודכנו');
-    },
-    onError: (e: any) => setEditError(getApiErrorMessage(e, 'שגיאה בעדכון')),
-  });
-
   function toggleSelected(studentId: string) {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(studentId)) next.delete(studentId); else next.add(studentId);
       return next;
     });
-  }
-
-  function openEdit(s: { id: string; name: string; email: string; githubUsername?: string }) {
-    setEditTarget(s);
-    setEditName(s.name);
-    setEditEmail(s.email);
-    setEditGithub(s.githubUsername ?? '');
-    setEditError('');
   }
 
   return (
@@ -245,7 +222,7 @@ export default function GroupFormPage() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => openEdit(s)} title="עריכת פרטים">
+                    <Button size="sm" variant="outline" onClick={() => setEditTarget(s)} title="עריכת פרטים">
                       <Pencil size={13} />
                     </Button>
                     <Button
@@ -301,30 +278,15 @@ export default function GroupFormPage() {
         onConfirm={() => resetPasswordMutation.mutate(resetTarget!.id)}
       />
 
-      {/* Edit student modal */}
-      <Dialog open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>עריכת פרטי תלמידה</DialogTitle>
-          </DialogHeader>
-          <DialogBody>
-            <div className="space-y-3">
-              <Input label="שם מלא" value={editName} onChange={(e) => setEditName(e.target.value)} />
-              <Input label="אימייל" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
-              <Input label="שם משתמש GitHub (אופציונלי)" value={editGithub} onChange={(e) => setEditGithub(e.target.value)} />
-              {editError && <p className="text-coral text-sm">{editError}</p>}
-              <Button
-                loading={editStudentMutation.isPending}
-                onClick={() => editStudentMutation.mutate()}
-                disabled={!editName.trim() || !editEmail.trim()}
-                className="w-full"
-              >
-                שמור שינויים
-              </Button>
-            </div>
-          </DialogBody>
-        </DialogContent>
-      </Dialog>
+      <StudentEditDialog
+        student={editTarget}
+        onClose={() => setEditTarget(null)}
+        save={(studentId, data) => groupsApi.updateStudent(id!, studentId, data)}
+        onSaved={() => {
+          qc.invalidateQueries({ queryKey: ['group', id] });
+          qc.invalidateQueries({ queryKey: ['students'] });
+        }}
+      />
 
       {/* Add student modal */}
       <Dialog open={addModal} onOpenChange={setAddModal}>
