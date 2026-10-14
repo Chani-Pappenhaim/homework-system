@@ -25,10 +25,12 @@ import { unwrap } from '@/lib/api-utils';
 import type { MessageDTO } from '@/types';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useMessageDialogs } from '@/hooks/useMessageDialogs';
+import { useConfirm } from '@/components/ui/use-confirm';
 
 export default function TeacherMessagesPage() {
   usePageTitle('הודעות');
   const qc = useQueryClient();
+  const [confirmDialog, ask] = useConfirm();
   const { openId, composeOpen, openConversation, closeConversation, setComposeOpen } = useMessageDialogs();
   const [replyText, setReplyText] = useState('');
   const [composeStudent, setComposeStudent] = useState<StudentSearchResult | null>(null);
@@ -178,8 +180,8 @@ export default function TeacherMessagesPage() {
               </button>
               <button
                 title="מחקי שיחה"
-                onClick={() => {
-                  if (confirm(`למחוק את ההודעה מ"${msg.student?.name}"? הפעולה בלתי הפיכה.`)) {
+                onClick={async () => {
+                  if (await ask({ title: `למחוק את ההודעה מ"${msg.student?.name}"?`, description: 'הפעולה בלתי הפיכה.' })) {
                     deleteMutation.mutate(msg.id);
                   }
                 }}
@@ -217,8 +219,8 @@ export default function TeacherMessagesPage() {
                         {isLastTeacherEntry && (
                           <button
                             title="מחקי תגובה"
-                            onClick={() => {
-                              if (confirm('למחוק את התגובה האחרונה שלך?')) {
+                            onClick={async () => {
+                              if (await ask({ title: 'למחוק את התגובה האחרונה שלך?' })) {
                                 deleteReplyMutation.mutate(openMsg.id);
                               }
                             }}
@@ -265,8 +267,8 @@ export default function TeacherMessagesPage() {
                 <Button
                   variant="destructive"
                   loading={deleteMutation.isPending}
-                  onClick={() => {
-                    if (confirm(`למחוק את ההודעה מ"${openMsg.student?.name}"? הפעולה בלתי הפיכה.`)) {
+                  onClick={async () => {
+                    if (await ask({ title: `למחוק את ההודעה מ"${openMsg.student?.name}"?`, description: 'הפעולה בלתי הפיכה.' })) {
                       deleteMutation.mutate(openMsg.id);
                     }
                   }}
@@ -329,6 +331,7 @@ export default function TeacherMessagesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </div>
   );
 }

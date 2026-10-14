@@ -4,7 +4,9 @@ import { cn, formatBytes } from '@/lib/utils';
 import { getFileKindByExtension, officeViewerLimitBytes, OFFICE_EXTENSIONS, TEXT_EXTENSIONS } from '@/lib/file-type';
 import { PreviewableTypes } from '@/components/ui/previewable-types';
 import { API_URL } from '@/lib/config';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { filesApi, type FileSource } from '@/api/files.api';
 
@@ -160,10 +162,18 @@ function FileTile({
   const Icon = KIND_ICON[kind];
   const url = resolveFileUrl(file.url);
 
+  // null = the rename dialog is closed
+  const [renameDraft, setRenameDraft] = useState<string | null>(null);
+
   const handleRename = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const name = window.prompt('שם חדש לקובץ', file.name);
-    if (name && name.trim() && name.trim() !== file.name) onRename?.(file.id, name.trim());
+    setRenameDraft(file.name);
+  };
+
+  const submitRename = () => {
+    const name = renameDraft?.trim();
+    if (name && name !== file.name) onRename?.(file.id, name);
+    setRenameDraft(null);
   };
 
   return (
@@ -293,6 +303,25 @@ function FileTile({
           <X size={12} strokeWidth={3} />
         </button>
       )}
+      <Dialog open={renameDraft !== null} onOpenChange={(open) => { if (!open) setRenameDraft(null); }}>
+        <DialogContent size="sm">
+          <DialogHeader>
+            <DialogTitle>שינוי שם קובץ</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
+            <form id={`rename-${file.id}`} onSubmit={(e) => {
+              // Portal events still bubble through the React tree, e.g. into a surrounding course form
+              e.preventDefault(); e.stopPropagation(); submitRename();
+            }}>
+              <Input label="שם חדש לקובץ" value={renameDraft ?? ''} onChange={(e) => setRenameDraft(e.target.value)} autoFocus />
+            </form>
+          </DialogBody>
+          <DialogFooter>
+            <Button type="submit" form={`rename-${file.id}`} disabled={!renameDraft?.trim()}>שמירה</Button>
+            <Button variant="outline" onClick={() => setRenameDraft(null)}>ביטול</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

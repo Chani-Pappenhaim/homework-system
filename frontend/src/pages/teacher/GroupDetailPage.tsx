@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/toast';
 import { cn, groupDisplayName } from '@/lib/utils';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useTabParam } from '@/hooks/useTabParam';
+import { useConfirm } from '@/components/ui/use-confirm';
 
 const GROUP_TABS = ['courses', 'students'] as const;
 
@@ -19,6 +20,7 @@ export default function GroupDetailPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
+  const [confirmDialog, ask] = useConfirm();
   const [tab, setTab] = useTabParam(GROUP_TABS, 'courses');
 
   const { data, isLoading } = useQuery({
@@ -73,11 +75,11 @@ export default function GroupDetailPage() {
               variant="destructive"
               size="sm"
               loading={deleteGroupMutation.isPending}
-              onClick={() => {
+              onClick={async () => {
                 const coursesNote = group.courses.length > 0
-                  ? ` כל ${group.courses.length} הקורסים של הקבוצה (כולל שיעורים, מטלות והגשות) יימחקו גם הם לצמיתות.`
+                  ? `כל ${group.courses.length} הקורסים של הקבוצה (כולל שיעורים, מטלות והגשות) יימחקו גם הם לצמיתות.`
                   : '';
-                if (confirm(`למחוק את הקבוצה "${groupDisplayName(group)}"?${coursesNote} התלמידות לא יימחקו מהמערכת, רק ישויכו החוצה מהקבוצה.`)) {
+                if (await ask({ title: `למחוק את הקבוצה "${groupDisplayName(group)}"?`, description: `${coursesNote}${coursesNote ? ' ' : ''}התלמידות לא יימחקו מהמערכת, רק ישויכו החוצה מהקבוצה.` })) {
                   deleteGroupMutation.mutate();
                 }
               }}
@@ -190,6 +192,7 @@ export default function GroupDetailPage() {
           </div>
         </Card>
       )}
+      {confirmDialog}
     </div>
   );
 }

@@ -6,13 +6,14 @@ import StudentMessagesPage from '@/pages/student/MessagesPage';
 import { renderWithProviders } from '../utils/render';
 
 vi.mock('@/api/messages.api', () => ({
-  messagesApi: { getMine: vi.fn(), send: vi.fn(), markMineRead: vi.fn() },
+  messagesApi: { getMine: vi.fn(), send: vi.fn(), markMineRead: vi.fn(), deleteMine: vi.fn() },
 }));
 
 import { messagesApi } from '@/api/messages.api';
 const getMine = messagesApi.getMine as unknown as ReturnType<typeof vi.fn>;
 const send = messagesApi.send as unknown as ReturnType<typeof vi.fn>;
 const markMineRead = messagesApi.markMineRead as unknown as ReturnType<typeof vi.fn>;
+const deleteMine = messagesApi.deleteMine as unknown as ReturnType<typeof vi.fn>;
 
 function UrlProbe() {
   const { search } = useLocation();
@@ -164,5 +165,26 @@ describe('StudentMessagesPage', () => {
       await waitFor(() => expect(url()).toBe(''));
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
+  });
+});
+
+describe('StudentMessagesPage deleting a conversation', () => {
+  it('asks in a styled dialog and deletes only after she confirms', async () => {
+    const nativeConfirm = vi.spyOn(window, 'confirm');
+    getMine.mockResolvedValue(twoConversations);
+    deleteMine.mockResolvedValue({ data: {} });
+    renderWithProviders(<StudentMessagesPage />, { initialEntries: ['/?highlight=m1'] });
+    await screen.findByRole('dialog');
+
+    await userEvent.click(screen.getByRole('button', { name: /מחקי שיחה/ }));
+    expect(screen.getByText('למחוק את השיחה?')).toBeInTheDocument();
+    expect(deleteMine).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'ביטול' }));
+    expect(deleteMine).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: /מחקי שיחה/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'מחיקה' }));
+    await waitFor(() => expect(deleteMine).toHaveBeenCalledWith('m1'));
+    expect(nativeConfirm).not.toHaveBeenCalled();
   });
 });

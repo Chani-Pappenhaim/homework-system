@@ -214,3 +214,34 @@ describe('parseCsv', () => {
     expect(parseCsv('a;b\n1;2')).toEqual([['a', 'b'], ['1', '2']]);
   });
 });
+
+describe('FileGallery rename', () => {
+  it('renames through a styled dialog, not the browser prompt, without submitting a surrounding form', async () => {
+    const nativePrompt = vi.spyOn(window, 'prompt');
+    const onRename = vi.fn();
+    const outerSubmit = vi.fn((e: React.FormEvent) => e.preventDefault());
+    render(<form onSubmit={outerSubmit}><FileGallery source="course" files={[PDF]} onRename={onRename} /></form>);
+
+    await userEvent.click(screen.getByRole('button', { name: 'שינוי שם קובץ' }));
+    const input = screen.getByLabelText('שם חדש לקובץ');
+    expect(input).toHaveValue('חוזה');
+    await userEvent.clear(input);
+    await userEvent.type(input, 'חוזה חתום{Enter}');
+
+    expect(onRename).toHaveBeenCalledWith('f1', 'חוזה חתום');
+    expect(outerSubmit).not.toHaveBeenCalled();
+    expect(nativePrompt).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByLabelText('שם חדש לקובץ')).not.toBeInTheDocument());
+  });
+
+  it('does not rename when cancelled or left unchanged', async () => {
+    const onRename = vi.fn();
+    render(<FileGallery source="course" files={[PDF]} onRename={onRename} />);
+    await userEvent.click(screen.getByRole('button', { name: 'שינוי שם קובץ' }));
+    await userEvent.click(screen.getByRole('button', { name: 'שמירה' }));
+    await userEvent.click(screen.getByRole('button', { name: 'שינוי שם קובץ' }));
+    await userEvent.type(screen.getByLabelText('שם חדש לקובץ'), 'xyz');
+    await userEvent.click(screen.getByRole('button', { name: 'ביטול' }));
+    expect(onRename).not.toHaveBeenCalled();
+  });
+});

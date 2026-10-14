@@ -24,10 +24,12 @@ import { unwrap } from '@/lib/api-utils';
 import type { MessageDTO } from '@/types';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useMessageDialogs } from '@/hooks/useMessageDialogs';
+import { useConfirm } from '@/components/ui/use-confirm';
 
 export default function StudentMessagesPage() {
   usePageTitle('הודעות');
   const qc = useQueryClient();
+  const [confirmDialog, ask] = useConfirm();
   const { openId, composeOpen, openConversation, closeConversation, setComposeOpen } = useMessageDialogs();
   const [content, setContent] = useState('');
   const [error, setError] = useState('');
@@ -245,8 +247,8 @@ export default function StudentMessagesPage() {
                 <Button
                   variant="destructive"
                   loading={deleteMutation.isPending}
-                  onClick={() => {
-                    if (confirm('למחוק את השיחה? הפעולה בלתי הפיכה.')) {
+                  onClick={async () => {
+                    if (await ask({ title: 'למחוק את השיחה?', description: 'הפעולה בלתי הפיכה.' })) {
                       deleteMutation.mutate(openMsg.id);
                     }
                   }}
@@ -258,6 +260,7 @@ export default function StudentMessagesPage() {
           )}
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </div>
   );
 }

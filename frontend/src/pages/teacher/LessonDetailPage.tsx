@@ -29,6 +29,7 @@ import { useTabParam } from '@/hooks/useTabParam';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import type { LessonPageProps } from '@/components/lesson/LessonRoute';
 import type { AssignmentDTO, QuizResultsDTO } from '@/types';
+import { useConfirm } from '@/components/ui/use-confirm';
 
 const TABS = ['content', 'files', 'assignments', 'access', 'quiz'] as const;
 
@@ -39,6 +40,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
   const [searchParams, setSearchParams] = useSearchParams();
   const qc = useQueryClient();
   const toast = useToast();
+  const [confirmDialog, ask] = useConfirm();
   const [assignmentModal, setAssignmentModal] = useState<AssignmentDTO | null | 'new'>(null);
   const [lessonEditOpen, setLessonEditOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
@@ -188,8 +190,8 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
   });
 
   // Deleting an assignment cascades to its submissions and grades, so the confirm says so explicitly
-  const confirmDeleteAssignment = (a: { id: string; title: string }) => {
-    if (!confirm(`למחוק את המטלה "${a.title}"? כל ההגשות והציונים של המטלה יימחקו לצמיתות.`)) return;
+  const confirmDeleteAssignment = async (a: { id: string; title: string }) => {
+    if (!(await ask({ title: `למחוק את המטלה "${a.title}"?`, description: 'כל ההגשות והציונים של המטלה יימחקו לצמיתות.' }))) return;
     deleteAssignmentMutation.mutate(a.id);
     if (assignment?.id === a.id) closeAssignment();
   };
@@ -218,8 +220,8 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
               size="sm"
               variant="destructive"
               loading={deleteLessonMutation.isPending}
-              onClick={() => {
-                if (confirm(`למחוק את השיעור "${lesson.topic}"? כל המטלות, ההגשות והקבצים של השיעור יימחקו לצמיתות.`)) {
+              onClick={async () => {
+                if (await ask({ title: `למחוק את השיעור "${lesson.topic}"?`, description: 'כל המטלות, ההגשות והקבצים של השיעור יימחקו לצמיתות.' })) {
                   deleteLessonMutation.mutate();
                 }
               }}
@@ -441,6 +443,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
           leave?.();
         }}
       />
+      {confirmDialog}
     </div>
   );
 }
