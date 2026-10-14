@@ -93,10 +93,11 @@ describe('assignments.service.createAssignment', () => {
     const r: any = await createAssignment('l1', {
       title: 'Task', description: 'grading notes', deadline: '2026-05-01T00:00:00.000Z',
       aiInstructions: 'be strict', requirements: [{ id: 'r1', text: 'do X' }],
-      allowGithub: true, allowFile: false,
+      allowGithub: true, allowFile: false, aiReviewEnabled: false,
     });
     expect(r.lessonId).toBe('l1');
     expect(r.aiInstructions).toBe('be strict');
+    expect(r.aiReviewEnabled).toBe(false);
     expect(r.requirements).toEqual([{ id: 'r1', text: 'do X' }]);
     expect(r.deadline).toBeInstanceOf(Date);
   });
@@ -176,6 +177,12 @@ describe('assignments.service hardening', () => {
     p.assignment.update.mockResolvedValue({ id: 'a1', deadline: null });
     await updateAssignment('a1', { title: 'T', lessonId: 'other' } as any);
     expect(p.assignment.update.mock.calls[0][0].data).not.toHaveProperty('lessonId');
+  });
+
+  it('turns AI review off and on', async () => {
+    p.assignment.update.mockResolvedValue({ id: 'a1', deadline: null });
+    await updateAssignment('a1', { aiReviewEnabled: false });
+    expect(p.assignment.update.mock.calls[0][0].data).toEqual({ aiReviewEnabled: false });
   });
 
   it('clears the AI instructions when the box is emptied', async () => {

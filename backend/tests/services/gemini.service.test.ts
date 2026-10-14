@@ -9,9 +9,11 @@ vi.mock('../../src/services/gemini-quota', () => ({
   markFreeTierExhausted: vi.fn(),
   markFreeTierAvailable: vi.fn(),
 }));
+vi.mock('../../src/services/settings.service', () => ({ getAiSettings: vi.fn() }));
 
 import { prisma } from '../../src/config/prisma';
 import * as quota from '../../src/services/gemini-quota';
+import * as settings from '../../src/services/settings.service';
 import { reviewCode, generateQuiz, GeminiError, paidCallCostUsd } from '../../src/services/gemini.service';
 
 /** A Gemini 200 response carrying `text` as the single candidate part. */
@@ -27,10 +29,13 @@ function geminiOk(text: string, usage: Record<string, number> = {}) {
 
 const p = prisma as any;
 const q = quota as any;
+const setPaidFallback = (paidFallback: string) =>
+  (settings.getAiSettings as any).mockResolvedValue({ paidFallback });
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.restoreAllMocks();
+  setPaidFallback('DAILY_QUOTA');
 });
 
 describe('gemini.service.reviewCode', () => {
@@ -361,6 +366,15 @@ describe('gemini.service — free and paid keys', () => {
     expect(q.markFreeTierExhausted).toHaveBeenCalledWith(undefined);
   });
 
+  it('does not ask Google again while the free tier is marked spent and no paid key is configured', async () => {
+    delete process.env.GEMINI_API_KEY_PAID;
+    q.routeFreeTier.mockResolvedValue('paid');
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    expect(await reviewCode('x', 'T').catch((e) => e)).toMatchObject({ kind: 'daily-quota', retryable: false });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('uses the paid key alone when it is the only one configured', async () => {
     delete process.env.GEMINI_API_KEY;
     const fetchMock = vi.fn().mockResolvedValue(answer());
@@ -377,6 +391,90 @@ describe('gemini.service — free and paid keys', () => {
     const err = await reviewCode('x', 'T').catch((e) => e);
     expect(err).toMatchObject({ status: 402, kind: 'config', retryable: false });
     expect(err.message).toMatch(/PAID key.*prepaid credit/);
+  });
+
+  describe('when the teacher never allows the paid key', () => {
+    beforeEach(() => setPaidFallback('NEVER'));
+
+    it('fails a spent daily quota for good instead of moving to the paid key', async () => {
+      const fetchMock = vi.fn().mockResolvedValue(quotaExceeded(DAILY, '20'));
+      vi.stubGlobal('fetch', fetchMock);
+      expect(await reviewCode('x', 'T').catch((e) => e)).toMatchObject({ kind: 'daily-quota', retryable: false });
+      expect(keysUsed(fetchMock)).toEqual(['test-gemini-key']);
+      expect(q.markFreeTierExhausted).toHaveBeenCalledWith(20);
+    });
+
+    it('stops the calls without asking Google while the free tier is marked spent', async () => {
+      q.routeFreeTier.mockResolvedValue('paid');
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+      expect(await reviewCode('x', 'T').catch((e) => e)).toMatchObject({ kind: 'daily-quota' });
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('still lets a recheck try the free key', async () => {
+      q.routeFreeTier.mockResolvedValue('recheck');
+      const fetchMock = vi.fn().mockResolvedValue(answer());
+      vi.stubGlobal('fetch', fetchMock);
+      await reviewCode('x', 'T');
+      expect(keysUsed(fetchMock)).toEqual(['test-gemini-key']);
+      expect(q.markFreeTierAvailable).toHaveBeenCalled();
+    });
+
+    it('treats a paid key that is the only one configured as no key at all', async () => {
+      delete process.env.GEMINI_API_KEY;
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+      const err = await reviewCode('x', 'T').catch((e) => e);
+      expect(err).toMatchObject({ kind: 'config', retryable: false });
+      expect(err.message).toMatch(/forbid the paid key/);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('when the teacher allows the paid key on any limit', () => {
+    beforeEach(() => setPaidFallback('ANY_LIMIT'));
+
+    it('moves a call that hit a per-minute limit to the paid key, without marking the free tier spent', async () => {
+      const fetchMock = vi.fn().mockResolvedValueOnce(quotaExceeded(PER_MINUTE, '10')).mockResolvedValueOnce(answer());
+      vi.stubGlobal('fetch', fetchMock);
+      await reviewCode('x', 'T');
+      expect(keysUsed(fetchMock)).toEqual(['test-gemini-key', 'test-paid-key']);
+      expect(q.markFreeTierExhausted).not.toHaveBeenCalled();
+      expect(p.aiUsageLog.create.mock.calls[0][0].data.tier).toBe('PAID');
+    });
+
+    it('moves a call that met an outage of the free key to the paid key', async () => {
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce({ ok: false, status: 503, text: async () => 'overloaded' })
+        .mockResolvedValueOnce(answer());
+      vi.stubGlobal('fetch', fetchMock);
+      await reviewCode('x', 'T');
+      expect(keysUsed(fetchMock)).toEqual(['test-gemini-key', 'test-paid-key']);
+    });
+
+    it('still moves a spent daily quota to the paid key and marks it', async () => {
+      const fetchMock = vi.fn().mockResolvedValueOnce(quotaExceeded(DAILY, '20')).mockResolvedValueOnce(answer());
+      vi.stubGlobal('fetch', fetchMock);
+      await reviewCode('x', 'T');
+      expect(keysUsed(fetchMock)).toEqual(['test-gemini-key', 'test-paid-key']);
+      expect(q.markFreeTierExhausted).toHaveBeenCalledWith(20);
+    });
+
+    it('does not retry a request the free key rejected as invalid', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 400, text: async () => '{}' });
+      vi.stubGlobal('fetch', fetchMock);
+      expect(await reviewCode('x', 'T').catch((e) => e)).toMatchObject({ kind: 'config' });
+      expect(keysUsed(fetchMock)).toEqual(['test-gemini-key']);
+    });
+
+    it('leaves a per-minute limit on the free key when no paid key is configured', async () => {
+      delete process.env.GEMINI_API_KEY_PAID;
+      const fetchMock = vi.fn().mockResolvedValue(quotaExceeded(PER_MINUTE, '10'));
+      vi.stubGlobal('fetch', fetchMock);
+      expect(await reviewCode('x', 'T').catch((e) => e)).toMatchObject({ kind: 'rate-limit', retryable: true });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
   });
 });
 

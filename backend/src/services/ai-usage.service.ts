@@ -6,6 +6,8 @@ import {
   learnedFreeDailyLimit,
   nextFreeQuotaReset,
 } from './gemini-quota';
+import { getAiSettings } from './settings.service';
+import type { AiPaidFallback } from '@prisma/client';
 
 export interface StorageUsage {
   usedBytes: number;
@@ -56,6 +58,8 @@ export interface TierUsage {
 export interface GeminiQuotaStatus {
   freeKeyConfigured: boolean;
   paidKeyConfigured: boolean;
+  /** The teacher's setting for when calls may move to the paid key. */
+  paidFallback: AiPaidFallback;
   /** Free-tier calls answered since the quota last reset. */
   freeRequestsToday: number;
   /** Free requests allowed per day: GEMINI_FREE_DAILY_LIMIT, else what Google reported. */
@@ -89,12 +93,13 @@ function configuredDailyLimit(): number | null {
 }
 
 export async function getSummary(): Promise<AiUsageSummary> {
-  const [logs, exhaustedUntil, learnedLimit] = await Promise.all([
+  const [logs, exhaustedUntil, learnedLimit, settings] = await Promise.all([
     prisma.aiUsageLog.findMany({
       select: { type: true, tier: true, tokensInput: true, tokensOutput: true, costUsd: true, createdAt: true },
     }),
     freeTierExhaustedUntil(),
     learnedFreeDailyLimit(),
+    getAiSettings(),
   ]);
 
   // Build the last 12 months as ordered buckets, newest first
@@ -147,6 +152,7 @@ export async function getSummary(): Promise<AiUsageSummary> {
     quota: {
       freeKeyConfigured: Boolean(process.env.GEMINI_API_KEY),
       paidKeyConfigured: Boolean(process.env.GEMINI_API_KEY_PAID),
+      paidFallback: settings.paidFallback,
       freeRequestsToday,
       freeDailyLimit: configuredDailyLimit() ?? learnedLimit,
       resetsAt: nextFreeQuotaReset(now).toISOString(),

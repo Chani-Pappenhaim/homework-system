@@ -18,6 +18,7 @@ vi.mock('../../src/config/prisma', () => ({
       create: vi.fn(),
       count: vi.fn(),
     },
+    appSettings: { findUnique: vi.fn(), upsert: vi.fn() },
   },
 }));
 
@@ -88,6 +89,7 @@ vi.mock('../../src/services/quizzes.service', () => ({
 vi.mock('../../src/services/ai-usage.service', () => ({
   getSummary: vi.fn(),
 }));
+vi.mock('../../src/services/ai-availability', () => ({ aiAvailability: vi.fn(), assertAiAvailable: vi.fn() }));
 
 import request from 'supertest';
 import { createApp } from '../../src/app';
@@ -100,6 +102,7 @@ import * as lessonsService from '../../src/services/lessons.service';
 import * as assignmentsService from '../../src/services/assignments.service';
 import * as quizzesService from '../../src/services/quizzes.service';
 import * as aiUsageService from '../../src/services/ai-usage.service';
+import * as aiAvailabilityModule from '../../src/services/ai-availability';
 import * as studentsService from '../../src/services/students.service';
 
 const p = prisma as any;
@@ -301,6 +304,38 @@ describe('ai-usage controller', () => {
     // The real cause (which could be a DB / secret detail) must never reach the client.
     expect(res.body.error).not.toContain('boom');
     expect(res.body.error).toBe(GENERIC_SERVER_ERROR);
+  });
+
+  it('GET /api/ai-usage/availability answers any signed-in user', async () => {
+    const status = { available: false, reason: 'daily-quota', resumesAt: '2026-10-15T07:00:00.000Z' };
+    (aiAvailabilityModule.aiAvailability as any).mockResolvedValue(status);
+    const res = await request(app).get('/api/ai-usage/availability').set(...bearer(student));
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual(status);
+  });
+
+  it('GET /api/ai-usage/availability needs a signed-in user', async () => {
+    const res = await request(app).get('/api/ai-usage/availability');
+    expect(res.status).toBe(401);
+  });
+
+  it('PUT /api/ai-usage/settings is admin-only', async () => {
+    const res = await request(app).put('/api/ai-usage/settings').set(...bearer(student)).send({ paidFallback: 'NEVER' });
+    expect(res.status).toBe(403);
+    expect(p.appSettings.upsert).not.toHaveBeenCalled();
+  });
+
+  it('PUT /api/ai-usage/settings saves a valid choice', async () => {
+    p.appSettings.upsert.mockResolvedValue({ id: 'app', aiPaidFallback: 'NEVER' });
+    const res = await request(app).put('/api/ai-usage/settings').set(...bearer(admin)).send({ paidFallback: 'NEVER' });
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ paidFallback: 'NEVER' });
+  });
+
+  it('PUT /api/ai-usage/settings rejects an unknown choice with 400', async () => {
+    const res = await request(app).put('/api/ai-usage/settings').set(...bearer(admin)).send({ paidFallback: 'ALWAYS' });
+    expect(res.status).toBe(400);
+    expect(p.appSettings.upsert).not.toHaveBeenCalled();
   });
 });
 

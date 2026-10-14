@@ -2,11 +2,12 @@ import type { AiTier } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import type { InlineAttachment } from '../utils/code-extraction';
 import { markFreeTierAvailable, markFreeTierExhausted, routeFreeTier } from './gemini-quota';
+import { getAiSettings } from './settings.service';
 
 // Billing belongs to a Google Cloud project, and a key inherits it, so each tier
 // needs its own key: GEMINI_API_KEY from a project without billing (free),
 // GEMINI_API_KEY_PAID from a billed one. With both set, the paid key serves
-// calls only while the free daily quota is spent.
+// calls as the teacher's paidFallback setting allows (see callGemini).
 // Read lazily (not at module load) so a missing key produces a clear error at
 // call time instead of an `undefined` sneaking into the request URL.
 const freeApiKey = () => process.env.GEMINI_API_KEY || undefined;
@@ -212,7 +213,12 @@ async function requestGemini(
  *
  * Calls go to the free key. Once it spends its daily quota they go to the paid
  * key until the quota resets, with one call every half hour trying the free
- * key again; short-term limits and outages never move a call to the paid key.
+ * key again. The teacher's paidFallback setting decides the rest:
+ * - DAILY_QUOTA — short-term limits and outages never move a call to the paid key;
+ * - ANY_LIMIT   — a per-minute limit or an outage of the free key moves that one
+ *                 call to the paid key, without marking the free tier spent;
+ * - NEVER       — the paid key is never used, so a spent free quota stops the
+ *                 calls until it resets, without asking Google again.
  */
 async function callGemini(
   systemPrompt: string,
@@ -220,10 +226,17 @@ async function callGemini(
   usageType: string,
   attachments: InlineAttachment[] = []
 ): Promise<any> {
+  const { paidFallback } = await getAiSettings();
   const freeKey = freeApiKey();
-  const paidKey = paidApiKey();
+  const paidKey = paidFallback === 'NEVER' ? undefined : paidApiKey();
   if (!freeKey && !paidKey) {
-    throw new GeminiError('GEMINI_API_KEY is not configured — AI features are disabled', 'config', false);
+    throw new GeminiError(
+      paidApiKey()
+        ? 'Only GEMINI_API_KEY_PAID is configured, and the AI settings forbid the paid key — AI features are disabled'
+        : 'GEMINI_API_KEY is not configured — AI features are disabled',
+      'config',
+      false
+    );
   }
 
   const startedAt = Date.now();
@@ -245,7 +258,12 @@ async function callGemini(
     generationConfig: { responseMimeType: 'application/json' },
   });
 
-  const route = !freeKey ? 'paid' : !paidKey ? 'free' : await routeFreeTier();
+  const route = !freeKey ? 'paid' : await routeFreeTier();
+  if (route === 'paid' && !paidKey) {
+    // The free tier is marked spent and no paid key may take over: asking
+    // Google again would only return the same 429.
+    throw new DailyQuotaError(`Gemini free daily quota is spent and the paid key ${paidApiKey() ? 'is not allowed' : 'is not configured'}`);
+  }
   let tier: AiTier = 'PAID';
   let data: any;
   if (route !== 'paid') {
@@ -257,10 +275,20 @@ async function callGemini(
         console.log('[gemini] the free tier answers again — back to the free key');
       }
     } catch (err) {
-      if (!(err instanceof DailyQuotaError)) throw err;
-      const until = await markFreeTierExhausted(err.dailyLimit);
-      if (!paidKey) throw err;
-      console.warn(`[gemini] free daily quota spent — using the paid key until ${until.toISOString()}`);
+      if (err instanceof DailyQuotaError) {
+        const until = await markFreeTierExhausted(err.dailyLimit);
+        if (!paidKey) throw err;
+        console.warn(`[gemini] free daily quota spent — using the paid key until ${until.toISOString()}`);
+      } else if (
+        paidKey &&
+        paidFallback === 'ANY_LIMIT' &&
+        err instanceof GeminiError &&
+        (err.kind === 'rate-limit' || err.kind === 'unavailable')
+      ) {
+        console.warn(`[gemini] free key failed (${err.kind}) — this call goes to the paid key: ${err.message}`);
+      } else {
+        throw err;
+      }
     }
   }
   if (data === undefined) data = await requestGemini(paidKey!, 'PAID', body, usageType, elapsed);

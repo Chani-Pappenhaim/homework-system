@@ -195,18 +195,21 @@ model LessonFileView {
 }
 
 model Assignment {
-  id             String    @id @default(uuid())
-  lessonId       String
-  lesson         Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  title          String
-  description    String?
-  deadline       DateTime?
-  allowedTypes   String[]  @default([])
-  allowGithub    Boolean   @default(true)
-  allowFile      Boolean   @default(true)
-  requirements   Json?
-  aiInstructions String?
-  createdAt      DateTime  @default(now())
+  id              String    @id @default(uuid())
+  lessonId        String
+  lesson          Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  deadline        DateTime?
+  allowedTypes    String[]  @default([])
+  allowGithub     Boolean   @default(true)
+  allowFile       Boolean   @default(true)
+  requirements    Json?
+  aiInstructions  String?
+  // Off for exercises the teacher never wants an AI to check: no review can be
+  // requested or rerun, and a review already queued ends with a message.
+  aiReviewEnabled Boolean   @default(true)
+  createdAt       DateTime  @default(now())
 
   submissions Submission[]
 }
@@ -257,6 +260,21 @@ model Grade {
 enum AiTier {
   FREE
   PAID
+}
+
+// When calls may move from the free Gemini key to the paid one.
+enum AiPaidFallback {
+  DAILY_QUOTA // only once the free daily quota is spent
+  ANY_LIMIT // also on a per-minute limit or an outage of the free key
+  NEVER // never: AI actions stop until the free quota resets
+}
+
+// Site-wide settings the teacher changes from the dashboard. A single row,
+// created the first time she saves; until then the defaults apply.
+model AppSettings {
+  id             String         @id @default("app")
+  aiPaidFallback AiPaidFallback @default(DAILY_QUOTA)
+  updatedAt      DateTime       @updatedAt
 }
 
 model AiUsageLog {

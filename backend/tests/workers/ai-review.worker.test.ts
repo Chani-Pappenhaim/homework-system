@@ -118,6 +118,18 @@ describe('ai-review worker', () => {
     expect(errorData()).toEqual({ aiStatus: 'error', aiError: expect.stringContaining('הריפו לא נמצא') });
   });
 
+  it('ends a queued review with a message once the teacher turns AI review off for the assignment', async () => {
+    p.submission.findUnique.mockResolvedValue({
+      id: 's9', githubUrl: 'https://github.com/u/r', fileName: null, fileUrl: null,
+      assignment: { title: 'T', aiReviewEnabled: false }, student: {},
+    });
+
+    await expect(run('s9', { attemptsMade: 0, attempts: 3 })).rejects.toThrow(/disabled/);
+    expect(codeExtraction.fetchGithubCode).not.toHaveBeenCalled();
+    expect(gemini.reviewCode).not.toHaveBeenCalled();
+    expect(errorData()).toEqual({ aiStatus: 'error', aiError: 'המורה ביטלה את בדיקת ה-AI במטלה זו.' });
+  });
+
   it('does not send an empty submission to the AI', async () => {
     p.submission.findUnique.mockResolvedValue({
       id: 's7', githubUrl: 'https://github.com/u/r', fileName: null, fileUrl: null,

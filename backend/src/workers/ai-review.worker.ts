@@ -30,6 +30,13 @@ export function registerAiReviewWorker(connection: IORedis): Worker<AiReviewJobD
           include: { assignment: true, student: true },
         });
         if (!submission) throw new Error('Submission not found');
+        // The teacher may turn AI review off while a review is still queued.
+        if (submission.assignment?.aiReviewEnabled === false) {
+          throw new AiReviewInputError(
+            'AI review is disabled for this assignment',
+            'המורה ביטלה את בדיקת ה-AI במטלה זו.'
+          );
+        }
 
         const fileRef = (submission.fileName || submission.fileUrl || '').toLowerCase();
 

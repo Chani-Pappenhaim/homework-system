@@ -3,6 +3,7 @@ import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
 import { assertLessonAccess } from '../utils/access';
 import { quizQueue } from '../infrastructure/queues/queues';
+import { assertAiAvailable } from './ai-availability';
 import { quizExcludedFiles } from '../utils/code-extraction';
 import type {
   QuizJobProgress, QuizFailureKind, QuizGenerationStage, QuizSourceFiles,
@@ -43,7 +44,7 @@ function failedMessage(role: string): string {
 const TEACHER_FAILURE_MESSAGES: Record<Exclude<QuizFailureKind, 'no-content' | 'unknown'>, string> = {
   timeout: 'ה-AI לא הספיק לענות בזמן, גם אחרי כמה ניסיונות. נסי שוב בעוד כמה דקות; אם צירפת קבצים גדולים, אפשר לנסות גם בלעדיהם.',
   'rate-limit': 'הגענו כרגע למכסת השימוש ב-AI. נסי שוב בעוד כמה דקות.',
-  'daily-quota': 'המכסה היומית החינמית של ה-AI נגמרה, ומפתח בתשלום לא מוגדר. המכסה מתאפסת כל יום בסביבות 10:00 בבוקר (חצות בשעון קליפורניה) — נסי שוב אחרי כן.',
+  'daily-quota': 'המכסה היומית החינמית של ה-AI נגמרה, והמעבר לגרסה בתשלום אינו זמין (מפתח בתשלום לא מוגדר, או שהמעבר כבוי בהגדרות ה-AI). המכסה מתאפסת כל יום בסביבות 10:00 בבוקר (חצות בשעון קליפורניה) — נסי שוב אחרי כן.',
   unavailable: 'שירות ה-AI לא זמין כרגע. נסי שוב בעוד כמה דקות.',
   config: 'שירות ה-AI לא מוגדר כראוי בשרת, ולכן ניסיון נוסף לא יעזור. פני לתמיכה הטכנית.',
   blocked: 'מסנן התוכן של ה-AI סירב לעבד את תוכן השיעור. נסי לנסח מחדש קטעים רגישים, או ליצור בלי הקבצים המצורפים.',
@@ -316,6 +317,7 @@ export async function requestQuizGeneration(
   if (!lesson.contentMd?.trim()) {
     throw new AppError('Lesson has no content to generate a quiz from', noContentMessage(role), 409);
   }
+  await assertAiAvailable();
 
   // Files are opt-in (checkbox, default off) because feeding them to Gemini
   // can meaningfully raise the cost of a single generation — the markdown
