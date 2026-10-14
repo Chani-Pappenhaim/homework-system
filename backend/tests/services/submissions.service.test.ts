@@ -830,7 +830,7 @@ describe('submissions.service.requestAiReview', () => {
 describe('submissions.service.deleteMySubmission', () => {
   const ownSub = (over: any = {}) => ({
     id: 'sub1', studentId: 's1', fileUrl: 'https://res.cloudinary.com/x/raw/upload/v1/submissions/a.zip',
-    aiStatus: 'none', aiReviewCount: 0,
+    aiStatus: 'none', aiReviewCount: 0, aiApproved: false,
     grade: { gradedById: null, contentScore: null, feedback: null, contentApproved: false },
     ...over,
   });
@@ -840,7 +840,7 @@ describe('submissions.service.deleteMySubmission', () => {
     p.submission.deleteMany.mockResolvedValue({ count: 1 });
     await deleteMySubmission('sub1', 's1');
     expect(p.submission.deleteMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ id: 'sub1', studentId: 's1', aiReviewCount: 0 }),
+      where: expect.objectContaining({ id: 'sub1', studentId: 's1', aiApproved: false }),
     }));
     expect(releaseMock).toHaveBeenCalledWith([ownSub().fileUrl]);
   });
@@ -854,12 +854,19 @@ describe('submissions.service.deleteMySubmission', () => {
   it.each([
     ['the teacher gave feedback', { grade: { gradedById: 't1', contentScore: null, feedback: 'טוב', contentApproved: false } }],
     ['the teacher gave a content score', { grade: { gradedById: null, contentScore: 90, feedback: null, contentApproved: false } }],
-    ['an AI review already ran', { aiReviewCount: 1 }],
+    ['the teacher approved the AI review', { aiApproved: true }],
     ['an AI review is running', { aiStatus: 'pending' }],
   ])('refuses when %s', async (_label, over) => {
     p.submission.findUnique.mockResolvedValue(ownSub(over));
     await expect(deleteMySubmission('sub1', 's1')).rejects.toMatchObject({ status: 409 });
     expect(p.submission.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('allows deleting after an AI review the teacher has not looked at', async () => {
+    p.submission.findUnique.mockResolvedValue(ownSub({ aiStatus: 'done', aiReviewCount: 1, aiScore: 80 }));
+    p.submission.deleteMany.mockResolvedValue({ count: 1 });
+    await deleteMySubmission('sub1', 's1');
+    expect(p.submission.deleteMany).toHaveBeenCalled();
   });
 
   it('keeps the file when the submission changed before the delete ran', async () => {
