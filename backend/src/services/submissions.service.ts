@@ -390,13 +390,20 @@ export async function rerunAiReview(submissionId: string) {
   );
 }
 
-export async function approveAiReview(submissionId: string) {
+export async function approveAiReview(submissionId: string, gradedById: string) {
+  const submission = await prisma.submission.findUnique({ where: { id: submissionId }, include: { grade: true } });
+  if (!submission) throw new AppError('Submission not found', 'ההגשה לא נמצאה', 404);
   // Also publishes the content score, matching the previous single-flag
   // behavior (aiApproved used to gate both the AI fields and contentScore).
+  // A content score the teacher never set takes the AI's, so approving the AI
+  // never publishes an empty content score.
+  const fillFromAi = submission.grade?.contentScore == null && submission.aiScore != null
+    ? { contentScore: submission.aiScore, gradedById, gradedAt: new Date() }
+    : {};
   await prisma.grade.upsert({
     where: { submissionId },
-    create: { submissionId, contentApproved: true },
-    update: { contentApproved: true },
+    create: { submissionId, contentApproved: true, ...fillFromAi },
+    update: { contentApproved: true, ...fillFromAi },
   });
   return prisma.submission.update({
     where: { id: submissionId },
@@ -461,6 +468,49 @@ export async function restoreAiScore(submissionId: string, gradedById: string) {
     create: { submissionId: submission.id, gradedById, contentScore: submission.aiScore },
     update: { contentScore: submission.aiScore, gradedAt: new Date(), gradedById },
   });
+}
+
+type AiReviewEdit = { aiScore?: unknown; aiVerbalReview?: unknown; aiCodeReview?: unknown };
+
+/**
+ * The teacher's correction of a finished AI review — its score and/or its
+ * comments. A saved content score that still is the AI's follows the new AI
+ * score; one the teacher set herself stays as it is. An unset one stays unset,
+ * so the submission stays in her "to grade" queue (the grading form suggests
+ * the AI score there).
+ */
+export async function updateAiReview(submissionId: string, edit: AiReviewEdit, gradedById: string) {
+  const data: { aiScore?: number; aiVerbalReview?: string | null; aiCodeReview?: string | null } = {};
+  if (edit?.aiScore !== undefined) {
+    const n = typeof edit.aiScore === 'number' ? edit.aiScore : Number(edit.aiScore);
+    if (edit.aiScore === null || edit.aiScore === '' || !Number.isFinite(n) || n < 0 || n > 100) {
+      throw new AppError('Invalid AI score', 'ציון ה-AI חייב להיות מספר בין 0 ל-100', 400);
+    }
+    data.aiScore = n;
+  }
+  for (const key of ['aiVerbalReview', 'aiCodeReview'] as const) {
+    const value = edit?.[key];
+    if (value === undefined) continue;
+    if (value !== null && typeof value !== 'string') throw new AppError(`Invalid ${key}`, 'הערות ה-AI אינן תקינות', 400);
+    data[key] = value?.trim() ? value : null;
+  }
+  if (Object.keys(data).length === 0) throw new AppError('Nothing to update', 'לא נשלח שינוי', 400);
+
+  const submission = await prisma.submission.findUnique({ where: { id: submissionId }, include: { grade: true } });
+  if (!submission) throw new AppError('Submission not found', 'ההגשה לא נמצאה', 404);
+  if (submission.aiStatus !== 'done') {
+    throw new AppError('No finished AI review', 'אין בדיקת AI שהסתיימה להגשה זו', 400);
+  }
+
+  const updated = await prisma.submission.update({ where: { id: submissionId }, data });
+  const contentScore = submission.grade?.contentScore;
+  if (data.aiScore !== undefined && contentScore != null && contentScore === submission.aiScore) {
+    await prisma.grade.update({
+      where: { submissionId },
+      data: { contentScore: data.aiScore, gradedAt: new Date(), gradedById },
+    });
+  }
+  return updated;
 }
 
 export async function allowExtraAiReview(submissionId: string) {

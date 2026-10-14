@@ -19,6 +19,7 @@ router.post('/:id/video-upload-signature', requireRole('STUDENT'), submissionsCo
 router.post('/:id/request-ai-review', aiRateLimit, requireRole('STUDENT'), submissionsController.requestAiReview);
 router.post('/:id/rerun-ai-review', aiRateLimit, requireRole('ADMIN'), submissionsController.rerunAiReview);
 router.post('/:id/approve-ai', requireRole('ADMIN'), submissionsController.approveAiReview);
+router.patch('/:id/ai-review', requireRole('ADMIN'), submissionsController.updateAiReview);
 router.post('/:id/allow-extra-ai', requireRole('ADMIN'), submissionsController.allowExtraAiReview);
 router.post('/:id/restore-ai-score', requireRole('ADMIN'), submissionsController.restoreAiScore);
 router.post('/:id/approve-content', requireRole('ADMIN'), submissionsController.approveContentScore);

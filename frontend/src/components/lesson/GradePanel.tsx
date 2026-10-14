@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ExternalLink, Github, Bot, RotateCcw, CheckCircle, Sparkles, RefreshCw, ChevronLeft } from 'lucide-react';
+import { ExternalLink, Github, Bot, RotateCcw, CheckCircle, Sparkles, RefreshCw, ChevronLeft, Pencil } from 'lucide-react';
 import { gradesApi } from '@/api/grades.api';
 import { submissionsApi } from '@/api/submissions.api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { MarkdownField } from '@/components/ui/markdown-field';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { useToast } from '@/components/ui/toast';
@@ -23,6 +24,10 @@ interface GradeForm {
 
 type SaveMode = 'save' | 'approve' | 'next';
 
+/** The finished AI review's score, as the content score it suggests ('' when there is none). */
+const aiSuggestion = (s: Pick<SubmissionDTO, 'aiStatus' | 'aiScore'>) =>
+  s.aiStatus === 'done' && s.aiScore != null ? String(s.aiScore) : '';
+
 function initialForm(submission: SubmissionDTO, assignment: AssignmentDTO): GradeForm {
   const checklist = assignment.requirements?.map((r) => ({
     id: r.id, text: r.text,
@@ -33,7 +38,8 @@ function initialForm(submission: SubmissionDTO, assignment: AssignmentDTO): Grad
   const suggested = Math.max(0, 100 - (submission.isLate ? 10 : 0) - unchecked * 5);
   return {
     submissionScore: String(submission.grade?.submissionScore ?? suggested),
-    contentScore: submission.grade?.contentScore != null ? String(submission.grade.contentScore) : '',
+    // No content score yet: the finished AI review's score is the suggestion.
+    contentScore: submission.grade?.contentScore != null ? String(submission.grade.contentScore) : aiSuggestion(submission),
     feedback: submission.grade?.feedback ?? '',
     checklist,
   };
@@ -63,6 +69,23 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
   const [overrides, setOverrides] = useState<Partial<SubmissionDTO>>({});
   useEffect(() => setOverrides({}), [submission]);
   const local = { ...submission, ...overrides };
+
+  // An AI review that finishes (or that she corrects) while the panel is open
+  // updates a content score that is still the AI's suggestion and untouched —
+  // never one she typed or set herself. A review going back to pending keeps
+  // the last suggestion.
+  const lastAiSuggestion = useRef(aiSuggestion(submission));
+  useEffect(() => {
+    const next = aiSuggestion(local);
+    const prev = lastAiSuggestion.current;
+    if (!next || next === prev) return;
+    lastAiSuggestion.current = next;
+    if (form.contentScore === baseline.contentScore && (baseline.contentScore === prev || baseline.contentScore === '')) {
+      setForm((f) => ({ ...f, contentScore: next }));
+      setBaseline((b) => ({ ...b, contentScore: next }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [local.aiStatus, local.aiScore]);
 
   const dirty = !sameForm(form, baseline);
   useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
@@ -139,6 +162,35 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
     },
   });
 
+  // Correcting the AI's score and comments.
+  const [aiEdit, setAiEdit] = useState<{ aiScore: string; aiVerbalReview: string; aiCodeReview: string } | null>(null);
+  const startAiEdit = () => setAiEdit({
+    aiScore: local.aiScore?.toString() ?? '',
+    aiVerbalReview: local.aiVerbalReview ?? '',
+    aiCodeReview: local.aiCodeReview ?? '',
+  });
+  const aiEditScoreValid = aiEdit != null && aiEdit.aiScore !== ''
+    && Number(aiEdit.aiScore) >= 0 && Number(aiEdit.aiScore) <= 100;
+  const updateAiMutation = useMutation({
+    mutationFn: (edit: { aiScore: number; aiVerbalReview: string | null; aiCodeReview: string | null }) =>
+      submissionsApi.updateAiReview(local.id, edit),
+    onSuccess: (_, edit) => {
+      setOverrides((prev) => ({ ...prev, ...edit }));
+      setAiEdit(null);
+      invalidateSubmissions();
+      toast.success('בדיקת ה-AI עודכנה');
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'עדכון בדיקת ה-AI נכשל')),
+  });
+  const saveAiEdit = () => {
+    if (!aiEdit || !aiEditScoreValid) return;
+    updateAiMutation.mutate({
+      aiScore: Number(aiEdit.aiScore),
+      aiVerbalReview: aiEdit.aiVerbalReview.trim() ? aiEdit.aiVerbalReview : null,
+      aiCodeReview: aiEdit.aiCodeReview.trim() ? aiEdit.aiCodeReview : null,
+    });
+  };
+
   const allowExtraAiMutation = useMutation({
     mutationFn: () => submissionsApi.allowExtraAi(local.id),
     onSuccess: () => {
@@ -179,6 +231,11 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
               <Bot size={14} /> בדיקת AI — ציון: {local.aiScore ?? '—'}
             </p>
             <div className="flex flex-wrap items-center gap-2">
+              {!aiEdit && (
+                <Button size="sm" variant="outline" onClick={startAiEdit}>
+                  <Pencil size={12} /> עריכת ציון והערות AI
+                </Button>
+              )}
               {local.aiApproved ? (
                 <Badge variant="success"><CheckCircle size={10} className="ml-1" /> אושר לתלמידה</Badge>
               ) : (
@@ -211,6 +268,40 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
               )}
             </div>
           </div>
+          {aiEdit ? (
+            <div className="space-y-2 pt-1">
+              <Input
+                label="ציון AI (0–100)" type="number" min={0} max={100}
+                value={aiEdit.aiScore}
+                onChange={(e) => setAiEdit((prev) => prev && { ...prev, aiScore: e.target.value })}
+              />
+              <label className="block text-xs font-medium text-ink/70">
+                הערה מילולית
+                <Textarea
+                  className="mt-1" rows={3}
+                  value={aiEdit.aiVerbalReview}
+                  onChange={(e) => setAiEdit((prev) => prev && { ...prev, aiVerbalReview: e.target.value })}
+                />
+              </label>
+              <label className="block text-xs font-medium text-ink/70">
+                הערות קוד
+                <Textarea
+                  className="mt-1 font-mono" rows={5}
+                  value={aiEdit.aiCodeReview}
+                  onChange={(e) => setAiEdit((prev) => prev && { ...prev, aiCodeReview: e.target.value })}
+                />
+              </label>
+              {!aiEditScoreValid && <p className="text-xs text-coral">ציון ה-AI חייב להיות מספר בין 0 ל-100</p>}
+              <div className="flex gap-2">
+                <Button size="sm" loading={updateAiMutation.isPending} disabled={!aiEditScoreValid} onClick={saveAiEdit}>
+                  שמירת בדיקת ה-AI
+                </Button>
+                <Button size="sm" variant="outline" disabled={updateAiMutation.isPending} onClick={() => setAiEdit(null)}>
+                  ביטול
+                </Button>
+              </div>
+            </div>
+          ) : (<>
           {local.aiVerbalReview && (
             <p className="text-xs text-ink/70 whitespace-pre-wrap">{local.aiVerbalReview}</p>
           )}
@@ -224,6 +315,7 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
               )}
             </div>
           )}
+          </>)}
         </div>
       )}
 
@@ -275,6 +367,9 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
 
         <div>
           <Input label="ציון תוכן (0–100)" type="number" min={0} max={100} value={form.contentScore} onChange={(e) => setField('contentScore', e.target.value)} placeholder="90" />
+          {local.grade?.contentScore == null && form.contentScore !== '' && form.contentScore === aiSuggestion(local) && (
+            <p className="mt-1 flex items-center gap-1 text-xs text-indigo"><Bot size={11} /> הוצע מבדיקת ה-AI — יישמר עם שמירת הציון</p>
+          )}
           {local.grade?.contentApproved ? (
             <p className="mt-1 flex items-center gap-1 text-xs text-sage"><CheckCircle size={11} /> מאושר וגלוי לתלמידה</p>
           ) : (

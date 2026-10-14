@@ -5,7 +5,7 @@ vi.mock('../../src/config/prisma', () => ({
     assignment: { findUnique: vi.fn(), findMany: vi.fn(), findFirst: vi.fn() },
     user: { findUnique: vi.fn() },
     submission: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
-    grade: { findUnique: vi.fn(), upsert: vi.fn() },
+    grade: { findUnique: vi.fn(), upsert: vi.fn(), update: vi.fn() },
   },
 }));
 
@@ -52,6 +52,8 @@ import {
   rerunAiReview,
   requestAiReview,
   deleteMySubmission,
+  approveAiReview,
+  updateAiReview,
 } from '../../src/services/submissions.service';
 
 process.env.CLOUDINARY_CLOUD_NAME = 'our-cloud';
@@ -668,6 +670,86 @@ describe('submissions.service rerunAiReview', () => {
     await expect(rerunAiReview('s1')).rejects.toMatchObject({ status: 503 });
     expect(p.submission.update).not.toHaveBeenCalled();
     expect(aiQueueAdd).not.toHaveBeenCalled();
+  });
+});
+
+describe('submissions.service.approveAiReview', () => {
+  it('fills an unset content score with the AI score, so the approval never publishes an empty one', async () => {
+    p.submission.findUnique.mockResolvedValue({ id: 's1', aiScore: 88, grade: null });
+    await approveAiReview('s1', 't1');
+    const call = p.grade.upsert.mock.calls[0][0];
+    expect(call.create).toMatchObject({ submissionId: 's1', contentApproved: true, contentScore: 88, gradedById: 't1' });
+    expect(call.update).toMatchObject({ contentApproved: true, contentScore: 88, gradedById: 't1' });
+    expect(p.submission.update).toHaveBeenCalledWith({ where: { id: 's1' }, data: { aiApproved: true } });
+  });
+
+  it('keeps a content score the teacher already set', async () => {
+    p.submission.findUnique.mockResolvedValue({ id: 's1', aiScore: 88, grade: { contentScore: 70 } });
+    await approveAiReview('s1', 't1');
+    const call = p.grade.upsert.mock.calls[0][0];
+    expect(call.update).toEqual({ contentApproved: true });
+  });
+
+  it('throws 404 for a missing submission', async () => {
+    p.submission.findUnique.mockResolvedValue(null);
+    await expect(approveAiReview('nope', 't1')).rejects.toMatchObject({ status: 404 });
+    expect(p.grade.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe('submissions.service.updateAiReview', () => {
+  it('saves the corrected score and comments', async () => {
+    p.submission.findUnique.mockResolvedValue({ id: 's1', aiStatus: 'done', aiScore: 88, grade: null });
+    await updateAiReview('s1', { aiScore: 75, aiVerbalReview: 'טוב', aiCodeReview: '' }, 't1');
+    expect(p.submission.update).toHaveBeenCalledWith({
+      where: { id: 's1' }, data: { aiScore: 75, aiVerbalReview: 'טוב', aiCodeReview: null },
+    });
+    // No content score yet: it stays unset, so the submission stays in the grading queue.
+    expect(p.grade.update).not.toHaveBeenCalled();
+    expect(p.grade.upsert).not.toHaveBeenCalled();
+  });
+
+  it('moves a content score that still is the AI score along with it', async () => {
+    p.submission.findUnique.mockResolvedValue({ id: 's1', aiStatus: 'done', aiScore: 88, grade: { contentScore: 88 } });
+    await updateAiReview('s1', { aiScore: 75 }, 't1');
+    expect(p.grade.update).toHaveBeenCalledWith({
+      where: { submissionId: 's1' }, data: expect.objectContaining({ contentScore: 75, gradedById: 't1' }),
+    });
+  });
+
+  it('leaves a content score the teacher set herself', async () => {
+    p.submission.findUnique.mockResolvedValue({ id: 's1', aiStatus: 'done', aiScore: 88, grade: { contentScore: 60 } });
+    await updateAiReview('s1', { aiScore: 75 }, 't1');
+    expect(p.grade.update).not.toHaveBeenCalled();
+  });
+
+  it('only edits the comments when no score is sent', async () => {
+    p.submission.findUnique.mockResolvedValue({ id: 's1', aiStatus: 'done', aiScore: 88, grade: { contentScore: 88 } });
+    await updateAiReview('s1', { aiVerbalReview: 'הערה' }, 't1');
+    expect(p.submission.update).toHaveBeenCalledWith({ where: { id: 's1' }, data: { aiVerbalReview: 'הערה' } });
+    expect(p.grade.update).not.toHaveBeenCalled();
+  });
+
+  it.each([[-1], [101], ['abc'], [null], ['']])('rejects the score %s', async (aiScore) => {
+    await expect(updateAiReview('s1', { aiScore }, 't1')).rejects.toMatchObject({ status: 400 });
+    expect(p.submission.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects comments that are not text, and an empty edit', async () => {
+    await expect(updateAiReview('s1', { aiCodeReview: 5 }, 't1')).rejects.toMatchObject({ status: 400 });
+    await expect(updateAiReview('s1', {}, 't1')).rejects.toMatchObject({ status: 400 });
+    expect(p.submission.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses a submission without a finished AI review', async () => {
+    p.submission.findUnique.mockResolvedValue({ id: 's1', aiStatus: 'pending', aiScore: null, grade: null });
+    await expect(updateAiReview('s1', { aiScore: 70 }, 't1')).rejects.toMatchObject({ status: 400 });
+    expect(p.submission.update).not.toHaveBeenCalled();
+  });
+
+  it('throws 404 for a missing submission', async () => {
+    p.submission.findUnique.mockResolvedValue(null);
+    await expect(updateAiReview('nope', { aiScore: 70 }, 't1')).rejects.toMatchObject({ status: 404 });
   });
 });
 
