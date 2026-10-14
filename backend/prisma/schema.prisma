@@ -252,12 +252,20 @@ model Grade {
   gradedBy        User?      @relation(fields: [gradedById], references: [id])
 }
 
+// Which Gemini project answered a call: the free one, or the billed fallback
+// used once the free daily quota is spent.
+enum AiTier {
+  FREE
+  PAID
+}
+
 model AiUsageLog {
   id           String   @id @default(uuid())
   type         String
+  tier         AiTier   @default(FREE)
   tokensInput  Int
-  tokensOutput Int
-  costUsd      Float
+  tokensOutput Int // answer + thinking tokens: both are billed as output
+  costUsd      Float // amount billed; 0 on the free tier
   createdAt    DateTime @default(now())
 }
 

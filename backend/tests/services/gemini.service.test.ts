@@ -1,11 +1,18 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('../../src/config/prisma', () => ({
   prisma: { aiUsageLog: { create: vi.fn() } },
 }));
+// The free-tier state lives in Redis; each test sets where calls are routed.
+vi.mock('../../src/services/gemini-quota', () => ({
+  routeFreeTier: vi.fn(),
+  markFreeTierExhausted: vi.fn(),
+  markFreeTierAvailable: vi.fn(),
+}));
 
 import { prisma } from '../../src/config/prisma';
-import { reviewCode, generateQuiz, GeminiError } from '../../src/services/gemini.service';
+import * as quota from '../../src/services/gemini-quota';
+import { reviewCode, generateQuiz, GeminiError, paidCallCostUsd } from '../../src/services/gemini.service';
 
 /** A Gemini 200 response carrying `text` as the single candidate part. */
 function geminiOk(text: string, usage: Record<string, number> = {}) {
@@ -19,6 +26,7 @@ function geminiOk(text: string, usage: Record<string, number> = {}) {
 }
 
 const p = prisma as any;
+const q = quota as any;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -26,31 +34,26 @@ beforeEach(() => {
 });
 
 describe('gemini.service.reviewCode', () => {
-  it('parses the Gemini JSON response and logs usage/cost', async () => {
+  it('parses the Gemini JSON response and logs a free-tier call at no cost', async () => {
     const geminiJson = JSON.stringify({ code_review: '• fix', verbal_review: 'good work', score: 85 });
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        candidates: [{ content: { parts: [{ text: geminiJson }] } }],
-        usageMetadata: { promptTokenCount: 1_000_000, candidatesTokenCount: 1_000_000 },
-      }),
-    });
-    vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      geminiOk(geminiJson, { promptTokenCount: 100, candidatesTokenCount: 20, thoughtsTokenCount: 30 }),
+    ));
     p.aiUsageLog.create.mockResolvedValue({});
 
     const r = await reviewCode('const x=1', 'Task', 'be strict');
     expect(r).toEqual({ codeReview: '• fix', verbalReview: 'good work', score: 85 });
-    // cost = 1M/1M*0.10 + 1M/1M*0.40 = 0.5
-    expect(p.aiUsageLog.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ type: 'homework_review', costUsd: expect.closeTo(0.5, 5) }),
-    }));
+    // Thinking tokens count as output.
+    expect(p.aiUsageLog.create).toHaveBeenCalledWith({
+      data: { type: 'homework_review', tier: 'FREE', tokensInput: 100, tokensOutput: 50, costUsd: 0 },
+    });
   });
 
   it('throws when the Gemini API responds not-ok', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: false, status: 500, text: async () => 'boom',
     }));
-    await expect(reviewCode('x', 'T')).rejects.toThrow(/Gemini API error: 500/);
+    await expect(reviewCode('x', 'T')).rejects.toThrow(/Gemini API error \(FREE key\): 500/);
   });
 
   it('defaults missing fields to empty/0', async () => {
@@ -84,7 +87,7 @@ describe('gemini.service — failure reporting', () => {
       status: 400,
       text: async () => JSON.stringify({ error: { message: 'API key not valid' } }),
     }));
-    await expect(generateQuiz('content')).rejects.toThrow(/Gemini API error: 400 API key not valid/);
+    await expect(generateQuiz('content')).rejects.toThrow(/Gemini API error \(FREE key\): 400 API key not valid/);
   });
 
   it('reports an unreachable API (DNS/TLS) rather than a bare fetch failure', async () => {
@@ -222,5 +225,175 @@ describe('gemini.service.generateQuiz — attached files', () => {
   it('marks a rate limit as worth retrying', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 429, text: async () => '' }));
     expect(await generateQuiz('x').catch((e) => e)).toMatchObject({ status: 429, kind: 'rate-limit', retryable: true });
+  });
+});
+
+describe('gemini.service — free and paid keys', () => {
+  /** Google's 429 body: the spent quota is named in a QuotaFailure violation. */
+  const quotaExceeded = (quotaId: string, quotaValue = '20') => ({
+    ok: false,
+    status: 429,
+    text: async () => JSON.stringify({
+      error: {
+        code: 429,
+        status: 'RESOURCE_EXHAUSTED',
+        message: 'You exceeded your current quota, please check your plan and billing details.',
+        details: [
+          {
+            '@type': 'type.googleapis.com/google.rpc.QuotaFailure',
+            violations: [{ quotaMetric: 'generativelanguage.googleapis.com/generate_content_free_tier_requests', quotaId, quotaValue }],
+          },
+          { '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay: '33s' },
+        ],
+      },
+    }),
+  });
+  const DAILY = 'GenerateRequestsPerDayPerProjectPerModel-FreeTier';
+  const PER_MINUTE = 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier';
+  const answer = () => geminiOk(JSON.stringify({ code_review: '', verbal_review: '', score: 90 }), {
+    promptTokenCount: 1_000_000, candidatesTokenCount: 600_000, thoughtsTokenCount: 400_000,
+  });
+  const keysUsed = (fetchMock: any) =>
+    fetchMock.mock.calls.map((call: any[]) => new URL(call[0]).searchParams.get('key'));
+  const savedFreeKey = process.env.GEMINI_API_KEY;
+
+  beforeEach(() => {
+    process.env.GEMINI_API_KEY_PAID = 'test-paid-key';
+    p.aiUsageLog.create.mockResolvedValue({});
+    q.routeFreeTier.mockResolvedValue('free');
+    q.markFreeTierExhausted.mockResolvedValue(new Date('2026-10-15T07:00:00Z'));
+    q.markFreeTierAvailable.mockResolvedValue(undefined);
+  });
+  afterEach(() => {
+    delete process.env.GEMINI_API_KEY_PAID;
+    process.env.GEMINI_API_KEY = savedFreeKey;
+  });
+
+  it('serves calls from the free key while it has quota', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(answer());
+    vi.stubGlobal('fetch', fetchMock);
+    await reviewCode('x', 'T');
+    expect(keysUsed(fetchMock)).toEqual(['test-gemini-key']);
+    expect(p.aiUsageLog.create.mock.calls[0][0].data).toMatchObject({ tier: 'FREE', costUsd: 0 });
+  });
+
+  it('retries on the paid key at once when the free daily quota is spent, and bills it', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(quotaExceeded(DAILY, '20')).mockResolvedValueOnce(answer());
+    vi.stubGlobal('fetch', fetchMock);
+
+    await reviewCode('x', 'T');
+
+    expect(keysUsed(fetchMock)).toEqual(['test-gemini-key', 'test-paid-key']);
+    expect(q.markFreeTierExhausted).toHaveBeenCalledWith(20);
+    expect(p.aiUsageLog.create).toHaveBeenCalledWith({
+      data: {
+        type: 'homework_review',
+        tier: 'PAID',
+        tokensInput: 1_000_000,
+        tokensOutput: 1_000_000,
+        costUsd: expect.closeTo(paidCallCostUsd(1_000_000, 1_000_000), 6),
+      },
+    });
+  });
+
+  it('goes straight to the paid key while the free tier is marked spent', async () => {
+    q.routeFreeTier.mockResolvedValue('paid');
+    const fetchMock = vi.fn().mockResolvedValue(answer());
+    vi.stubGlobal('fetch', fetchMock);
+    await reviewCode('x', 'T');
+    expect(keysUsed(fetchMock)).toEqual(['test-paid-key']);
+  });
+
+  it('returns to the free key when a recheck finds it answering again', async () => {
+    q.routeFreeTier.mockResolvedValue('recheck');
+    const fetchMock = vi.fn().mockResolvedValue(answer());
+    vi.stubGlobal('fetch', fetchMock);
+    await reviewCode('x', 'T');
+    expect(keysUsed(fetchMock)).toEqual(['test-gemini-key']);
+    expect(q.markFreeTierAvailable).toHaveBeenCalled();
+    expect(p.aiUsageLog.create.mock.calls[0][0].data.tier).toBe('FREE');
+  });
+
+  it('stays on the paid key when a recheck finds the free quota still spent', async () => {
+    q.routeFreeTier.mockResolvedValue('recheck');
+    const fetchMock = vi.fn().mockResolvedValueOnce(quotaExceeded(DAILY)).mockResolvedValueOnce(answer());
+    vi.stubGlobal('fetch', fetchMock);
+    await reviewCode('x', 'T');
+    expect(keysUsed(fetchMock)).toEqual(['test-gemini-key', 'test-paid-key']);
+    expect(q.markFreeTierExhausted).toHaveBeenCalled();
+    expect(q.markFreeTierAvailable).not.toHaveBeenCalled();
+  });
+
+  it('leaves a per-minute limit on the free key, for the queue to retry', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(quotaExceeded(PER_MINUTE, '10'));
+    vi.stubGlobal('fetch', fetchMock);
+    const err = await reviewCode('x', 'T').catch((e) => e);
+    expect(err).toMatchObject({ status: 429, kind: 'rate-limit', retryable: true });
+    expect(keysUsed(fetchMock)).toEqual(['test-gemini-key']);
+    expect(q.markFreeTierExhausted).not.toHaveBeenCalled();
+  });
+
+  it('leaves an outage on the free key too', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 503, text: async () => 'overloaded' });
+    vi.stubGlobal('fetch', fetchMock);
+    expect(await reviewCode('x', 'T').catch((e) => e)).toMatchObject({ kind: 'unavailable', retryable: true });
+    expect(keysUsed(fetchMock)).toEqual(['test-gemini-key']);
+  });
+
+  it('fails a spent daily quota for good when no paid key is configured', async () => {
+    delete process.env.GEMINI_API_KEY_PAID;
+    const fetchMock = vi.fn().mockResolvedValue(quotaExceeded(DAILY, '20'));
+    vi.stubGlobal('fetch', fetchMock);
+    const err = await reviewCode('x', 'T').catch((e) => e);
+    expect(err).toBeInstanceOf(GeminiError);
+    expect(err).toMatchObject({ status: 429, kind: 'daily-quota', retryable: false });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // Recorded anyway, so the usage report can show the quota is spent.
+    expect(q.markFreeTierExhausted).toHaveBeenCalledWith(20);
+  });
+
+  it('spots the daily quota in a body it cannot parse', async () => {
+    delete process.env.GEMINI_API_KEY_PAID;
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false, status: 429, text: async () => `quota GenerateRequestsPerDayPerProjectPerModel-FreeTier exceeded`,
+    }));
+    expect(await reviewCode('x', 'T').catch((e) => e)).toMatchObject({ kind: 'daily-quota' });
+    expect(q.markFreeTierExhausted).toHaveBeenCalledWith(undefined);
+  });
+
+  it('uses the paid key alone when it is the only one configured', async () => {
+    delete process.env.GEMINI_API_KEY;
+    const fetchMock = vi.fn().mockResolvedValue(answer());
+    vi.stubGlobal('fetch', fetchMock);
+    await reviewCode('x', 'T');
+    expect(keysUsed(fetchMock)).toEqual(['test-paid-key']);
+    expect(q.routeFreeTier).not.toHaveBeenCalled();
+    expect(p.aiUsageLog.create.mock.calls[0][0].data.tier).toBe('PAID');
+  });
+
+  it('says so when the paid project ran out of prepaid credit', async () => {
+    q.routeFreeTier.mockResolvedValue('paid');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 402, text: async () => '{}' }));
+    const err = await reviewCode('x', 'T').catch((e) => e);
+    expect(err).toMatchObject({ status: 402, kind: 'config', retryable: false });
+    expect(err.message).toMatch(/PAID key.*prepaid credit/);
+  });
+});
+
+describe('gemini.service.paidCallCostUsd', () => {
+  afterEach(() => {
+    delete process.env.GEMINI_PRICE_INPUT_PER_1M;
+    delete process.env.GEMINI_PRICE_OUTPUT_PER_1M;
+  });
+
+  it('prices by the list in force on the day of the call', () => {
+    expect(paidCallCostUsd(1_000_000, 1_000_000, new Date('2026-10-14T12:00:00Z'))).toBeCloseTo(0.75 + 3.75, 6);
+    expect(paidCallCostUsd(1_000_000, 1_000_000, new Date('2027-01-01T00:00:00Z'))).toBeCloseTo(1.5 + 7.5, 6);
+  });
+
+  it('lets GEMINI_PRICE_*_PER_1M override the list, but not when left empty', () => {
+    process.env.GEMINI_PRICE_INPUT_PER_1M = '0.10';
+    process.env.GEMINI_PRICE_OUTPUT_PER_1M = '';
+    expect(paidCallCostUsd(1_000_000, 1_000_000, new Date('2026-10-14T12:00:00Z'))).toBeCloseTo(0.1 + 3.75, 6);
   });
 });

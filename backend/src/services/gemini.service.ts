@@ -1,20 +1,45 @@
+import type { AiTier } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import type { InlineAttachment } from '../utils/code-extraction';
+import { markFreeTierAvailable, markFreeTierExhausted, routeFreeTier } from './gemini-quota';
 
+// Billing belongs to a Google Cloud project, and a key inherits it, so each tier
+// needs its own key: GEMINI_API_KEY from a project without billing (free),
+// GEMINI_API_KEY_PAID from a billed one. With both set, the paid key serves
+// calls only while the free daily quota is spent.
 // Read lazily (not at module load) so a missing key produces a clear error at
 // call time instead of an `undefined` sneaking into the request URL.
-const geminiApiKey = () => process.env.GEMINI_API_KEY;
+const freeApiKey = () => process.env.GEMINI_API_KEY || undefined;
+const paidApiKey = () => process.env.GEMINI_API_KEY_PAID || undefined;
 
 // Google periodically retires model ids, which makes calls 404. Keep this
 // pinned to a model that currently exists; check the available models at
 // https://generativelanguage.googleapis.com/v1beta/models?key=... if it 404s.
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
 
-// Per-1M-token prices for GEMINI_MODEL, used only for the AI-usage cost report.
-// Env-tunable, but must be kept in sync with GEMINI_MODEL or the reported cost
-// will be wrong.
-const PRICE_INPUT_PER_1M = Number(process.env.GEMINI_PRICE_INPUT_PER_1M ?? 0.10);
-const PRICE_OUTPUT_PER_1M = Number(process.env.GEMINI_PRICE_OUTPUT_PER_1M ?? 0.40);
+// Paid-tier list prices of the default model per 1M tokens, newest first.
+// Output includes the model's thinking tokens.
+const DEFAULT_MODEL_PRICES = [
+  { from: Date.UTC(2027, 0, 1), input: 1.5, output: 7.5 },
+  { from: 0, input: 0.75, output: 3.75 },
+];
+
+// GEMINI_PRICE_*_PER_1M override the list above; a different GEMINI_MODEL needs
+// them, or the reported cost will be wrong.
+function envPrice(name: string): number | undefined {
+  const raw = process.env[name]?.trim();
+  if (!raw) return undefined;
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
+/** USD billed for one paid-tier call. The free tier bills nothing. */
+export function paidCallCostUsd(tokensInput: number, tokensOutput: number, at = new Date()): number {
+  const listed = DEFAULT_MODEL_PRICES.find((p) => at.getTime() >= p.from)!;
+  const input = envPrice('GEMINI_PRICE_INPUT_PER_1M') ?? listed.input;
+  const output = envPrice('GEMINI_PRICE_OUTPUT_PER_1M') ?? listed.output;
+  return (tokensInput * input + tokensOutput * output) / 1_000_000;
+}
 
 interface AiReviewResult {
   codeReview: string;
@@ -33,7 +58,8 @@ const REQUEST_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS ?? 60_000);
 export type GeminiFailureKind =
   | 'config'      // missing/invalid key, retired model — retrying cannot help
   | 'timeout'     // no answer within REQUEST_TIMEOUT_MS
-  | 'rate-limit'  // 429 — quota or per-minute limit
+  | 'rate-limit'  // 429 — a per-minute limit; clears within a minute
+  | 'daily-quota' // 429 — the daily request quota is spent; resets at midnight Pacific
   | 'unavailable' // network fault or a 5xx from Google
   | 'blocked'     // safety filter refused the prompt or the answer
   | 'bad-output'; // empty, truncated, or not the JSON we asked for
@@ -53,6 +79,34 @@ export class GeminiError extends Error {
     super(message);
     this.name = 'GeminiError';
   }
+}
+
+/** A 429 for the daily request quota, with the limit Google named, if it did. */
+class DailyQuotaError extends GeminiError {
+  constructor(message: string, readonly dailyLimit?: number) {
+    super(message, 'daily-quota', false, 429);
+  }
+}
+
+/**
+ * Whether a 429 body is about the daily quota. Google names the spent quota in
+ * error.details[].violations[].quotaId ("GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+ * vs "...PerMinute...") and its size in quotaValue.
+ */
+function readDailyQuotaError(body: string): { dailyLimit?: number } | null {
+  if (!/PerDay/i.test(body)) return null;
+  try {
+    const details = JSON.parse(body)?.error?.details;
+    for (const detail of Array.isArray(details) ? details : []) {
+      for (const violation of Array.isArray(detail?.violations) ? detail.violations : []) {
+        const limit = Number(violation?.quotaValue);
+        if (/PerDay/i.test(String(violation?.quotaId ?? '')) && limit > 0) return { dailyLimit: limit };
+      }
+    }
+  } catch {
+    /* not JSON — the quota id alone settles it */
+  }
+  return {};
 }
 
 // finishReason values meaning a safety filter, not a glitch, produced the empty
@@ -79,25 +133,14 @@ function describeError(err: any): string {
   return parts.join(' ← ');
 }
 
-/**
- * Shared entry point for calling Gemini. Normalizes every failure mode
- * (timeout, network error, HTTP error, empty/blocked response, malformed
- * JSON) into an error message that names the actual cause.
- */
-async function callGemini(
-  systemPrompt: string,
-  userMessage: string,
+/** One generateContent request with one key; every failure becomes a GeminiError. */
+async function requestGemini(
+  apiKey: string,
+  tier: AiTier,
+  body: string,
   usageType: string,
-  attachments: InlineAttachment[] = []
+  elapsed: () => string
 ): Promise<any> {
-  const apiKey = geminiApiKey();
-  if (!apiKey) {
-    throw new GeminiError('GEMINI_API_KEY is not configured — AI features are disabled', 'config', false);
-  }
-
-  const startedAt = Date.now();
-  const elapsed = () => `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;
-
   let response: Response;
   try {
     response = await fetch(
@@ -105,28 +148,14 @@ async function callGemini(
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: systemPrompt }] },
-          contents: [{
-            role: 'user',
-            parts: [
-              { text: userMessage },
-              // Each file is preceded by its name so the model can tell them apart.
-              ...attachments.flatMap((a) => [
-                { text: `קובץ מצורף: ${a.name}` },
-                { inline_data: { mime_type: a.mimeType, data: a.data } },
-              ]),
-            ],
-          }],
-          generationConfig: { responseMimeType: 'application/json' },
-        }),
+        body,
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       }
     );
   } catch (err: any) {
     if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
       throw new GeminiError(
-        `Gemini API timed out after ${REQUEST_TIMEOUT_MS}ms (${usageType}, model ${GEMINI_MODEL})`,
+        `Gemini API timed out after ${REQUEST_TIMEOUT_MS}ms (${usageType}, model ${GEMINI_MODEL}, ${tier} key)`,
         'timeout',
         true
       );
@@ -137,10 +166,10 @@ async function callGemini(
   }
 
   if (!response.ok) {
-    const body = await response.text();
-    let detail = body.slice(0, 300);
+    const text = await response.text();
+    let detail = text.slice(0, 300);
     try {
-      detail = JSON.parse(body)?.error?.message ?? detail;
+      detail = JSON.parse(text)?.error?.message ?? detail;
     } catch {
       /* not JSON — keep the raw excerpt */
     }
@@ -152,28 +181,103 @@ async function callGemini(
         false
       );
     }
-    const message = `Gemini API error: ${response.status} ${detail}`;
-    if (response.status === 429) throw new GeminiError(message, 'rate-limit', true, 429);
+    const message = `Gemini API error (${tier} key): ${response.status} ${detail}`;
+    if (response.status === 429) {
+      const daily = readDailyQuotaError(text);
+      // Retrying in seconds cannot help a quota that resets at midnight Pacific.
+      if (daily) throw new DailyQuotaError(message, daily.dailyLimit);
+      throw new GeminiError(message, 'rate-limit', true, 429);
+    }
+    if (response.status === 402) {
+      throw new GeminiError(
+        `${message} — the paid project has no prepaid credit left; top it up in AI Studio`,
+        'config',
+        false,
+        402
+      );
+    }
     if (response.status >= 500) throw new GeminiError(message, 'unavailable', true, response.status);
     // 400 (Google answers an invalid key with 400 INVALID_ARGUMENT), 401, 403:
     // the request itself is wrong, so the same request will fail again.
     throw new GeminiError(message, 'config', false, response.status);
   }
 
-  const data = (await response.json()) as any;
+  return response.json();
+}
+
+/**
+ * Shared entry point for calling Gemini. Normalizes every failure mode
+ * (timeout, network error, HTTP error, empty/blocked response, malformed
+ * JSON) into an error message that names the actual cause.
+ *
+ * Calls go to the free key. Once it spends its daily quota they go to the paid
+ * key until the quota resets, with one call every half hour trying the free
+ * key again; short-term limits and outages never move a call to the paid key.
+ */
+async function callGemini(
+  systemPrompt: string,
+  userMessage: string,
+  usageType: string,
+  attachments: InlineAttachment[] = []
+): Promise<any> {
+  const freeKey = freeApiKey();
+  const paidKey = paidApiKey();
+  if (!freeKey && !paidKey) {
+    throw new GeminiError('GEMINI_API_KEY is not configured — AI features are disabled', 'config', false);
+  }
+
+  const startedAt = Date.now();
+  const elapsed = () => `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;
+
+  const body = JSON.stringify({
+    system_instruction: { parts: [{ text: systemPrompt }] },
+    contents: [{
+      role: 'user',
+      parts: [
+        { text: userMessage },
+        // Each file is preceded by its name so the model can tell them apart.
+        ...attachments.flatMap((a) => [
+          { text: `קובץ מצורף: ${a.name}` },
+          { inline_data: { mime_type: a.mimeType, data: a.data } },
+        ]),
+      ],
+    }],
+    generationConfig: { responseMimeType: 'application/json' },
+  });
+
+  const route = !freeKey ? 'paid' : !paidKey ? 'free' : await routeFreeTier();
+  let tier: AiTier = 'PAID';
+  let data: any;
+  if (route !== 'paid') {
+    try {
+      data = await requestGemini(freeKey!, 'FREE', body, usageType, elapsed);
+      tier = 'FREE';
+      if (route === 'recheck') {
+        await markFreeTierAvailable();
+        console.log('[gemini] the free tier answers again — back to the free key');
+      }
+    } catch (err) {
+      if (!(err instanceof DailyQuotaError)) throw err;
+      const until = await markFreeTierExhausted(err.dailyLimit);
+      if (!paidKey) throw err;
+      console.warn(`[gemini] free daily quota spent — using the paid key until ${until.toISOString()}`);
+    }
+  }
+  if (data === undefined) data = await requestGemini(paidKey!, 'PAID', body, usageType, elapsed);
+
   const candidate = data.candidates?.[0];
   const text = candidate?.content?.parts?.[0]?.text;
   const tokensInput = data.usageMetadata?.promptTokenCount || 0;
-  const tokensOutput = data.usageMetadata?.candidatesTokenCount || 0;
+  // Thinking tokens are billed as output, like the answer itself.
+  const tokensOutput = (data.usageMetadata?.candidatesTokenCount || 0) + (data.usageMetadata?.thoughtsTokenCount || 0);
 
   await prisma.aiUsageLog.create({
     data: {
       type: usageType,
+      tier,
       tokensInput,
       tokensOutput,
-      costUsd:
-        (tokensInput / 1_000_000) * PRICE_INPUT_PER_1M +
-        (tokensOutput / 1_000_000) * PRICE_OUTPUT_PER_1M,
+      costUsd: tier === 'PAID' ? paidCallCostUsd(tokensInput, tokensOutput) : 0,
     },
   });
 
@@ -189,7 +293,7 @@ async function callGemini(
     throw new GeminiError(message, 'bad-output', true);
   }
 
-  console.log(`[gemini] ${usageType} answered in ${elapsed()} (tokens in ${tokensInput}, out ${tokensOutput})`);
+  console.log(`[gemini] ${usageType} answered in ${elapsed()} by the ${tier} key (tokens in ${tokensInput}, out ${tokensOutput})`);
 
   try {
     return JSON.parse(text);
