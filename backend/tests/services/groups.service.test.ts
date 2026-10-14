@@ -4,14 +4,14 @@ vi.mock('../../src/config/prisma', () => ({
   prisma: {
     $transaction: vi.fn((ops: unknown[]) => Promise.all(ops)),
     course: { deleteMany: vi.fn() },
-    user: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+    user: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
     studentGroup: { create: vi.fn(), delete: vi.fn(), count: vi.fn(), findUnique: vi.fn() },
     group: { findMany: vi.fn(), create: vi.fn(), findUnique: vi.fn(), update: vi.fn(), delete: vi.fn() },
   },
 }));
 
-const { releaseMock } = vi.hoisted(() => ({ releaseMock: vi.fn() }));
-vi.mock('../../src/utils/file-refs', () => ({ releaseFileUrls: releaseMock, submissionFileUrls: vi.fn().mockResolvedValue([]) }));
+const { releaseMock, submissionUrlsMock } = vi.hoisted(() => ({ releaseMock: vi.fn(), submissionUrlsMock: vi.fn() }));
+vi.mock('../../src/utils/file-refs', () => ({ releaseFileUrls: releaseMock, submissionFileUrls: submissionUrlsMock }));
 
 vi.mock('bcryptjs', () => ({
   default: { hash: vi.fn(async () => 'hashed-pw'), compare: vi.fn() },
@@ -43,6 +43,8 @@ import {
   importStudents,
   deleteGroup,
   createStudentAccount,
+  updateStudentAccount,
+  deleteStudentAccount,
 } from '../../src/services/groups.service';
 
 const p = prisma as any;
@@ -58,6 +60,8 @@ async function xlsxBuffer(rows: (string | null)[][]): Promise<Buffer> {
 beforeEach(() => {
   vi.clearAllMocks();
   p.group.findUnique.mockResolvedValue({ emailNotificationsDefault: true });
+  p.user.findFirst.mockResolvedValue({ id: 's1' });
+  submissionUrlsMock.mockResolvedValue([]);
 });
 
 describe('groups.service', () => {
@@ -356,5 +360,66 @@ describe('groups.service student accounts', () => {
 
   it('createStudentAccount requires a name', async () => {
     await expect(createStudentAccount({ name: '  ', email: 'b@x.com' })).rejects.toMatchObject({ status: 400 });
+  });
+});
+
+describe('groups.service editing / deleting a student account', () => {
+  it('updateStudentAccount edits a student who is in no group', async () => {
+    p.user.update.mockResolvedValue({ id: 's1', name: 'New', email: 'a@x.com', githubUsername: 'gh' });
+    const r = await updateStudentAccount('s1', { name: ' New ', githubUsername: 'https://github.com/gh' });
+    expect(p.studentGroup.findUnique).not.toHaveBeenCalled();
+    expect(p.user.update).toHaveBeenCalledWith({ where: { id: 's1' }, data: { name: 'New', githubUsername: 'gh' } });
+    expect(r).toEqual({ id: 's1', name: 'New', email: 'a@x.com', githubUsername: 'gh' });
+  });
+
+  it('an empty GitHub username clears it', async () => {
+    p.user.update.mockResolvedValue({ id: 's1', name: 'A', email: 'a@x.com', githubUsername: null });
+    await updateStudentAccount('s1', { githubUsername: '' });
+    expect(p.user.update).toHaveBeenCalledWith({ where: { id: 's1' }, data: { githubUsername: null } });
+  });
+
+  it('a non-string GitHub username clears it instead of crashing', async () => {
+    p.user.update.mockResolvedValue({ id: 's1', name: 'A', email: 'a@x.com', githubUsername: null });
+    await updateStudentAccount('s1', { githubUsername: 42 });
+    expect(p.user.update).toHaveBeenCalledWith({ where: { id: 's1' }, data: { githubUsername: null } });
+  });
+
+  it('updateStudent through a group clears GitHub too', async () => {
+    p.studentGroup.findUnique.mockResolvedValue({ studentId: 's1', groupId: 'g1' });
+    p.user.update.mockResolvedValue({ id: 's1', name: 'A', email: 'a@x.com', githubUsername: null });
+    await updateStudent('g1', 's1', { githubUsername: '' });
+    expect(p.user.update).toHaveBeenCalledWith({ where: { id: 's1' }, data: { githubUsername: null } });
+  });
+
+  it('updateStudentAccount refuses a non-student (a teacher account) with 404', async () => {
+    p.user.findFirst.mockResolvedValue(null);
+    await expect(updateStudentAccount('t1', { name: 'X' })).rejects.toMatchObject({ status: 404 });
+    expect(p.user.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 't1', role: 'STUDENT' } }));
+    expect(p.user.update).not.toHaveBeenCalled();
+  });
+
+  it('a changed email is re-verified', async () => {
+    p.user.findUnique.mockResolvedValueOnce({ email: 'old@x.com' }).mockResolvedValueOnce(null);
+    p.user.update.mockResolvedValue({ id: 's1', name: 'A', email: 'new@x.com', githubUsername: null });
+    await updateStudentAccount('s1', { email: 'New@X.com' });
+    expect(sendVerificationMock).toHaveBeenCalledWith('s1');
+  });
+
+  it('deleteStudentAccount deletes the user and releases her submission files afterwards', async () => {
+    submissionUrlsMock.mockResolvedValue(['u1', 'u2']);
+    const order: string[] = [];
+    p.user.delete.mockImplementation(async () => { order.push('delete'); });
+    releaseMock.mockImplementation(async () => { order.push('release'); });
+    await deleteStudentAccount('s1');
+    expect(submissionUrlsMock).toHaveBeenCalledWith({ studentId: 's1' });
+    expect(p.user.delete).toHaveBeenCalledWith({ where: { id: 's1' } });
+    expect(releaseMock).toHaveBeenCalledWith(['u1', 'u2']);
+    expect(order).toEqual(['delete', 'release']);
+  });
+
+  it('deleteStudentAccount refuses a teacher or a missing account with 404', async () => {
+    p.user.findFirst.mockResolvedValue(null);
+    await expect(deleteStudentAccount('t1')).rejects.toMatchObject({ status: 404 });
+    expect(p.user.delete).not.toHaveBeenCalled();
   });
 });

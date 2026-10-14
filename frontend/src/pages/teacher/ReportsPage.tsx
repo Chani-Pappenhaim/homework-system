@@ -17,6 +17,20 @@ import { unwrap } from '@/lib/api-utils';
 import type { ReportRow } from '@/types';
 import { usePageTitle } from '@/hooks/usePageTitle';
 
+/**
+ * Option labels for a filter dropdown: a name that appears more than once
+ * (two students, or two groups' courses, with the same name) gets a detail
+ * that tells the options apart.
+ */
+export function distinctLabels<T>(items: T[], name: (item: T) => string, detail: (item: T) => string | undefined): string[] {
+  const counts = new Map<string, number>();
+  for (const item of items) counts.set(name(item), (counts.get(name(item)) ?? 0) + 1);
+  return items.map((item) => {
+    const extra = (counts.get(name(item)) ?? 0) > 1 ? detail(item) : undefined;
+    return extra ? `${name(item)} · ${extra}` : name(item);
+  });
+}
+
 export default function ReportsPage() {
   usePageTitle('דוחות');
   const navigate = useNavigate();
@@ -31,15 +45,16 @@ export default function ReportsPage() {
 
   const { data: groupsData } = useQuery({ queryKey: ['groups'], queryFn: () => groupsApi.list() });
   const { data: coursesData } = useQuery({ queryKey: ['courses'], queryFn: () => coursesApi.list() });
-  // Student options: the selected group's roster, or every student (search is capped server-side) when no group is chosen
+  // Student options: the selected group's roster, or every student when no group is chosen
   const { data: groupData } = useQuery({
     queryKey: ['group', groupId],
     queryFn: () => groupsApi.get(groupId),
     enabled: Boolean(groupId),
   });
+  // The overview lists every student; the search endpoint stops at 50
   const { data: allStudentsData } = useQuery({
-    queryKey: ['students', 'search', ''],
-    queryFn: () => studentsApi.search(''),
+    queryKey: ['students', 'overview'],
+    queryFn: () => studentsApi.overview(),
     enabled: !groupId,
   });
 
@@ -55,12 +70,23 @@ export default function ReportsPage() {
   });
 
   const groups = unwrap(groupsData)?.groups ?? [];
-  const courses = unwrap(coursesData)?.courses ?? [];
+  // A chosen group narrows the course list to that group's courses
+  const courses = (unwrap(coursesData)?.courses ?? []).filter((c) => !groupId || c.groupId === groupId);
+  const courseLabels = distinctLabels(courses, (c) => c.name, (c) => c.groupName);
   const report: ReportRow[] = unwrap(reportData)?.report ?? [];
-  const studentOptions = (groupId
+  const studentOptions: { id: string; name: string; email: string }[] = (groupId
     ? (unwrap(groupData)?.group.students ?? [])
     : (unwrap(allStudentsData)?.students ?? [])
   ).slice().sort((a, b) => a.name.localeCompare(b.name, 'he'));
+  const studentLabels = distinctLabels(studentOptions, (s) => s.name, (s) => s.email);
+
+  const changeGroup = (next: string) => {
+    setGroupId(next);
+    setStudentId('');
+    // A course of another group would leave the report empty with no visible reason
+    const course = unwrap(coursesData)?.courses.find((c) => c.id === courseId);
+    if (next && course && course.groupId !== next) setCourseId('');
+  };
 
   const exportMutation = useMutation({
     mutationFn: () => gradesApi.exportReport(Object.keys(filters).length ? filters : undefined),
@@ -101,7 +127,8 @@ export default function ReportsPage() {
         <div className="px-5 py-4 flex gap-3 flex-wrap">
           <select
             value={groupId}
-            onChange={(e) => { setGroupId(e.target.value); setStudentId(''); }}
+            onChange={(e) => changeGroup(e.target.value)}
+            aria-label="סינון לפי קבוצה"
             className="rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
           >
             <option value="">כל הקבוצות</option>
@@ -111,19 +138,21 @@ export default function ReportsPage() {
           <select
             value={courseId}
             onChange={(e) => setCourseId(e.target.value)}
+            aria-label="סינון לפי קורס"
             className="rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
           >
             <option value="">כל הקורסים</option>
-            {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {courses.map((c, i) => <option key={c.id} value={c.id}>{courseLabels[i]}</option>)}
           </select>
 
           <select
             value={studentId}
             onChange={(e) => setStudentId(e.target.value)}
+            aria-label="סינון לפי תלמידה"
             className="rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
           >
             <option value="">כל התלמידות</option>
-            {studentOptions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            {studentOptions.map((s, i) => <option key={s.id} value={s.id}>{studentLabels[i]}</option>)}
           </select>
 
           {(groupId || courseId || studentId) && (

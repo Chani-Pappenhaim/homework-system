@@ -7,6 +7,7 @@ import { MarkdownRenderer, MarkdownText } from '@/components/ui/markdown-rendere
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
 import { cn } from '@/lib/utils';
+import { useConfirm } from '@/components/ui/use-confirm';
 
 /**
  * A free-text field stored as Markdown: write it here, or load it from an
@@ -30,12 +31,13 @@ export function MarkdownField({ label, value, onChange, rows = 5, placeholder, r
   const autoId = useId();
   const fieldId = id ?? autoId;
   const toast = useToast();
+  const [confirmDialog, ask] = useConfirm();
   const fileInput = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const loadFile = async (file: File) => {
-    if (value.trim() && !confirm('להחליף את הטקסט הקיים בתוכן הקובץ?')) return;
+    if (value.trim() && !(await ask({ title: 'להחליף את הטקסט הקיים?', description: 'הטקסט שכבר כתוב בשדה יוחלף בתוכן הקובץ.', confirmLabel: 'החלפה', destructive: false }))) return;
     setLoading(true);
     try {
       onChange(await contentApi.toMarkdown(file));
@@ -100,6 +102,7 @@ export function MarkdownField({ label, value, onChange, rows = 5, placeholder, r
           אפשר לעצב את הטקסט (כותרות, רשימות, קוד) או לטעון אותו מקובץ Word, HTML, Markdown או טקסט.
         </p>
       )}
+      {confirmDialog}
     </div>
   );
 }

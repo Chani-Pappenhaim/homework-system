@@ -22,6 +22,7 @@ vi.mock('../../src/services/submissions.service', () => ({
   importSubmissions: vi.fn(),
   requestAiReview: vi.fn(),
   approveAiReview: vi.fn(),
+  updateAiReview: vi.fn(),
   restoreAiScore: vi.fn(),
   allowExtraAiReview: vi.fn(),
 }));
@@ -265,6 +266,37 @@ describe('submissions controller — AI review (service-backed routes)', () => {
       .post('/api/submissions/sub1/restore-ai-score')
       .set('Authorization', `Bearer ${studentToken}`);
     expect(res.status).toBe(403);
+  });
+
+  it('approve-ai passes the approving teacher, who fills an unset content score', async () => {
+    (submissionsService.approveAiReview as any).mockResolvedValue({ id: 'sub1', aiApproved: true });
+    const res = await request(app)
+      .post('/api/submissions/sub1/approve-ai')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(200);
+    expect(submissionsService.approveAiReview).toHaveBeenCalledWith('sub1', 'admin1');
+  });
+
+  it("PATCH ai-review saves the teacher's correction of the AI review", async () => {
+    (submissionsService.updateAiReview as any).mockResolvedValue({ id: 'sub1', aiScore: 70 });
+    const res = await request(app)
+      .patch('/api/submissions/sub1/ai-review')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ aiScore: 70, aiVerbalReview: 'טוב', role: 'ADMIN' });
+    expect(res.status).toBe(200);
+    // Only the AI fields are passed on — never anything else in the body.
+    expect(submissionsService.updateAiReview).toHaveBeenCalledWith(
+      'sub1', { aiScore: 70, aiVerbalReview: 'טוב', aiCodeReview: undefined }, 'admin1',
+    );
+  });
+
+  it('PATCH ai-review is 403 for a student (ADMIN-only route)', async () => {
+    const res = await request(app)
+      .patch('/api/submissions/sub1/ai-review')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ aiScore: 100 });
+    expect(res.status).toBe(403);
+    expect(submissionsService.updateAiReview).not.toHaveBeenCalled();
   });
 });
 

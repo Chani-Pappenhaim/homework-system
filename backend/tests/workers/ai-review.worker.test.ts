@@ -38,7 +38,7 @@ import { prisma } from '../../src/config/prisma';
 import * as gemini from '../../src/services/gemini.service';
 import * as codeExtraction from '../../src/utils/code-extraction';
 import { registerAiReviewWorker } from '../../src/workers/ai-review.worker';
-import { AI_REVIEW_GENERIC_ERROR } from '../../src/utils/ai-review-errors';
+import { AI_REVIEW_DAILY_QUOTA_ERROR, AI_REVIEW_GENERIC_ERROR } from '../../src/utils/ai-review-errors';
 
 // Registering the worker constructs the (mocked) BullMQ Worker, which captures
 // the processor via setProcessor. The connection is irrelevant under the mock.
@@ -118,6 +118,18 @@ describe('ai-review worker', () => {
     expect(errorData()).toEqual({ aiStatus: 'error', aiError: expect.stringContaining('הריפו לא נמצא') });
   });
 
+  it('ends a queued review with a message once the teacher turns AI review off for the assignment', async () => {
+    p.submission.findUnique.mockResolvedValue({
+      id: 's9', githubUrl: 'https://github.com/u/r', fileName: null, fileUrl: null,
+      assignment: { title: 'T', aiReviewEnabled: false }, student: {},
+    });
+
+    await expect(run('s9', { attemptsMade: 0, attempts: 3 })).rejects.toThrow(/disabled/);
+    expect(codeExtraction.fetchGithubCode).not.toHaveBeenCalled();
+    expect(gemini.reviewCode).not.toHaveBeenCalled();
+    expect(errorData()).toEqual({ aiStatus: 'error', aiError: 'המורה ביטלה את בדיקת ה-AI במטלה זו.' });
+  });
+
   it('does not send an empty submission to the AI', async () => {
     p.submission.findUnique.mockResolvedValue({
       id: 's7', githubUrl: 'https://github.com/u/r', fileName: null, fileUrl: null,
@@ -146,6 +158,21 @@ describe('ai-review worker', () => {
     await expect(run('s4', { attemptsMade: 2, attempts: 3 })).rejects.toThrow();
     expect(errorData()).toEqual({ aiStatus: 'error', aiError: AI_REVIEW_GENERIC_ERROR });
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining('submission s4'), 'Gemini API error: 503');
+  });
+
+  it('tells the student at once when the AI spent its daily quota', async () => {
+    p.submission.findUnique.mockResolvedValue({
+      id: 's8', githubUrl: 'https://github.com/u/r', fileName: null, fileUrl: null,
+      assignment: { title: 'T' }, student: {},
+    });
+    (codeExtraction.fetchGithubCode as any).mockResolvedValue('code');
+    (gemini.reviewCode as any).mockRejectedValue(
+      new gemini.GeminiError('Gemini API error (FREE key): 429 quota', 'daily-quota', false, 429),
+    );
+
+    // A quota that resets at midnight Pacific: retrying in seconds cannot help.
+    await expect(run('s8', { attemptsMade: 0, attempts: 3 })).rejects.toThrow(/429 quota/);
+    expect(errorData()).toEqual({ aiStatus: 'error', aiError: AI_REVIEW_DAILY_QUOTA_ERROR });
   });
 });
 

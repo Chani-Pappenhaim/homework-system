@@ -14,17 +14,21 @@ vi.mock('@/api/groups.api', () => ({ groupsApi: { list: vi.fn() } }));
 vi.mock('@/api/courses.api', () => ({ coursesApi: { list: vi.fn() } }));
 vi.mock('@/api/grades.api', () => ({ gradesApi: { pending: vi.fn(), report: vi.fn() } }));
 vi.mock('@/api/aiUsage.api', () => ({ aiUsageApi: { summary: vi.fn() } }));
+vi.mock('@/api/students.api', () => ({ studentsApi: { search: vi.fn() } }));
 
 import { groupsApi } from '@/api/groups.api';
 import { coursesApi } from '@/api/courses.api';
 import { gradesApi } from '@/api/grades.api';
 import { aiUsageApi } from '@/api/aiUsage.api';
+import { studentsApi } from '@/api/students.api';
+import useUiStore from '@/store/uiStore';
 
 const groupsList = groupsApi.list as unknown as ReturnType<typeof vi.fn>;
 const coursesList = coursesApi.list as unknown as ReturnType<typeof vi.fn>;
 const pending = gradesApi.pending as unknown as ReturnType<typeof vi.fn>;
 const report = gradesApi.report as unknown as ReturnType<typeof vi.fn>;
 const summary = aiUsageApi.summary as unknown as ReturnType<typeof vi.fn>;
+const searchStudents = studentsApi.search as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -34,6 +38,8 @@ beforeEach(() => {
   pending.mockResolvedValue({ data: { data: { count: 0 } } });
   report.mockResolvedValue({ data: { data: { report: [] } } });
   summary.mockResolvedValue({ data: { data: { totalCostUsd: 0 } } });
+  searchStudents.mockResolvedValue({ data: { data: { students: [] } } });
+  useUiStore.setState({ search: '' });
 });
 
 describe('TeacherHomePage', () => {
@@ -65,5 +71,34 @@ describe('TeacherHomePage', () => {
     expect(navigate).toHaveBeenCalledWith('/teacher/groups');
     await userEvent.click(screen.getByRole('button', { name: /קורסים/ }));
     expect(navigate).toHaveBeenCalledWith('/teacher/courses');
+  });
+
+  describe('top search', () => {
+    it('finds a student who has nothing waiting for a grade, and opens her page', async () => {
+      searchStudents.mockResolvedValue({ data: { data: { students: [
+        { id: 'st1', name: 'מירי כהן', email: 'miri@x.com', groupNames: ['כיתה א'] },
+      ] } } });
+      useUiStore.setState({ search: 'מירי' });
+      renderWithProviders(<TeacherHomePage />);
+      const result = await screen.findByRole('button', { name: /מירי כהן/ });
+      expect(searchStudents).toHaveBeenCalledWith('מירי');
+      expect(result).toHaveTextContent('כיתה א');
+      await userEvent.click(result);
+      expect(navigate).toHaveBeenCalledWith('/teacher/students/st1');
+    });
+
+    it('says when no student matches', async () => {
+      useUiStore.setState({ search: 'אין כזו' });
+      renderWithProviders(<TeacherHomePage />);
+      expect(await screen.findByText('לא נמצאה תלמידה בשם או במייל "אין כזו"')).toBeInTheDocument();
+    });
+
+    it('does not search the directory for a single letter or an empty box', async () => {
+      useUiStore.setState({ search: 'מ' });
+      renderWithProviders(<TeacherHomePage />);
+      expect(await screen.findByText(/שלום, שרה/)).toBeInTheDocument();
+      expect(searchStudents).not.toHaveBeenCalled();
+      expect(screen.queryByRole('region', { name: 'תלמידות שנמצאו' })).not.toBeInTheDocument();
+    });
   });
 });

@@ -29,6 +29,7 @@ import { useState } from 'react';
 import { useToast } from '@/components/ui/toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useTabParam } from '@/hooks/useTabParam';
+import { useConfirm } from '@/components/ui/use-confirm';
 
 const TABS = ['lessons', 'attendance', 'students', 'materials'] as const;
 
@@ -49,6 +50,7 @@ export default function CourseDetailPage(props: Partial<CoursePageProps>) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
+  const [confirmDialog, ask] = useConfirm();
   const [newLessonModal, setNewLessonModal] = useState(false);
   const [reordering, setReordering] = useState(false);
   const [tab, setTab] = useTabParam(TABS, 'lessons');
@@ -120,8 +122,8 @@ export default function CourseDetailPage(props: Partial<CoursePageProps>) {
               variant="destructive"
               size="sm"
               loading={deleteCourseMutation.isPending}
-              onClick={() => {
-                if (confirm(`למחוק את הקורס "${course.name}"? כל השיעורים, המטלות, ההגשות והקבצים של הקורס יימחקו לצמיתות.`)) {
+              onClick={async () => {
+                if (await ask({ title: `למחוק את הקורס "${course.name}"?`, description: 'כל השיעורים, המטלות, ההגשות והקבצים של הקורס יימחקו לצמיתות.' })) {
                   deleteCourseMutation.mutate();
                 }
               }}
@@ -226,7 +228,7 @@ export default function CourseDetailPage(props: Partial<CoursePageProps>) {
             <Card>
               <CardHeader><h2 className="font-display text-base font-bold">חומרי עזר</h2></CardHeader>
               <CardContent>
-                <FileGallery files={course.files} />
+                <FileGallery source="course" files={course.files} />
               </CardContent>
             </Card>
           )}
@@ -272,6 +274,7 @@ export default function CourseDetailPage(props: Partial<CoursePageProps>) {
           </DialogBody>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </div>
   );
 }

@@ -10,3 +10,9 @@ export const API_BASE_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/,
 
 // Full base for API calls, e.g. '' -> '/api', 'https://api.x.com' -> 'https://api.x.com/api'.
 export const API_URL = `${API_BASE_URL}/api`;
+
+// File links the API issues (study material, submissions) are API paths like
+// '/files/download/…'; a full URL (an older stored link) is used as is.
+export function apiFileUrl(url: string): string {
+  return url.startsWith('/') ? `${API_URL}${url}` : url;
+}

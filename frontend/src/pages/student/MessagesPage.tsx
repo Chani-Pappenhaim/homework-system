@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, Clock, Trash2, Send, MessageSquarePlus } from 'lucide-react';
 import { messagesApi } from '@/api/messages.api';
@@ -24,15 +23,16 @@ import { getApiErrorMessage } from '@/lib/errors';
 import { unwrap } from '@/lib/api-utils';
 import type { MessageDTO } from '@/types';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { useMessageDialogs } from '@/hooks/useMessageDialogs';
+import { useConfirm } from '@/components/ui/use-confirm';
 
 export default function StudentMessagesPage() {
   usePageTitle('הודעות');
   const qc = useQueryClient();
-  const [searchParams] = useSearchParams();
-  const [composeOpen, setComposeOpen] = useState(false);
+  const [confirmDialog, ask] = useConfirm();
+  const { openId, composeOpen, openConversation, closeConversation, setComposeOpen } = useMessageDialogs();
   const [content, setContent] = useState('');
   const [error, setError] = useState('');
-  const [openId, setOpenId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -55,7 +55,7 @@ export default function StudentMessagesPage() {
     mutationFn: (id: string) => messagesApi.deleteMine(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-messages'] });
-      setOpenId(null);
+      closeConversation();
     },
   });
 
@@ -78,24 +78,34 @@ export default function StudentMessagesPage() {
   const messages: MessageDTO[] = unwrap(data)?.messages ?? [];
   const openMsg = messages.find((m) => m.id === openId) ?? null;
 
+  function unreadEntries(msg: MessageDTO) {
+    return msg.entries.filter((e) => e.fromTeacher && !e.isRead);
+  }
   function isUnread(msg: MessageDTO) {
-    return msg.entries.some((e) => e.fromTeacher && !e.isRead);
+    return unreadEntries(msg).length > 0;
   }
 
-  function openMessage(msg: MessageDTO) {
-    setOpenId(msg.id);
-    setReplyText('');
-    if (isUnread(msg)) markMineReadMutation.mutate(msg.id);
-  }
-
-  // The teacher-reply / teacher-message notification email links straight to this message.
+  // Opening a conversation, from the list or from an email link, marks what it
+  // has new as read — and so does a new entry arriving while it is open. Once
+  // per newest unread entry, so a refetch before the mark lands doesn't resend it.
+  const markedRef = useRef<string | null>(null);
   useEffect(() => {
-    const highlight = searchParams.get('highlight');
-    if (!highlight || openId) return;
-    const msg = messages.find((m) => m.id === highlight);
-    if (msg) openMessage(msg);
+    if (!openMsg) { markedRef.current = null; return; }
+    const newest = unreadEntries(openMsg).at(-1);
+    if (!newest) return;
+    const mark = `${openMsg.id}:${newest.id}`;
+    if (markedRef.current === mark) return;
+    markedRef.current = mark;
+    markMineReadMutation.mutate(openMsg.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, messages]);
+  }, [openMsg]);
+
+  // A link to a conversation that no longer exists (deleted) just shows the list.
+  useEffect(() => {
+    if (openId && !isLoading && data && !openMsg) closeConversation();
+  }, [openId, isLoading, data, openMsg, closeConversation]);
+
+  useEffect(() => { setReplyText(''); }, [openId]);
 
   useEffect(() => {
     if (openId) bottomRef.current?.scrollIntoView({ block: 'end' });
@@ -128,7 +138,7 @@ export default function StudentMessagesPage() {
               return (
               <button
                 key={msg.id}
-                onClick={() => openMessage(msg)}
+                onClick={() => openConversation(msg.id)}
                 className="flex w-full items-stretch gap-3 px-4 py-3 text-right transition-colors hover:bg-butter/10"
               >
                 <div className="min-w-0 flex-1">
@@ -183,7 +193,7 @@ export default function StudentMessagesPage() {
       </Dialog>
 
       {/* Overlay: full conversation thread — mirrors the teacher's message overlay */}
-      <Dialog open={Boolean(openId)} onOpenChange={(o) => { if (!o) { setOpenId(null); setReplyText(''); } }}>
+      <Dialog open={Boolean(openMsg)} onOpenChange={(o) => { if (!o) closeConversation(); }}>
         <DialogContent size="lg">
           {openMsg && (
             <>
@@ -231,14 +241,14 @@ export default function StudentMessagesPage() {
                 >
                   <Send size={14} /> שלחי
                 </Button>
-                <Button variant="outline" onClick={() => { setOpenId(null); setReplyText(''); }}>
+                <Button variant="outline" onClick={closeConversation}>
                   סגירה
                 </Button>
                 <Button
                   variant="destructive"
                   loading={deleteMutation.isPending}
-                  onClick={() => {
-                    if (confirm('למחוק את השיחה? הפעולה בלתי הפיכה.')) {
+                  onClick={async () => {
+                    if (await ask({ title: 'למחוק את השיחה?', description: 'הפעולה בלתי הפיכה.' })) {
                       deleteMutation.mutate(openMsg.id);
                     }
                   }}
@@ -250,6 +260,7 @@ export default function StudentMessagesPage() {
           )}
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </div>
   );
 }

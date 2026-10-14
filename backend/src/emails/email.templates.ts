@@ -3,8 +3,30 @@ import type { EmailJobMap, DeadlineReportRow } from './email.types';
 // Pure HTML builders — no I/O, no recipient selection. Kept together so the
 // worker/service only decide *who* gets an email, not how it is rendered.
 
+/**
+ * Every paragraph and quote carries its own direction, not just the wrapper:
+ * from the second email of a conversation on, Gmail folds the text it has
+ * already shown into a "trimmed content" block rendered outside the wrapper,
+ * and that block fell back to left-to-right.
+ */
 export function wrapRtl(body: string): string {
-  return `<div dir="rtl" style="font-family: Arial, sans-serif; text-align: right;">${body}</div>`;
+  const rtlBody = body.replace(/<(p|blockquote)(?=[\s>])/g, '<$1 dir="rtl"');
+  return `<!DOCTYPE html><html dir="rtl" lang="he"><body dir="rtl"><div dir="rtl" style="font-family: Arial, sans-serif; text-align: right;">${rtlBody}</div></body></html>`;
+}
+
+/** User-written text as plain text in the email: no markup of its own, line breaks kept. */
+export function escapeHtml(text: string | null | undefined): string {
+  return (text ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/\r?\n/g, '<br>');
+}
+
+function quote(text: string, border: string, color: string): string {
+  return `<blockquote style="border-right: 3px solid ${border}; padding-right: 12px; margin: 12px 0; color: ${color}; text-align: right;">${escapeHtml(text)}</blockquote>`;
 }
 
 export function formatDate(value?: string | Date | null): string {
@@ -20,19 +42,19 @@ const STATUS_META: Record<DeadlineReportRow['status'], { label: string; color: s
 
 export function resetPasswordHtml(data: EmailJobMap['reset-password']): string {
   return wrapRtl(
-    `<p>שלום ${data.name},</p><p>הסיסמא שלך אופסה. הסיסמא החדשה היא: <strong>12345678</strong></p><p>אנא התחברי ושני את הסיסמא בהקדם.</p>`
+    `<p>שלום ${escapeHtml(data.name)},</p><p>הסיסמא שלך אופסה. הסיסמא החדשה היא: <strong>12345678</strong></p><p>אנא התחברי ושני את הסיסמא בהקדם.</p>`
   );
 }
 
 export function forgotPasswordLinkHtml(data: EmailJobMap['forgot-password-link']): string {
   return wrapRtl(
-    `<p>שלום ${data.name},</p><p>התקבלה בקשה לאיפוס הסיסמא שלך. לחצי על הקישור הבא כדי לבחור סיסמא חדשה (בתוקף לשעה אחת):</p><p><a href="${data.resetUrl}" style="color:#4f46e5;">איפוס סיסמא</a></p><p>אם לא ביקשת זאת, אפשר להתעלם מהמייל.</p>`
+    `<p>שלום ${escapeHtml(data.name)},</p><p>התקבלה בקשה לאיפוס הסיסמא שלך. לחצי על הקישור הבא כדי לבחור סיסמא חדשה (בתוקף לשעה אחת):</p><p><a href="${data.resetUrl}" style="color:#4f46e5;">איפוס סיסמא</a></p><p>אם לא ביקשת זאת, אפשר להתעלם מהמייל.</p>`
   );
 }
 
 export function verifyEmailHtml(data: EmailJobMap['verify-email']): string {
   return wrapRtl(
-    `<p>שלום ${data.name},</p><p>כדי לקבל עדכונים מהמורה במייל (תשובות להודעות, ציונים), יש לאשר שזו כתובת המייל שלך:</p><p><a href="${data.verifyUrl}" style="color:#4f46e5;">אישור כתובת המייל</a></p><p>אם לא את נרשמת לאתר, אפשר להתעלם מהמייל.</p>`
+    `<p>שלום ${escapeHtml(data.name)},</p><p>כדי לקבל עדכונים מהמורה במייל (תשובות להודעות, ציונים), יש לאשר שזו כתובת המייל שלך:</p><p><a href="${data.verifyUrl}" style="color:#4f46e5;">אישור כתובת המייל</a></p><p>אם לא את נרשמת לאתר, אפשר להתעלם מהמייל.</p>`
   );
 }
 
@@ -44,11 +66,11 @@ export function storageAlertHtml(): string {
 
 export function studentMessageHtml(data: EmailJobMap['student-message']): string {
   const assignmentLine = data.assignmentTitle
-    ? `<p>בנוגע למטלה: <strong>${data.assignmentTitle}</strong></p>`
+    ? `<p>בנוגע למטלה: <strong>${escapeHtml(data.assignmentTitle)}</strong></p>`
     : '';
   const systemUrl = `${process.env.FRONTEND_URL}/teacher/messages?highlight=${data.messageId}`;
   return wrapRtl(
-    `<p>התקבלה הודעה חדשה מ<strong>${data.studentName}</strong>:</p>${assignmentLine}<blockquote style="border-right: 3px solid #ccc; padding-right: 12px; margin: 12px 0; color: #333;">${data.content}</blockquote>${replyButtons(systemUrl, data.studentEmail)}`
+    `<p>התקבלה הודעה חדשה מ<strong>${escapeHtml(data.studentName)}</strong>:</p>${assignmentLine}${quote(data.content, '#ccc', '#333')}${replyButtons(systemUrl, data.studentEmail)}`
   );
 }
 
@@ -65,28 +87,28 @@ export function teacherReplyHtml(data: EmailJobMap['teacher-reply']): string {
   const systemUrl = `${process.env.FRONTEND_URL}/student/messages?highlight=${data.messageId}`;
   const adminEmail = process.env.ADMIN_EMAIL;
   return wrapRtl(
-    `<p>שלום ${data.studentName},</p><p>המורה השיבה להודעה ששלחת:</p><blockquote style="border-right: 3px solid #ccc; padding-right: 12px; margin: 12px 0; color: #666;">${data.originalContent}</blockquote><p><strong>תשובת המורה:</strong></p><blockquote style="border-right: 3px solid #4f46e5; padding-right: 12px; margin: 12px 0; color: #333;">${data.replyContent}</blockquote>${replyButtons(systemUrl, adminEmail ?? '')}`
+    `<p>שלום ${escapeHtml(data.studentName)},</p><p>המורה השיבה להודעה ששלחת:</p>${quote(data.originalContent, '#ccc', '#666')}<p><strong>תשובת המורה:</strong></p>${quote(data.replyContent, '#4f46e5', '#333')}${replyButtons(systemUrl, adminEmail ?? '')}`
   );
 }
 
 export function teacherMessageHtml(data: EmailJobMap['teacher-message']): string {
   const systemUrl = `${process.env.FRONTEND_URL}/student/messages?highlight=${data.messageId}`;
   return wrapRtl(
-    `<p>שלום ${data.studentName},</p><p>התקבלה הודעה חדשה מהמורה:</p><blockquote style="border-right: 3px solid #4f46e5; padding-right: 12px; margin: 12px 0; color: #333;">${data.content}</blockquote><p><a href="${systemUrl}" style="color:#4f46e5;">צפי בהודעה במערכת</a></p>`
+    `<p>שלום ${escapeHtml(data.studentName)},</p><p>התקבלה הודעה חדשה מהמורה:</p>${quote(data.content, '#4f46e5', '#333')}<p><a href="${systemUrl}" style="color:#4f46e5;">צפי בהודעה במערכת</a></p>`
   );
 }
 
 export function studentReplyHtml(data: EmailJobMap['student-reply']): string {
   const systemUrl = `${process.env.FRONTEND_URL}/teacher/messages?highlight=${data.messageId}`;
   return wrapRtl(
-    `<p>התקבלה תגובה מ<strong>${data.studentName}</strong> להודעה ששלחת:</p><blockquote style="border-right: 3px solid #ccc; padding-right: 12px; margin: 12px 0; color: #666;">${data.originalContent}</blockquote><p><strong>התגובה:</strong></p><blockquote style="border-right: 3px solid #4f46e5; padding-right: 12px; margin: 12px 0; color: #333;">${data.replyContent}</blockquote>${replyButtons(systemUrl, data.studentEmail)}`
+    `<p>התקבלה תגובה מ<strong>${escapeHtml(data.studentName)}</strong> להודעה ששלחת:</p>${quote(data.originalContent, '#ccc', '#666')}<p><strong>התגובה:</strong></p>${quote(data.replyContent, '#4f46e5', '#333')}${replyButtons(systemUrl, data.studentEmail)}`
   );
 }
 
 export function gradeApprovedHtml(data: EmailJobMap['grade-approved']): string {
   const systemUrl = `${process.env.FRONTEND_URL}/student/assignments`;
   return wrapRtl(
-    `<p>שלום ${data.studentName},</p><p>המורה אישרה ופרסמה ציון תוכן עבור המטלה <strong>${data.assignmentTitle}</strong>:</p><p style="font-size: 20px; font-weight: bold; color: #4f46e5;">${data.contentScore}</p><p><a href="${systemUrl}" style="color:#4f46e5;">צפי בציון ובמשוב במערכת</a></p>`
+    `<p>שלום ${escapeHtml(data.studentName)},</p><p>המורה אישרה ופרסמה ציון תוכן עבור המטלה <strong>${escapeHtml(data.assignmentTitle)}</strong>:</p><p style="font-size: 20px; font-weight: bold; color: #4f46e5;">${data.contentScore}</p><p><a href="${systemUrl}" style="color:#4f46e5;">צפי בציון ובמשוב במערכת</a></p>`
   );
 }
 
@@ -112,7 +134,7 @@ export function deadlineReportHtml(data: EmailJobMap['deadline-report']): string
       const meta = STATUS_META[row.status];
       return `
       <tr>
-        <td style="padding: 8px 12px; border: 1px solid #e5e7eb;">${row.name}</td>
+        <td style="padding: 8px 12px; border: 1px solid #e5e7eb;">${escapeHtml(row.name)}</td>
         <td style="padding: 8px 12px; border: 1px solid #e5e7eb;">
           <span style="background: ${meta.bg}; color: ${meta.color}; padding: 3px 10px; border-radius: 12px; font-weight: bold;">${meta.label}</span>
         </td>
@@ -122,9 +144,9 @@ export function deadlineReportHtml(data: EmailJobMap['deadline-report']): string
     .join('');
 
   return wrapRtl(`
-    <h2 style="margin-bottom: 4px;">דוח הגשות — ${data.assignmentTitle}</h2>
+    <h2 style="margin-bottom: 4px;">דוח הגשות — ${escapeHtml(data.assignmentTitle)}</h2>
     <p style="margin-top: 0; color: #555;">
-      קורס: ${data.courseName} | מועד הגשה אחרון: ${formatDate(data.deadline)}
+      קורס: ${escapeHtml(data.courseName)} | מועד הגשה אחרון: ${formatDate(data.deadline)}
     </p>
     ${summary}
     <table style="border-collapse: collapse; width: 100%; max-width: 600px;">

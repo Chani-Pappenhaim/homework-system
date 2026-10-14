@@ -74,6 +74,10 @@ export const submissionsApi = {
   approveAi: (submissionId: string) =>
     api.post(`/submissions/${submissionId}/approve-ai`),
 
+  /** Teacher-only: corrects the AI's score and/or comments. */
+  updateAiReview: (submissionId: string, data: { aiScore?: number; aiVerbalReview?: string | null; aiCodeReview?: string | null }) =>
+    api.patch(`/submissions/${submissionId}/ai-review`, data),
+
   allowExtraAi: (submissionId: string) =>
     api.post(`/submissions/${submissionId}/allow-extra-ai`),
 

@@ -2,7 +2,7 @@ import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
 import { assertLessonAccess } from '../utils/access';
 import { cellText } from '../utils/excel';
-import { toDeliveryUrl } from '../utils/storage';
+import { submissionFileLink } from '../utils/storage';
 import { releaseFileUrls, submissionFileUrls } from '../utils/file-refs';
 import { computeSubmissionScore } from '../utils/grading';
 import ExcelJS from 'exceljs';
@@ -35,6 +35,15 @@ function parseDeadline(deadline: unknown): Date {
   return date;
 }
 
+// A minute of slack, so a deadline picked as "now" survives the trip to the server.
+const PAST_DEADLINE_GRACE_MS = 60_000;
+
+function rejectPastDeadline(deadline: Date) {
+  if (deadline.getTime() < Date.now() - PAST_DEADLINE_GRACE_MS) {
+    throw new AppError('Deadline is in the past', 'המועד האחרון כבר עבר — יש לבחור תאריך עתידי', 400);
+  }
+}
+
 /** `null` clears the deadline, a string sets it, `undefined` leaves it as it is. */
 function deadlineField(deadline: string | null | undefined) {
   if (deadline === undefined) return {};
@@ -44,7 +53,9 @@ function deadlineField(deadline: string | null | undefined) {
 
 // Fields a teacher may set on an assignment; anything else in the request body
 // (lessonId, id, counters) is ignored rather than written through.
-const EDITABLE_FIELDS = ['allowedTypes', 'allowGithub', 'allowFile', 'requirements', 'aiInstructions'] as const;
+const EDITABLE_FIELDS = [
+  'allowedTypes', 'allowGithub', 'allowFile', 'requirements', 'aiInstructions', 'aiReviewEnabled',
+] as const;
 
 function editableFields(data: Record<string, unknown>) {
   const out: Record<string, unknown> = {};
@@ -82,13 +93,16 @@ export async function createAssignment(lessonId: string, data: {
   allowedTypes?: string[]; allowGithub?: boolean; allowFile?: boolean;
   requirements?: { id: string; text: string }[];
   aiInstructions?: string | null;
+  aiReviewEnabled?: boolean;
 }) {
   const title = requireText(data.title, 'title');
   const description = requireText(data.description, 'description');
+  const deadline = data.deadline ? parseDeadline(data.deadline) : undefined;
+  if (deadline) rejectPastDeadline(deadline);
   return prisma.assignment.create({
     data: {
       lessonId, ...editableFields(data), title, description,
-      ...(data.deadline ? { deadline: parseDeadline(data.deadline) } : {}),
+      ...(deadline ? { deadline } : {}),
     },
   });
 }
@@ -98,6 +112,7 @@ export async function updateAssignment(id: string, data: Partial<{
   allowedTypes: string[]; allowGithub: boolean; allowFile: boolean;
   requirements: { id: string; text: string }[];
   aiInstructions: string | null;
+  aiReviewEnabled: boolean;
 }>) {
   const fields: Record<string, unknown> = { ...editableFields(data), ...deadlineField(data.deadline) };
   if (data.title !== undefined) fields.title = requireText(data.title, 'title');
@@ -106,6 +121,10 @@ export async function updateAssignment(id: string, data: Partial<{
   const before = 'deadline' in fields
     ? await prisma.assignment.findUnique({ where: { id }, select: { deadline: true } })
     : null;
+  // Only a deadline that is being changed has to be in the future: editing
+  // other details of an assignment whose deadline already passed stays allowed.
+  const nextDeadline = fields.deadline as Date | null | undefined;
+  if (nextDeadline && nextDeadline.getTime() !== before?.deadline?.getTime()) rejectPastDeadline(nextDeadline);
   const assignment = await prisma.assignment.update({ where: { id }, data: fields });
   if (before && before.deadline?.getTime() !== assignment.deadline?.getTime()) {
     await recomputeLateness(id, assignment.deadline);
@@ -151,7 +170,7 @@ export async function importAssignments(buffer: Buffer) {
   return { imported, errors };
 }
 
-export async function getAssignmentSubmissions(assignmentId: string) {
+export async function getAssignmentSubmissions(assignmentId: string, userId: string) {
   const assignment = await prisma.assignment.findUnique({ where: { id: assignmentId } });
   if (!assignment) throw new AppError('Assignment not found', 'המטלה לא נמצאה', 404);
 
@@ -169,7 +188,7 @@ export async function getAssignmentSubmissions(assignmentId: string) {
     submissions: submissions.map((s) => ({
       id: s.id, studentId: s.studentId,
       studentName: s.student.name, studentEmail: s.student.email,
-      fileUrl: s.fileUrl ? toDeliveryUrl(s.fileUrl) : s.fileUrl, fileName: s.fileName, githubUrl: s.githubUrl,
+      fileUrl: submissionFileLink(s, userId), fileName: s.fileName, githubUrl: s.githubUrl,
       notes: s.notes,
       submittedAt: s.submittedAt, isLate: s.isLate,
       aiStatus: s.aiStatus, aiScore: s.aiScore, aiApproved: s.aiApproved,

@@ -1,6 +1,7 @@
 import mammoth from 'mammoth';
 import TurndownService from 'turndown';
 import { AppError } from './errors';
+import { uploadBuffer } from './storage';
 
 /** File types a text field can be filled from — the frontend's file pickers list the same. */
 export const CONTENT_EXTENSIONS = ['.md', '.markdown', '.txt', '.html', '.htm', '.docx'];
@@ -11,6 +12,26 @@ turndown.remove(['script', 'style', 'head', 'title']);
 
 export function htmlToMarkdown(html: string): string {
   return turndown.turndown(html).trim();
+}
+
+/**
+ * Where a picture inside a Word file ends up. mammoth inlines each one as a
+ * base64 data URI by default, which made a document with a single screenshot
+ * hundreds of KB of Markdown: too large to save, and slow in every list that
+ * carries the text. Stored as its own file it is a short link instead. If the
+ * upload fails the picture stays inline rather than being lost.
+ */
+async function storeImage(image: { contentType: string; read(encoding: 'base64'): Promise<string> }) {
+  const base64 = await image.read('base64');
+  if (process.env.CLOUDINARY_CLOUD_NAME?.trim()) {
+    try {
+      const { url } = await uploadBuffer(Buffer.from(base64, 'base64'), image.contentType, 'content-images');
+      return { src: url };
+    } catch (err) {
+      console.error('[content-convert] image upload failed, keeping it inline', err);
+    }
+  }
+  return { src: `data:${image.contentType};base64,${base64}` };
 }
 
 /**
@@ -28,7 +49,7 @@ export async function fileToMarkdown(fileName: string, buffer: Buffer): Promise<
     );
   }
   if (ext === '.docx') {
-    const { value: html } = await mammoth.convertToHtml({ buffer });
+    const { value: html } = await mammoth.convertToHtml({ buffer }, { convertImage: mammoth.images.imgElement(storeImage) });
     return htmlToMarkdown(html);
   }
   const text = buffer.toString('utf-8').replace(/^﻿/, '');

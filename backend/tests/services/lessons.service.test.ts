@@ -453,7 +453,7 @@ describe('lessons.service copyLesson', () => {
     files: [{ id: 'f1', name: 'a.pdf', url: 'https://cdn/a.pdf', sizeBytes: 10n, required: true, hidden: false }],
     assignments: [{
       id: 'a1', title: 'T', description: 'D', deadline: null, allowedTypes: ['zip'],
-      allowGithub: true, allowFile: true, requirements: null, aiInstructions: 'ai',
+      allowGithub: true, allowFile: true, requirements: null, aiInstructions: 'ai', aiReviewEnabled: false,
     }],
     quiz: { id: 'q1', questions: [{ q: 1 }], published: true },
   };
@@ -483,7 +483,9 @@ describe('lessons.service copyLesson', () => {
   it('copies the assignments and the quiz, the quiz as an unpublished draft', async () => {
     await copyLesson('l1');
     const data = p.lesson.create.mock.calls[0][0].data;
-    expect(data.assignments.create[0]).toMatchObject({ title: 'T', description: 'D', allowedTypes: ['zip'], aiInstructions: 'ai' });
+    expect(data.assignments.create[0]).toMatchObject({
+      title: 'T', description: 'D', allowedTypes: ['zip'], aiInstructions: 'ai', aiReviewEnabled: false,
+    });
     expect(data.quiz).toEqual({ create: { questions: [{ q: 1 }], published: false } });
   });
 

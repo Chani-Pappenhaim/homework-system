@@ -1,4 +1,4 @@
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { defaultUrlTransform, type UrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 interface Props {
@@ -16,6 +16,18 @@ function withHardBreaks(content: string): string {
     .join('');
 }
 
+// A picture inlined in the text itself, as Word files were converted before
+// their pictures were stored separately. Raster types only.
+const INLINE_IMAGE = /^data:image\/(?:png|jpe?g|gif|webp|bmp);base64,[a-z0-9+/=\s]+$/i;
+
+/**
+ * react-markdown drops every data: URL, which left pictures from Word files as
+ * empty boxes. One is let through only as an image's source — never as a link,
+ * where it could open a document of the attacker's choosing.
+ */
+export const urlTransform: UrlTransform = (url, key, node) =>
+  key === 'src' && node.tagName === 'img' && INLINE_IMAGE.test(url) ? url : defaultUrlTransform(url);
+
 /**
  * No DOMPurify here on purpose: rehype-raw is not enabled, so react-markdown
  * already escapes raw HTML instead of rendering it, making source-level
@@ -28,6 +40,7 @@ function MarkdownRenderer({ content, className, keepLineBreaks }: Props) {
     <div className={className}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        urlTransform={urlTransform}
         className="prose prose-sm max-w-none text-ink prose-headings:text-ink prose-code:bg-cream prose-code:px-1 prose-code:rounded"
       >
         {keepLineBreaks ? withHardBreaks(content) : content}

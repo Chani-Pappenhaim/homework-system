@@ -1,16 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import StudentsPage from '@/pages/teacher/StudentsPage';
 import StudentDetailPage from '@/pages/teacher/StudentDetailPage';
 import { renderWithProviders } from '../utils/render';
 
-vi.mock('@/api/students.api', () => ({ studentsApi: { overview: vi.fn(), profile: vi.fn() } }));
+const navigate = vi.fn();
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return { ...actual, useNavigate: () => navigate };
+});
+
+vi.mock('@/api/students.api', () => ({ studentsApi: { overview: vi.fn(), profile: vi.fn(), update: vi.fn(), delete: vi.fn() } }));
 
 import { studentsApi } from '@/api/students.api';
 
 const overview = studentsApi.overview as unknown as ReturnType<typeof vi.fn>;
 const profile = studentsApi.profile as unknown as ReturnType<typeof vi.fn>;
+const updateStudent = studentsApi.update as unknown as ReturnType<typeof vi.fn>;
+const deleteStudent = studentsApi.delete as unknown as ReturnType<typeof vi.fn>;
 
 const student = (over: Record<string, unknown>) => ({
   id: 's1', name: 'רחל', email: 'rachel@x.com', githubUsername: null, groupNames: ['קבוצה א'],
@@ -125,5 +133,32 @@ describe('StudentDetailPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'חסרות' }));
     expect(screen.queryByText('תרגיל 1')).not.toBeInTheDocument();
     expect(screen.getByText('תרגיל 2')).toBeInTheDocument();
+  });
+
+  it("edits the student's details from her page", async () => {
+    profile.mockResolvedValue({ data: { data: fullProfile } });
+    updateStudent.mockResolvedValue({ data: {} });
+    renderWithProviders(<StudentDetailPage />, { path: '/teacher/students/:id', initialEntries: ['/teacher/students/s1'] });
+    await screen.findByRole('heading', { name: 'רחל' });
+    await userEvent.click(screen.getByRole('button', { name: /עריכת פרטים/ }));
+    const name = screen.getByLabelText('שם מלא');
+    expect(name).toHaveValue('רחל');
+    await userEvent.clear(name);
+    await userEvent.type(name, 'רחל כהן');
+    await userEvent.click(screen.getByRole('button', { name: 'שמור שינויים' }));
+    await waitFor(() => expect(updateStudent).toHaveBeenCalledWith('s1', { name: 'רחל כהן', email: 'rachel@x.com', githubUsername: 'rachel' }));
+  });
+
+  it('deletes the account only after confirmation, then returns to the list', async () => {
+    profile.mockResolvedValue({ data: { data: fullProfile } });
+    deleteStudent.mockResolvedValue({ data: {} });
+    renderWithProviders(<StudentDetailPage />, { path: '/teacher/students/:id', initialEntries: ['/teacher/students/s1'] });
+    await screen.findByRole('heading', { name: 'רחל' });
+    await userEvent.click(screen.getByRole('button', { name: /מחיקת חשבון/ }));
+    expect(deleteStudent).not.toHaveBeenCalled();
+    expect(screen.getByText(/אי אפשר לבטל את הפעולה/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'מחיקה לצמיתות' }));
+    await waitFor(() => expect(deleteStudent).toHaveBeenCalledWith('s1'));
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/teacher/students'));
   });
 });

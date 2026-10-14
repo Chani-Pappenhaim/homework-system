@@ -2,6 +2,30 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MarkdownRenderer, MarkdownText } from '@/components/ui/markdown-renderer';
 
+const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+
+describe('MarkdownRenderer — pictures inlined in the text', () => {
+  it('shows a picture converted from a Word file', () => {
+    render(<MarkdownRenderer content={`![מסך](${PNG})`} />);
+    expect(screen.getByRole('img', { name: 'מסך' })).toHaveAttribute('src', PNG);
+  });
+
+  it('still shows a picture stored as a file', () => {
+    render(<MarkdownRenderer content={'![x](https://res.cloudinary.com/demo/image/upload/a.png)'} />);
+    expect(screen.getByRole('img', { name: 'x' })).toHaveAttribute('src', 'https://res.cloudinary.com/demo/image/upload/a.png');
+  });
+
+  it('never lets a data URL through as a link', () => {
+    render(<MarkdownRenderer content={'[לחצי](data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==)'} />);
+    expect(screen.getByText('לחצי').closest('a')?.getAttribute('href') ?? '').not.toContain('data:');
+  });
+
+  it('does not take a document disguised as a picture', () => {
+    render(<MarkdownRenderer content={'![x](data:text/html;base64,PHNjcmlwdD4=)'} />);
+    expect(screen.getByRole('img', { name: 'x' }).getAttribute('src') ?? '').not.toContain('data:');
+  });
+});
+
 describe('MarkdownRenderer', () => {
   it('renders a heading from markdown', () => {
     render(<MarkdownRenderer content={'# Title here'} />);

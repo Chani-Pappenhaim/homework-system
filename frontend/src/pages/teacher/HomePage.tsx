@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Pencil, Sparkles } from 'lucide-react';
+import { Pencil, Sparkles, Users } from 'lucide-react';
 import useAuthStore from '@/store/authStore';
 import useUiStore from '@/store/uiStore';
 import { groupsApi } from '@/api/groups.api';
 import { coursesApi } from '@/api/courses.api';
 import { gradesApi } from '@/api/grades.api';
 import { aiUsageApi } from '@/api/aiUsage.api';
+import { studentsApi } from '@/api/students.api';
+import { formatUsd } from '@/lib/currency';
 import { Tape, StatusPill, type PillVariant } from '@/components/decor';
 import { cn, formatDate } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
@@ -55,6 +57,16 @@ export default function TeacherHomePage() {
   const report: ReportRow[] = unwrap(reportData)?.report ?? [];
 
   const q = search.trim().toLowerCase();
+  // The review queue only holds submissions waiting for a grade, so a student
+  // with nothing to grade (e.g. who has not submitted yet) is looked up in the
+  // student directory itself.
+  const { data: studentsData, isFetching: studentsLoading } = useQuery({
+    queryKey: ['students-search', search.trim()],
+    queryFn: () => studentsApi.search(search.trim()),
+    enabled: q.length >= 2,
+    staleTime: 30_000,
+  });
+  const studentMatches = q.length >= 2 ? unwrap(studentsData)?.students ?? [] : [];
   const matches = (r: ReportRow) =>
     !q || [r.studentName, r.courseName, r.assignmentTitle, r.groupName].some((f) => f?.toLowerCase().includes(q));
 
@@ -73,7 +85,7 @@ export default function TeacherHomePage() {
     { value: groups.length, label: 'קבוצות', accent: 'indigo' as const, to: '/teacher/groups' },
     { value: courses.length, label: 'קורסים', accent: 'clay' as const, to: '/teacher/courses' },
     { value: pending, label: 'ממתינות לבדיקה', accent: 'coral' as const, to: '/teacher/reports' },
-    { value: aiCost != null ? `$${Number(aiCost).toFixed(2)}` : '—', label: 'עלות AI', accent: 'sage' as const, to: '/teacher/ai-usage' },
+    { value: aiCost != null ? <span dir="ltr">{formatUsd(aiCost)}</span> : '—', label: 'עלות AI', accent: 'sage' as const, to: '/teacher/ai-usage' },
   ];
 
   return (
@@ -92,6 +104,41 @@ export default function TeacherHomePage() {
           ))}
         </div>
       </section>
+
+      {q.length >= 2 && (
+        <section className="sheet" aria-label="תלמידות שנמצאו">
+          <div className="flex items-center gap-2 border-b border-rule px-4 py-3">
+            <Users size={15} className="text-indigo" />
+            <h2 className="font-display text-base font-bold">תלמידות</h2>
+            <span className="label mr-auto">{studentMatches.length} תוצאות</span>
+          </div>
+          <div className="bg-margin">
+            {studentMatches.length === 0 ? (
+              <div className="py-6 text-center text-sm text-ink-soft">
+                {studentsLoading ? 'מחפש…' : `לא נמצאה תלמידה בשם או במייל "${search.trim()}"`}
+              </div>
+            ) : (
+              studentMatches.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => navigate(`/teacher/students/${s.id}`)}
+                  className="flex w-full items-center gap-3 border-b border-rule/60 px-4 py-2.5 text-right transition-colors hover:bg-butter/10"
+                >
+                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-indigo/12 text-xs font-semibold text-indigo">
+                    {s.name?.[0] ?? '?'}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold text-ink">{s.name}</div>
+                    <div className="truncate text-[11px] text-ink-soft">
+                      <span dir="ltr">{s.email}</span>{s.groupNames.length > 0 && ` · ${s.groupNames.join(', ')}`}
+                    </div>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </section>
+      )}
 
       <div className={cn('grid gap-5', graded[0]?.feedback && 'lg:grid-cols-[2fr_1fr] lg:items-start')}>
         {/* Review queue */}

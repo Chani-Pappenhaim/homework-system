@@ -1,6 +1,6 @@
 import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
-import { uploadBuffer, createUploadSignature, toDeliveryUrl, destroyByUrl, isOwnUpload } from '../utils/storage';
+import { uploadBuffer, createUploadSignature, destroyByUrl, isOwnUpload, submissionFileLink } from '../utils/storage';
 import { confirmUpload, discardPendingUpload } from '../utils/pending-uploads';
 import { releaseFileUrls } from '../utils/file-refs';
 import { assertLessonAccess } from '../utils/access';
@@ -9,6 +9,7 @@ import { aiReviewQueue, emailQueue } from '../infrastructure/queues/queues';
 import type { EmailJobMap } from '../infrastructure/queues/job-types';
 import { buildTemplateWorkbook, cellText } from '../utils/excel';
 import { getRepoStatus, normalizeRepoName, parseRepoRef } from '../utils/github';
+import { assertAiAvailable } from './ai-availability';
 import ExcelJS from 'exceljs';
 
 async function enqueueEmail<T extends keyof EmailJobMap>(jobName: T, data: EmailJobMap[T]) {
@@ -267,7 +268,7 @@ export async function getMySubmissions(studentId: string) {
         lessonTopic: assignment.lesson.topic, courseName: assignment.lesson.course.name,
         submittedAt: sub.submittedAt, isLate: sub.isLate, notes: sub.notes,
         checklist: sub.checklist,
-        githubUrl: sub.githubUrl, fileUrl: sub.fileUrl ? toDeliveryUrl(sub.fileUrl) : sub.fileUrl, fileName: sub.fileName,
+        githubUrl: sub.githubUrl, fileUrl: submissionFileLink(sub, studentId), fileName: sub.fileName,
         ...toStudentAiView(sub),
         grade: grade ? { submissionScore: grade.submissionScore, contentScore: grade.contentApproved ? grade.contentScore : null, contentApproved: grade.contentApproved, feedback: grade.feedback, checklist: grade.checklist } : null,
       });
@@ -292,7 +293,7 @@ export async function getSubmissionById(id: string, userId: string, role: string
   if (role !== 'ADMIN' && submission.studentId !== userId) {
     throw new AppError('Forbidden', 'אין לך הרשאה לצפות בהגשה זו', 403);
   }
-  const fileUrl = submission.fileUrl ? toDeliveryUrl(submission.fileUrl) : submission.fileUrl;
+  const fileUrl = submissionFileLink(submission, userId);
   if (role === 'ADMIN') return { ...submission, fileUrl };
   // The content score is the teacher's call and stays hidden until she approves
   // it; the submission score is always the student's to see.
@@ -302,10 +303,21 @@ export async function getSubmissionById(id: string, userId: string, role: string
   return { ...submission, fileUrl, grade, ...toStudentAiView(submission) };
 }
 
+// The teacher turned AI review off for the assignment.
+function assertAiReviewEnabled(submission: { assignment?: { aiReviewEnabled: boolean } | null }) {
+  if (submission.assignment?.aiReviewEnabled === false) {
+    throw new AppError('AI review is disabled for this assignment', 'בדיקת AI אינה פעילה במטלה זו', 400);
+  }
+}
+
 export async function requestAiReview(submissionId: string, studentId: string) {
-  const submission = await prisma.submission.findUnique({ where: { id: submissionId } });
+  const submission = await prisma.submission.findUnique({
+    where: { id: submissionId },
+    include: { assignment: { select: { aiReviewEnabled: true } } },
+  });
   if (!submission) throw new AppError('Submission not found', 'ההגשה לא נמצאה', 404);
   if (submission.studentId !== studentId) throw new AppError('Forbidden', 'אין לך הרשאה לפעולה זו', 403);
+  assertAiReviewEnabled(submission);
   const fileRef = (submission.fileName || submission.fileUrl || '').toLowerCase();
   const hasReviewableFile = fileRef.endsWith('.zip') || fileRef.endsWith('.docx');
   if (!submission.githubUrl && !hasReviewableFile) {
@@ -323,6 +335,8 @@ export async function requestAiReview(submissionId: string, studentId: string) {
   if (submission.aiStatus === 'pending') {
     throw new AppError('Review already in progress', 'בדיקת AI כבר מתבצעת עבור הגשה זו', 409);
   }
+  // Before the claim, so a review that cannot run now does not use up her attempt.
+  await assertAiAvailable();
 
   // Claim the review in one conditional write: two quick clicks (or two tabs)
   // both pass the checks above, but only one of them can flip the status.
@@ -348,8 +362,12 @@ export async function requestAiReview(submissionId: string, studentId: string) {
  * student's, and the new result waits for her approval like the first one.
  */
 export async function rerunAiReview(submissionId: string) {
-  const submission = await prisma.submission.findUnique({ where: { id: submissionId } });
+  const submission = await prisma.submission.findUnique({
+    where: { id: submissionId },
+    include: { assignment: { select: { aiReviewEnabled: true } } },
+  });
   if (!submission) throw new AppError('Submission not found', 'ההגשה לא נמצאה', 404);
+  assertAiReviewEnabled(submission);
   const fileRef = (submission.fileName || submission.fileUrl || '').toLowerCase();
   if (!submission.githubUrl && !fileRef.endsWith('.zip') && !fileRef.endsWith('.docx')) {
     throw new AppError(
@@ -361,6 +379,7 @@ export async function rerunAiReview(submissionId: string) {
   if (submission.aiStatus === 'pending') {
     throw new AppError('Review already in progress', 'בדיקת AI כבר מתבצעת עבור הגשה זו', 400);
   }
+  await assertAiAvailable();
 
   await prisma.submission.update({ where: { id: submissionId }, data: { aiStatus: 'pending', aiApproved: false, aiError: null } });
   await aiReviewQueue.add(
@@ -370,13 +389,20 @@ export async function rerunAiReview(submissionId: string) {
   );
 }
 
-export async function approveAiReview(submissionId: string) {
+export async function approveAiReview(submissionId: string, gradedById: string) {
+  const submission = await prisma.submission.findUnique({ where: { id: submissionId }, include: { grade: true } });
+  if (!submission) throw new AppError('Submission not found', 'ההגשה לא נמצאה', 404);
   // Also publishes the content score, matching the previous single-flag
   // behavior (aiApproved used to gate both the AI fields and contentScore).
+  // A content score the teacher never set takes the AI's, so approving the AI
+  // never publishes an empty content score.
+  const fillFromAi = submission.grade?.contentScore == null && submission.aiScore != null
+    ? { contentScore: submission.aiScore, gradedById, gradedAt: new Date() }
+    : {};
   await prisma.grade.upsert({
     where: { submissionId },
-    create: { submissionId, contentApproved: true },
-    update: { contentApproved: true },
+    create: { submissionId, contentApproved: true, ...fillFromAi },
+    update: { contentApproved: true, ...fillFromAi },
   });
   return prisma.submission.update({
     where: { id: submissionId },
@@ -441,6 +467,49 @@ export async function restoreAiScore(submissionId: string, gradedById: string) {
     create: { submissionId: submission.id, gradedById, contentScore: submission.aiScore },
     update: { contentScore: submission.aiScore, gradedAt: new Date(), gradedById },
   });
+}
+
+type AiReviewEdit = { aiScore?: unknown; aiVerbalReview?: unknown; aiCodeReview?: unknown };
+
+/**
+ * The teacher's correction of a finished AI review — its score and/or its
+ * comments. A saved content score that still is the AI's follows the new AI
+ * score; one the teacher set herself stays as it is. An unset one stays unset,
+ * so the submission stays in her "to grade" queue (the grading form suggests
+ * the AI score there).
+ */
+export async function updateAiReview(submissionId: string, edit: AiReviewEdit, gradedById: string) {
+  const data: { aiScore?: number; aiVerbalReview?: string | null; aiCodeReview?: string | null } = {};
+  if (edit?.aiScore !== undefined) {
+    const n = typeof edit.aiScore === 'number' ? edit.aiScore : Number(edit.aiScore);
+    if (edit.aiScore === null || edit.aiScore === '' || !Number.isFinite(n) || n < 0 || n > 100) {
+      throw new AppError('Invalid AI score', 'ציון ה-AI חייב להיות מספר בין 0 ל-100', 400);
+    }
+    data.aiScore = n;
+  }
+  for (const key of ['aiVerbalReview', 'aiCodeReview'] as const) {
+    const value = edit?.[key];
+    if (value === undefined) continue;
+    if (value !== null && typeof value !== 'string') throw new AppError(`Invalid ${key}`, 'הערות ה-AI אינן תקינות', 400);
+    data[key] = value?.trim() ? value : null;
+  }
+  if (Object.keys(data).length === 0) throw new AppError('Nothing to update', 'לא נשלח שינוי', 400);
+
+  const submission = await prisma.submission.findUnique({ where: { id: submissionId }, include: { grade: true } });
+  if (!submission) throw new AppError('Submission not found', 'ההגשה לא נמצאה', 404);
+  if (submission.aiStatus !== 'done') {
+    throw new AppError('No finished AI review', 'אין בדיקת AI שהסתיימה להגשה זו', 400);
+  }
+
+  const updated = await prisma.submission.update({ where: { id: submissionId }, data });
+  const contentScore = submission.grade?.contentScore;
+  if (data.aiScore !== undefined && contentScore != null && contentScore === submission.aiScore) {
+    await prisma.grade.update({
+      where: { submissionId },
+      data: { contentScore: data.aiScore, gradedAt: new Date(), gradedById },
+    });
+  }
+  return updated;
 }
 
 export async function allowExtraAiReview(submissionId: string) {

@@ -197,6 +197,7 @@ export async function copyLesson(lessonId: string, targetCourseId?: string) {
           title: a.title, description: a.description, deadline: a.deadline,
           allowedTypes: a.allowedTypes, allowGithub: a.allowGithub, allowFile: a.allowFile,
           requirements: a.requirements ?? undefined, aiInstructions: a.aiInstructions,
+          aiReviewEnabled: a.aiReviewEnabled,
         })),
       },
       ...(source.quiz ? { quiz: { create: { questions: source.quiz.questions ?? [], published: false } } } : {}),

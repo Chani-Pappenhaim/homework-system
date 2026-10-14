@@ -91,12 +91,13 @@ describe('assignments.service.createAssignment', () => {
   it('passes aiInstructions and requirements through, converting deadline to Date', async () => {
     p.assignment.create.mockImplementation(({ data }: any) => Promise.resolve(data));
     const r: any = await createAssignment('l1', {
-      title: 'Task', description: 'grading notes', deadline: '2026-05-01T00:00:00.000Z',
+      title: 'Task', description: 'grading notes', deadline: '2099-05-01T00:00:00.000Z',
       aiInstructions: 'be strict', requirements: [{ id: 'r1', text: 'do X' }],
-      allowGithub: true, allowFile: false,
+      allowGithub: true, allowFile: false, aiReviewEnabled: false,
     });
     expect(r.lessonId).toBe('l1');
     expect(r.aiInstructions).toBe('be strict');
+    expect(r.aiReviewEnabled).toBe(false);
     expect(r.requirements).toEqual([{ id: 'r1', text: 'do X' }]);
     expect(r.deadline).toBeInstanceOf(Date);
   });
@@ -117,7 +118,7 @@ describe('assignments.service.createAssignment', () => {
 describe('assignments.service.updateAssignment', () => {
   it('updates fields and converts deadline', async () => {
     p.assignment.update.mockImplementation(({ data }: any) => Promise.resolve(data));
-    const r: any = await updateAssignment('a1', { title: 'New', deadline: '2026-01-01T00:00:00.000Z' });
+    const r: any = await updateAssignment('a1', { title: 'New', deadline: '2099-01-01T00:00:00.000Z' });
     expect(r.title).toBe('New');
     expect(r.deadline).toBeInstanceOf(Date);
   });
@@ -172,10 +173,44 @@ describe('assignments.service hardening', () => {
     await expect(createAssignment('l1', { title: 'T', description: 'D', deadline: 'nope' })).rejects.toMatchObject({ status: 400 });
   });
 
+  it('rejects a new assignment whose deadline already passed', async () => {
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    await expect(createAssignment('l1', { title: 'T', description: 'D', deadline: yesterday }))
+      .rejects.toMatchObject({ status: 400, clientMessage: 'המועד האחרון כבר עבר — יש לבחור תאריך עתידי' });
+    expect(p.assignment.create).not.toHaveBeenCalled();
+  });
+
+  it('accepts a deadline picked as "now", despite the time the request took', async () => {
+    p.assignment.create.mockImplementation(({ data }: any) => Promise.resolve(data));
+    const secondsAgo = new Date(Date.now() - 5000).toISOString();
+    await expect(createAssignment('l1', { title: 'T', description: 'D', deadline: secondsAgo })).resolves.toBeTruthy();
+  });
+
+  it('rejects moving a deadline into the past', async () => {
+    p.assignment.findUnique.mockResolvedValue({ deadline: new Date('2099-01-01') });
+    await expect(updateAssignment('a1', { deadline: '2020-01-01T00:00:00.000Z' })).rejects.toMatchObject({ status: 400 });
+    expect(p.assignment.update).not.toHaveBeenCalled();
+  });
+
+  it('still saves an assignment whose deadline already passed when the deadline is left as it is', async () => {
+    const passed = new Date('2020-01-01T00:00:00.000Z');
+    p.assignment.findUnique.mockResolvedValue({ deadline: passed });
+    p.assignment.update.mockResolvedValue({ id: 'a1', deadline: passed });
+    await updateAssignment('a1', { title: 'Renamed', description: 'D', deadline: passed.toISOString() });
+    expect(p.assignment.update).toHaveBeenCalled();
+    expect(p.submission.findMany).not.toHaveBeenCalled();
+  });
+
   it('never lets the body move the assignment to another lesson', async () => {
     p.assignment.update.mockResolvedValue({ id: 'a1', deadline: null });
     await updateAssignment('a1', { title: 'T', lessonId: 'other' } as any);
     expect(p.assignment.update.mock.calls[0][0].data).not.toHaveProperty('lessonId');
+  });
+
+  it('turns AI review off and on', async () => {
+    p.assignment.update.mockResolvedValue({ id: 'a1', deadline: null });
+    await updateAssignment('a1', { aiReviewEnabled: false });
+    expect(p.assignment.update.mock.calls[0][0].data).toEqual({ aiReviewEnabled: false });
   });
 
   it('clears the AI instructions when the box is emptied', async () => {
@@ -185,14 +220,14 @@ describe('assignments.service hardening', () => {
   });
 
   it('recomputes lateness and the automatic score after the deadline moves', async () => {
-    p.assignment.findUnique.mockResolvedValue({ deadline: new Date('2026-01-01') });
-    p.assignment.update.mockResolvedValue({ id: 'a1', deadline: new Date('2026-03-01') });
+    p.assignment.findUnique.mockResolvedValue({ deadline: new Date('2099-01-01') });
+    p.assignment.update.mockResolvedValue({ id: 'a1', deadline: new Date('2099-03-01') });
     p.submission.findMany.mockResolvedValue([
-      { id: 's1', submittedAt: new Date('2026-02-01'), isLate: true, checklist: null, grade: { gradedById: null } },
-      { id: 's2', submittedAt: new Date('2026-02-01'), isLate: true, checklist: null, grade: { gradedById: 't1' } },
-      { id: 's3', submittedAt: new Date('2026-04-01'), isLate: true, checklist: null, grade: null },
+      { id: 's1', submittedAt: new Date('2099-02-01'), isLate: true, checklist: null, grade: { gradedById: null } },
+      { id: 's2', submittedAt: new Date('2099-02-01'), isLate: true, checklist: null, grade: { gradedById: 't1' } },
+      { id: 's3', submittedAt: new Date('2099-04-01'), isLate: true, checklist: null, grade: null },
     ]);
-    await updateAssignment('a1', { deadline: '2026-03-01' });
+    await updateAssignment('a1', { deadline: '2099-03-01' });
     expect(p.submission.update).toHaveBeenCalledTimes(2);
     expect(p.submission.update).toHaveBeenCalledWith({ where: { id: 's1' }, data: { isLate: false } });
     expect(p.grade.update).toHaveBeenCalledTimes(1);

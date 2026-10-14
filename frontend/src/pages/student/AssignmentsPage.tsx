@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { DeleteSubmissionButton } from '@/components/student/DeleteSubmissionButton';
 import { cn, formatDate, formatDateTime, isOverdue } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
+import { apiFileUrl } from '@/lib/config';
 import type { MySubmission, PendingAssignment } from '@/types';
 import { usePageTitle } from '@/hooks/usePageTitle';
 
@@ -232,7 +233,7 @@ function SubmittedDetail({ item, onDeleted }: { item: MySubmission; onDeleted: (
             </a>
           )}
           {item.fileUrl && (
-            <a href={item.fileUrl} target="_blank" rel="noreferrer"
+            <a href={apiFileUrl(item.fileUrl)} target="_blank" rel="noreferrer"
               className="inline-flex items-center gap-2 text-sm border border-rule/20 rounded-input px-4 py-2 text-ink hover:bg-ground/60 transition">
               <Paperclip size={14} /> {item.fileName || 'קובץ שהוגש'}
             </a>

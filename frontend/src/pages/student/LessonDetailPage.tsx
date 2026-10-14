@@ -21,6 +21,7 @@ import { getApiErrorMessage } from '@/lib/errors';
 import { useTeacherRequest } from '@/hooks/useTeacherRequest';
 import { unwrap } from '@/lib/api-utils';
 import { useTabParam } from '@/hooks/useTabParam';
+import { AI_AVAILABILITY_QUERY_KEY, useAiAvailability } from '@/hooks/useAiAvailability';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import type { LessonPageProps } from '@/components/lesson/LessonRoute';
 import type { AssignmentDTO, MySubmission } from '@/types';
@@ -193,7 +194,7 @@ export default function StudentLessonDetailPage({ lessonId, lessonNumber }: Part
           </CardHeader>
           <CardContent>
             {hasFiles ? (
-              <FileGallery
+              <FileGallery source="lesson"
                 files={lesson.files}
                 onMarkViewed={(fileId) => viewFileMutation.mutate(fileId)}
                 onUnmarkViewed={(fileId) => unviewFileMutation.mutate(fileId)}
@@ -245,10 +246,16 @@ function AssignmentCard({ assignment: a, submission: sub }: {
     a.id,
   );
 
+  const ai = useAiAvailability();
+  // The teacher may turn AI review off per assignment; a review she approved before that still shows.
+  const aiReviewOff = a.aiReviewEnabled === false;
+
   const aiReviewMutation = useMutation({
     mutationFn: () => submissionsApi.requestAiReview(sub!.id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['mine'] }); setAiLimitReached(false); setError(''); },
     onError: (e: any) => {
+      // The AI ran out since the page loaded — refresh the check so the buttons give way to the note.
+      if (e?.response?.status === 503) qc.invalidateQueries({ queryKey: AI_AVAILABILITY_QUERY_KEY });
       if (e?.response?.data?.error === 'AI review limit reached') {
         setAiLimitReached(true);
         setError('');
@@ -324,11 +331,11 @@ function AssignmentCard({ assignment: a, submission: sub }: {
 
             <DeleteSubmissionButton submission={sub} />
 
-            {(sub.githubUrl || sub.fileUrl) && (
+            {(sub.githubUrl || sub.fileUrl) && (!aiReviewOff || (sub.aiStatus === 'done' && sub.aiApproved)) && (
               <div className="border border-rule/15 rounded-input p-3 text-sm space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1 font-medium text-ink"><Bot size={14} /> בדיקת AI</span>
-                  {sub.aiStatus === 'none' && !aiLimitReached && (
+                  {sub.aiStatus === 'none' && !aiLimitReached && ai.available && (
                     <Button size="sm" variant="outline" loading={aiReviewMutation.isPending}
                       onClick={() => aiReviewMutation.mutate()}>
                       בקשי בדיקה
@@ -336,7 +343,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                   )}
                   {sub.aiStatus === 'pending' && <Badge variant="warning">בודק...</Badge>}
                   {sub.aiStatus === 'done' && !sub.aiApproved && <Badge variant="success">נבדק ✓</Badge>}
-                  {sub.aiStatus === 'error' && (aiLimitReached ? <Badge variant="default">הבדיקה נכשלה</Badge> : (
+                  {sub.aiStatus === 'error' && (aiLimitReached || !ai.available ? <Badge variant="default">הבדיקה נכשלה</Badge> : (
                     <Button size="sm" variant="outline" loading={aiReviewMutation.isPending}
                       onClick={() => aiReviewMutation.mutate()}>
                       בקשי בדיקה שוב
@@ -401,7 +408,10 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                     )}
                   </div>
                 )}
-                {error && <p className="text-coral text-xs">{error}</p>}
+                {/* While the AI is unavailable its note replaces the request buttons and their errors. */}
+                {(sub.aiStatus === 'none' || sub.aiStatus === 'error') && !aiLimitReached && !ai.available ? (
+                  <p className="text-xs text-ink/70">{ai.message}</p>
+                ) : error && <p className="text-coral text-xs">{error}</p>}
               </div>
             )}
           </div>

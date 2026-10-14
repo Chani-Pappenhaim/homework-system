@@ -51,7 +51,7 @@ export async function importAssignments(req: Request, res: Response) {
 
 export async function getSubmissions(req: Request, res: Response) {
   try {
-    const data = await assignmentsService.getAssignmentSubmissions(req.params.id as string);
+    const data = await assignmentsService.getAssignmentSubmissions(req.params.id as string, req.user!.userId);
     res.json({ success: true, data });
   } catch (err: any) {
     sendError(res, err);

@@ -18,6 +18,8 @@ vi.mock('../../src/infrastructure/queues/queues', () => ({
 
 const { assertLessonAccessMock } = vi.hoisted(() => ({ assertLessonAccessMock: vi.fn() }));
 vi.mock('../../src/utils/access', () => ({ assertLessonAccess: assertLessonAccessMock }));
+const { assertAiAvailableMock } = vi.hoisted(() => ({ assertAiAvailableMock: vi.fn() }));
+vi.mock('../../src/services/ai-availability', () => ({ assertAiAvailable: assertAiAvailableMock }));
 
 import { prisma } from '../../src/config/prisma';
 import {
@@ -34,6 +36,7 @@ const p = prisma as any;
 beforeEach(() => {
   vi.clearAllMocks();
   assertLessonAccessMock.mockResolvedValue(undefined);
+  assertAiAvailableMock.mockResolvedValue(undefined);
   quizGetJob.mockResolvedValue(undefined); // no prior generation job by default
   p.lessonFile.findMany.mockResolvedValue([]);
   p.$transaction.mockImplementation(async (ops: any[]) => Promise.all(ops));
@@ -308,6 +311,16 @@ describe('quizzes.service.requestQuizGeneration', () => {
   it('refuses to overwrite an existing quiz', async () => {
     p.quiz.findUnique.mockResolvedValue(draft);
     await expect(requestQuizGeneration('l1', 'ADMIN', false)).rejects.toMatchObject({ status: 409 });
+    expect(quizAdd).not.toHaveBeenCalled();
+  });
+
+  it('queues nothing, and passes the 503 on, while the AI cannot run', async () => {
+    p.quiz.findUnique.mockResolvedValue(null);
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '# content' });
+    assertAiAvailableMock.mockRejectedValue(
+      Object.assign(new Error('AI unavailable'), { status: 503, clientMessage: 'המכסה היומית של ה-AI נגמרה.' })
+    );
+    await expect(requestQuizGeneration('l1', 'ADMIN', false)).rejects.toMatchObject({ status: 503 });
     expect(quizAdd).not.toHaveBeenCalled();
   });
 

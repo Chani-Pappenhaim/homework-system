@@ -83,6 +83,11 @@ function expiresSoon(token: string): boolean {
 
 // Signing in and refreshing do not use the access token.
 const NO_TOKEN_URLS = ['/auth/login', '/auth/refresh'];
+const isNoTokenUrl = (url?: string) => NO_TOKEN_URLS.some((u) => url?.startsWith(u));
+
+// Pages that work signed out. An expired session must not pull someone off
+// them - e.g. the reset-password link from an email, opened in a fresh tab.
+const PUBLIC_PATHS = ['/login', '/forgot-password', '/reset-password', '/verify-email', '/auth/callback'];
 
 api.interceptors.request.use(async (config) => {
   // Count each logical request only once — a retry re-enters here with the same
@@ -92,7 +97,7 @@ api.interceptors.request.use(async (config) => {
     requestStarted();
   }
   let token = useAuthStore.getState().accessToken;
-  if (token && expiresSoon(token) && !NO_TOKEN_URLS.some((url) => config.url?.startsWith(url))) {
+  if (token && expiresSoon(token) && !isNoTokenUrl(config.url)) {
     try {
       token = await refreshAccessToken();
     } catch {
@@ -144,7 +149,9 @@ api.interceptors.response.use(
   async (error) => {
     const original = error.config;
 
-    if (error.response?.status === 401 && original && !original._retry) {
+    // A 401 from signing in or refreshing is the answer itself (wrong details,
+    // no session) - the caller handles it; refreshing again would not help.
+    if (error.response?.status === 401 && original && !original._retry && !isNoTokenUrl(original.url)) {
       original._retry = true;
       try {
         const token = await refreshAccessToken();
@@ -154,7 +161,7 @@ api.interceptors.response.use(
       } catch {
         useAuthStore.getState().clearAuth();
         requestSettled();
-        if (window.location.pathname !== '/login') {
+        if (!PUBLIC_PATHS.includes(window.location.pathname)) {
           window.location.href = '/login';
         }
         return Promise.reject(error);

@@ -292,6 +292,13 @@ describe('aiUsageApi', () => {
   it('summary gets', () => {
     aiUsageApi.summary(); expect(get).toHaveBeenCalledWith('/ai-usage/summary');
   });
+  it('availability gets', () => {
+    aiUsageApi.availability(); expect(get).toHaveBeenCalledWith('/ai-usage/availability');
+  });
+  it('updateSettings puts the chosen fallback', () => {
+    aiUsageApi.updateSettings({ paidFallback: 'NEVER' });
+    expect(put).toHaveBeenCalledWith('/ai-usage/settings', { paidFallback: 'NEVER' });
+  });
 });
 
 describe('attendanceApi', () => {

@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import { Readable } from 'node:stream';
 import { prisma } from '../config/prisma';
-import { verifyFileToken } from '../utils/jwt';
-import { toDeliveryUrl } from '../utils/storage';
+import { REFRESH_COOKIE, signFileToken, verifyFileToken, verifyRefreshToken, type FileTokenPayload } from '../utils/jwt';
+import { fileDownloadPath, fileExtension, toDeliveryUrl } from '../utils/storage';
 import { discardPendingUpload } from '../utils/pending-uploads';
 import { assertLessonAccess, assertCourseAccess } from '../utils/access';
 import { contentDisposition, ensureExtension, extensionOf, resolveContentType } from '../utils/mime';
@@ -29,18 +29,66 @@ function applyEmbeddingHeaders(res: Response, name: string) {
   }
 }
 
+type FileKind = FileTokenPayload['kind'];
+type StoredFile = { id: string; url: string; name: string; hidden: boolean };
+type FileCheck = { file: StoredFile } | { status: number; error: string };
+
+/**
+ * Whether `userId` may open the file right now. Access (group membership,
+ * granted lesson access, the file being hidden) is read from the live DB on
+ * every call, never trusted from the time a link was issued.
+ */
+async function checkFileAccess(fileId: string, kind: FileKind, userId: string, role: string): Promise<FileCheck> {
+  if (kind === 'submission') {
+    // A submission is the student's own work: only she and the teacher may open it.
+    const submission = await prisma.submission.findUnique({ where: { id: fileId } });
+    if (!submission?.fileUrl) return { status: 404, error: 'הקובץ לא נמצא' };
+    if (role !== 'ADMIN' && submission.studentId !== userId) return { status: 403, error: 'אין לך הרשאה לקובץ זה' };
+    return { file: { id: submission.id, url: submission.fileUrl, name: submission.fileName || 'הגשה', hidden: false } };
+  }
+  const file = kind === 'lesson'
+    ? await prisma.lessonFile.findUnique({ where: { id: fileId } })
+    : await prisma.courseFile.findUnique({ where: { id: fileId } });
+  if (!file) return { status: 404, error: 'הקובץ לא נמצא' };
+  if (role !== 'ADMIN' && file.hidden) return { status: 403, error: 'אין לך הרשאה לקובץ זה' };
+  try {
+    if (kind === 'lesson') {
+      await assertLessonAccess(userId, role, (file as { lessonId: string }).lessonId);
+    } else {
+      await assertCourseAccess(userId, role, (file as { courseId: string }).courseId);
+    }
+  } catch {
+    return { status: 403, error: 'אין לך הרשאה לקובץ זה' };
+  }
+  return { file };
+}
+
+/**
+ * Whether the request comes from a signed-in session of `userId`: the refresh
+ * cookie, still valid and not revoked by a later password change.
+ */
+function sessionBelongsTo(req: Request, userId: string, tokenVersion: number): boolean {
+  const cookie = req.cookies?.[REFRESH_COOKIE];
+  if (typeof cookie !== 'string') return false;
+  try {
+    const session = verifyRefreshToken(cookie);
+    return session.userId === userId && (session.tokenVersion ?? 0) === tokenVersion;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Study-material links carry their own short-lived token instead of the
  * session's Authorization header (a plain <a>/<img>/<iframe> navigation can't
- * send one), so this route verifies that token itself and redirects to a
- * freshly signed Cloudinary URL rather than sitting behind the normal
- * session-auth middleware.
+ * send one), so this route verifies that token itself rather than sitting
+ * behind the normal session-auth middleware.
  *
- * The token proves who asked and for which file, but access itself (group
- * membership / granted lesson access) is re-checked here against the live DB
- * on every download — not trusted from token issue time — so a student whose
- * access was revoked after the link was generated can't still use it during
- * the token's 15-minute window.
+ * The token alone used to be the whole credential, so a link copied out of the
+ * page opened the file for anyone, signed in or not, until it expired. The
+ * browser also has to send the session cookie of the user the link was issued
+ * to. Only an `external` token, minted on demand for an online document viewer
+ * that fetches from its own servers, goes without one; it lives five minutes.
  */
 export async function download(req: Request, res: Response) {
   const { fileId } = req.params;
@@ -64,36 +112,23 @@ export async function download(req: Request, res: Response) {
     return;
   }
 
-  const file = payload.kind === 'lesson'
-    ? await prisma.lessonFile.findUnique({ where: { id: fileId } })
-    : await prisma.courseFile.findUnique({ where: { id: fileId } });
-
-  if (!file) {
-    res.status(404).json({ success: false, error: 'הקובץ לא נמצא' });
-    return;
-  }
-
-  const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { role: true } });
+  const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { role: true, tokenVersion: true } });
   if (!user) {
     res.status(401).json({ success: false, error: 'קישור לא תקין' });
     return;
   }
 
-  if (user.role !== 'ADMIN' && file.hidden) {
-    res.status(403).json({ success: false, error: 'אין לך הרשאה לקובץ זה' });
+  if (!payload.external && !sessionBelongsTo(req, payload.userId, user.tokenVersion)) {
+    res.status(401).json({ success: false, error: 'יש להתחבר לאתר כדי לפתוח את הקובץ' });
     return;
   }
 
-  try {
-    if (payload.kind === 'lesson') {
-      await assertLessonAccess(payload.userId, user.role, (file as { lessonId: string }).lessonId);
-    } else {
-      await assertCourseAccess(payload.userId, user.role, (file as { courseId: string }).courseId);
-    }
-  } catch {
-    res.status(403).json({ success: false, error: 'אין לך הרשאה לקובץ זה' });
+  const check = await checkFileAccess(fileId, payload.kind, payload.userId, user.role);
+  if ('status' in check) {
+    res.status(check.status).json({ success: false, error: check.error });
     return;
   }
+  const { file } = check;
 
   // Proxied through our own origin instead of a bare redirect to the Cloudinary
   // CDN: a cross-origin redirect target makes the browser ignore <a download>
@@ -161,6 +196,27 @@ export async function download(req: Request, res: Response) {
   });
   res.on('close', () => body.destroy());
   body.pipe(res);
+}
+
+/**
+ * A link an online Office viewer can fetch: it carries no session cookie, so
+ * it gets a token of its own, issued only to a signed-in reader who may open
+ * the file and valid for just the few minutes the viewer needs to load it.
+ */
+export async function viewerLink(req: Request, res: Response) {
+  const { fileId, kind } = req.body ?? {};
+  if (typeof fileId !== 'string' || (kind !== 'lesson' && kind !== 'course')) {
+    res.status(400).json({ success: false, error: 'בקשה לא תקינה' });
+    return;
+  }
+  const { userId, role } = req.user!;
+  const check = await checkFileAccess(fileId, kind, userId, role);
+  if ('status' in check) {
+    res.status(check.status).json({ success: false, error: check.error });
+    return;
+  }
+  const token = signFileToken({ fileId, kind, userId, external: true });
+  res.json({ success: true, data: { url: fileDownloadPath(fileId, fileExtension(check.file), token) } });
 }
 
 export async function discardUpload(req: Request, res: Response) {

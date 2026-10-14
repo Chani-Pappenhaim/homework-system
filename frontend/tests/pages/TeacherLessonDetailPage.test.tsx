@@ -11,7 +11,7 @@ vi.mock('@/api/assignments.api', () => ({
   assignmentsApi: { getSubmissions: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
 }));
 vi.mock('@/api/submissions.api', () => ({
-  submissionsApi: { approveAi: vi.fn(), restoreAiScore: vi.fn() },
+  submissionsApi: { approveAi: vi.fn(), restoreAiScore: vi.fn(), updateAiReview: vi.fn() },
 }));
 vi.mock('@/api/grades.api', () => ({ gradesApi: { grade: vi.fn() } }));
 vi.mock('@/api/groups.api', () => ({ groupsApi: { list: vi.fn(), get: vi.fn() } }));
@@ -26,6 +26,7 @@ const getAccess = lessonsApi.getAccess as unknown as ReturnType<typeof vi.fn>;
 const setFileRequired = lessonsApi.setFileRequired as unknown as ReturnType<typeof vi.fn>;
 const getSubmissions = assignmentsApi.getSubmissions as unknown as ReturnType<typeof vi.fn>;
 const approveAi = submissionsApi.approveAi as unknown as ReturnType<typeof vi.fn>;
+const updateAiReview = submissionsApi.updateAiReview as unknown as ReturnType<typeof vi.fn>;
 const grade = gradesApi.grade as unknown as ReturnType<typeof vi.fn>;
 
 import { groupsApi } from '@/api/groups.api';
@@ -170,6 +171,89 @@ describe('TeacherLessonDetailPage', () => {
 
     await userEvent.click(approveBtn);
     await waitFor(() => expect(approveAi).toHaveBeenCalled());
+  });
+
+  const aiReviewed = { id: 's5', studentName: 'תמר', studentEmail: 't@x.com', submittedAt: '2026-07-10T10:00:00Z', isLate: false, githubUrl: 'https://github.com/a/b', grade: null, aiStatus: 'done', aiScore: 88, aiApproved: false, aiVerbalReview: 'עבודה טובה', aiCodeReview: 'שורה 3' };
+
+  it('suggests the AI score as the content score, unsaved but not counted as an edit', async () => {
+    getSubmissions.mockResolvedValue({ data: { data: { submissions: [aiReviewed] } } });
+    grade.mockResolvedValue({ data: {} });
+    renderPage();
+    await openAssignment();
+    const contentInput = await screen.findByPlaceholderText('90') as HTMLInputElement;
+    expect(contentInput.value).toBe('88');
+    expect(screen.getByText(/הוצע מבדיקת ה-AI/)).toBeInTheDocument();
+    expect(screen.queryByText('יש שינויים שלא נשמרו')).not.toBeInTheDocument();
+    // So "save and approve" is available right away, and saves the AI score.
+    await userEvent.click(screen.getByRole('button', { name: 'שמור ציון' }));
+    await waitFor(() => expect(grade).toHaveBeenCalledWith('s5', expect.objectContaining({ contentScore: 88 })));
+  });
+
+  it('keeps a content score the teacher already saved over the AI score', async () => {
+    getSubmissions.mockResolvedValue({ data: { data: { submissions: [
+      { ...aiReviewed, grade: { submissionScore: 90, contentScore: 60, feedback: '', gradedAt: '' } },
+    ] } } });
+    renderPage();
+    await openAssignment();
+    const contentInput = await screen.findByPlaceholderText('90') as HTMLInputElement;
+    expect(contentInput.value).toBe('60');
+    expect(screen.queryByText(/הוצע מבדיקת ה-AI/)).not.toBeInTheDocument();
+  });
+
+  it('lets the teacher correct the AI score and comments, and the suggested content score follows', async () => {
+    getSubmissions.mockResolvedValue({ data: { data: { submissions: [aiReviewed] } } });
+    updateAiReview.mockResolvedValue({ data: {} });
+    renderPage();
+    await openAssignment();
+
+    await userEvent.click(await screen.findByRole('button', { name: /עריכת ציון והערות AI/ }));
+    const scoreInput = screen.getByLabelText('ציון AI (0–100)') as HTMLInputElement;
+    await userEvent.clear(scoreInput);
+    await userEvent.type(scoreInput, '70');
+    const verbal = screen.getByLabelText('הערה מילולית');
+    await userEvent.clear(verbal);
+    await userEvent.type(verbal, 'מתוקן');
+    await userEvent.clear(screen.getByLabelText('הערות קוד'));
+    await userEvent.click(screen.getByRole('button', { name: 'שמירת בדיקת ה-AI' }));
+
+    await waitFor(() => expect(updateAiReview).toHaveBeenCalledWith('s5', { aiScore: 70, aiVerbalReview: 'מתוקן', aiCodeReview: null }));
+    expect(await screen.findByText(/בדיקת AI — ציון: 70/)).toBeInTheDocument();
+    expect(screen.getByText('מתוקן')).toBeInTheDocument();
+    expect((screen.getByPlaceholderText('90') as HTMLInputElement).value).toBe('70');
+  });
+
+  it('does not let an AI correction overwrite a content score the teacher is typing', async () => {
+    getSubmissions.mockResolvedValue({ data: { data: { submissions: [aiReviewed] } } });
+    updateAiReview.mockResolvedValue({ data: {} });
+    renderPage();
+    await openAssignment();
+    const contentInput = await screen.findByPlaceholderText('90') as HTMLInputElement;
+    await userEvent.clear(contentInput);
+    await userEvent.type(contentInput, '95');
+
+    await userEvent.click(screen.getByRole('button', { name: /עריכת ציון והערות AI/ }));
+    const scoreInput = screen.getByLabelText('ציון AI (0–100)');
+    await userEvent.clear(scoreInput);
+    await userEvent.type(scoreInput, '70');
+    await userEvent.click(screen.getByRole('button', { name: 'שמירת בדיקת ה-AI' }));
+
+    expect(await screen.findByText(/בדיקת AI — ציון: 70/)).toBeInTheDocument();
+    expect(contentInput.value).toBe('95');
+  });
+
+  it('refuses an out-of-range AI score before sending it', async () => {
+    getSubmissions.mockResolvedValue({ data: { data: { submissions: [aiReviewed] } } });
+    renderPage();
+    await openAssignment();
+    await userEvent.click(await screen.findByRole('button', { name: /עריכת ציון והערות AI/ }));
+    const scoreInput = screen.getByLabelText('ציון AI (0–100)');
+    await userEvent.clear(scoreInput);
+    await userEvent.type(scoreInput, '150');
+    expect(screen.getByRole('button', { name: 'שמירת בדיקת ה-AI' })).toBeDisabled();
+    expect(screen.getByText('ציון ה-AI חייב להיות מספר בין 0 ל-100')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'ביטול' }));
+    expect(screen.getByText(/בדיקת AI — ציון: 88/)).toBeInTheDocument();
+    expect(updateAiReview).not.toHaveBeenCalled();
   });
 
   it('opens the new-assignment modal from the "new assignment" button', async () => {
