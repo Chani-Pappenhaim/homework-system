@@ -4,6 +4,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import AuthGuard from '@/components/guards/AuthGuard';
 import AdminGuard from '@/components/guards/AdminGuard';
 import ChangePasswordGuard from '@/components/guards/ChangePasswordGuard';
+import StudentGuard from '@/components/guards/StudentGuard';
 
 import LoginPage from '@/pages/auth/LoginPage';
 import ChangePasswordPage from '@/pages/auth/ChangePasswordPage';
@@ -76,7 +77,7 @@ function AppRoutes() {
         </Route>
 
         <Route path="/student" element={
-          <AuthGuard><ChangePasswordGuard /></AuthGuard>
+          <AuthGuard><ChangePasswordGuard><StudentGuard /></ChangePasswordGuard></AuthGuard>
         }>
           <Route index element={<StudentHomePage />} />
           <Route path="courses" element={<StudentCoursesPage />} />

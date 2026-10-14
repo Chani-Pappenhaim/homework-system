@@ -4,6 +4,8 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import AuthGuard from '@/components/guards/AuthGuard';
 import AdminGuard from '@/components/guards/AdminGuard';
 import ChangePasswordGuard from '@/components/guards/ChangePasswordGuard';
+import StudentGuard, { teacherPathFor } from '@/components/guards/StudentGuard';
+import { useLocation } from 'react-router-dom';
 import { setAuthUser, setAuthBootstrapping } from '../utils/render';
 
 // Stub the layouts so the guards can be tested in isolation without their deps.
@@ -94,5 +96,67 @@ describe('ChangePasswordGuard', () => {
     setAuthUser({ role: 'STUDENT', mustChangePassword: false });
     renderGuard(<ChangePasswordGuard />);
     expect(screen.getByText('StudentLayout')).toBeInTheDocument();
+  });
+});
+
+function Where() {
+  const { pathname, search } = useLocation();
+  return <div>at {pathname + search}</div>;
+}
+
+function renderStudentGuard(initial: string) {
+  return render(
+    <MemoryRouter initialEntries={[initial]}>
+      <Routes>
+        <Route path="/student/*" element={<StudentGuard />} />
+        <Route path="/teacher/*" element={<Where />} />
+      </Routes>
+    </MemoryRouter>
+  );
+}
+
+describe('StudentGuard', () => {
+  it('renders the StudentLayout for a student', () => {
+    setAuthUser({ role: 'STUDENT' });
+    renderStudentGuard('/student/messages');
+    expect(screen.getByText('StudentLayout')).toBeInTheDocument();
+  });
+
+  it('sends a teacher who opens a student message link to the same conversation on her side', () => {
+    // Regression: the page rendered with no layout and failing requests
+    setAuthUser({ role: 'ADMIN' });
+    renderStudentGuard('/student/messages?highlight=m1');
+    expect(screen.queryByText('StudentLayout')).not.toBeInTheDocument();
+    expect(screen.getByText('at /teacher/messages?highlight=m1')).toBeInTheDocument();
+  });
+
+  it('sends a teacher on a student-only page to the teacher home page', () => {
+    setAuthUser({ role: 'ADMIN' });
+    renderStudentGuard('/student/assignments');
+    expect(screen.getByText('at /teacher')).toBeInTheDocument();
+  });
+
+  it('waits instead of redirecting mid-bootstrap', () => {
+    setAuthBootstrapping();
+    renderStudentGuard('/student/messages');
+    expect(screen.queryByText(/^at /)).not.toBeInTheDocument();
+    expect(screen.queryByText('StudentLayout')).not.toBeInTheDocument();
+  });
+});
+
+describe('teacherPathFor', () => {
+  it.each([
+    ['/student/messages', '?highlight=m1', '/teacher/messages?highlight=m1'],
+    ['/student/courses/JS', '', '/teacher/courses/JS'],
+    ['/student/courses/JS/lessons/3', '', '/teacher/courses/JS/lessons/3'],
+    ['/student/lessons/l1', '?assignmentId=a1', '/teacher/lessons/l1?assignmentId=a1'],
+    ['/student/quiz/l1', '', '/teacher/quiz/l1'],
+    ['/student', '', '/teacher'],
+    ['/student/assignments', '', '/teacher'],
+    ['/student/attendance', '', '/teacher'],
+    ['/student/profile', '', '/teacher'],
+    ['/student/courses', '', '/teacher/courses'],
+  ])('%s%s -> %s', (pathname, search, expected) => {
+    expect(teacherPathFor(pathname, search)).toBe(expected);
   });
 });
