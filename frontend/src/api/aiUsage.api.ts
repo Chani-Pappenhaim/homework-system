@@ -4,7 +4,30 @@ export interface AiUsageMonth {
   month: string; // "YYYY-MM"
   reviews: number;
   quizzes: number;
+  /** Calls the paid key answered. */
+  paidCalls: number;
   costUsd: number;
+}
+
+/** Calls, tokens and billed cost of one Gemini tier. */
+export interface AiTierUsage {
+  calls: number;
+  tokensInput: number;
+  tokensOutput: number;
+  costUsd: number;
+}
+
+/** Today's standing against the free tier's daily request quota. */
+export interface GeminiQuotaStatus {
+  freeKeyConfigured: boolean;
+  paidKeyConfigured: boolean;
+  freeRequestsToday: number;
+  /** null until known (set in the server env, or reported by Google). */
+  freeDailyLimit: number | null;
+  /** ISO time of the next daily reset. */
+  resetsAt: string;
+  /** ISO time the spent free quota resets, while it is spent. */
+  freeExhaustedUntil: string | null;
 }
 
 export interface AiUsageSummary {
@@ -12,7 +35,11 @@ export interface AiUsageSummary {
   totalQuizzes: number;
   totalTokensInput: number;
   totalTokensOutput: number;
+  /** Amount billed — paid-tier calls only. */
   totalCostUsd: number;
+  free: AiTierUsage;
+  paid: AiTierUsage;
+  quota: GeminiQuotaStatus;
   byMonth: AiUsageMonth[];
 }
 

@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { Bot, HelpCircle, Cpu, DollarSign } from 'lucide-react';
-import { aiUsageApi } from '@/api/aiUsage.api';
+import { aiUsageApi, type AiTierUsage, type GeminiQuotaStatus } from '@/api/aiUsage.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { cn } from '@/lib/utils';
+import { formatUsd } from '@/lib/currency';
 import { unwrap } from '@/lib/api-utils';
 import { usePageTitle } from '@/hooks/usePageTitle';
 
@@ -12,6 +13,14 @@ function formatMonth(month: string) {
   if (!year || !m) return month;
   return new Intl.DateTimeFormat('he-IL', { month: 'long', year: 'numeric' })
     .format(new Date(Number(year), Number(m) - 1, 1));
+}
+
+function formatTime(iso: string) {
+  return new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+}
+
+function Usd({ value }: { value: number | null | undefined }) {
+  return <span dir="ltr">{formatUsd(value)}</span>;
 }
 
 function formatBytes(bytes: number): string {
@@ -54,8 +63,10 @@ export default function AiUsagePage() {
         <StatCard icon={<Bot size={18} />} tile="cobalt" label='סה"כ בדיקות AI' value={summary?.totalReviews ?? 0} />
         <StatCard icon={<HelpCircle size={18} />} tile="tomato" label='סה"כ חידונים' value={summary?.totalQuizzes ?? 0} />
         <StatCard icon={<Cpu size={18} />} tile="forest" label='סה"כ טוקנים' value={totalTokens.toLocaleString()} />
-        <StatCard icon={<DollarSign size={18} />} tile="mustard" label="עלות מצטברת $" value={`$${(summary?.totalCostUsd ?? 0).toFixed(2)}`} />
+        <StatCard icon={<DollarSign size={18} />} tile="mustard" label="עלות בפועל (מסלול בתשלום)" value={<Usd value={summary?.totalCostUsd} />} />
       </div>
+
+      {summary?.quota && <GeminiQuotaCard quota={summary.quota} free={summary.free} paid={summary.paid} />}
 
       {/* Cloudinary storage, then monthly breakdown below it — both full width, stacked */}
       <div className="space-y-5">
@@ -119,19 +130,21 @@ export default function AiUsagePage() {
                   <th className="px-5 py-2.5 text-right font-bold">חודש</th>
                   <th className="px-3 py-2.5 text-right font-bold">בדיקות</th>
                   <th className="px-3 py-2.5 text-right font-bold">חידונים</th>
+                  <th className="px-3 py-2.5 text-right font-bold">מתוכן בתשלום</th>
                   <th className="px-3 py-2.5 text-right font-bold">עלות</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-dashed divide-rule/20">
                 {byMonth.length === 0 && (
-                  <tr><td colSpan={4} className="px-5 py-4 text-center text-ink/50">אין נתוני שימוש עדיין</td></tr>
+                  <tr><td colSpan={5} className="px-5 py-4 text-center text-ink/50">אין נתוני שימוש עדיין</td></tr>
                 )}
                 {byMonth.map((m) => (
                   <tr key={m.month} className="transition-colors hover:bg-butter/15">
                     <td className="px-5 py-3 font-bold text-ink">{formatMonth(m.month)}</td>
                     <td className="px-3 py-3 font-sans text-ink/70 tabular">{m.reviews}</td>
                     <td className="px-3 py-3 font-sans text-ink/70 tabular">{m.quizzes}</td>
-                    <td className="px-3 py-3 font-sans text-ink/70 tabular">${(m.costUsd ?? 0).toFixed(2)}</td>
+                    <td className="px-3 py-3 font-sans text-ink/70 tabular">{m.paidCalls ?? 0}</td>
+                    <td className="px-3 py-3 font-sans text-ink/70 tabular"><Usd value={m.costUsd} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -143,6 +156,110 @@ export default function AiUsagePage() {
   );
 }
 
+/**
+ * Today's free-tier requests against the daily quota, which tier serves calls
+ * now, and calls, tokens and cost per tier.
+ */
+function GeminiQuotaCard({ quota, free, paid }: {
+  quota: GeminiQuotaStatus; free: AiTierUsage; paid: AiTierUsage;
+}) {
+  const spent = quota.freeExhaustedUntil != null;
+  const mode = !quota.freeKeyConfigured && !quota.paidKeyConfigured
+    ? { label: 'AI לא מוגדר', tone: 'bg-coral/15 text-coral' }
+    : !quota.freeKeyConfigured
+      ? { label: 'מסלול בתשלום', tone: 'bg-butter/30 text-clay' }
+      : spent && quota.paidKeyConfigured
+        ? { label: `בתשלום עד ${formatTime(quota.freeExhaustedUntil!)}`, tone: 'bg-butter/30 text-clay' }
+        : spent
+          ? { label: 'המכסה היומית נגמרה', tone: 'bg-coral/15 text-coral' }
+          : { label: 'מסלול חינמי', tone: 'bg-sage/15 text-sage' };
+
+  const limit = quota.freeDailyLimit;
+  const percent = spent ? 100 : limit ? Math.min(100, (quota.freeRequestsToday / limit) * 100) : 0;
+
+  return (
+    <Card accent="sage">
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-display text-base font-bold">מכסת Gemini · היום</h2>
+          <span className={cn('rounded-md px-2 py-0.5 font-sans text-xs font-bold', mode.tone)}>{mode.label}</span>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {quota.freeKeyConfigured && (
+          <div className="space-y-2">
+            {limit ? (
+              <>
+                <div className="h-3 w-full overflow-hidden rounded-full bg-ground">
+                  <div
+                    className={cn(
+                      'h-full rounded-full transition-all duration-500',
+                      percent >= 80 ? 'bg-coral' : percent >= 60 ? 'bg-butter' : 'bg-sage',
+                    )}
+                    style={{ width: `${Math.max(2, percent)}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between font-sans text-[11px] text-ink-soft">
+                  <span>{quota.freeRequestsToday.toLocaleString()} בקשות חינמיות היום</span>
+                  <span>מתוך {limit.toLocaleString()}</span>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-ink-soft">
+                {quota.freeRequestsToday.toLocaleString()} בקשות חינמיות היום. המגבלה היומית תופיע כאן אחרי הפעם
+                הראשונה שהמכסה נגמרת; עד אז אפשר לראות אותה ב-
+                <a
+                  href="https://aistudio.google.com/rate-limit"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-bold text-indigo underline"
+                >
+                  AI Studio
+                </a>
+                .
+              </p>
+            )}
+            <p className="text-xs text-ink-soft">
+              המכסה מתאפסת ב-{formatTime(quota.resetsAt)} (חצות בשעון קליפורניה). במסלול החינמי אין הגבלה על סך
+              הטוקנים — רק על מספר הבקשות ביום ובדקה.
+            </p>
+          </div>
+        )}
+        {quota.freeKeyConfigured && !quota.paidKeyConfigured && (
+          <p className="rounded-input bg-ground px-3 py-2 text-sm text-ink-soft">
+            לא מוגדר מפתח בתשלום, ולכן כשהמכסה היומית נגמרת ה-AI מפסיק לעבוד עד האיפוס.
+          </p>
+        )}
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-rule bg-ground/70 font-sans text-[11px] uppercase text-ink/60">
+                <th className="px-3 py-2 text-right font-bold">מסלול</th>
+                <th className="px-3 py-2 text-right font-bold">קריאות</th>
+                <th className="px-3 py-2 text-right font-bold">טוקני קלט</th>
+                <th className="px-3 py-2 text-right font-bold">טוקני פלט</th>
+                <th className="px-3 py-2 text-right font-bold">עלות</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-dashed divide-rule/20">
+              {([['חינמי', free], ['בתשלום', paid]] as const).map(([label, tier]) => (
+                <tr key={label}>
+                  <td className="px-3 py-2.5 font-bold text-ink">{label}</td>
+                  <td className="px-3 py-2.5 font-sans text-ink/70 tabular">{tier.calls.toLocaleString()}</td>
+                  <td className="px-3 py-2.5 font-sans text-ink/70 tabular">{tier.tokensInput.toLocaleString()}</td>
+                  <td className="px-3 py-2.5 font-sans text-ink/70 tabular">{tier.tokensOutput.toLocaleString()}</td>
+                  <td className="px-3 py-2.5 font-sans text-ink/70 tabular"><Usd value={tier.costUsd} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 const tiles: Record<string, string> = {
   cobalt: 'bg-indigo text-sheet',
   tomato: 'bg-coral text-sheet',
@@ -151,7 +268,7 @@ const tiles: Record<string, string> = {
 };
 
 function StatCard({ icon, label, value, tile }: {
-  icon: React.ReactNode; label: string; value: number | string; tile: keyof typeof tiles | string;
+  icon: React.ReactNode; label: string; value: React.ReactNode; tile: keyof typeof tiles | string;
 }) {
   return (
     <Card className="lift">

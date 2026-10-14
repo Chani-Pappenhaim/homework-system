@@ -8,6 +8,7 @@ import { groupsApi } from '@/api/groups.api';
 import { coursesApi } from '@/api/courses.api';
 import { gradesApi } from '@/api/grades.api';
 import { aiUsageApi } from '@/api/aiUsage.api';
+import { formatUsd } from '@/lib/currency';
 import { Tape, StatusPill, type PillVariant } from '@/components/decor';
 import { cn, formatDate } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
@@ -73,7 +74,7 @@ export default function TeacherHomePage() {
     { value: groups.length, label: 'קבוצות', accent: 'indigo' as const, to: '/teacher/groups' },
     { value: courses.length, label: 'קורסים', accent: 'clay' as const, to: '/teacher/courses' },
     { value: pending, label: 'ממתינות לבדיקה', accent: 'coral' as const, to: '/teacher/reports' },
-    { value: aiCost != null ? `$${Number(aiCost).toFixed(2)}` : '—', label: 'עלות AI', accent: 'sage' as const, to: '/teacher/ai-usage' },
+    { value: aiCost != null ? <span dir="ltr">{formatUsd(aiCost)}</span> : '—', label: 'עלות AI', accent: 'sage' as const, to: '/teacher/ai-usage' },
   ];
 
   return (

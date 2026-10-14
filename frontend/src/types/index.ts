@@ -205,7 +205,7 @@ export type QuizGenerationStage = 'queued' | 'reading-files' | 'generating' | 's
 
 /** Why the previous attempt failed — the server maps the final one to a message itself. */
 export type QuizFailureKind =
-  | 'timeout' | 'rate-limit' | 'unavailable' | 'config' | 'blocked' | 'bad-output' | 'no-content' | 'stuck' | 'unknown';
+  | 'timeout' | 'rate-limit' | 'daily-quota' | 'unavailable' | 'config' | 'blocked' | 'bad-output' | 'no-content' | 'stuck' | 'unknown';
 
 export interface QuizGenerationProgressDTO {
   stage: QuizGenerationStage;
