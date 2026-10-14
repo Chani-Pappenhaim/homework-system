@@ -121,6 +121,32 @@ export function isOwnUpload(url: string, folder: string): boolean {
     && new RegExp(`/upload/(?:[^/]+/)*${folder}/`).test(parsed.pathname);
 }
 
+/** The path, relative to the API root, that serves a study-material file to the holder of `token`. */
+export function fileDownloadPath(fileId: string, extension: string, token: string): string {
+  const suffix = extension ? `/file.${extension}` : '';
+  return `/files/download/${fileId}${suffix}?token=${token}`;
+}
+
+/**
+ * The link a submission's file is opened by: the same short-lived,
+ * session-bound download route as study material, instead of a signed
+ * Cloudinary URL that anyone the link reaches could open forever.
+ */
+export function submissionFileLink(
+  submission: { id: string; fileUrl: string | null; fileName?: string | null },
+  userId: string
+): string | null {
+  if (!submission.fileUrl) return submission.fileUrl;
+  const extension = fileExtension({ url: submission.fileUrl, name: submission.fileName ?? undefined });
+  return fileDownloadPath(submission.id, extension, signFileToken({ fileId: submission.id, kind: 'submission', userId }));
+}
+
+// Files uploaded before names were passed to Cloudinary have none in their
+// URL; the stored name may still carry one.
+export function fileExtension(file: { url: string; name?: string }): string {
+  return urlExtension(file.url) || urlExtension(file.name ?? '');
+}
+
 function urlExtension(url: string): string {
   const match = url.match(/\.([a-zA-Z0-9]+)$/);
   return match ? match[1]!.toLowerCase() : '';
@@ -146,12 +172,8 @@ export function toFileDTO<T extends { id: string; sizeBytes?: bigint | null; url
       ? (() => {
           // Files uploaded before names were passed to Cloudinary have none in
           // their URL; the stored name may still carry one.
-          const extension = urlExtension(file.url) || urlExtension(file.name ?? '');
-          const suffix = extension ? `/file.${extension}` : '';
-          return {
-            url: `/files/download/${file.id}${suffix}?token=${signFileToken({ fileId: file.id, kind, userId })}`,
-            extension,
-          };
+          const extension = fileExtension(file as { url: string; name?: string });
+          return { url: fileDownloadPath(file.id, extension, signFileToken({ fileId: file.id, kind, userId })), extension };
         })()
       : {}),
   };

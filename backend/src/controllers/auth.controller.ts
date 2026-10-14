@@ -1,10 +1,9 @@
 import { Request, Response } from 'express';
 import * as authService from '../services/auth.service';
-import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt';
+import { REFRESH_COOKIE, signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt';
 import { sendError } from '../utils/http';
 
 const isProd = process.env.NODE_ENV === 'production';
-const REFRESH_COOKIE = 'refreshToken';
 const REFRESH_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 // One source of truth for the refresh cookie's attributes, used for both setting

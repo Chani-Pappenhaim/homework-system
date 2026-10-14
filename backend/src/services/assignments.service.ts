@@ -2,7 +2,7 @@ import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
 import { assertLessonAccess } from '../utils/access';
 import { cellText } from '../utils/excel';
-import { toDeliveryUrl } from '../utils/storage';
+import { submissionFileLink } from '../utils/storage';
 import { releaseFileUrls, submissionFileUrls } from '../utils/file-refs';
 import { computeSubmissionScore } from '../utils/grading';
 import ExcelJS from 'exceljs';
@@ -151,7 +151,7 @@ export async function importAssignments(buffer: Buffer) {
   return { imported, errors };
 }
 
-export async function getAssignmentSubmissions(assignmentId: string) {
+export async function getAssignmentSubmissions(assignmentId: string, userId: string) {
   const assignment = await prisma.assignment.findUnique({ where: { id: assignmentId } });
   if (!assignment) throw new AppError('Assignment not found', 'המטלה לא נמצאה', 404);
 
@@ -169,7 +169,7 @@ export async function getAssignmentSubmissions(assignmentId: string) {
     submissions: submissions.map((s) => ({
       id: s.id, studentId: s.studentId,
       studentName: s.student.name, studentEmail: s.student.email,
-      fileUrl: s.fileUrl ? toDeliveryUrl(s.fileUrl) : s.fileUrl, fileName: s.fileName, githubUrl: s.githubUrl,
+      fileUrl: submissionFileLink(s, userId), fileName: s.fileName, githubUrl: s.githubUrl,
       notes: s.notes,
       submittedAt: s.submittedAt, isLate: s.isLate,
       aiStatus: s.aiStatus, aiScore: s.aiScore, aiApproved: s.aiApproved,

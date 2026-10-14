@@ -41,10 +41,16 @@ export function verifyRefreshToken(token: string): TokenPayload {
   return jwt.verify(token, REFRESH_SECRET) as TokenPayload;
 }
 
+/** The cookie that holds the refresh token, shared by the auth routes and file downloads. */
+export const REFRESH_COOKIE = 'refreshToken';
+
 export interface FileTokenPayload {
   fileId: string;
-  kind: 'lesson' | 'course';
+  kind: 'lesson' | 'course' | 'submission';
   userId: string;
+  // A link handed to an online document viewer, which fetches from its own
+  // servers and so never carries the reader's session cookie.
+  external?: boolean;
 }
 
 /**
@@ -54,7 +60,7 @@ export interface FileTokenPayload {
  * Cloudinary URL that — once handed out — stays valid forever.
  */
 export function signFileToken(payload: FileTokenPayload): string {
-  return jwt.sign(payload, ACCESS_SECRET, { expiresIn: '15m' });
+  return jwt.sign(payload, ACCESS_SECRET, { expiresIn: payload.external ? '5m' : '15m' });
 }
 
 export function verifyFileToken(token: string): FileTokenPayload {
