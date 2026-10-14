@@ -123,3 +123,57 @@ describe('refreshing the access token ahead of expiry', () => {
     expect(sent.map((r) => r.auth)).toEqual([`Bearer ${old}`, 'Bearer renewed']);
   });
 });
+
+describe('a session that cannot be refreshed', () => {
+  const realLocation = window.location;
+  let location: { pathname: string; href: string };
+
+  function at(pathname: string) {
+    location = { pathname, href: `http://localhost${pathname}` };
+    Object.defineProperty(window, 'location', { configurable: true, value: location });
+  }
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', { configurable: true, value: realLocation });
+  });
+
+  it('takes a 401 from the refresh call itself as the answer, without refreshing again or redirecting', async () => {
+    at('/reset-password');
+    const post = vi.spyOn(axios, 'post');
+    respond = () => ({ status: 401, data: { success: false, error: 'no session' } });
+
+    await expect(api.post('/auth/refresh')).rejects.toMatchObject({ response: { status: 401 } });
+
+    expect(post).not.toHaveBeenCalled();
+    expect(location.href).toBe('http://localhost/reset-password');
+  });
+
+  it('takes a 401 from signing in as wrong details, without refreshing', async () => {
+    at('/login');
+    const post = vi.spyOn(axios, 'post');
+    respond = () => ({ status: 401, data: { success: false, error: 'wrong password' } });
+
+    await expect(api.post('/auth/login', {})).rejects.toMatchObject({ response: { status: 401 } });
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it('leaves someone on a signed-out page, such as the reset-password link', async () => {
+    at('/reset-password');
+    vi.spyOn(axios, 'post').mockRejectedValue(new Error('no session'));
+    respond = () => ({ status: 401, data: { success: false, error: 'expired' } });
+
+    await expect(api.get('/courses')).rejects.toBeTruthy();
+    expect(location.href).toBe('http://localhost/reset-password');
+  });
+
+  it('still sends someone on a signed-in page back to the login', async () => {
+    at('/teacher/groups');
+    useAuthStore.getState().setAccessToken('expired');
+    vi.spyOn(axios, 'post').mockRejectedValue(new Error('no session'));
+    respond = () => ({ status: 401, data: { success: false, error: 'expired' } });
+
+    await expect(api.get('/groups')).rejects.toBeTruthy();
+    expect(location.href).toBe('/login');
+    expect(useAuthStore.getState().accessToken).toBeNull();
+  });
+});
