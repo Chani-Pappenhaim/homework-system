@@ -9,6 +9,7 @@ import { aiReviewQueue, emailQueue } from '../infrastructure/queues/queues';
 import type { EmailJobMap } from '../infrastructure/queues/job-types';
 import { buildTemplateWorkbook, cellText } from '../utils/excel';
 import { getRepoStatus, normalizeRepoName, parseRepoRef } from '../utils/github';
+import { assertAiAvailable } from './ai-availability';
 import ExcelJS from 'exceljs';
 
 async function enqueueEmail<T extends keyof EmailJobMap>(jobName: T, data: EmailJobMap[T]) {
@@ -303,10 +304,21 @@ export async function getSubmissionById(id: string, userId: string, role: string
   return { ...submission, fileUrl, grade, ...toStudentAiView(submission) };
 }
 
+// The teacher turned AI review off for the assignment.
+function assertAiReviewEnabled(submission: { assignment?: { aiReviewEnabled: boolean } | null }) {
+  if (submission.assignment?.aiReviewEnabled === false) {
+    throw new AppError('AI review is disabled for this assignment', 'בדיקת AI אינה פעילה במטלה זו', 400);
+  }
+}
+
 export async function requestAiReview(submissionId: string, studentId: string) {
-  const submission = await prisma.submission.findUnique({ where: { id: submissionId } });
+  const submission = await prisma.submission.findUnique({
+    where: { id: submissionId },
+    include: { assignment: { select: { aiReviewEnabled: true } } },
+  });
   if (!submission) throw new AppError('Submission not found', 'ההגשה לא נמצאה', 404);
   if (submission.studentId !== studentId) throw new AppError('Forbidden', 'אין לך הרשאה לפעולה זו', 403);
+  assertAiReviewEnabled(submission);
   const fileRef = (submission.fileName || submission.fileUrl || '').toLowerCase();
   const hasReviewableFile = fileRef.endsWith('.zip') || fileRef.endsWith('.docx');
   if (!submission.githubUrl && !hasReviewableFile) {
@@ -324,6 +336,8 @@ export async function requestAiReview(submissionId: string, studentId: string) {
   if (submission.aiStatus === 'pending') {
     throw new AppError('Review already in progress', 'בדיקת AI כבר מתבצעת עבור הגשה זו', 409);
   }
+  // Before the claim, so a review that cannot run now does not use up her attempt.
+  await assertAiAvailable();
 
   // Claim the review in one conditional write: two quick clicks (or two tabs)
   // both pass the checks above, but only one of them can flip the status.
@@ -349,8 +363,12 @@ export async function requestAiReview(submissionId: string, studentId: string) {
  * student's, and the new result waits for her approval like the first one.
  */
 export async function rerunAiReview(submissionId: string) {
-  const submission = await prisma.submission.findUnique({ where: { id: submissionId } });
+  const submission = await prisma.submission.findUnique({
+    where: { id: submissionId },
+    include: { assignment: { select: { aiReviewEnabled: true } } },
+  });
   if (!submission) throw new AppError('Submission not found', 'ההגשה לא נמצאה', 404);
+  assertAiReviewEnabled(submission);
   const fileRef = (submission.fileName || submission.fileUrl || '').toLowerCase();
   if (!submission.githubUrl && !fileRef.endsWith('.zip') && !fileRef.endsWith('.docx')) {
     throw new AppError(
@@ -362,6 +380,7 @@ export async function rerunAiReview(submissionId: string) {
   if (submission.aiStatus === 'pending') {
     throw new AppError('Review already in progress', 'בדיקת AI כבר מתבצעת עבור הגשה זו', 400);
   }
+  await assertAiAvailable();
 
   await prisma.submission.update({ where: { id: submissionId }, data: { aiStatus: 'pending', aiApproved: false, aiError: null } });
   await aiReviewQueue.add(

@@ -14,7 +14,9 @@ vi.mock('@/api/quizzes.api', () => ({
     attempt: vi.fn(),
   },
 }));
+vi.mock('@/api/aiUsage.api', () => ({ aiUsageApi: { availability: vi.fn() } }));
 import { quizzesApi } from '@/api/quizzes.api';
+import { aiUsageApi } from '@/api/aiUsage.api';
 
 const getQuiz = quizzesApi.get as unknown as ReturnType<typeof vi.fn>;
 const generate = quizzesApi.generate as unknown as ReturnType<typeof vi.fn>;
@@ -33,7 +35,12 @@ function renderPanel(hasContent = true, hasFiles = false) {
   return renderWithProviders(<QuizPanel lessonId="l1" hasContent={hasContent} hasFiles={hasFiles} />);
 }
 
-beforeEach(() => vi.clearAllMocks());
+const aiAvailability = aiUsageApi.availability as unknown as ReturnType<typeof vi.fn>;
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  aiAvailability.mockResolvedValue({ data: { success: true, data: { available: true, reason: null, resumesAt: null } } });
+});
 
 describe('QuizPanel — creating', () => {
   it('offers to generate when no quiz exists yet', async () => {
@@ -44,6 +51,16 @@ describe('QuizPanel — creating', () => {
     const button = await screen.findByRole('button', { name: /צרי בוחן בעזרת AI/ });
     await userEvent.click(button);
     await waitFor(() => expect(generate).toHaveBeenCalledWith('l1', false, false));
+  });
+
+  it('cannot generate while the AI is unavailable, and says why', async () => {
+    aiAvailability.mockResolvedValue({
+      data: { success: true, data: { available: false, reason: 'not-configured', resumesAt: null } },
+    });
+    getQuiz.mockResolvedValue(state({ status: 'none' }));
+    renderPanel();
+    expect(await screen.findByText('שירות ה-AI אינו זמין כרגע.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /צרי בוחן בעזרת AI/ })).toBeDisabled();
   });
 
   it('cannot generate from a lesson with no content', async () => {

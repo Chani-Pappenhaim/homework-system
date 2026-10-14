@@ -56,4 +56,26 @@ describe('AssignmentModal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'שמרי שינויים' }));
     await waitFor(() => expect(update).toHaveBeenCalledWith('a1', expect.objectContaining({ deadline: null })));
   });
+
+  it('allows AI review on a new assignment by default', async () => {
+    renderModal('new');
+    expect(screen.getByRole('checkbox', { name: /לאפשר בדיקת AI/ })).toBeChecked();
+    expect(screen.getByLabelText('הנחיות לבדיקת AI (אופציונלי)')).toBeInTheDocument();
+  });
+
+  it('can turn AI review off, which hides the AI instructions and saves the choice', async () => {
+    renderModal({ id: 'a1', title: 'T', description: 'D', deadline: null, aiInstructions: 'בדקי async' } as never);
+    await userEvent.click(screen.getByRole('checkbox', { name: /לאפשר בדיקת AI/ }));
+    expect(screen.queryByLabelText('הנחיות לבדיקת AI (אופציונלי)')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'שמרי שינויים' }));
+    // The instructions are kept, so turning AI back on later restores them.
+    await waitFor(() => expect(update).toHaveBeenCalledWith('a1', expect.objectContaining({
+      aiReviewEnabled: false, aiInstructions: 'בדקי async',
+    })));
+  });
+
+  it('shows an assignment saved with AI review off as off', () => {
+    renderModal({ id: 'a1', title: 'T', description: 'D', deadline: null, aiReviewEnabled: false } as never);
+    expect(screen.getByRole('checkbox', { name: /לאפשר בדיקת AI/ })).not.toBeChecked();
+  });
 });

@@ -11,6 +11,7 @@ import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
 import { apiFileUrl } from '@/lib/config';
+import { AI_AVAILABILITY_QUERY_KEY, useAiAvailability } from '@/hooks/useAiAvailability';
 import type { AssignmentDTO, ChecklistResult, SubmissionDTO } from '@/types';
 
 interface GradeForm {
@@ -120,7 +121,10 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
   });
 
   // Only GitHub, ZIP and Word submissions can be reviewed — the backend says the same.
-  const aiReviewable = Boolean(local.githubUrl) || /\.(zip|docx)$/i.test(local.fileName ?? '');
+  // An assignment the teacher turned AI review off for gets no new reviews; a past result still shows.
+  const aiReviewOff = assignment.aiReviewEnabled === false;
+  const aiReviewable = !aiReviewOff && (Boolean(local.githubUrl) || /\.(zip|docx)$/i.test(local.fileName ?? ''));
+  const ai = useAiAvailability();
 
   const rerunAiMutation = useMutation({
     mutationFn: () => submissionsApi.rerunAiReview(local.id),
@@ -129,7 +133,10 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
       invalidateSubmissions();
       toast.success('בדיקת ה-AI הופעלה מחדש — התוצאה תופיע בעוד דקה-שתיים');
     },
-    onError: (err) => toast.error(getApiErrorMessage(err, 'לא ניתן להריץ את הבדיקה מחדש')),
+    onError: (err: any) => {
+      if (err?.response?.status === 503) qc.invalidateQueries({ queryKey: AI_AVAILABILITY_QUERY_KEY });
+      toast.error(getApiErrorMessage(err, 'לא ניתן להריץ את הבדיקה מחדש'));
+    },
   });
 
   const allowExtraAiMutation = useMutation({
@@ -191,7 +198,7 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
               >
                 <RotateCcw size={12} /> החזירי לציון AI
               </Button>
-              {local.aiExtraAllowed ? (
+              {aiReviewOff ? null : local.aiExtraAllowed ? (
                 <Badge variant="success"><Sparkles size={10} className="ml-1" /> בדיקה נוספת אושרה</Badge>
               ) : (
                 <Button
@@ -227,11 +234,12 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
               : local.aiStatus === 'error' ? `בדיקת ה-AI נכשלה${local.aiError ? `: ${local.aiError}` : '.'}`
               : local.aiStatus === 'done' ? 'אפשר להריץ שוב (למשל אחרי שינוי הנחיות ה-AI) — לא נספר במכסת התלמידה.'
               : 'עוד לא בוצעה בדיקת AI להגשה זו.'}
+            {!ai.available && local.aiStatus !== 'pending' && <span className="block text-coral">{ai.message}</span>}
           </span>
           <Button
             size="sm" variant="outline"
             loading={rerunAiMutation.isPending}
-            disabled={local.aiStatus === 'pending'}
+            disabled={local.aiStatus === 'pending' || !ai.available}
             onClick={() => rerunAiMutation.mutate()}
           >
             <RefreshCw size={12} /> {local.aiStatus === 'done' ? 'הרצת בדיקת AI מחדש' : 'הרצת בדיקת AI'}

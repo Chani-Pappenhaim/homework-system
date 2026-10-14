@@ -38,6 +38,8 @@ vi.mock('../../src/utils/github', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/utils/github')>()),
   getRepoStatus: repoStatusMock,
 }));
+const { assertAiAvailableMock } = vi.hoisted(() => ({ assertAiAvailableMock: vi.fn() }));
+vi.mock('../../src/services/ai-availability', () => ({ assertAiAvailable: assertAiAvailableMock }));
 
 import ExcelJS from 'exceljs';
 import { prisma } from '../../src/config/prisma';
@@ -76,7 +78,12 @@ beforeEach(() => {
   // assertLessonAccess resolves when access is granted and throws when it isn't
   assertAccessMock.mockResolvedValue(undefined);
   repoStatusMock.mockResolvedValue('exists');
+  assertAiAvailableMock.mockResolvedValue(undefined);
 });
+
+// What assertAiAvailable throws once the AI cannot run now.
+const aiUnavailable = () =>
+  Object.assign(new Error('AI unavailable'), { status: 503, clientMessage: 'המכסה היומית של ה-AI נגמרה.' });
 
 describe('submissions.service.submitAssignment', () => {
   it('throws 404 when the assignment does not exist', async () => {
@@ -646,6 +653,22 @@ describe('submissions.service rerunAiReview', () => {
     p.submission.findUnique.mockResolvedValue(null);
     await expect(rerunAiReview('nope')).rejects.toMatchObject({ status: 404 });
   });
+
+  it('refuses when the teacher turned AI review off for the assignment', async () => {
+    p.submission.findUnique.mockResolvedValue({
+      id: 's1', githubUrl: 'https://github.com/u/r', aiStatus: 'done', assignment: { aiReviewEnabled: false },
+    });
+    await expect(rerunAiReview('s1')).rejects.toMatchObject({ status: 400 });
+    expect(aiQueueAdd).not.toHaveBeenCalled();
+  });
+
+  it('refuses, leaving the submission as it was, when the AI cannot run now', async () => {
+    p.submission.findUnique.mockResolvedValue({ id: 's1', githubUrl: 'https://github.com/u/r', aiStatus: 'done' });
+    assertAiAvailableMock.mockRejectedValue(aiUnavailable());
+    await expect(rerunAiReview('s1')).rejects.toMatchObject({ status: 503 });
+    expect(p.submission.update).not.toHaveBeenCalled();
+    expect(aiQueueAdd).not.toHaveBeenCalled();
+  });
 });
 
 describe('submissions.service.requestAiReview', () => {
@@ -676,6 +699,38 @@ describe('submissions.service.requestAiReview', () => {
     p.submission.findUnique.mockResolvedValue(sub({ aiStatus: 'pending' }));
     await expect(requestAiReview('sub1', 's1')).rejects.toMatchObject({ status: 409 });
     expect(p.submission.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('loads whether the assignment allows AI review', async () => {
+    p.submission.findUnique.mockResolvedValue(sub({ assignment: { aiReviewEnabled: true } }));
+    p.submission.updateMany.mockResolvedValue({ count: 1 });
+    await requestAiReview('sub1', 's1');
+    expect(p.submission.findUnique).toHaveBeenCalledWith({
+      where: { id: 'sub1' },
+      include: { assignment: { select: { aiReviewEnabled: true } } },
+    });
+    expect(aiQueueAdd).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses when the teacher turned AI review off for the assignment', async () => {
+    p.submission.findUnique.mockResolvedValue(sub({ assignment: { aiReviewEnabled: false } }));
+    await expect(requestAiReview('sub1', 's1')).rejects.toMatchObject({ status: 400 });
+    expect(p.submission.updateMany).not.toHaveBeenCalled();
+    expect(aiQueueAdd).not.toHaveBeenCalled();
+  });
+
+  it('refuses before claiming, so the student keeps her attempt, when the AI cannot run now', async () => {
+    p.submission.findUnique.mockResolvedValue(sub());
+    assertAiAvailableMock.mockRejectedValue(aiUnavailable());
+    await expect(requestAiReview('sub1', 's1')).rejects.toMatchObject({ status: 503 });
+    expect(p.submission.updateMany).not.toHaveBeenCalled();
+    expect(aiQueueAdd).not.toHaveBeenCalled();
+  });
+
+  it('still reports a spent review limit as such while the AI is unavailable', async () => {
+    p.submission.findUnique.mockResolvedValue(sub({ aiReviewCount: 1 }));
+    assertAiAvailableMock.mockRejectedValue(aiUnavailable());
+    await expect(requestAiReview('sub1', 's1')).rejects.toThrow('AI review limit reached');
   });
 });
 
