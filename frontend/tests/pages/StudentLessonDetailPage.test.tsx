@@ -9,10 +9,12 @@ vi.mock('@/api/submissions.api', () => ({
   submissionsApi: { mine: vi.fn(), submitRepo: vi.fn(), submitFile: vi.fn(), requestAiReview: vi.fn() },
 }));
 vi.mock('@/api/messages.api', () => ({ messagesApi: { send: vi.fn() } }));
+vi.mock('@/api/aiUsage.api', () => ({ aiUsageApi: { availability: vi.fn() } }));
 
 import { lessonsApi } from '@/api/lessons.api';
 import { submissionsApi } from '@/api/submissions.api';
 import { messagesApi } from '@/api/messages.api';
+import { aiUsageApi } from '@/api/aiUsage.api';
 
 const getLesson = lessonsApi.get as unknown as ReturnType<typeof vi.fn>;
 const setProgress = lessonsApi.setProgress as unknown as ReturnType<typeof vi.fn>;
@@ -21,6 +23,7 @@ const mine = submissionsApi.mine as unknown as ReturnType<typeof vi.fn>;
 const submitRepo = submissionsApi.submitRepo as unknown as ReturnType<typeof vi.fn>;
 const requestAiReview = submissionsApi.requestAiReview as unknown as ReturnType<typeof vi.fn>;
 const sendMessage = messagesApi.send as unknown as ReturnType<typeof vi.fn>;
+const aiAvailability = aiUsageApi.availability as unknown as ReturnType<typeof vi.fn>;
 
 const FUTURE = '2999-01-01T00:00:00Z';
 const PAST = '2000-01-01T00:00:00Z';
@@ -55,9 +58,47 @@ async function openAssignmentsTab(lessonTopic: string) {
   await userEvent.click(screen.getByRole('button', { name: 'מטלות' }));
 }
 
-beforeEach(() => vi.clearAllMocks());
+function submittedForAi(assignment: Record<string, any> = {}) {
+  getLesson.mockResolvedValue(
+    lessonWith([{ id: 'a2', title: 'מטלה AI', deadline: FUTURE, allowFile: false, allowGithub: true, allowedTypes: [], ...assignment }])
+  );
+  mine.mockResolvedValue({
+    data: {
+      data: {
+        submitted: [{
+          id: 'sub1', assignmentId: 'a2', assignmentTitle: 'מטלה AI', submittedAt: '2026-07-01T10:00:00Z',
+          isLate: false, githubUrl: 'https://github.com/x/y', aiStatus: 'none', grade: null,
+        }],
+      },
+    },
+  });
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  aiAvailability.mockResolvedValue({ data: { success: true, data: { available: true, reason: null, resumesAt: null } } });
+});
 
 describe('StudentLessonDetailPage', () => {
+  it('hides the AI review when the teacher turned it off for the assignment', async () => {
+    submittedForAi({ aiReviewEnabled: false });
+    renderPage();
+    await openAssignmentsTab('שיעור מבוא');
+    await screen.findByText('מטלה AI');
+    expect(screen.queryByRole('button', { name: 'בקשי בדיקה' })).not.toBeInTheDocument();
+  });
+
+  it('replaces the AI review button with the reset time once the daily quota is spent', async () => {
+    aiAvailability.mockResolvedValue({
+      data: { success: true, data: { available: false, reason: 'daily-quota', resumesAt: new Date(Date.now() + 3_600_000).toISOString() } },
+    });
+    submittedForAi();
+    renderPage();
+    await openAssignmentsTab('שיעור מבוא');
+    expect(await screen.findByText(/המכסה היומית של ה-AI נגמרה/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'בקשי בדיקה' })).not.toBeInTheDocument();
+  });
+
   it('renders the lesson topic', async () => {
     getLesson.mockResolvedValue(lessonWith([]));
     mine.mockResolvedValue({ data: { data: { submitted: [] } } });

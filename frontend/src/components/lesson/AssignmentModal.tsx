@@ -42,16 +42,19 @@ export function AssignmentModal({ lessonId, lessonDate, value, onClose }: {
   const [description, setDescription] = useState('');
   const [deadline, setDeadline] = useState('');
   const [aiInstructions, setAiInstructions] = useState('');
+  const [aiReviewEnabled, setAiReviewEnabled] = useState(true);
   const [types, setTypes] = useState<SubmissionTypes>({ allowGithub: true, allowFile: true, allowedTypes: [] });
 
   useEffect(() => {
     if (value === 'new') {
       setTitle(''); setDescription(''); setDeadline(defaultDeadline(lessonDate)); setAiInstructions('');
+      setAiReviewEnabled(true);
       setTypes({ allowGithub: true, allowFile: true, allowedTypes: [] });
     } else if (value) {
       setTitle(value.title); setDescription(value.description ?? '');
       setDeadline(value.deadline ? toLocalInput(value.deadline) : '');
       setAiInstructions(value.aiInstructions ?? '');
+      setAiReviewEnabled(value.aiReviewEnabled ?? true);
       setTypes({ allowGithub: value.allowGithub ?? true, allowFile: value.allowFile ?? true, allowedTypes: value.allowedTypes ?? [] });
     }
   }, [value, lessonDate]);
@@ -65,6 +68,7 @@ export function AssignmentModal({ lessonId, lessonDate, value, onClose }: {
         // assignment actually clears it.
         deadline: deadline ? new Date(deadline).toISOString() : null,
         aiInstructions: aiInstructions.trim() ? aiInstructions : null,
+        aiReviewEnabled,
         ...types,
       };
       if (value === 'new') return assignmentsApi.create(lessonId, data);
@@ -124,17 +128,36 @@ export function AssignmentModal({ lessonId, lessonDate, value, onClose }: {
             )}
           </div>
           <SubmissionTypePicker value={types} onChange={setTypes} />
-          <div className="flex flex-col gap-1">
-            <MarkdownField
-              id="assignment-ai-instructions"
-              label="הנחיות לבדיקת AI (אופציונלי)"
-              value={aiInstructions}
-              onChange={setAiInstructions}
-              rows={3}
-              placeholder="למשל: בדקי שיש שימוש ב-async/await, שהקוד מחולק לפונקציות, ושיש טיפול בשגיאות..."
+          <label className="flex items-start gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={aiReviewEnabled}
+              onChange={(e) => setAiReviewEnabled(e.target.checked)}
+              className="mt-1 accent-ink"
             />
-            <p className="text-xs text-ink-soft">הנחיות אלו יישלחו ל-AI בעת בדיקת עבודות התלמידות</p>
-          </div>
+            <span>
+              לאפשר בדיקת AI למטלה זו
+              <span className="block text-xs text-ink-soft">
+                {aiReviewEnabled
+                  ? 'התלמידות יוכלו לבקש בדיקת AI לעבודה שהגישו'
+                  : 'העבודות ייבדקו רק על ידך — בלי כפתור בדיקת AI'}
+              </span>
+            </span>
+          </label>
+          {/* The instructions stay in state while AI is off, so ticking it back on restores them. */}
+          {aiReviewEnabled && (
+            <div className="flex flex-col gap-1">
+              <MarkdownField
+                id="assignment-ai-instructions"
+                label="הנחיות לבדיקת AI (אופציונלי)"
+                value={aiInstructions}
+                onChange={setAiInstructions}
+                rows={3}
+                placeholder="למשל: בדקי שיש שימוש ב-async/await, שהקוד מחולק לפונקציות, ושיש טיפול בשגיאות..."
+              />
+              <p className="text-xs text-ink-soft">הנחיות אלו יישלחו ל-AI בעת בדיקת עבודות התלמידות</p>
+            </div>
+          )}
           <Button
             className="w-full"
             loading={saveMutation.isPending}

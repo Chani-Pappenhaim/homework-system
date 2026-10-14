@@ -1,14 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import AiUsagePage from '@/pages/teacher/AiUsagePage';
 import { renderWithProviders } from '../utils/render';
 
 vi.mock('@/api/aiUsage.api', () => ({
-  aiUsageApi: { summary: vi.fn() },
+  aiUsageApi: { summary: vi.fn(), storage: vi.fn(), updateSettings: vi.fn() },
 }));
 
 import { aiUsageApi } from '@/api/aiUsage.api';
 const summaryMock = aiUsageApi.summary as unknown as ReturnType<typeof vi.fn>;
+const updateSettings = aiUsageApi.updateSettings as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -27,6 +29,7 @@ const sampleSummary = {
     freeDailyLimit: 20,
     resetsAt: '2026-10-15T07:00:00.000Z',
     freeExhaustedUntil: null as string | null,
+    paidFallback: 'DAILY_QUOTA',
   },
   byMonth: [
     { month: '2026-06', reviews: 20, quizzes: 3, paidCalls: 9, costUsd: 1.5 },
@@ -120,7 +123,52 @@ describe('AiUsagePage — Gemini quota card', () => {
     renderSummary(withQuota({ paidKeyConfigured: false, freeExhaustedUntil: '2026-10-15T07:00:00.000Z' }));
 
     expect(await screen.findByText('המכסה היומית נגמרה')).toBeInTheDocument();
-    expect(screen.getByText(/לא מוגדר מפתח בתשלום/)).toBeInTheDocument();
+    expect(screen.getByText(/^לא מוגדר מפתח בתשלום/)).toBeInTheDocument();
+  });
+
+  it('says the AI buttons are off until the reset when the teacher never allows the paid key', async () => {
+    renderSummary(withQuota({ paidFallback: 'NEVER', freeExhaustedUntil: '2026-10-15T07:00:00.000Z' }));
+
+    expect(await screen.findByText('המכסה היומית נגמרה')).toBeInTheDocument();
+    expect(screen.getByText(/כפתורי ה-AI מושבתים עד \d{2}:\d{2}/)).toBeInTheDocument();
+    expect(screen.queryByText(/^בתשלום עד/)).not.toBeInTheDocument();
+  });
+
+  it('flags the AI as blocked when only a paid key exists and it is not allowed', async () => {
+    renderSummary(withQuota({ freeKeyConfigured: false, paidFallback: 'NEVER' }));
+    expect(await screen.findByText('AI חסום')).toBeInTheDocument();
+  });
+});
+
+describe('AiUsagePage — paid fallback settings', () => {
+  it('shows the saved choice', async () => {
+    renderSummary(withQuota({ paidFallback: 'ANY_LIMIT' }));
+    expect(await screen.findByRole('radio', { name: /גם בעומס רגעי/ })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /רק כשהמכסה היומית נגמרת/ })).not.toBeChecked();
+  });
+
+  it('saves a new choice as soon as the teacher picks it', async () => {
+    updateSettings.mockResolvedValue({ data: { success: true, data: { paidFallback: 'NEVER' } } });
+    renderSummary(sampleSummary);
+
+    await userEvent.click(await screen.findByRole('radio', { name: /אף פעם/ }));
+
+    expect(updateSettings).toHaveBeenCalledWith({ paidFallback: 'NEVER' });
+    expect(screen.getByRole('radio', { name: /אף פעם/ })).toBeChecked();
+  });
+
+  it('goes back to the saved choice when saving fails', async () => {
+    updateSettings.mockRejectedValue(new Error('network'));
+    renderSummary(sampleSummary);
+
+    await userEvent.click(await screen.findByRole('radio', { name: /אף פעם/ }));
+
+    await waitFor(() => expect(screen.getByRole('radio', { name: /רק כשהמכסה היומית נגמרת/ })).toBeChecked());
+  });
+
+  it('notes that without a paid key the AI stops whatever is chosen', async () => {
+    renderSummary(withQuota({ paidKeyConfigured: false }));
+    expect(await screen.findByText(/בכל אחת מהאפשרויות ה-AI נעצר/)).toBeInTheDocument();
   });
 
   it('shows only the paid tier when the free key is not configured', async () => {

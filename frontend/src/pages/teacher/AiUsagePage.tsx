@@ -1,12 +1,16 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bot, HelpCircle, Cpu, DollarSign } from 'lucide-react';
-import { aiUsageApi, type AiTierUsage, type GeminiQuotaStatus } from '@/api/aiUsage.api';
+import { aiUsageApi, type AiPaidFallback, type AiTierUsage, type GeminiQuotaStatus } from '@/api/aiUsage.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
+import { useToast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
 import { formatUsd } from '@/lib/currency';
 import { unwrap } from '@/lib/api-utils';
+import { getApiErrorMessage } from '@/lib/errors';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { AI_AVAILABILITY_QUERY_KEY } from '@/hooks/useAiAvailability';
 
 function formatMonth(month: string) {
   const [year, m] = month.split('-');
@@ -67,6 +71,9 @@ export default function AiUsagePage() {
       </div>
 
       {summary?.quota && <GeminiQuotaCard quota={summary.quota} free={summary.free} paid={summary.paid} />}
+      {summary?.quota && (
+        <AiSettingsCard value={summary.quota.paidFallback ?? 'DAILY_QUOTA'} paidKeyConfigured={summary.quota.paidKeyConfigured} />
+      )}
 
       {/* Cloudinary storage, then monthly breakdown below it — both full width, stacked */}
       <div className="space-y-5">
@@ -164,11 +171,15 @@ function GeminiQuotaCard({ quota, free, paid }: {
   quota: GeminiQuotaStatus; free: AiTierUsage; paid: AiTierUsage;
 }) {
   const spent = quota.freeExhaustedUntil != null;
+  const paidAllowed = quota.paidFallback !== 'NEVER';
+  const paidUsable = quota.paidKeyConfigured && paidAllowed;
   const mode = !quota.freeKeyConfigured && !quota.paidKeyConfigured
     ? { label: 'AI לא מוגדר', tone: 'bg-coral/15 text-coral' }
     : !quota.freeKeyConfigured
-      ? { label: 'מסלול בתשלום', tone: 'bg-butter/30 text-clay' }
-      : spent && quota.paidKeyConfigured
+      ? paidAllowed
+        ? { label: 'מסלול בתשלום', tone: 'bg-butter/30 text-clay' }
+        : { label: 'AI חסום', tone: 'bg-coral/15 text-coral' }
+      : spent && paidUsable
         ? { label: `בתשלום עד ${formatTime(quota.freeExhaustedUntil!)}`, tone: 'bg-butter/30 text-clay' }
         : spent
           ? { label: 'המכסה היומית נגמרה', tone: 'bg-coral/15 text-coral' }
@@ -230,6 +241,16 @@ function GeminiQuotaCard({ quota, free, paid }: {
             לא מוגדר מפתח בתשלום, ולכן כשהמכסה היומית נגמרת ה-AI מפסיק לעבוד עד האיפוס.
           </p>
         )}
+        {quota.freeKeyConfigured && quota.paidKeyConfigured && !paidAllowed && spent && (
+          <p className="rounded-input border border-coral/40 bg-coral/10 px-3 py-2 text-sm text-coral">
+            כפתורי ה-AI מושבתים עד {formatTime(quota.freeExhaustedUntil!)}, כי המעבר למסלול בתשלום כבוי בהגדרות.
+          </p>
+        )}
+        {!quota.freeKeyConfigured && quota.paidKeyConfigured && !paidAllowed && (
+          <p className="rounded-input border border-coral/40 bg-coral/10 px-3 py-2 text-sm text-coral">
+            מוגדר רק מפתח בתשלום, והשימוש בו כבוי בהגדרות — ולכן כפתורי ה-AI מושבתים.
+          </p>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -255,6 +276,92 @@ function GeminiQuotaCard({ quota, free, paid }: {
             </tbody>
           </table>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+const PAID_FALLBACK_OPTIONS: { value: AiPaidFallback; label: string; description: string }[] = [
+  {
+    value: 'DAILY_QUOTA',
+    label: 'רק כשהמכסה היומית נגמרת (מומלץ)',
+    description: 'ה-AI עובד במסלול החינמי, ועובר למסלול בתשלום רק אחרי שמכסת הבקשות היומית נגמרה — עד האיפוס.',
+  },
+  {
+    value: 'ANY_LIMIT',
+    label: 'גם בעומס רגעי או בתקלה',
+    description: 'בנוסף, כשהמסלול החינמי עמוס לרגע או לא זמין, הבקשה עוברת למסלול בתשלום במקום לחכות ולנסות שוב. מהיר יותר, אבל עולה יותר.',
+  },
+  {
+    value: 'NEVER',
+    label: 'אף פעם — לחסום את ה-AI',
+    description: 'לא משתמשים במסלול בתשלום בכלל. כשהמכסה היומית נגמרת, כפתורי ה-AI מושבתים עד האיפוס.',
+  },
+];
+
+/** The teacher's choice of when, if ever, AI calls move to the paid key. Saved as soon as she picks. */
+function AiSettingsCard({ value, paidKeyConfigured }: { value: AiPaidFallback; paidKeyConfigured: boolean }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  // Shown at once, before the summary refetch brings the saved value back.
+  const [selected, setSelected] = useState(value);
+  useEffect(() => setSelected(value), [value]);
+
+  const saveMutation = useMutation({
+    mutationFn: (paidFallback: AiPaidFallback) => aiUsageApi.updateSettings({ paidFallback }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ai-usage-summary'] });
+      qc.invalidateQueries({ queryKey: AI_AVAILABILITY_QUERY_KEY });
+      toast.success('ההגדרה נשמרה');
+    },
+    onError: (err) => {
+      setSelected(value);
+      toast.error(getApiErrorMessage(err, 'שמירת ההגדרה נכשלה'));
+    },
+  });
+
+  const choose = (next: AiPaidFallback) => {
+    setSelected(next);
+    saveMutation.mutate(next);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <h2 className="font-display text-base font-bold">מתי עוברים למסלול בתשלום</h2>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <fieldset disabled={saveMutation.isPending} className="space-y-2">
+          <legend className="sr-only">מתי עוברים למסלול בתשלום</legend>
+          {PAID_FALLBACK_OPTIONS.map((option) => (
+            <label
+              key={option.value}
+              className={cn(
+                'flex cursor-pointer items-start gap-2 rounded-input border px-3 py-2 text-sm transition-colors',
+                selected === option.value ? 'border-ink/40 bg-ground/60' : 'border-rule/40 hover:border-ink/30',
+              )}
+            >
+              <input
+                type="radio"
+                name="ai-paid-fallback"
+                value={option.value}
+                checked={selected === option.value}
+                onChange={() => choose(option.value)}
+                className="mt-1 accent-ink"
+              />
+              <span>
+                <span className="font-semibold text-ink">{option.label}</span>
+                <span className="block text-xs text-ink-soft">{option.description}</span>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+        {!paidKeyConfigured && (
+          <p className="text-xs text-ink-soft">
+            כרגע לא מוגדר מפתח בתשלום בשרת, ולכן בכל אחת מהאפשרויות ה-AI נעצר כשהמכסה היומית נגמרת. ההגדרה תחול
+            ברגע שיוגדר מפתח.
+          </p>
+        )}
       </CardContent>
     </Card>
   );

@@ -11,6 +11,7 @@ import { MarkdownField } from '@/components/ui/markdown-field';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
 import { cn } from '@/lib/utils';
+import { AI_AVAILABILITY_QUERY_KEY, useAiAvailability } from '@/hooks/useAiAvailability';
 import type { QuizQuestionDTO, QuizStateDTO } from '@/types';
 import { GenerationProgress, IncludeFilesOption, SourceFilesLine } from './QuizGenerationInfo';
 
@@ -24,6 +25,7 @@ export default function QuizPanel({
 }: { lessonId: string; hasContent: boolean; hasFiles: boolean }) {
   const qc = useQueryClient();
   const toast = useToast();
+  const ai = useAiAvailability();
 
   const [draft, setDraft] = useState<QuizQuestionDTO[] | null>(null);
   const [error, setError] = useState('');
@@ -76,6 +78,7 @@ export default function QuizPanel({
     },
     onError: (e: any) => {
       setRegenerateOpen(false);
+      if (e?.response?.status === 503) qc.invalidateQueries({ queryKey: AI_AVAILABILITY_QUERY_KEY });
       setError(getApiErrorMessage(e, 'לא הצלחנו להתחיל את יצירת הבוחן'));
     },
   });
@@ -135,6 +138,11 @@ export default function QuizPanel({
     </p>
   );
 
+  // Why the generate buttons are disabled. A refused request already says it in errorLine.
+  const aiNote = !ai.available && !error && (
+    <p className="text-xs text-ink/60">{ai.message}</p>
+  );
+
   if (isLoading) {
     return <Card accent="indigo">{header}<CardContent><p className="text-sm text-ink/50">טוען…</p></CardContent></Card>;
   }
@@ -191,11 +199,12 @@ export default function QuizPanel({
           <Button
             variant="clay"
             loading={generateMutation.isPending}
-            disabled={!hasContent}
+            disabled={!hasContent || !ai.available}
             onClick={() => generateMutation.mutate(false)}
           >
             <Sparkles size={14} /> {state.status === 'failed' ? 'נסי שוב' : 'צרי בוחן בעזרת AI'}
           </Button>
+          {hasContent && aiNote}
           {!hasContent && (
             <p className="text-xs text-ink/50">יש להוסיף תוכן שיעור לפני יצירת בוחן.</p>
           )}
@@ -299,7 +308,12 @@ export default function QuizPanel({
 
           {/* Only a draft: students may already be sitting a published quiz. */}
           {!quiz.published && hasContent && (
-            <Button variant="ghost" onClick={() => setRegenerateOpen(true)}>
+            <Button
+              variant="ghost"
+              disabled={!ai.available}
+              title={ai.message ?? undefined}
+              onClick={() => setRegenerateOpen(true)}
+            >
               <RefreshCw size={14} /> צרי מחדש
             </Button>
           )}
@@ -320,6 +334,7 @@ export default function QuizPanel({
         {dirty && (
           <p className="text-xs text-ink/50">יש שינויים שלא נשמרו. שמרי אותם כדי לאפשר פרסום.</p>
         )}
+        {!quiz.published && hasContent && aiNote}
       </CardContent>
 
       <Dialog open={regenerateOpen} onOpenChange={setRegenerateOpen}>
@@ -342,7 +357,7 @@ export default function QuizPanel({
             )}
           </DialogBody>
           <DialogFooter>
-            <Button variant="clay" loading={generateMutation.isPending} onClick={() => generateMutation.mutate(true)}>
+            <Button variant="clay" loading={generateMutation.isPending} disabled={!ai.available} onClick={() => generateMutation.mutate(true)}>
               <Sparkles size={14} /> צרי מחדש
             </Button>
             <Button variant="outline" onClick={() => setRegenerateOpen(false)}>ביטול</Button>

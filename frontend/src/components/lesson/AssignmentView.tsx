@@ -160,6 +160,20 @@ function DetailSection({ title, summary, children }: { title: string; summary?: 
 }
 
 function AiInstructions({ assignment, onEdit }: { assignment: AssignmentDTO; onEdit: () => void }) {
+  if (assignment.aiReviewEnabled === false) {
+    return (
+      <div className="space-y-2 px-5 py-4 text-sm">
+        <p className="font-semibold text-ink">בדיקת AI כבויה למטלה זו</p>
+        <p className="text-ink/60">
+          התלמידות לא יכולות לבקש בדיקת AI, והעבודות נבדקות רק על ידך.
+          {assignment.aiInstructions?.trim() && ' ההנחיות שכתבת נשמרו, ויחזרו לפעול אם תפעילי את הבדיקה מחדש.'}
+        </p>
+        <Button size="sm" variant="outline" onClick={onEdit}>
+          <Edit size={12} /> הפעלת בדיקת AI
+        </Button>
+      </div>
+    );
+  }
   if (assignment.aiInstructions?.trim()) {
     return (
       <div className="px-5 py-4 text-sm text-ink/85">

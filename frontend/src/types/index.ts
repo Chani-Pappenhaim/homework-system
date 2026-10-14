@@ -118,6 +118,8 @@ export interface AssignmentDTO {
   allowFile: boolean;
   requirements?: ChecklistItem[];
   aiInstructions?: string | null;
+  /** Off for exercises the teacher never wants an AI to check. Absent means on. */
+  aiReviewEnabled?: boolean;
 }
 
 export interface LessonDetailDTO {
