@@ -521,22 +521,23 @@ export async function allowExtraAiReview(submissionId: string) {
 
 type DeletableSubmission = {
   aiStatus: string;
-  aiReviewCount: number;
+  aiApproved: boolean;
   grade: { gradedById: string | null; contentScore: number | null; feedback: string | null; contentApproved: boolean } | null;
 };
 
 /**
  * Why the student may not delete her submission, or null when she may. Once
- * the teacher graded or commented, deleting would throw her work away; once an
- * AI review ran, deleting and resubmitting would refill the AI quota.
+ * the teacher graded, commented or approved the AI review, deleting would throw
+ * her check away. An AI review alone does not block it — the teacher chose to
+ * let a student delete and resubmit after one, though the resubmission starts
+ * with a fresh AI quota.
  */
 export function submissionDeleteBlock(sub: DeletableSubmission): string | null {
   if (sub.aiStatus === 'pending') return 'בדיקת AI של ההגשה עדיין רצה — אפשר למחוק כשהיא תסתיים';
   const g = sub.grade;
-  if (g && (g.gradedById || g.contentScore != null || g.feedback || g.contentApproved)) {
+  if (sub.aiApproved || (g && (g.gradedById || g.contentScore != null || g.feedback || g.contentApproved))) {
     return 'המורה כבר בדקה את ההגשה, ולכן אי אפשר למחוק אותה. אפשר לפנות אליה בהודעה';
   }
-  if (sub.aiReviewCount > 0) return 'כבר בוצעה בדיקת AI על ההגשה, ולכן אי אפשר למחוק אותה. אפשר לפנות למורה בהודעה';
   return null;
 }
 
@@ -554,7 +555,7 @@ export async function deleteMySubmission(submissionId: string, studentId: string
   // saved between the read and here keeps the submission.
   const deleted = await prisma.submission.deleteMany({
     where: {
-      id: submissionId, studentId, aiStatus: { not: 'pending' }, aiReviewCount: 0,
+      id: submissionId, studentId, aiStatus: { not: 'pending' }, aiApproved: false,
       OR: [
         { grade: { is: null } },
         { grade: { is: { gradedById: null, contentScore: null, feedback: null, contentApproved: false } } },
