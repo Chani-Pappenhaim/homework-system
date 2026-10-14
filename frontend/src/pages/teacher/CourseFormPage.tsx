@@ -24,6 +24,7 @@ import { FileGallery } from '@/components/ui/file-gallery';
 import { BackLink } from '@/components/ui/back-link';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
+import { clearedDeadlinesNote } from '@/components/lesson/LessonCopyModal';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useTabParam } from '@/hooks/useTabParam';
 
@@ -134,7 +135,11 @@ export default function CourseFormPage(props: Partial<CoursePageProps>) {
 
   const copyMutation = useMutation({
     mutationFn: () => coursesApi.copy(id!, copyGroupId),
-    onSuccess: () => { setCopyModal(false); qc.invalidateQueries({ queryKey: ['courses'] }); toast.success('הקורס הועתק בהצלחה'); },
+    onSuccess: (res) => {
+      setCopyModal(false);
+      qc.invalidateQueries({ queryKey: ['courses'] });
+      toast.success('הקורס הועתק בהצלחה' + clearedDeadlinesNote(res.data.data?.clearedDeadlines));
+    },
   });
 
   const toggleHiddenMutation = useMutation({

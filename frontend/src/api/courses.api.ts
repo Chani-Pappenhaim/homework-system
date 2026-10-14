@@ -19,7 +19,7 @@ export const coursesApi = {
     api.delete(`/courses/${id}`),
 
   copy: (id: string, targetGroupId: string) =>
-    api.post(`/courses/${id}/copy`, { targetGroupId }),
+    api.post<{ success: true; data: { clearedDeadlines?: number } }>(`/courses/${id}/copy`, { targetGroupId }),
 
   getAccess: (id: string) =>
     api.get<{ success: true; data: { students: StudentSummary[] } }>(`/courses/${id}/access`),

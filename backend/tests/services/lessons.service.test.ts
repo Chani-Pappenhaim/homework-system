@@ -489,6 +489,24 @@ describe('lessons.service copyLesson', () => {
     expect(data.quiz).toEqual({ create: { questions: [{ q: 1 }], published: false } });
   });
 
+  it('drops a deadline that already passed and keeps one still ahead', async () => {
+    const past = new Date(Date.now() - 86_400_000);
+    const ahead = new Date(Date.now() + 86_400_000);
+    p.lesson.findUnique.mockResolvedValue({
+      ...source,
+      assignments: [
+        { ...source.assignments[0], id: 'a1', deadline: past },
+        { ...source.assignments[0], id: 'a2', deadline: ahead },
+        { ...source.assignments[0], id: 'a3', deadline: null },
+      ],
+    });
+    const r = await copyLesson('l1');
+    const created = p.lesson.create.mock.calls[0][0].data.assignments.create;
+    expect(created.map((a: any) => a.deadline)).toEqual([null, ahead, null]);
+    expect(r.clearedDeadlines).toBe(1);
+    expect(r.lesson).toMatchObject({ id: 'new' });
+  });
+
   it('keeps the topic when copying to another course', async () => {
     p.course.findUnique.mockResolvedValue({ id: 'c2' });
     p.lesson.findFirst.mockResolvedValue(null);

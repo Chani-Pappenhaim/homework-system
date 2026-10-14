@@ -159,9 +159,14 @@ export async function importAssignments(buffer: Buffer) {
 
     if (!lessonId || !title) { errors.push(`Row ${i}: missing lessonId or title`); continue; }
     if (!description) { errors.push(`Row ${i}: missing description`); continue; }
+    const deadlineDate = deadline ? new Date(deadline) : undefined;
+    if (deadlineDate && Number.isNaN(deadlineDate.getTime())) { errors.push(`Row ${i}: invalid deadline`); continue; }
+    if (deadlineDate && deadlineDate.getTime() < Date.now() - PAST_DEADLINE_GRACE_MS) {
+      errors.push(`Row ${i}: deadline is in the past`); continue;
+    }
 
     try {
-      await prisma.assignment.create({ data: { lessonId, title, description, deadline: deadline ? new Date(deadline) : undefined, allowedTypes } });
+      await prisma.assignment.create({ data: { lessonId, title, description, deadline: deadlineDate, allowedTypes } });
       imported++;
     } catch {
       errors.push(`Row ${i}: failed to create assignment`);

@@ -9,6 +9,14 @@ import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
 import type { LessonDetailDTO } from '@/types';
 
+/** Told after a copy, so the teacher knows which assignments need a new deadline. */
+export function clearedDeadlinesNote(count?: number): string {
+  if (!count) return '';
+  return count === 1
+    ? '. למטלה אחת המועד האחרון כבר עבר והוסר — יש לקבוע לה מועד חדש'
+    : `. ל-${count} מטלות המועד האחרון כבר עבר והוסר — יש לקבוע להן מועד חדש`;
+}
+
 /**
  * Duplicates a lesson in its own course or copies it to another one.
  * Files are shared, not re-uploaded; the copy starts hidden so the teacher can
@@ -39,7 +47,7 @@ export function LessonCopyModal({ lesson, open, onClose }: {
       const copy = res.data.data.lesson;
       qc.invalidateQueries({ queryKey: ['course', copy.courseId] });
       qc.invalidateQueries({ queryKey: ['courses'] });
-      toast.success('השיעור הועתק — העותק מוסתר מהתלמידות עד שתציגי אותו');
+      toast.success('השיעור הועתק — העותק מוסתר מהתלמידות עד שתציגי אותו' + clearedDeadlinesNote(res.data.data.clearedDeadlines));
       onClose();
       navigate(`/teacher/lessons/${copy.id}`);
     },

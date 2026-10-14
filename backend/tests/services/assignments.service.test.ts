@@ -78,6 +78,21 @@ describe('assignments.service.importAssignments', () => {
     expect(r.errors.some((e) => e.includes('failed to create assignment'))).toBe(true);
   });
 
+  it('refuses a row whose deadline already passed or is not a date, and keeps a future one', async () => {
+    p.assignment.create.mockResolvedValue({});
+    const ahead = new Date(Date.now() + 86_400_000).toISOString();
+    const buf = await xlsxBuffer([
+      ['l1', 'Past', 'desc', '2020-01-01T10:00:00Z', ''],
+      ['l1', 'Garbage', 'desc', 'not a date', ''],
+      ['l1', 'Ahead', 'desc', ahead, ''],
+    ]);
+    const r = await importAssignments(buf);
+    expect(r.imported).toBe(1);
+    expect(r.errors).toEqual(['Row 2: deadline is in the past', 'Row 3: invalid deadline']);
+    expect(p.assignment.create).toHaveBeenCalledTimes(1);
+    expect(p.assignment.create.mock.calls[0][0].data).toMatchObject({ title: 'Ahead', deadline: new Date(ahead) });
+  });
+
   it('skips a row with no description', async () => {
     const buf = await xlsxBuffer([['l1', 'Task A', '', '', '']]);
     const r = await importAssignments(buf);

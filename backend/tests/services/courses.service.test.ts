@@ -188,7 +188,27 @@ describe('courses.service.copyCourse', () => {
     expect(createArg.lessons.create[0]).not.toHaveProperty('id');
     // the quiz comes along as an unpublished draft
     expect(createArg.lessons.create[0].quiz).toEqual({ create: { questions: [{ question: 'Q' }], published: false } });
-    expect(r).toMatchObject({ id: 'c2', groupName: 'G2' });
+    expect(r.course).toMatchObject({ id: 'c2', groupName: 'G2' });
+    expect(r.clearedDeadlines).toBe(0);
+  });
+
+  it("drops the deadlines that already passed (copying last year's course) and keeps future ones", async () => {
+    const past = new Date(Date.now() - 86_400_000);
+    const ahead = new Date(Date.now() + 86_400_000);
+    p.course.findUnique.mockResolvedValue({
+      id: 'c1', name: 'Src', links: [], files: [],
+      lessons: [
+        { id: 'l1', files: [], quiz: null, assignments: [{ id: 'a1', title: 'A', deadline: past }, { id: 'a2', title: 'B', deadline: ahead }] },
+        { id: 'l2', files: [], quiz: null, assignments: [{ id: 'a3', title: 'C', deadline: past }] },
+      ],
+    });
+    p.course.create.mockImplementation(({ data }: any) =>
+      Promise.resolve({ id: 'c2', ...data, group: { name: 'G2' }, _count: { lessons: 2 } }));
+    const r = await copyCourse('c1', 'g2');
+    const lessons = p.course.create.mock.calls[0][0].data.lessons.create;
+    expect(lessons[0].assignments.create.map((a: any) => a.deadline)).toEqual([null, ahead]);
+    expect(lessons[1].assignments.create[0].deadline).toBeNull();
+    expect(r.clearedDeadlines).toBe(2);
   });
 });
 
