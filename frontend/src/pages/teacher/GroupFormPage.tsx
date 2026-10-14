@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Trash2, RotateCcw, UserPlus, Pencil, MailCheck, MailWarning, BellOff } from 'lucide-react';
 import { groupsApi } from '@/api/groups.api';
@@ -210,7 +210,7 @@ export default function GroupFormPage() {
                       aria-label={`בחר את ${s.name}`}
                     />
                     <div>
-                      <p className="text-sm font-medium">{s.name}</p>
+                      <Link to={`/teacher/students/${s.id}`} className="text-sm font-medium text-ink hover:underline" title="לדף התלמידה — עריכה ומחיקת החשבון">{s.name}</Link>
                       <p className="flex items-center gap-1 text-xs text-ink/50">
                         {s.email}
                         {s.emailVerified
@@ -251,7 +251,7 @@ export default function GroupFormPage() {
         open={!!removeOneTarget}
         onOpenChange={(open) => !open && setRemoveOneTarget(null)}
         title="הסרת תלמידה מהקבוצה"
-        description={removeOneTarget ? `להסיר את ${removeOneTarget.name} מהקבוצה? חשבון התלמידה עצמו לא יימחק.` : ''}
+        description={removeOneTarget ? `להסיר את ${removeOneTarget.name} מהקבוצה? חשבון התלמידה עצמו לא יימחק — כדי למחוק אותו, לחצי על שמה ובדף שלה על "מחיקת חשבון".` : ''}
         confirmLabel="הסר"
         loading={removeStudentMutation.isPending}
         onConfirm={() => removeStudentMutation.mutate(removeOneTarget!.id)}
