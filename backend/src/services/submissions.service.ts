@@ -1,6 +1,6 @@
 import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
-import { uploadBuffer, createUploadSignature, toDeliveryUrl, destroyByUrl, isOwnUpload } from '../utils/storage';
+import { uploadBuffer, createUploadSignature, destroyByUrl, isOwnUpload, submissionFileLink } from '../utils/storage';
 import { confirmUpload, discardPendingUpload } from '../utils/pending-uploads';
 import { releaseFileUrls } from '../utils/file-refs';
 import { assertLessonAccess } from '../utils/access';
@@ -268,7 +268,7 @@ export async function getMySubmissions(studentId: string) {
         lessonTopic: assignment.lesson.topic, courseName: assignment.lesson.course.name,
         submittedAt: sub.submittedAt, isLate: sub.isLate, notes: sub.notes,
         checklist: sub.checklist,
-        githubUrl: sub.githubUrl, fileUrl: sub.fileUrl ? toDeliveryUrl(sub.fileUrl) : sub.fileUrl, fileName: sub.fileName,
+        githubUrl: sub.githubUrl, fileUrl: submissionFileLink(sub, studentId), fileName: sub.fileName,
         ...toStudentAiView(sub),
         grade: grade ? { submissionScore: grade.submissionScore, contentScore: grade.contentApproved ? grade.contentScore : null, contentApproved: grade.contentApproved, feedback: grade.feedback, checklist: grade.checklist } : null,
       });
@@ -293,7 +293,7 @@ export async function getSubmissionById(id: string, userId: string, role: string
   if (role !== 'ADMIN' && submission.studentId !== userId) {
     throw new AppError('Forbidden', 'אין לך הרשאה לצפות בהגשה זו', 403);
   }
-  const fileUrl = submission.fileUrl ? toDeliveryUrl(submission.fileUrl) : submission.fileUrl;
+  const fileUrl = submissionFileLink(submission, userId);
   if (role === 'ADMIN') return { ...submission, fileUrl };
   // The content score is the teacher's call and stays hidden until she approves
   // it; the submission score is always the student's to see.

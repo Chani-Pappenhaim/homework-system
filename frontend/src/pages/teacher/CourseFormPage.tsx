@@ -306,7 +306,7 @@ export default function CourseFormPage(props: Partial<CoursePageProps>) {
                 onFile={(file, name) => uploadFileMutation.mutate({ file, name })}
                 label={uploadFileMutation.isPending ? `מעלה... ${uploadProgress ?? 0}%` : 'העלה קובץ לקורס'}
               />
-              <FileGallery files={course.files} onDelete={(fileId) => deleteFileMutation.mutate(fileId)} onRename={(fileId, name) => renameFileMutation.mutate({ fileId, name })} onToggleHidden={(fileId, hidden) => hiddenFileMutation.mutate({ fileId, hidden })} className="mt-1" />
+              <FileGallery source="course" files={course.files} onDelete={(fileId) => deleteFileMutation.mutate(fileId)} onRename={(fileId, name) => renameFileMutation.mutate({ fileId, name })} onToggleHidden={(fileId, hidden) => hiddenFileMutation.mutate({ fileId, hidden })} className="mt-1" />
             </CardContent>
           </Card>
         </div>

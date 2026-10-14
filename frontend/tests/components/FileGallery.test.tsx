@@ -3,6 +3,12 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FileGallery, parseCsv, withPreviewPolicy } from '@/components/ui/file-gallery';
 
+vi.mock('@/api/files.api', () => ({ filesApi: { viewerLink: vi.fn() } }));
+import { filesApi } from '@/api/files.api';
+
+const viewerLink = filesApi.viewerLink as unknown as ReturnType<typeof vi.fn>;
+viewerLink.mockImplementation(async (id: string) => `/files/download/${id}/file.pptx?token=viewer`);
+
 const PDF = {
   id: 'f1',
   // The upload form strips the extension from the display name, so the kind has
@@ -15,12 +21,12 @@ const PDF = {
 
 describe('FileGallery', () => {
   it('renders nothing when there are no files', () => {
-    const { container } = render(<FileGallery files={[]} />);
+    const { container } = render(<FileGallery source="lesson" files={[]} />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it('opens the preview across the screen rather than beside the grid', async () => {
-    const { baseElement } = render(<FileGallery files={[PDF]} />);
+    const { baseElement } = render(<FileGallery source="lesson" files={[PDF]} />);
     expect(baseElement.querySelector('[role="dialog"]')).toBeNull();
 
     await userEvent.click(screen.getByRole('button', { name: /חוזה/ }));
@@ -33,7 +39,7 @@ describe('FileGallery', () => {
   });
 
   it('previews a pdf in the dialog and offers it for download', async () => {
-    const { baseElement } = render(<FileGallery files={[PDF]} />);
+    const { baseElement } = render(<FileGallery source="lesson" files={[PDF]} />);
     await userEvent.click(screen.getByRole('button', { name: /חוזה/ }));
 
     const frames = baseElement.querySelectorAll('iframe');
@@ -44,34 +50,34 @@ describe('FileGallery', () => {
   });
 
   it('closes the preview again', async () => {
-    const { baseElement } = render(<FileGallery files={[PDF]} />);
+    const { baseElement } = render(<FileGallery source="lesson" files={[PDF]} />);
     await userEvent.click(screen.getByRole('button', { name: /חוזה/ }));
     await userEvent.click(screen.getByRole('button', { name: 'סגירה' }));
     expect(baseElement.querySelector('[role="dialog"]')).toBeNull();
   });
 
   it('falls back to a download prompt for a type nothing can render', async () => {
-    render(<FileGallery files={[{ id: 'f2', name: 'code.zip', url: '/files/download/f2?token=t', extension: 'zip' }]} />);
+    render(<FileGallery source="lesson" files={[{ id: 'f2', name: 'code.zip', url: '/files/download/f2?token=t', extension: 'zip' }]} />);
     await userEvent.click(screen.getByRole('button', { name: /code.zip/ }));
     expect(screen.getByText(/אין תצוגה מקדימה/)).toBeInTheDocument();
   });
 
   it('reads a text file in place instead of making the user download it', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('שורה ראשונה')));
-    render(<FileGallery files={[{ id: 'f3', name: 'notes.txt', url: '/files/download/f3?token=t', extension: 'txt' }]} />);
+    render(<FileGallery source="lesson" files={[{ id: 'f3', name: 'notes.txt', url: '/files/download/f3?token=t', extension: 'txt' }]} />);
     await userEvent.click(screen.getByRole('button', { name: /notes.txt/ }));
     expect(await screen.findByText('שורה ראשונה')).toBeInTheDocument();
     vi.unstubAllGlobals();
   });
 
   it('never frames a file inside a tile, so opening a page cannot trigger a download', () => {
-    const { container } = render(<FileGallery files={[PDF, { id: 'f4', name: 'deck', url: '/files/download/f4/file.pptx?token=t', extension: 'pptx' }]} />);
+    const { container } = render(<FileGallery source="lesson" files={[PDF, { id: 'f4', name: 'deck', url: '/files/download/f4/file.pptx?token=t', extension: 'pptx' }]} />);
     expect(container.querySelector('iframe')).toBeNull();
   });
 
   it('runs an html file isolated from the app and cut off from the network', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('<h1>שלום</h1><script>alert(1)</script>')));
-    const { baseElement } = render(<FileGallery files={[{ id: 'f5', name: 'page.html', url: '/files/download/f5/file.html?token=t', extension: 'html' }]} />);
+    const { baseElement } = render(<FileGallery source="lesson" files={[{ id: 'f5', name: 'page.html', url: '/files/download/f5/file.html?token=t', extension: 'html' }]} />);
     await userEvent.click(screen.getByRole('button', { name: /page.html/ }));
     const frame = await waitFor(() => {
       const f = baseElement.querySelector('iframe[title="page.html"]');
@@ -87,14 +93,14 @@ describe('FileGallery', () => {
   });
 
   it('opens a show-mode presentation in the office viewer', async () => {
-    const { baseElement } = render(<FileGallery files={[{ id: 'f9', name: 'מצגת', url: '/files/download/f9/file.ppsx?token=t', extension: 'ppsx' }]} />);
+    const { baseElement } = render(<FileGallery source="lesson" files={[{ id: 'f9', name: 'מצגת', url: '/files/download/f9/file.ppsx?token=t', extension: 'ppsx' }]} />);
     await userEvent.click(screen.getByRole('button', { name: /מצגת/ }));
-    expect(baseElement.querySelector('iframe')!.getAttribute('src')).toContain('view.officeapps.live.com');
+    await waitFor(() => expect(baseElement.querySelector('iframe')?.getAttribute('src')).toContain('view.officeapps.live.com'));
   });
 
   it('shows a code file as left-to-right text', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('print("hi")')));
-    render(<FileGallery files={[{ id: 'f10', name: 'main.py', url: '/files/download/f10/file.py?token=t', extension: 'py' }]} />);
+    render(<FileGallery source="lesson" files={[{ id: 'f10', name: 'main.py', url: '/files/download/f10/file.py?token=t', extension: 'py' }]} />);
     await userEvent.click(screen.getByRole('button', { name: /main.py/ }));
     expect((await screen.findByText('print("hi")')).getAttribute('dir')).toBe('ltr');
     vi.unstubAllGlobals();
@@ -102,7 +108,7 @@ describe('FileGallery', () => {
 
   it('shows a csv file as a table', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('שם,ציון\nרחל,95')));
-    render(<FileGallery files={[{ id: 'f11', name: 'grades.csv', url: '/files/download/f11/file.csv?token=t', extension: 'csv' }]} />);
+    render(<FileGallery source="lesson" files={[{ id: 'f11', name: 'grades.csv', url: '/files/download/f11/file.csv?token=t', extension: 'csv' }]} />);
     await userEvent.click(screen.getByRole('button', { name: /grades.csv/ }));
     expect(await screen.findByRole('columnheader', { name: 'ציון' })).toBeInTheDocument();
     expect(screen.getByRole('cell', { name: 'רחל' })).toBeInTheDocument();
@@ -111,7 +117,7 @@ describe('FileGallery', () => {
 
   it('renders a markdown file as formatted text', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('# כותרת\n\n**מודגש**')));
-    render(<FileGallery files={[{ id: 'f6', name: 'notes.md', url: '/files/download/f6/file.md?token=t', extension: 'md' }]} />);
+    render(<FileGallery source="lesson" files={[{ id: 'f6', name: 'notes.md', url: '/files/download/f6/file.md?token=t', extension: 'md' }]} />);
     await userEvent.click(screen.getByRole('button', { name: /notes.md/ }));
     expect(await screen.findByRole('heading', { name: 'כותרת' })).toBeInTheDocument();
     expect(screen.getByText('מודגש').tagName).toBe('STRONG');
@@ -119,15 +125,43 @@ describe('FileGallery', () => {
   });
 
   it('offers a second viewer for an office file', async () => {
-    const { baseElement } = render(<FileGallery files={[{ id: 'f4', name: 'deck', url: '/files/download/f4/file.pptx?token=t', extension: 'pptx' }]} />);
+    const { baseElement } = render(<FileGallery source="lesson" files={[{ id: 'f4', name: 'deck', url: '/files/download/f4/file.pptx?token=t', extension: 'pptx' }]} />);
     await userEvent.click(screen.getByRole('button', { name: /deck/ }));
-    expect(baseElement.querySelector('iframe')!.getAttribute('src')).toContain('view.officeapps.live.com');
+    await waitFor(() => expect(baseElement.querySelector('iframe')?.getAttribute('src')).toContain('view.officeapps.live.com'));
     await userEvent.click(screen.getByRole('button', { name: /צופה חלופי/ }));
-    expect(baseElement.querySelector('iframe')!.getAttribute('src')).toContain('docs.google.com/gview');
+    await waitFor(() => expect(baseElement.querySelector('iframe')?.getAttribute('src')).toContain('docs.google.com/gview'));
+  });
+
+  it('hands the office viewer its own short-lived link, not the session-bound one of the page', async () => {
+    const { baseElement } = render(<FileGallery source="course" files={[{ id: 'f4', name: 'deck', url: '/files/download/f4/file.pptx?token=t', extension: 'pptx' }]} />);
+    await userEvent.click(screen.getByRole('button', { name: /deck/ }));
+    await waitFor(() => expect(baseElement.querySelector('iframe')).not.toBeNull());
+    expect(viewerLink).toHaveBeenCalledWith('f4', 'course');
+    const src = decodeURIComponent(baseElement.querySelector('iframe')!.getAttribute('src')!);
+    expect(src).toContain('token=viewer');
+    expect(src).not.toContain('token=t');
+  });
+
+  it('offers the download when the viewer link cannot be had', async () => {
+    viewerLink.mockRejectedValueOnce(new Error('403'));
+    const { baseElement } = render(<FileGallery source="lesson" files={[{ id: 'f4', name: 'deck', url: '/files/download/f4/file.pptx?token=t', extension: 'pptx' }]} />);
+    await userEvent.click(screen.getByRole('button', { name: /deck/ }));
+    expect(await screen.findByText('לא הצלחנו לפתוח את התצוגה המקדימה של הקובץ.')).toBeInTheDocument();
+    expect(baseElement.querySelector('iframe')).toBeNull();
+  });
+
+  it('sends the session cookie along when it reads a text file', async () => {
+    const fetchMock = vi.fn(async () => new Response('hello'));
+    vi.stubGlobal('fetch', fetchMock);
+    render(<FileGallery source="lesson" files={[{ id: 'f12', name: 'a.txt', url: '/files/download/f12/file.txt?token=t', extension: 'txt' }]} />);
+    await userEvent.click(screen.getByRole('button', { name: /a.txt/ }));
+    await screen.findByText('hello');
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/files/download/f12'), { credentials: 'include' });
+    vi.unstubAllGlobals();
   });
 
   it('lists the previewable types when a file has no preview', async () => {
-    render(<FileGallery files={[{ id: 'f2', name: 'code.zip', url: '/files/download/f2?token=t', extension: 'zip' }]} />);
+    render(<FileGallery source="lesson" files={[{ id: 'f2', name: 'code.zip', url: '/files/download/f2?token=t', extension: 'zip' }]} />);
     await userEvent.click(screen.getByRole('button', { name: /code.zip/ }));
     expect(screen.getByText(/תצוגה מקדימה באתר:/)).toBeInTheDocument();
   });
@@ -135,7 +169,7 @@ describe('FileGallery', () => {
   it('offers buttons instead of a frame when the browser downloads pdfs', async () => {
     Object.defineProperty(navigator, 'pdfViewerEnabled', { value: false, configurable: true });
     try {
-      const { baseElement } = render(<FileGallery files={[PDF]} />);
+      const { baseElement } = render(<FileGallery source="lesson" files={[PDF]} />);
       await userEvent.click(screen.getByRole('button', { name: /חוזה/ }));
       expect(baseElement.querySelector('iframe')).toBeNull();
       expect(screen.getByText(/מוגדר להוריד קובצי PDF/)).toBeInTheDocument();
@@ -147,7 +181,7 @@ describe('FileGallery', () => {
 
   it('explains a presentation too large for the online viewer instead of framing it', async () => {
     const big = { id: 'p1', name: 'מצגת', url: '/files/download/p1?token=t', extension: 'pptx', sizeBytes: String(12 * 1024 * 1024) };
-    const { baseElement } = render(<FileGallery files={[big]} />);
+    const { baseElement } = render(<FileGallery source="lesson" files={[big]} />);
     await userEvent.click(screen.getByRole('button', { name: /מצגת/ }));
     expect(baseElement.querySelector('iframe')).toBeNull();
     expect(screen.getByText(/עד 10MB/, { selector: 'p.text-sm' })).toBeInTheDocument();
@@ -156,7 +190,7 @@ describe('FileGallery', () => {
   it('keeps the teacher and student controls on the tiles', async () => {
     const onDelete = vi.fn();
     const onToggleRequired = vi.fn();
-    render(<FileGallery files={[PDF]} onDelete={onDelete} onToggleRequired={onToggleRequired} />);
+    render(<FileGallery source="lesson" files={[PDF]} onDelete={onDelete} onToggleRequired={onToggleRequired} />);
     expect(screen.getByLabelText('מחיקת קובץ')).toBeInTheDocument();
     expect(screen.getByLabelText('סימון כקובץ חובה')).toBeInTheDocument();
   });

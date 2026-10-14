@@ -1,6 +1,44 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import AdmZip from 'adm-zip';
+
+vi.mock('../../src/utils/storage', () => ({ uploadBuffer: vi.fn() }));
+
+import { uploadBuffer } from '../../src/utils/storage';
 import { fileToMarkdown, htmlToMarkdown } from '../../src/utils/content-convert';
+
+const upload = uploadBuffer as unknown as ReturnType<typeof vi.fn>;
+// A 1x1 transparent PNG.
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
+
+/** A .docx with one paragraph and one picture embedded in it. */
+function docxWithImage(): Buffer {
+  const zip = new AdmZip();
+  zip.addFile('[Content_Types].xml', Buffer.from(
+    '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+    + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+    + '<Default Extension="xml" ContentType="application/xml"/>'
+    + '<Default Extension="png" ContentType="image/png"/>'
+    + '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'));
+  zip.addFile('_rels/.rels', Buffer.from(
+    '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'));
+  zip.addFile('word/_rels/document.xml.rels', Buffer.from(
+    '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    + '<Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image1.png"/></Relationships>'));
+  zip.addFile('word/media/image1.png', PNG);
+  zip.addFile('word/document.xml', Buffer.from(
+    '<?xml version="1.0" encoding="UTF-8"?><w:document'
+    + ' xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
+    + ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"'
+    + ' xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"'
+    + ' xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"'
+    + ' xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body>'
+    + '<w:p><w:r><w:t>צילום מסך</w:t></w:r></w:p>'
+    + '<w:p><w:r><w:drawing><wp:inline><wp:docPr id="1" name="Picture 1" descr="מסך"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+    + '<pic:pic><pic:blipFill><a:blip r:embed="rId5"/></pic:blipFill></pic:pic>'
+    + '</a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p></w:body></w:document>'));
+  return zip.toBuffer();
+}
 
 /** The smallest .docx Word opens: one heading and one paragraph. */
 function docx(): Buffer {
@@ -19,6 +57,37 @@ function docx(): Buffer {
     + '<w:p><w:r><w:t>לכתוב קומפוננטה</w:t></w:r></w:p></w:body></w:document>'));
   return zip.toBuffer();
 }
+
+describe('pictures inside a Word document', () => {
+  const savedCloud = process.env.CLOUDINARY_CLOUD_NAME;
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.CLOUDINARY_CLOUD_NAME = 'demo';
+  });
+  afterEach(() => { process.env.CLOUDINARY_CLOUD_NAME = savedCloud; });
+
+  it('stores each picture as its own file and links it', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    upload.mockResolvedValue({ url: 'https://res.cloudinary.com/demo/image/upload/v1/content-images/a.png' });
+    const md = await fileToMarkdown('task.docx', docxWithImage());
+    expect(md).toBe('צילום מסך\n\n![מסך](https://res.cloudinary.com/demo/image/upload/v1/content-images/a.png)');
+    expect(upload).toHaveBeenCalledWith(PNG, 'image/png', 'content-images');
+  });
+
+  it('keeps the picture inline when the upload fails, rather than losing it', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    upload.mockRejectedValue(new Error('cloudinary down'));
+    const md = await fileToMarkdown('task.docx', docxWithImage());
+    expect(md).toContain(`![מסך](data:image/png;base64,${PNG.toString('base64')})`);
+  });
+
+  it('keeps the picture inline when no storage is configured', async () => {
+    delete process.env.CLOUDINARY_CLOUD_NAME;
+    const md = await fileToMarkdown('task.docx', docxWithImage());
+    expect(md).toContain('data:image/png;base64,');
+    expect(upload).not.toHaveBeenCalled();
+  });
+});
 
 describe('content conversion', () => {
   it('passes Markdown through as is, without a BOM', async () => {

@@ -40,7 +40,10 @@ export function createApp() {
     credentials: true,
   }));
   app.use(originGuard(process.env.FRONTEND_URL));
-  app.use(express.json());
+  // Text fields may hold pictures inlined as base64 (pasted, or from content
+  // saved before Word images were uploaded separately); the 100KB default
+  // refused to save such an assignment.
+  app.use(express.json({ limit: '5mb' }));
   app.use(cookieParser());
 
   // Lightweight liveness probe — no auth, no DB — so an external keep-alive

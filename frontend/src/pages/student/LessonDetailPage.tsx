@@ -193,7 +193,7 @@ export default function StudentLessonDetailPage({ lessonId, lessonNumber }: Part
           </CardHeader>
           <CardContent>
             {hasFiles ? (
-              <FileGallery
+              <FileGallery source="lesson"
                 files={lesson.files}
                 onMarkViewed={(fileId) => viewFileMutation.mutate(fileId)}
                 onUnmarkViewed={(fileId) => unviewFileMutation.mutate(fileId)}
