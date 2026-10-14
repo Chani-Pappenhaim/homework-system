@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import ReportsPage from '@/pages/teacher/ReportsPage';
+import ReportsPage, { distinctLabels } from '@/pages/teacher/ReportsPage';
 import { renderWithProviders } from '../utils/render';
 
 vi.mock('@/api/grades.api', () => ({
@@ -10,7 +10,8 @@ vi.mock('@/api/grades.api', () => ({
     exportUrl: vi.fn(() => '/api/grades/report/export'),
   },
 }));
-vi.mock('@/api/groups.api', () => ({ groupsApi: { list: vi.fn() } }));
+vi.mock('@/api/groups.api', () => ({ groupsApi: { list: vi.fn(), get: vi.fn() } }));
+vi.mock('@/api/students.api', () => ({ studentsApi: { overview: vi.fn(), search: vi.fn() } }));
 vi.mock('@/api/courses.api', () => ({ coursesApi: { list: vi.fn() } }));
 vi.mock('@/api/submissions.api', () => ({
   submissionsApi: { importSubmissions: vi.fn(), downloadImportTemplate: vi.fn() },
@@ -20,15 +21,82 @@ import { gradesApi } from '@/api/grades.api';
 import { groupsApi } from '@/api/groups.api';
 import { coursesApi } from '@/api/courses.api';
 import { submissionsApi } from '@/api/submissions.api';
+import { studentsApi } from '@/api/students.api';
 
 const report = gradesApi.report as unknown as ReturnType<typeof vi.fn>;
 const groupsList = groupsApi.list as unknown as ReturnType<typeof vi.fn>;
 const coursesList = coursesApi.list as unknown as ReturnType<typeof vi.fn>;
+const groupGet = groupsApi.get as unknown as ReturnType<typeof vi.fn>;
+const overview = studentsApi.overview as unknown as ReturnType<typeof vi.fn>;
+
+const twoGroups = [
+  { id: 'g1', name: 'קבוצה א', year: '2026', studentCount: 0, createdAt: '' },
+  { id: 'g2', name: 'קבוצה ב', year: '2026', studentCount: 0, createdAt: '' },
+];
+const sameNameCourses = [
+  { id: 'c1', name: 'React', groupId: 'g1', groupName: 'קבוצה א', lessonCount: 0, hidden: false, createdAt: '' },
+  { id: 'c2', name: 'React', groupId: 'g2', groupName: 'קבוצה ב', lessonCount: 0, hidden: false, createdAt: '' },
+  { id: 'c3', name: 'Node', groupId: 'g2', groupName: 'קבוצה ב', lessonCount: 0, hidden: false, createdAt: '' },
+];
+const optionNames = (select: HTMLElement) => Array.from(select.querySelectorAll('option')).map((o) => o.textContent);
 
 beforeEach(() => {
   vi.clearAllMocks();
   groupsList.mockResolvedValue({ data: { data: { groups: [{ id: 'g1', name: 'קבוצה א', year: '2026', studentCount: 0, createdAt: '' }] } } });
   coursesList.mockResolvedValue({ data: { data: { courses: [{ id: 'c1', name: 'קורס א', groupId: 'g1', lessonCount: 0, hidden: false, createdAt: '' }] } } });
+  overview.mockResolvedValue({ data: { data: { students: [] } } });
+  report.mockResolvedValue({ data: { data: { report: [] } } });
+});
+
+describe('distinctLabels', () => {
+  it('adds the detail only to names that repeat', () => {
+    const items = [{ n: 'דנה', d: 'a@x' }, { n: 'דנה', d: 'b@x' }, { n: 'רחל', d: 'c@x' }];
+    expect(distinctLabels(items, (i) => i.n, (i) => i.d)).toEqual(['דנה · a@x', 'דנה · b@x', 'רחל']);
+  });
+});
+
+describe('ReportsPage filters', () => {
+  it('lists every student, from the uncapped overview, telling same-named students apart by email', async () => {
+    overview.mockResolvedValue({ data: { data: { students: [
+      { id: 's1', name: 'דנה', email: 'dana1@x.com', groupNames: [] },
+      { id: 's2', name: 'דנה', email: 'dana2@x.com', groupNames: [] },
+      { id: 's3', name: 'רחל', email: 'rachel@x.com', groupNames: [] },
+    ] } } });
+    renderWithProviders(<ReportsPage />);
+    const students = screen.getByRole('combobox', { name: 'סינון לפי תלמידה' });
+    await waitFor(() => expect(optionNames(students)).toEqual(['כל התלמידות', 'דנה · dana1@x.com', 'דנה · dana2@x.com', 'רחל']));
+    expect(studentsApi.search).not.toHaveBeenCalled();
+  });
+
+  it('shows the group next to courses that share a name', async () => {
+    coursesList.mockResolvedValue({ data: { data: { courses: sameNameCourses } } });
+    renderWithProviders(<ReportsPage />);
+    const courses = screen.getByRole('combobox', { name: 'סינון לפי קורס' });
+    await waitFor(() => expect(optionNames(courses)).toEqual(['כל הקורסים', 'React · קבוצה א', 'React · קבוצה ב', 'Node']));
+  });
+
+  it("narrows the course list to the chosen group's courses", async () => {
+    groupsList.mockResolvedValue({ data: { data: { groups: twoGroups } } });
+    coursesList.mockResolvedValue({ data: { data: { courses: sameNameCourses } } });
+    groupGet.mockResolvedValue({ data: { data: { group: { ...twoGroups[1], students: [], courses: [] } } } });
+    renderWithProviders(<ReportsPage />);
+    await screen.findByRole('option', { name: 'קבוצה ב 2026' });
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'סינון לפי קבוצה' }), 'g2');
+    expect(optionNames(screen.getByRole('combobox', { name: 'סינון לפי קורס' }))).toEqual(['כל הקורסים', 'React', 'Node']);
+  });
+
+  it('clears a chosen course that does not belong to the newly chosen group', async () => {
+    groupsList.mockResolvedValue({ data: { data: { groups: twoGroups } } });
+    coursesList.mockResolvedValue({ data: { data: { courses: sameNameCourses } } });
+    groupGet.mockResolvedValue({ data: { data: { group: { ...twoGroups[0], students: [], courses: [] } } } });
+    renderWithProviders(<ReportsPage />);
+    await screen.findByRole('option', { name: 'Node' });
+    const course = screen.getByRole('combobox', { name: 'סינון לפי קורס' });
+    await userEvent.selectOptions(course, 'c3');
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'סינון לפי קבוצה' }), 'g1');
+    expect(course).toHaveValue('');
+    await waitFor(() => expect(report).toHaveBeenLastCalledWith({ groupId: 'g1' }));
+  });
 });
 
 const rows = [
