@@ -277,7 +277,7 @@ describe('submissions controller — AI review (service-backed routes)', () => {
     expect(submissionsService.approveAiReview).toHaveBeenCalledWith('sub1', 'admin1');
   });
 
-  it('PATCH ai-review saves the teacher's correction of the AI review', async () => {
+  it("PATCH ai-review saves the teacher's correction of the AI review", async () => {
     (submissionsService.updateAiReview as any).mockResolvedValue({ id: 'sub1', aiScore: 70 });
     const res = await request(app)
       .patch('/api/submissions/sub1/ai-review')
