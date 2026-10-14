@@ -69,6 +69,22 @@ describe('TeacherLayout', () => {
     await waitFor(() => expect(logout).toHaveBeenCalled());
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/login'));
   });
+
+  it('shows the search shortcut as Ctrl+K off a Mac, with an explanation on hover', () => {
+    getUnreadCount.mockResolvedValue({ data: { data: { count: 0 } } });
+    renderWithProviders(<TeacherLayout />);
+    const hint = screen.getByText('Ctrl+K');
+    expect(hint).toHaveAttribute('title', 'קיצור מקלדת: Ctrl+K מעביר לחיפוש');
+    expect(screen.queryByText('⌘K')).not.toBeInTheDocument();
+  });
+
+  it('focuses the search on Ctrl+K, also on a Hebrew keyboard layout', () => {
+    getUnreadCount.mockResolvedValue({ data: { data: { count: 0 } } });
+    renderWithProviders(<TeacherLayout />);
+    const search = screen.getByPlaceholderText('חיפוש תלמידה או מטלה');
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ל', code: 'KeyK', ctrlKey: true }));
+    expect(search).toHaveFocus();
+  });
 });
 
 describe('StudentLayout', () => {
