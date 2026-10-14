@@ -11,6 +11,8 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './tests/setup.ts',
+    // e2e/ holds the Playwright specs; they run in a real browser via `npm run test:e2e`.
+    include: ['tests/**/*.test.{ts,tsx}'],
     css: false,
     // These tests finish in ~1s each when run alone, but spinning up 30 jsdom
     // environments in parallel starves them well past the 5s default and a

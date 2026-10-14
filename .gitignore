@@ -56,3 +56,7 @@ scratchpad_project_summary_for_llm.md
 
 # dev server logs
 frontend/vite.log
+
+# Playwright output
+frontend/test-results/
+frontend/playwright-report/
