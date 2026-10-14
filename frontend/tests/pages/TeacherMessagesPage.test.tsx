@@ -72,7 +72,7 @@ describe('TeacherMessagesPage', () => {
 
     // Clicking the message row opens the full thread in an overlay dialog.
     await userEvent.click(await screen.findByRole('button', { name: /דנה/ }));
-    const textarea = await screen.findByPlaceholderText('כתבי תגובה לתלמידה…', {}, { timeout: 5000 });
+    const textarea = await screen.findByPlaceholderText('כתבי תגובה לתלמידה…');
     await userEvent.type(textarea, 'תשובה שלי');
     await userEvent.click(screen.getByRole('button', { name: 'שלחי' }));
 
