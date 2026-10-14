@@ -68,6 +68,7 @@ async function saveSubmission(
   // Checked before anything is uploaded, so a refusal costs no upload.
   const existing = await prisma.submission.findUnique({
     where: { assignmentId_studentId: { assignmentId, studentId } },
+    include: { grade: true },
   });
   if (existing?.aiStatus === 'pending') {
     throw new AppError(
@@ -75,6 +76,9 @@ async function saveSubmission(
       'בדיקת AI של ההגשה הקודמת עדיין רצה — אפשר להגיש מחדש כשהיא תסתיים',
       409
     );
+  }
+  if (existing && teacherChecked(existing.grade) && !existing.changesAllowed) {
+    throw new AppError('Submission already checked by the teacher', CHECKED_BY_TEACHER, 409);
   }
 
   // Every submission is exactly one kind: whichever field doesn't apply is
@@ -147,18 +151,29 @@ async function saveSubmission(
   // New content makes the old AI review and the teacher's approval stale: the
   // review is cleared and the content score goes back to unpublished, so an
   // approved grade never ends up on work nobody looked at. The review count
-  // stays, or resubmitting would refill the AI quota.
-  const submission = existing
-    ? await prisma.submission.update({
-        where: { id: existing.id },
-        data: {
-          fileUrl, fileName, githubUrl, notes, checklist, submittedAt: new Date(), isLate,
-          aiStatus: 'none', aiScore: null, aiCodeReview: null, aiVerbalReview: null, aiApproved: false, aiError: null,
-        },
-      })
-    : await prisma.submission.create({
-        data: { assignmentId, studentId, fileUrl, fileName, githubUrl, notes, checklist, isLate },
-      });
+  // stays, or resubmitting would refill the AI quota - and so does the count a
+  // deleted submission left behind. The teacher's permission to change a
+  // checked submission is used up by this resubmit.
+  let submission;
+  if (existing) {
+    submission = await prisma.submission.update({
+      where: { id: existing.id },
+      data: {
+        fileUrl, fileName, githubUrl, notes, checklist, submittedAt: new Date(), isLate, changesAllowed: false,
+        aiStatus: 'none', aiScore: null, aiCodeReview: null, aiVerbalReview: null, aiApproved: false, aiError: null,
+      },
+    });
+  } else {
+    const key = { assignmentId_studentId: { assignmentId, studentId } };
+    const carried = await prisma.aiReviewCarryover.findUnique({ where: key });
+    submission = await prisma.submission.create({
+      data: {
+        assignmentId, studentId, fileUrl, fileName, githubUrl, notes, checklist, isLate,
+        ...(carried ? { aiReviewCount: carried.aiReviewCount, aiExtraAllowed: carried.aiExtraAllowed } : {}),
+      },
+    });
+    if (carried) await prisma.aiReviewCarryover.deleteMany({ where: { assignmentId, studentId } });
+  }
 
   // Automatic submission score, visible to the student right away. Any
   // contentScore/feedback already given by the teacher is left untouched.
@@ -520,30 +535,45 @@ export async function allowExtraAiReview(submissionId: string) {
   });
 }
 
+/**
+ * The teacher lets the student delete or replace a submission she already
+ * checked (or takes that back). A resubmit uses the permission up.
+ */
+export async function setSubmissionChangesAllowed(submissionId: string, allowed: boolean) {
+  const updated = await prisma.submission.updateMany({ where: { id: submissionId }, data: { changesAllowed: allowed } });
+  if (updated.count === 0) throw new AppError('Submission not found', 'ההגשה לא נמצאה', 404);
+}
+
+type TeacherGradeFields = { gradedById: string | null; contentScore: number | null; feedback: string | null; contentApproved: boolean };
+
 type DeletableSubmission = {
   aiStatus: string;
-  aiReviewCount: number;
-  grade: { gradedById: string | null; contentScore: number | null; feedback: string | null; contentApproved: boolean } | null;
+  changesAllowed: boolean;
+  grade: TeacherGradeFields | null;
 };
 
+const CHECKED_BY_TEACHER = 'המורה כבר בדקה את ההגשה, ולכן אי אפשר למחוק או לעדכן אותה. אפשר לבקש ממנה בהודעה לאפשר זאת';
+
+/** Whether the teacher graded, commented or approved — an AI review alone does not count. */
+function teacherChecked(g: TeacherGradeFields | null | undefined): boolean {
+  return Boolean(g && (g.gradedById || g.contentScore != null || g.feedback || g.contentApproved));
+}
+
 /**
- * Why the student may not delete her submission, or null when she may. Once
- * the teacher graded or commented, deleting would throw her work away; once an
- * AI review ran, deleting and resubmitting would refill the AI quota.
+ * Why the student may not delete (or replace) her submission, or null when she
+ * may. An AI review does not lock it; the teacher's check does, unless she
+ * explicitly allowed changes.
  */
 export function submissionDeleteBlock(sub: DeletableSubmission): string | null {
   if (sub.aiStatus === 'pending') return 'בדיקת AI של ההגשה עדיין רצה — אפשר למחוק כשהיא תסתיים';
-  const g = sub.grade;
-  if (g && (g.gradedById || g.contentScore != null || g.feedback || g.contentApproved)) {
-    return 'המורה כבר בדקה את ההגשה, ולכן אי אפשר למחוק אותה. אפשר לפנות אליה בהודעה';
-  }
-  if (sub.aiReviewCount > 0) return 'כבר בוצעה בדיקת AI על ההגשה, ולכן אי אפשר למחוק אותה. אפשר לפנות למורה בהודעה';
+  if (teacherChecked(sub.grade) && !sub.changesAllowed) return CHECKED_BY_TEACHER;
   return null;
 }
 
 /**
  * The student deletes her own submission, so the assignment is open to submit
- * again. Its grade goes with it (cascade) and its stored file is released.
+ * again. Its grade goes with it (cascade) and its stored file is released. The
+ * AI reviews she used are kept aside for her next submission of it.
  */
 export async function deleteMySubmission(submissionId: string, studentId: string) {
   const submission = await prisma.submission.findUnique({ where: { id: submissionId }, include: { grade: true } });
@@ -551,12 +581,23 @@ export async function deleteMySubmission(submissionId: string, studentId: string
   const block = submissionDeleteBlock(submission);
   if (block) throw new AppError('Submission can no longer be deleted', block, 409);
 
+  // No review is running (checked above), so the count cannot move before the delete.
+  if (submission.aiReviewCount > 0 || submission.aiExtraAllowed) {
+    const carried = { aiReviewCount: submission.aiReviewCount, aiExtraAllowed: submission.aiExtraAllowed };
+    await prisma.aiReviewCarryover.upsert({
+      where: { assignmentId_studentId: { assignmentId: submission.assignmentId, studentId } },
+      create: { assignmentId: submission.assignmentId, studentId, ...carried },
+      update: carried,
+    });
+  }
+
   // The same conditions in the delete itself: an AI review claimed or a grade
   // saved between the read and here keeps the submission.
   const deleted = await prisma.submission.deleteMany({
     where: {
-      id: submissionId, studentId, aiStatus: { not: 'pending' }, aiReviewCount: 0,
+      id: submissionId, studentId, aiStatus: { not: 'pending' },
       OR: [
+        { changesAllowed: true },
         { grade: { is: null } },
         { grade: { is: { gradedById: null, contentScore: null, feedback: null, contentApproved: false } } },
       ],

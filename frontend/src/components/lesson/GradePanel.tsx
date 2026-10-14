@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ExternalLink, Github, Bot, RotateCcw, CheckCircle, Sparkles, RefreshCw, ChevronLeft, Pencil } from 'lucide-react';
+import { ExternalLink, Github, Bot, RotateCcw, CheckCircle, Sparkles, RefreshCw, ChevronLeft, Pencil, Unlock } from 'lucide-react';
 import { gradesApi } from '@/api/grades.api';
 import { submissionsApi } from '@/api/submissions.api';
 import { Button } from '@/components/ui/button';
@@ -197,6 +197,18 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
       setOverrides((prev) => ({ ...prev, aiExtraAllowed: true }));
       toast.success('התלמידה תוכל לבקש בדיקת AI נוספת');
     },
+  });
+
+  // Once she checked it, the student can no longer delete or replace it unless she allows that here.
+  const checked = Boolean(local.grade && (local.grade.contentScore != null || local.grade.feedback || local.grade.contentApproved));
+  const allowChangesMutation = useMutation({
+    mutationFn: (allowed: boolean) => submissionsApi.allowChanges(local.id, allowed),
+    onSuccess: (_data, allowed) => {
+      setOverrides((prev) => ({ ...prev, changesAllowed: allowed }));
+      invalidateSubmissions();
+      toast.success(allowed ? 'התלמידה תוכל לעדכן או למחוק את ההגשה' : 'ההגשה נעולה שוב לשינויים');
+    },
+    onError: (e) => toast.error(getApiErrorMessage(e, 'העדכון נכשל')),
   });
 
   return (
@@ -416,6 +428,26 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
           </Button>
         )}
       </div>
+
+      {checked && (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-ink/60">
+          {local.changesAllowed ? (
+            <>
+              <span className="flex items-center gap-1 text-sage"><Unlock size={12} /> התלמידה יכולה לעדכן או למחוק את ההגשה (פעם אחת)</span>
+              <Button size="sm" variant="ghost" loading={allowChangesMutation.isPending} onClick={() => allowChangesMutation.mutate(false)}>
+                ביטול האישור
+              </Button>
+            </>
+          ) : (
+            <>
+              <span>ההגשה נבדקה ולכן נעולה — התלמידה לא יכולה לעדכן או למחוק אותה.</span>
+              <Button size="sm" variant="outline" loading={allowChangesMutation.isPending} onClick={() => allowChangesMutation.mutate(true)}>
+                <Unlock size={12} /> אפשרי לתלמידה לעדכן או למחוק
+              </Button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

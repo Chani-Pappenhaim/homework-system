@@ -30,6 +30,12 @@ describe('DeleteSubmissionButton', () => {
     await waitFor(() => expect(onDeleted).toHaveBeenCalled());
   });
 
+  it('says the AI reviews already used carry over to the new submission', async () => {
+    renderWithProviders(<DeleteSubmissionButton submission={sub({ aiStatus: 'done' })} />);
+    await userEvent.click(screen.getByRole('button', { name: /מחיקת ההגשה/ }));
+    expect(screen.getByText(/בדיקות ה-AI שכבר נוצלו נספרות גם להגשה החדשה/)).toBeInTheDocument();
+  });
+
   it('shows why instead of a button once deleting is blocked', () => {
     renderWithProviders(<DeleteSubmissionButton submission={sub({ deleteBlockedReason: 'המורה כבר בדקה את ההגשה' })} />);
     expect(screen.queryByRole('button', { name: /מחיקת ההגשה/ })).not.toBeInTheDocument();

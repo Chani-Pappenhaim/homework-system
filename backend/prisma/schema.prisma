@@ -37,18 +37,19 @@ model User {
   emailNotifications   Boolean   @default(true)
   createdAt            DateTime  @default(now())
 
-  studentGroups     StudentGroup[]
-  submissions       Submission[]
-  quizAttempts      QuizAttempt[]
-  gradesGiven       Grade[]
-  lessonAccess      LessonAccess[]
-  courseAccess      CourseAccess[]
-  lessonProgress    LessonProgress[]
-  lessonFileViews   LessonFileView[]
-  teacherMessages   TeacherMessage[]
-  attendance        AttendanceRecord[]
-  homeworkMarks     HomeworkMark[]
-  attendanceOptOuts AttendanceExclusion[]
+  studentGroups      StudentGroup[]
+  submissions        Submission[]
+  aiReviewCarryovers AiReviewCarryover[]
+  quizAttempts       QuizAttempt[]
+  gradesGiven        Grade[]
+  lessonAccess       LessonAccess[]
+  courseAccess       CourseAccess[]
+  lessonProgress     LessonProgress[]
+  lessonFileViews    LessonFileView[]
+  teacherMessages    TeacherMessage[]
+  attendance         AttendanceRecord[]
+  homeworkMarks      HomeworkMark[]
+  attendanceOptOuts  AttendanceExclusion[]
 }
 
 model Group {
@@ -211,7 +212,8 @@ model Assignment {
   aiReviewEnabled Boolean   @default(true)
   createdAt       DateTime  @default(now())
 
-  submissions Submission[]
+  submissions        Submission[]
+  aiReviewCarryovers AiReviewCarryover[]
 }
 
 model Submission {
@@ -234,11 +236,25 @@ model Submission {
   aiApproved     Boolean    @default(false)
   aiReviewCount  Int        @default(0)
   aiExtraAllowed Boolean    @default(false)
+  changesAllowed Boolean    @default(false) // teacher let the student delete or replace it after she checked it; used up by the next resubmit
   aiError        String? // Hebrew, shown to the student when aiStatus is 'error'; the technical cause is only logged
 
   grade Grade?
 
   @@unique([assignmentId, studentId])
+}
+
+/// The AI reviews a student already used on an assignment, kept when she deletes
+/// her submission so a new one does not start with a fresh AI allowance.
+model AiReviewCarryover {
+  assignmentId   String
+  studentId      String
+  assignment     Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student        User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  aiReviewCount  Int
+  aiExtraAllowed Boolean
+
+  @@id([assignmentId, studentId])
 }
 
 model Grade {
@@ -312,19 +328,19 @@ model MessageEntry {
 }
 
 model Quiz {
-  id        String   @id @default(uuid())
-  lessonId  String   @unique
-  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  questions Json
+  id          String   @id @default(uuid())
+  lessonId    String   @unique
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  questions   Json
   // A quiz starts as a draft only the teacher can see. Students get it once she
   // has reviewed the AI's questions and published it, so nobody can sit an exam
   // that is mid-edit.
-  published Boolean  @default(false)
+  published   Boolean  @default(false)
   // Which lesson files the AI actually read for this quiz, and which it could
   // not — { included: string[], skipped: { name, reason }[] }. Null when the
   // teacher generated from the lesson text alone.
   sourceFiles Json?
-  createdAt DateTime @default(now())
+  createdAt   DateTime @default(now())
 
   attempts QuizAttempt[]
 }

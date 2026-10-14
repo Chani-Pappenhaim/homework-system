@@ -81,6 +81,10 @@ export const submissionsApi = {
   allowExtraAi: (submissionId: string) =>
     api.post(`/submissions/${submissionId}/allow-extra-ai`),
 
+  /** Lets the student delete or replace a submission the teacher already checked, or takes that back. */
+  allowChanges: (submissionId: string, allowed: boolean) =>
+    api.post(`/submissions/${submissionId}/allow-changes`, { allowed }),
+
   restoreAiScore: (submissionId: string) =>
     api.post(`/submissions/${submissionId}/restore-ai-score`),
 

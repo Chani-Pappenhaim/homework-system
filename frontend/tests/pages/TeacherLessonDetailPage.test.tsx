@@ -11,7 +11,7 @@ vi.mock('@/api/assignments.api', () => ({
   assignmentsApi: { getSubmissions: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
 }));
 vi.mock('@/api/submissions.api', () => ({
-  submissionsApi: { approveAi: vi.fn(), restoreAiScore: vi.fn(), updateAiReview: vi.fn() },
+  submissionsApi: { approveAi: vi.fn(), restoreAiScore: vi.fn(), updateAiReview: vi.fn(), allowChanges: vi.fn() },
 }));
 vi.mock('@/api/grades.api', () => ({ gradesApi: { grade: vi.fn() } }));
 vi.mock('@/api/groups.api', () => ({ groupsApi: { list: vi.fn(), get: vi.fn() } }));
@@ -27,6 +27,7 @@ const setFileRequired = lessonsApi.setFileRequired as unknown as ReturnType<type
 const getSubmissions = assignmentsApi.getSubmissions as unknown as ReturnType<typeof vi.fn>;
 const approveAi = submissionsApi.approveAi as unknown as ReturnType<typeof vi.fn>;
 const updateAiReview = submissionsApi.updateAiReview as unknown as ReturnType<typeof vi.fn>;
+const allowChanges = submissionsApi.allowChanges as unknown as ReturnType<typeof vi.fn>;
 const grade = gradesApi.grade as unknown as ReturnType<typeof vi.fn>;
 
 import { groupsApi } from '@/api/groups.api';
@@ -187,6 +188,30 @@ describe('TeacherLessonDetailPage', () => {
     // So "save and approve" is available right away, and saves the AI score.
     await userEvent.click(screen.getByRole('button', { name: 'שמור ציון' }));
     await waitFor(() => expect(grade).toHaveBeenCalledWith('s5', expect.objectContaining({ contentScore: 88 })));
+  });
+
+  // Row 30 of the client's sheet: a checked submission is locked for the
+  // student until the teacher explicitly allows changes.
+  it('lets the teacher unlock a checked submission for the student, and lock it again', async () => {
+    getSubmissions.mockResolvedValue({ data: { data: { submissions: [
+      { ...aiReviewed, grade: { submissionScore: 90, contentScore: 60, feedback: '', gradedAt: '' } },
+    ] } } });
+    allowChanges.mockResolvedValue({ data: {} });
+    renderPage();
+    await openAssignment();
+    await userEvent.click(await screen.findByRole('button', { name: /אפשרי לתלמידה לעדכן או למחוק/ }));
+    await waitFor(() => expect(allowChanges).toHaveBeenCalledWith('s5', true));
+    expect(await screen.findByText(/התלמידה יכולה לעדכן או למחוק את ההגשה/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'ביטול האישור' }));
+    await waitFor(() => expect(allowChanges).toHaveBeenCalledWith('s5', false));
+  });
+
+  it('offers no unlock while the teacher has not checked the submission', async () => {
+    getSubmissions.mockResolvedValue({ data: { data: { submissions: [aiReviewed] } } });
+    renderPage();
+    await openAssignment();
+    await screen.findByPlaceholderText('90');
+    expect(screen.queryByRole('button', { name: /אפשרי לתלמידה לעדכן או למחוק/ })).not.toBeInTheDocument();
   });
 
   it('keeps a content score the teacher already saved over the AI score', async () => {
