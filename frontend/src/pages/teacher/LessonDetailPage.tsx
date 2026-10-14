@@ -294,7 +294,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
             onFile={(file, name) => uploadFileMutation.mutate({ file, name })}
             label={uploadFileMutation.isPending ? `מעלה... ${uploadProgress ?? 0}%` : 'גרור קובץ להעלאה או לחצי לבחירה'}
           />
-          <FileGallery
+          <FileGallery source="lesson"
             files={lesson.files}
             onDelete={(fileId) => deleteFileMutation.mutate(fileId)}
             onRename={(fileId, name) => renameFileMutation.mutate({ fileId, name })}

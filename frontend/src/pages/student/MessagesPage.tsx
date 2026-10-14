@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, Clock, Trash2, Send, MessageSquarePlus } from 'lucide-react';
 import { messagesApi } from '@/api/messages.api';
@@ -24,15 +23,14 @@ import { getApiErrorMessage } from '@/lib/errors';
 import { unwrap } from '@/lib/api-utils';
 import type { MessageDTO } from '@/types';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { useMessageDialogs } from '@/hooks/useMessageDialogs';
 
 export default function StudentMessagesPage() {
   usePageTitle('הודעות');
   const qc = useQueryClient();
-  const [searchParams] = useSearchParams();
-  const [composeOpen, setComposeOpen] = useState(false);
+  const { openId, composeOpen, openConversation, closeConversation, setComposeOpen } = useMessageDialogs();
   const [content, setContent] = useState('');
   const [error, setError] = useState('');
-  const [openId, setOpenId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -55,7 +53,7 @@ export default function StudentMessagesPage() {
     mutationFn: (id: string) => messagesApi.deleteMine(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-messages'] });
-      setOpenId(null);
+      closeConversation();
     },
   });
 
@@ -82,20 +80,22 @@ export default function StudentMessagesPage() {
     return msg.entries.some((e) => e.fromTeacher && !e.isRead);
   }
 
-  function openMessage(msg: MessageDTO) {
-    setOpenId(msg.id);
-    setReplyText('');
-    if (isUnread(msg)) markMineReadMutation.mutate(msg.id);
-  }
-
-  // The teacher-reply / teacher-message notification email links straight to this message.
+  // Opening a conversation, from the list or from an email link, marks what it has new as read — once per conversation.
+  const markedRef = useRef<string | null>(null);
   useEffect(() => {
-    const highlight = searchParams.get('highlight');
-    if (!highlight || openId) return;
-    const msg = messages.find((m) => m.id === highlight);
-    if (msg) openMessage(msg);
+    if (!openMsg) { markedRef.current = null; return; }
+    if (markedRef.current === openMsg.id || !isUnread(openMsg)) return;
+    markedRef.current = openMsg.id;
+    markMineReadMutation.mutate(openMsg.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, messages]);
+  }, [openMsg]);
+
+  // A link to a conversation that no longer exists (deleted) just shows the list.
+  useEffect(() => {
+    if (openId && !isLoading && data && !openMsg) closeConversation();
+  }, [openId, isLoading, data, openMsg, closeConversation]);
+
+  useEffect(() => { setReplyText(''); }, [openId]);
 
   useEffect(() => {
     if (openId) bottomRef.current?.scrollIntoView({ block: 'end' });
@@ -128,7 +128,7 @@ export default function StudentMessagesPage() {
               return (
               <button
                 key={msg.id}
-                onClick={() => openMessage(msg)}
+                onClick={() => openConversation(msg.id)}
                 className="flex w-full items-stretch gap-3 px-4 py-3 text-right transition-colors hover:bg-butter/10"
               >
                 <div className="min-w-0 flex-1">
@@ -183,7 +183,7 @@ export default function StudentMessagesPage() {
       </Dialog>
 
       {/* Overlay: full conversation thread — mirrors the teacher's message overlay */}
-      <Dialog open={Boolean(openId)} onOpenChange={(o) => { if (!o) { setOpenId(null); setReplyText(''); } }}>
+      <Dialog open={Boolean(openMsg)} onOpenChange={(o) => { if (!o) closeConversation(); }}>
         <DialogContent size="lg">
           {openMsg && (
             <>
@@ -231,7 +231,7 @@ export default function StudentMessagesPage() {
                 >
                   <Send size={14} /> שלחי
                 </Button>
-                <Button variant="outline" onClick={() => { setOpenId(null); setReplyText(''); }}>
+                <Button variant="outline" onClick={closeConversation}>
                   סגירה
                 </Button>
                 <Button

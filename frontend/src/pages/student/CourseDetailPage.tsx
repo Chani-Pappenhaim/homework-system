@@ -110,7 +110,7 @@ export default function StudentCourseDetailPage(props: Partial<CoursePageProps>)
             <Card>
               <CardHeader><h2 className="font-display text-base font-bold">חומרי עזר</h2></CardHeader>
               <CardContent>
-                <FileGallery files={course.files} />
+                <FileGallery source="course" files={course.files} />
               </CardContent>
             </Card>
           )}

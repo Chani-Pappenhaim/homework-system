@@ -6,6 +6,7 @@ import { PreviewableTypes } from '@/components/ui/previewable-types';
 import { API_URL } from '@/lib/config';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
+import { filesApi, type FileSource } from '@/api/files.api';
 
 // Text past this size would freeze the tab when rendered in full.
 const TEXT_PREVIEW_MAX_BYTES = 2 * 1024 * 1024;
@@ -83,6 +84,8 @@ const KIND_ICON: Record<string, typeof FileIcon> = {
 
 interface FileGalleryProps {
   files: GalleryFile[];
+  /** Whether these are a lesson's or a course's files — the API addresses them separately. */
+  source: FileSource;
   onDelete?: (fileId: string) => void;
   onRename?: (fileId: string, name: string) => void;
   /** Teacher-only — toggles whether a file is mandatory viewing for students. */
@@ -102,7 +105,7 @@ interface FileGalleryProps {
  * the grid was legible for nothing but a thumbnail, which defeats the point of
  * previewing it at all.
  */
-export function FileGallery({ files, onDelete, onRename, onToggleRequired, onToggleHidden, onMarkViewed, onUnmarkViewed, className }: FileGalleryProps) {
+export function FileGallery({ files, source, onDelete, onRename, onToggleRequired, onToggleHidden, onMarkViewed, onUnmarkViewed, className }: FileGalleryProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = files.find((f) => f.id === selectedId);
 
@@ -127,7 +130,7 @@ export function FileGallery({ files, onDelete, onRename, onToggleRequired, onTog
         ))}
       </div>
 
-      <FilePreviewDialog file={selected} onClose={() => setSelectedId(null)} />
+      <FilePreviewDialog file={selected} source={source} onClose={() => setSelectedId(null)} />
     </div>
   );
 }
@@ -294,15 +297,15 @@ function FileTile({
   );
 }
 
-function FilePreviewDialog({ file, onClose }: { file: GalleryFile | undefined; onClose: () => void }) {
+function FilePreviewDialog({ file, source, onClose }: { file: GalleryFile | undefined; source: FileSource; onClose: () => void }) {
   return (
     <Dialog open={Boolean(file)} onOpenChange={(open) => { if (!open) onClose(); }}>
-      {file && <FilePreviewBody file={file} />}
+      {file && <FilePreviewBody file={file} source={source} />}
     </Dialog>
   );
 }
 
-function FilePreviewBody({ file }: { file: GalleryFile }) {
+function FilePreviewBody({ file, source }: { file: GalleryFile; source: FileSource }) {
   const ext = file.extension ?? '';
   const kind = getFileKindByExtension(ext);
   const isOffice = OFFICE_EXTENSIONS.has(ext);
@@ -385,12 +388,7 @@ function FilePreviewBody({ file }: { file: GalleryFile }) {
           />
         )}
         {kind === 'doc' && isOffice && !officeTooBig && (
-          <iframe
-            key={viewer}
-            src={officeViewerUrl(url, viewer)}
-            title={file.name}
-            className="h-full w-full rounded-sm border border-rule bg-sheet"
-          />
+          <OfficePreview key={viewer} file={file} source={source} viewer={viewer} downloadUrl={downloadUrl} />
         )}
         {kind === 'doc' && isText && !textTooBig && <TextFilePreview url={url} mode={textModeOf(ext)} />}
         {kind === 'doc' && textTooBig && (
@@ -403,6 +401,31 @@ function FilePreviewBody({ file }: { file: GalleryFile }) {
       </div>
     </DialogContent>
   );
+}
+
+/**
+ * The page's own download link only opens for the signed-in reader's session,
+ * which the viewer's servers do not have, so the viewer gets a link of its own:
+ * asked for when the preview opens, and valid only for the few minutes it takes
+ * the viewer to fetch the file.
+ */
+function OfficePreview({ file, source, viewer, downloadUrl }: { file: GalleryFile; source: FileSource; viewer: OfficeViewer; downloadUrl: string }) {
+  const [src, setSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    filesApi.viewerLink(file.id, source)
+      .then((path) => { if (!cancelled) setSrc(officeViewerUrl(resolveFileUrl(path), viewer)); })
+      .catch(() => { if (!cancelled) setFailed(true); });
+    return () => { cancelled = true; };
+  }, [file.id, source, viewer]);
+
+  if (failed) {
+    return <NoPreview downloadUrl={downloadUrl} name={file.name} reason="לא הצלחנו לפתוח את התצוגה המקדימה של הקובץ." />;
+  }
+  if (!src) return <p className="text-sm text-ink/50">טוען…</p>;
+  return <iframe src={src} title={file.name} className="h-full w-full rounded-sm border border-rule bg-sheet" />;
 }
 
 function NoPreview({ downloadUrl, name, reason, openUrl }: { downloadUrl: string; name: string; reason: string; openUrl?: string }) {
@@ -440,7 +463,8 @@ function TextFilePreview({ url, mode, title }: { url: string; mode: TextMode; ti
 
   useEffect(() => {
     let cancelled = false;
-    fetch(url)
+    // With the API on another origin, the session cookie the link needs is only sent when asked for.
+    fetch(url, { credentials: 'include' })
       .then((r) => {
         if (!r.ok) throw new Error();
         return r.text();

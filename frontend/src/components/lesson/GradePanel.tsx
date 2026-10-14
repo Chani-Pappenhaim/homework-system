@@ -10,6 +10,7 @@ import { MarkdownField } from '@/components/ui/markdown-field';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
+import { apiFileUrl } from '@/lib/config';
 import type { AssignmentDTO, ChecklistResult, SubmissionDTO } from '@/types';
 
 interface GradeForm {
@@ -144,7 +145,7 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
       {(local.fileUrl || local.githubUrl) && (
         <div className="flex flex-wrap gap-2">
           {local.fileUrl && (
-            <a href={local.fileUrl} target="_blank" rel="noreferrer"
+            <a href={apiFileUrl(local.fileUrl)} target="_blank" rel="noreferrer"
               className="flex items-center gap-2 text-sm text-clay border border-rule/20 rounded-input px-3 py-2 hover:bg-ground/60">
               <ExternalLink size={13} /> פתח קובץ שהוגש{local.fileName ? ` — ${local.fileName}` : ''}
             </a>

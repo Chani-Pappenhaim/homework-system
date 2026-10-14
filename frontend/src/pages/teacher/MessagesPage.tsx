@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Mail, ChevronLeft, Clock, Trash2, Plus, Send, X } from 'lucide-react';
 import { messagesApi } from '@/api/messages.api';
@@ -25,14 +24,13 @@ import { cn, formatDateTime, markdownToPlainText } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import type { MessageDTO } from '@/types';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { useMessageDialogs } from '@/hooks/useMessageDialogs';
 
 export default function TeacherMessagesPage() {
   usePageTitle('הודעות');
   const qc = useQueryClient();
-  const [searchParams] = useSearchParams();
-  const [openId, setOpenId] = useState<string | null>(null);
+  const { openId, composeOpen, openConversation, closeConversation, setComposeOpen } = useMessageDialogs();
   const [replyText, setReplyText] = useState('');
-  const [composeOpen, setComposeOpen] = useState(false);
   const [composeStudent, setComposeStudent] = useState<StudentSearchResult | null>(null);
   const [composeText, setComposeText] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -60,8 +58,7 @@ export default function TeacherMessagesPage() {
     mutationFn: (id: string) => messagesApi.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['teacher-messages'] });
-      setOpenId(null);
-      setReplyText('');
+      closeConversation();
     },
   });
 
@@ -90,21 +87,22 @@ export default function TeacherMessagesPage() {
     return msg.entries.some((e) => !e.fromTeacher && !e.isRead);
   }
 
-  function openMessage(msg: MessageDTO) {
-    setOpenId(msg.id);
-    setReplyText('');
-    if (isUnread(msg)) markReadMutation.mutate(msg.id);
-  }
-
-  // The reply-notification email links straight to the relevant message
-  // (?highlight=<id>) instead of just the general inbox.
+  // Opening a conversation, from the list or from an email link, marks what it has new as read — once per conversation.
+  const markedRef = useRef<string | null>(null);
   useEffect(() => {
-    const highlight = searchParams.get('highlight');
-    if (!highlight || openId) return;
-    const msg = messages.find((m) => m.id === highlight);
-    if (msg) openMessage(msg);
+    if (!openMsg) { markedRef.current = null; return; }
+    if (markedRef.current === openMsg.id || !isUnread(openMsg)) return;
+    markedRef.current = openMsg.id;
+    markReadMutation.mutate(openMsg.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, messages]);
+  }, [openMsg]);
+
+  // A link to a conversation that no longer exists (deleted) just shows the list.
+  useEffect(() => {
+    if (openId && !isLoading && data && !openMsg) closeConversation();
+  }, [openId, isLoading, data, openMsg, closeConversation]);
+
+  useEffect(() => { setReplyText(''); }, [openId]);
 
   useEffect(() => {
     if (openId) bottomRef.current?.scrollIntoView({ block: 'end' });
@@ -133,7 +131,7 @@ export default function TeacherMessagesPage() {
             return (
             <div key={msg.id} className="flex w-full items-stretch transition-colors hover:bg-butter/10">
               <button
-                onClick={() => openMessage(msg)}
+                onClick={() => openConversation(msg.id)}
                 className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-right"
               >
                 <span
@@ -181,7 +179,7 @@ export default function TeacherMessagesPage() {
       )}
 
       {/* Overlay: full conversation thread, blocking the list behind it */}
-      <Dialog open={Boolean(openId)} onOpenChange={(o) => { if (!o) { setOpenId(null); setReplyText(''); } }}>
+      <Dialog open={Boolean(openMsg)} onOpenChange={(o) => { if (!o) closeConversation(); }}>
         <DialogContent size="lg">
           {openMsg && (
             <>
@@ -247,7 +245,7 @@ export default function TeacherMessagesPage() {
                 >
                   <Send size={14} /> שלחי
                 </Button>
-                <Button variant="outline" onClick={() => { setOpenId(null); setReplyText(''); }}>
+                <Button variant="outline" onClick={closeConversation}>
                   סגירה
                 </Button>
                 <Button
