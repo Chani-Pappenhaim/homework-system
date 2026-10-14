@@ -16,5 +16,7 @@ router.get('/', (req, res) => {
 router.get('/overview', studentsController.overview);
 router.get('/:id/profile', studentsController.profile);
 router.post('/', studentsController.createStudent);
+router.put('/:id', studentsController.updateStudent);
+router.delete('/:id', studentsController.deleteStudent);
 
 export default router;

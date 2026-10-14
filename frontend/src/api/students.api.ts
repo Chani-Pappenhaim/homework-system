@@ -92,4 +92,10 @@ export const studentsApi = {
     api.get<{ success: true; data: { students: StudentOverview[] } }>('/students/overview'),
   profile: (id: string) =>
     api.get<{ success: true; data: StudentProfile }>(`/students/${id}/profile`),
+  /** Edits any student, in a group or not. An empty githubUsername clears it. */
+  update: (id: string, data: { name: string; email: string; githubUsername: string }) =>
+    api.put<{ success: true; data: { student: StudentSummary } }>(`/students/${id}`, data),
+  /** Deletes the student's account with all her work — not just a group membership. */
+  delete: (id: string) =>
+    api.delete(`/students/${id}`),
 };

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import * as studentsService from '../services/students.service';
-import { createStudentAccount } from '../services/groups.service';
+import { createStudentAccount, deleteStudentAccount, updateStudentAccount } from '../services/groups.service';
 import { sendError } from '../utils/http';
 
 export async function findByEmail(req: Request, res: Response) {
@@ -50,6 +50,25 @@ export async function profile(req: Request, res: Response) {
   try {
     const profile = await studentsService.getStudentProfile(req.params.id as string);
     res.json({ success: true, data: profile });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function updateStudent(req: Request, res: Response) {
+  try {
+    const { name, email, githubUsername } = req.body ?? {};
+    const student = await updateStudentAccount(req.params.id as string, { name, email, githubUsername });
+    res.json({ success: true, data: { student } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function deleteStudent(req: Request, res: Response) {
+  try {
+    await deleteStudentAccount(req.params.id as string);
+    res.json({ success: true, data: null });
   } catch (err: any) {
     sendError(res, err);
   }

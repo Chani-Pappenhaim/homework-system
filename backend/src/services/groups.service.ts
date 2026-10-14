@@ -163,10 +163,24 @@ export async function removeStudents(groupId: string, studentIds: string[]) {
 export async function updateStudent(
   groupId: string,
   studentId: string,
-  data: { name?: string; email?: string; githubUsername?: string }
+  data: { name?: unknown; email?: unknown; githubUsername?: unknown }
 ) {
   const inGroup = await prisma.studentGroup.findUnique({ where: { studentId_groupId: { studentId, groupId } } });
   if (!inGroup) throw new AppError('Student not found in this group', 'התלמידה לא נמצאה בקבוצה זו', 404);
+  return updateStudentAccount(studentId, data);
+}
+
+/**
+ * The teacher editing a student's details — from a group or from the students
+ * page, so students outside any group can be edited too. An empty GitHub
+ * username clears it; submissions already made keep their repo links.
+ */
+export async function updateStudentAccount(
+  studentId: string,
+  data: { name?: unknown; email?: unknown; githubUsername?: unknown }
+) {
+  const existing = await prisma.user.findFirst({ where: { id: studentId, role: 'STUDENT' }, select: { id: true } });
+  if (!existing) throw new AppError('Student not found', 'התלמידה לא נמצאה', 404);
 
   const update: { name?: string; githubUsername?: string | null } = {};
   if (data.name !== undefined) {
@@ -174,12 +188,28 @@ export async function updateStudent(
     if (!name) throw new AppError('Name is required', 'יש להזין שם', 400);
     update.name = name;
   }
-  if (data.githubUsername !== undefined) update.githubUsername = normalizeGithubUsername(data.githubUsername) || null;
-  const emailChanged = data.email !== undefined && (await changeEmail(studentId, data.email));
+  if (data.githubUsername !== undefined) {
+    update.githubUsername = typeof data.githubUsername === 'string' ? normalizeGithubUsername(data.githubUsername) || null : null;
+  }
+  const emailChanged = data.email !== undefined && (await changeEmail(studentId, String(data.email ?? '')));
 
   const student = await prisma.user.update({ where: { id: studentId }, data: update });
   if (emailChanged) await sendEmailVerification(studentId);
   return { id: student.id, name: student.name, email: student.email, githubUsername: student.githubUsername };
+}
+
+/**
+ * Removes a student's account entirely — her group memberships, submissions,
+ * grades, attendance and messages cascade in the DB. Her stored submission
+ * files are released afterwards, best-effort, like a group delete.
+ */
+export async function deleteStudentAccount(studentId: string) {
+  const existing = await prisma.user.findFirst({ where: { id: studentId, role: 'STUDENT' }, select: { id: true } });
+  if (!existing) throw new AppError('Student not found', 'התלמידה לא נמצאה', 404);
+
+  const urls = await submissionFileUrls({ studentId });
+  await prisma.user.delete({ where: { id: studentId } });
+  await releaseFileUrls(urls);
 }
 
 // Deletes a group with its courses in one transaction — a failure halfway

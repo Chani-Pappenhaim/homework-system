@@ -47,6 +47,8 @@ vi.mock('../../src/services/groups.service', () => ({
   importStudents: vi.fn(),
   resetStudentPassword: vi.fn(),
   createStudentAccount: vi.fn(),
+  updateStudentAccount: vi.fn(),
+  deleteStudentAccount: vi.fn(),
 }));
 vi.mock('../../src/services/students.service', () => ({
   findStudentByEmail: vi.fn(),
@@ -446,6 +448,30 @@ describe('client-feedback routes', () => {
     const res = await request(app).post('/api/students').set(...bearer(student)).send({ name: 'A', email: 'a@x.com' });
     expect(res.status).toBe(403);
     expect(groupsService.createStudentAccount).not.toHaveBeenCalled();
+  });
+
+  it('PUT /api/students/:id edits a student from the students page', async () => {
+    (groupsService.updateStudentAccount as any).mockResolvedValue({ id: 's1', name: 'B', email: 'b@x.com', githubUsername: null });
+    const res = await request(app).put('/api/students/s1').set(...bearer(admin))
+      .send({ name: 'B', email: 'b@x.com', githubUsername: '', role: 'ADMIN' });
+    expect(res.status).toBe(200);
+    expect(res.body.data.student).toEqual({ id: 's1', name: 'B', email: 'b@x.com', githubUsername: null });
+    // Only the editable fields reach the service — never e.g. a role.
+    expect(groupsService.updateStudentAccount).toHaveBeenCalledWith('s1', { name: 'B', email: 'b@x.com', githubUsername: '' });
+  });
+
+  it('DELETE /api/students/:id removes the account', async () => {
+    (groupsService.deleteStudentAccount as any).mockResolvedValue(undefined);
+    const res = await request(app).delete('/api/students/s1').set(...bearer(admin));
+    expect(res.status).toBe(200);
+    expect(groupsService.deleteStudentAccount).toHaveBeenCalledWith('s1');
+  });
+
+  it('editing or deleting a student account is admin-only', async () => {
+    expect((await request(app).put('/api/students/s1').set(...bearer(student)).send({ name: 'X' })).status).toBe(403);
+    expect((await request(app).delete('/api/students/s1').set(...bearer(student))).status).toBe(403);
+    expect(groupsService.updateStudentAccount).not.toHaveBeenCalled();
+    expect(groupsService.deleteStudentAccount).not.toHaveBeenCalled();
   });
 
   it('GET /api/students/overview and /:id/profile serve the students page', async () => {
