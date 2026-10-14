@@ -35,6 +35,15 @@ function parseDeadline(deadline: unknown): Date {
   return date;
 }
 
+// A minute of slack, so a deadline picked as "now" survives the trip to the server.
+const PAST_DEADLINE_GRACE_MS = 60_000;
+
+function rejectPastDeadline(deadline: Date) {
+  if (deadline.getTime() < Date.now() - PAST_DEADLINE_GRACE_MS) {
+    throw new AppError('Deadline is in the past', 'המועד האחרון כבר עבר — יש לבחור תאריך עתידי', 400);
+  }
+}
+
 /** `null` clears the deadline, a string sets it, `undefined` leaves it as it is. */
 function deadlineField(deadline: string | null | undefined) {
   if (deadline === undefined) return {};
@@ -88,10 +97,12 @@ export async function createAssignment(lessonId: string, data: {
 }) {
   const title = requireText(data.title, 'title');
   const description = requireText(data.description, 'description');
+  const deadline = data.deadline ? parseDeadline(data.deadline) : undefined;
+  if (deadline) rejectPastDeadline(deadline);
   return prisma.assignment.create({
     data: {
       lessonId, ...editableFields(data), title, description,
-      ...(data.deadline ? { deadline: parseDeadline(data.deadline) } : {}),
+      ...(deadline ? { deadline } : {}),
     },
   });
 }
@@ -110,6 +121,10 @@ export async function updateAssignment(id: string, data: Partial<{
   const before = 'deadline' in fields
     ? await prisma.assignment.findUnique({ where: { id }, select: { deadline: true } })
     : null;
+  // Only a deadline that is being changed has to be in the future: editing
+  // other details of an assignment whose deadline already passed stays allowed.
+  const nextDeadline = fields.deadline as Date | null | undefined;
+  if (nextDeadline && nextDeadline.getTime() !== before?.deadline?.getTime()) rejectPastDeadline(nextDeadline);
   const assignment = await prisma.assignment.update({ where: { id }, data: fields });
   if (before && before.deadline?.getTime() !== assignment.deadline?.getTime()) {
     await recomputeLateness(id, assignment.deadline);
