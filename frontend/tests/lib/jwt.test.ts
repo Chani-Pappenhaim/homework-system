@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readJwtTimes } from '@/lib/jwt';
+import { readJwtTimes, readJwtUserId } from '@/lib/jwt';
 
 function token(payload: object): string {
   const b64url = (s: string) => btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -23,5 +23,16 @@ describe('readJwtTimes', () => {
   it('returns null for something that is not a token', () => {
     expect(readJwtTimes('not-a-token')).toBeNull();
     expect(readJwtTimes('a.%%%.c')).toBeNull();
+  });
+});
+
+describe('readJwtUserId', () => {
+  it('reads the user the token was issued to', () => {
+    expect(readJwtUserId(token({ userId: 'u1', role: 'ADMIN' }))).toBe('u1');
+  });
+
+  it('returns null when there is no readable user', () => {
+    expect(readJwtUserId(token({ sub: 'u1' }))).toBeNull();
+    expect(readJwtUserId('not-a-token')).toBeNull();
   });
 });
