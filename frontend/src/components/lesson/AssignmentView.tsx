@@ -101,7 +101,7 @@ export function AssignmentView({
 
 function AssignmentDetails({ assignment }: { assignment: AssignmentDTO }) {
   const methods = [assignment.allowFile && 'העלאת קובץ', assignment.allowGithub && 'קישור GitHub'].filter(Boolean);
-  const methodsText = methods.length > 0 ? methods.join(' או ') : '—';
+  const methodsText = methods.length > 0 ? methods.join(' או ') : '-';
   const deadlineText = assignment.deadline ? formatDate(assignment.deadline) : 'ללא';
   const requirements = assignment.requirements ?? [];
   return (

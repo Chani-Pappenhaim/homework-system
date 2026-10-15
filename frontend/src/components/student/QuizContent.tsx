@@ -116,7 +116,7 @@ export default function QuizContent({ lessonId }: { lessonId: string }) {
                 {result.score >= 80 ? 'מצוין!' : result.score >= 60 ? 'טוב' : 'נסי שוב'}
               </Badge>
               <Badge variant={result.isOfficial ? 'secondary' : 'warning'}>
-                {result.isOfficial ? 'זהו הניסיון הרשמי — הציון נשמר' : 'ניסיון תרגול — לא משפיע על הציון'}
+                {result.isOfficial ? 'זהו הניסיון הרשמי - הציון נשמר' : 'ניסיון תרגול - לא משפיע על הציון'}
               </Badge>
             </div>
             {!result.isOfficial && (
@@ -174,7 +174,7 @@ export default function QuizContent({ lessonId }: { lessonId: string }) {
                   </span>
                   <p className="text-sm font-bold text-ink">
                     {i + 1}. <MarkdownText content={q.question} />
-                    <span className="sr-only">{q.isCorrect ? ' — ענית נכון' : ' — ענית לא נכון'}</span>
+                    <span className="sr-only">{q.isCorrect ? ' - ענית נכון' : ' - ענית לא נכון'}</span>
                   </p>
                 </div>
 
@@ -201,7 +201,7 @@ export default function QuizContent({ lessonId }: { lessonId: string }) {
                           useful if she can tell which line was hers. */}
                       {isCorrect && (
                         <span className="shrink-0 text-[11px] font-semibold">
-                          {isSelected ? 'התשובה שלך — נכונה' : 'התשובה הנכונה'}
+                          {isSelected ? 'התשובה שלך - נכונה' : 'התשובה הנכונה'}
                         </span>
                       )}
                       {isSelected && !isCorrect && (

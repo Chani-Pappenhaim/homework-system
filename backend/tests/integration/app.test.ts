@@ -178,7 +178,7 @@ describe('submissions controller', () => {
   });
 });
 
-describe('submissions controller — AI review (service-backed routes)', () => {
+describe('submissions controller - AI review (service-backed routes)', () => {
   it('request-ai-review returns 404 when submission not found', async () => {
     (submissionsService.requestAiReview as any).mockRejectedValue(
       Object.assign(new Error('Submission not found'), { status: 404 })

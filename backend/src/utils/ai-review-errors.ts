@@ -4,7 +4,7 @@ import { GeminiError } from '../services/gemini.service';
 // Shown when the review failed for a reason the student can't fix (Gemini down,
 // GitHub rate limit, a bug). The technical cause goes to the logs only.
 export const AI_REVIEW_GENERIC_ERROR =
-  'בדיקת ה-AI לא הצליחה בגלל תקלה זמנית. אפשר לבקש בדיקה שוב בעוד כמה דקות, ואם זה חוזר — כדאי לפנות למורה.';
+  'בדיקת ה-AI לא הצליחה בגלל תקלה זמנית. אפשר לבקש בדיקה שוב בעוד כמה דקות, ואם זה חוזר - כדאי לפנות למורה.';
 
 // Shown when the AI's daily quota is spent: retrying minutes later cannot help.
 export const AI_REVIEW_DAILY_QUOTA_ERROR =

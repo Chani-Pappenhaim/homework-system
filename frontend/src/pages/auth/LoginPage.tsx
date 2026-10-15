@@ -31,7 +31,7 @@ export default function LoginPage() {
     if (searchParams.get('error') === 'oauth_unregistered') {
       setError(
         'החשבון הזה אינו רשום במערכת. פני למורה כדי שתוסיף אותך. ' +
-        'לניסיון עם חשבון Google אחר — לחצי שוב, ייפתח מסך בחירת חשבון. ' +
+        'לניסיון עם חשבון Google אחר - לחצי שוב, ייפתח מסך בחירת חשבון. ' +
         'לניסיון עם חשבון GitHub אחר, ייתכן שתצטרכי להתנתק מהחשבון הזה גם באתר GitHub עצמו.'
       );
     }
@@ -130,7 +130,7 @@ export default function LoginPage() {
             </Button>
             {slow && (
               <p role="status" className="text-center font-sans text-xs text-ink-soft">
-                השרת מתעורר אחרי זמן בלי שימוש — זה יכול לקחת עד דקה וחצי, לא צריך ללחוץ שוב.
+                השרת מתעורר אחרי זמן בלי שימוש - זה יכול לקחת עד דקה וחצי, לא צריך ללחוץ שוב.
               </p>
             )}
           </form>

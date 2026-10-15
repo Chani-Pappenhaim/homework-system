@@ -73,7 +73,7 @@ describe('ai-usage.service.getSummary', () => {
   });
 });
 
-describe('ai-usage.service.getSummary — free-tier quota', () => {
+describe('ai-usage.service.getSummary - free-tier quota', () => {
   const savedPaidKey = process.env.GEMINI_API_KEY_PAID;
 
   beforeEach(() => {

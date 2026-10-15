@@ -11,11 +11,11 @@ import { downloadBlob } from '@/lib/utils';
 
 /** The template's columns, in the same order and wording as the file itself. */
 const COLUMNS: { name: string; required: boolean; hint: string }[] = [
-  { name: 'מייל תלמידה', required: true, hint: 'כך מזהים את התלמידה — חייב להיות של תלמידה בקורס' },
+  { name: 'מייל תלמידה', required: true, hint: 'כך מזהים את התלמידה - חייב להיות של תלמידה בקורס' },
   { name: 'תאריך', required: true, hint: 'למשל 15/10/2026' },
   { name: 'סטטוס', required: true, hint: 'נוכחת / חסרה / מאושרת' },
   { name: 'שם', required: false, hint: 'לנוחות הקריאה בלבד' },
-  { name: 'הערה', required: false, hint: 'הערה פנימית — התלמידה לא רואה' },
+  { name: 'הערה', required: false, hint: 'הערה פנימית - התלמידה לא רואה' },
   { name: 'נושא המפגש', required: false, hint: 'מבדיל בין שני מפגשים באותו יום' },
 ];
 
@@ -64,14 +64,14 @@ export function ImportAttendanceDialog({ courseId, onClose }: { courseId: string
                   <ul className="max-h-48 space-y-0.5 overflow-y-auto text-xs text-ink">
                     {result.errors.map((err, i) => <li key={i}>{err}</li>)}
                   </ul>
-                  <p className="mt-2 text-xs text-ink-soft">אפשר לתקן את השורות האלה בקובץ ולהעלות אותו שוב — סימונים קיימים פשוט יתעדכנו.</p>
+                  <p className="mt-2 text-xs text-ink-soft">אפשר לתקן את השורות האלה בקובץ ולהעלות אותו שוב - סימונים קיימים פשוט יתעדכנו.</p>
                 </div>
               )}
             </div>
           ) : (
             <>
               <ol className="space-y-1 text-sm text-ink">
-                <li>1. מורידים את קובץ הדוגמה — הוא כבר כולל את כל התלמידות בקורס.</li>
+                <li>1. מורידים את קובץ הדוגמה - הוא כבר כולל את כל התלמידות בקורס.</li>
                 <li>2. ממלאים שורה לכל תלמידה בכל מפגש.</li>
                 <li>3. מעלים את הקובץ. מפגש שעוד לא קיים ייפתח לבד לפי התאריך.</li>
               </ol>

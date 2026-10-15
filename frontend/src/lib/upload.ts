@@ -18,10 +18,10 @@ export interface CloudinaryUploadResult {
 
 function messageFromCloudinaryError(raw: string): string {
   if (/file size too large|maximum file size|exceeds the maximum/i.test(raw)) {
-    return 'ההעלאה נכשלה — הקובץ גדול מדי וחורג מהמכסה המותרת';
+    return 'ההעלאה נכשלה - הקובץ גדול מדי וחורג מהמכסה המותרת';
   }
   if (/quota|credit|plan storage|storage limit/i.test(raw)) {
-    return 'ההעלאה נכשלה — נגמר מקום האחסון בחשבון האחסון (Cloudinary). יש לפנות למנהל המערכת';
+    return 'ההעלאה נכשלה - נגמר מקום האחסון בחשבון האחסון (Cloudinary). יש לפנות למנהל המערכת';
   }
   return `ההעלאה נכשלה: ${raw}`;
 }
@@ -74,7 +74,7 @@ export function uploadToCloudinary(
 
     xhr.onerror = () => {
       reject(new UploadError(
-        'ההעלאה נכשלה — החיבור לשרת האחסון נותק באמצע. ייתכן שהרשת חוסמת חיבורים אליו ' +
+        'ההעלאה נכשלה - החיבור לשרת האחסון נותק באמצע. ייתכן שהרשת חוסמת חיבורים אליו ' +
         '(למשל סינון של ספק האינטרנט). נסי שוב, או ברשת אחרת',
       ));
     };

@@ -9,7 +9,7 @@ export function registerGracefulShutdown(cleanup: Cleanup): void {
   const handler = async (signal: NodeJS.Signals) => {
     if (shuttingDown) return;
     shuttingDown = true;
-    console.log(`[shutdown] ${signal} received — closing connections`);
+    console.log(`[shutdown] ${signal} received - closing connections`);
     try {
       await cleanup();
     } catch (err) {

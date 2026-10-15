@@ -57,10 +57,10 @@ const REQUEST_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS ?? 60_000);
  * stays in `message` for the logs; callers map `kind` to a user-facing message.
  */
 export type GeminiFailureKind =
-  | 'config'      // missing/invalid key, retired model — retrying cannot help
+  | 'config'      // missing/invalid key, retired model - retrying cannot help
   | 'timeout'     // no answer within REQUEST_TIMEOUT_MS
-  | 'rate-limit'  // 429 — a per-minute limit; clears within a minute
-  | 'daily-quota' // 429 — the daily request quota is spent; resets at midnight Pacific
+  | 'rate-limit'  // 429 - a per-minute limit; clears within a minute
+  | 'daily-quota' // 429 - the daily request quota is spent; resets at midnight Pacific
   | 'unavailable' // network fault or a 5xx from Google
   | 'blocked'     // safety filter refused the prompt or the answer
   | 'bad-output'; // empty, truncated, or not the JSON we asked for
@@ -176,7 +176,7 @@ async function requestGemini(
     }
     if (response.status === 404) {
       throw new GeminiError(
-        `Gemini API error: 404 — the model "${GEMINI_MODEL}" is not available. ` +
+        `Gemini API error: 404 - the model "${GEMINI_MODEL}" is not available. ` +
           `Set GEMINI_MODEL to a current model. (${detail})`,
         'config',
         false
@@ -191,7 +191,7 @@ async function requestGemini(
     }
     if (response.status === 402) {
       throw new GeminiError(
-        `${message} — the paid project has no prepaid credit left; top it up in AI Studio`,
+        `${message} - the paid project has no prepaid credit left; top it up in AI Studio`,
         'config',
         false,
         402
@@ -232,8 +232,8 @@ async function callGemini(
   if (!freeKey && !paidKey) {
     throw new GeminiError(
       paidApiKey()
-        ? 'Only GEMINI_API_KEY_PAID is configured, and the AI settings forbid the paid key — AI features are disabled'
-        : 'GEMINI_API_KEY is not configured — AI features are disabled',
+        ? 'Only GEMINI_API_KEY_PAID is configured, and the AI settings forbid the paid key - AI features are disabled'
+        : 'GEMINI_API_KEY is not configured - AI features are disabled',
       'config',
       false
     );
@@ -272,20 +272,20 @@ async function callGemini(
       tier = 'FREE';
       if (route === 'recheck') {
         await markFreeTierAvailable();
-        console.log('[gemini] the free tier answers again — back to the free key');
+        console.log('[gemini] the free tier answers again - back to the free key');
       }
     } catch (err) {
       if (err instanceof DailyQuotaError) {
         const until = await markFreeTierExhausted(err.dailyLimit);
         if (!paidKey) throw err;
-        console.warn(`[gemini] free daily quota spent — using the paid key until ${until.toISOString()}`);
+        console.warn(`[gemini] free daily quota spent - using the paid key until ${until.toISOString()}`);
       } else if (
         paidKey &&
         paidFallback === 'ANY_LIMIT' &&
         err instanceof GeminiError &&
         (err.kind === 'rate-limit' || err.kind === 'unavailable')
       ) {
-        console.warn(`[gemini] free key failed (${err.kind}) — this call goes to the paid key: ${err.message}`);
+        console.warn(`[gemini] free key failed (${err.kind}) - this call goes to the paid key: ${err.message}`);
       } else {
         throw err;
       }
@@ -330,6 +330,11 @@ async function callGemini(
   }
 }
 
+// The teacher asked for plain hyphens in everything the site shows. The prompts
+// ask for them too, but the model slips, so its text is cleaned up as well.
+const NO_LONG_DASHES = 'אל תשתמשי במקף ארוך (\u2014 או \u2013), רק במקף רגיל (-).';
+export const plainDashes = (text: string) => text.replace(/[\u2014\u2013]/g, '-');
+
 export async function reviewCode(
   code: string,
   assignmentTitle: string,
@@ -342,7 +347,8 @@ export async function reviewCode(
 2. verbal_review: הערכה מילולית כללית על העבודה (2-3 משפטים)
 3. score: ציון מספרי מ-0 עד 100
 
-ההערות (code_review ו-verbal_review) מוצגות לתלמידה לפני שהמורה מאשרת את הציון, ולכן אסור שיופיע בהן ציון, מספר נקודות או ניחוש של הציון — הציון רק בשדה score.
+ההערות (code_review ו-verbal_review) מוצגות לתלמידה לפני שהמורה מאשרת את הציון, ולכן אסור שיופיע בהן ציון, מספר נקודות או ניחוש של הציון - הציון רק בשדה score.
+${NO_LONG_DASHES}
 
 ${aiInstructions ? `הנחיות ספציפיות למטלה זו:\n${aiInstructions}` : ''}
 
@@ -356,8 +362,8 @@ ${aiInstructions ? `הנחיות ספציפיות למטלה זו:\n${aiInstruct
 
   const parsed = await callGemini(systemPrompt, userMessage, 'homework_review');
   return {
-    codeReview: parsed.code_review || '',
-    verbalReview: parsed.verbal_review || '',
+    codeReview: plainDashes(String(parsed.code_review || '')),
+    verbalReview: plainDashes(String(parsed.verbal_review || '')),
     score: Number(parsed.score) || 0,
   };
 }
@@ -379,6 +385,7 @@ export async function generateQuiz(lessonContent: string, attachments: InlineAtt
 בהתבסס על תוכן השיעור, צרי בדיוק 10 שאלות רב-ברירה בעברית.
 לכל שאלה בדיוק 4 אפשרויות, ורק אחת נכונה.
 השאלות והתשובות מוצגות כ-Markdown: סמני קוד בתוך שורה ב-\`backticks\`, וקטע קוד של כמה שורות בבלוק \`\`\`. אל תשתמשי בכותרות או ברשימות.
+${NO_LONG_DASHES}
 החזירי JSON בלבד (מערך), ללא טקסט נוסף, במבנה המדויק:
 [{"id":"1","question":"...","options":["...","...","...","..."],"correctIndex":0}]`;
 
@@ -415,8 +422,8 @@ export async function generateQuiz(lessonContent: string, attachments: InlineAtt
   // ids are used as React keys and must be unique whatever the model returned.
   return valid.map((q: any, i: number) => ({
     id: String(q.id ?? i + 1),
-    question: q.question,
-    options: q.options.map((o: unknown) => String(o)),
+    question: plainDashes(q.question),
+    options: q.options.map((o: unknown) => plainDashes(String(o))),
     correctIndex: q.correctIndex,
   }));
 }

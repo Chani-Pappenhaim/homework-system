@@ -8,7 +8,7 @@ const NETWORK_MESSAGE =
 // A timeout is not the user's connection: the server was too slow to answer,
 // typically while a free-tier host is still starting up.
 const TIMEOUT_MESSAGE =
-  'השרת לא הגיב בזמן — ייתכן שהוא עדיין מתעורר אחרי זמן בלי שימוש. נסו שוב בעוד דקה.';
+  'השרת לא הגיב בזמן - ייתכן שהוא עדיין מתעורר אחרי זמן בלי שימוש. נסו שוב בעוד דקה.';
 const GENERIC_MESSAGE = 'אירעה שגיאה. אנא נסו שוב מאוחר יותר.';
 
 export function getApiErrorMessage(error: any, fallback: string = GENERIC_MESSAGE): string {

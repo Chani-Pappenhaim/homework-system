@@ -217,7 +217,7 @@ function FileTile({
             'rounded-full px-2 py-0.5 text-[10px] font-semibold',
             file.viewed ? 'bg-sage/20 text-sage' : 'bg-coral/15 text-coral'
           )}>
-            {file.viewed ? 'חובה — נצפה ✓' : 'חובה לצפייה'}
+            {file.viewed ? 'חובה - נצפה ✓' : 'חובה לצפייה'}
           </span>
         )}
       </button>
@@ -257,7 +257,7 @@ function FileTile({
             file.required ? 'bg-clay text-sheet opacity-100' : 'bg-ink text-sheet opacity-0 group-hover:opacity-100'
           )}
           aria-label={file.required ? 'ביטול סימון חובה' : 'סימון כקובץ חובה'}
-          title={file.required ? 'קובץ חובה — לחצי לביטול' : 'סימני כקובץ חובה לצפייה'}
+          title={file.required ? 'קובץ חובה - לחצי לביטול' : 'סימני כקובץ חובה לצפייה'}
         >
           <Star size={12} strokeWidth={2.5} fill={file.required ? 'currentColor' : 'none'} />
         </button>
@@ -274,7 +274,7 @@ function FileTile({
             file.hidden ? 'bg-ink/70 text-sheet opacity-100' : 'bg-ink text-sheet opacity-0 group-hover:opacity-100'
           )}
           aria-label={file.hidden ? 'הצגת הקובץ לתלמידות' : 'הסתרת הקובץ מהתלמידות'}
-          title={file.hidden ? 'מוסתר — לחצי כדי להציג לתלמידות' : 'הסתרה מהתלמידות (בלי למחוק)'}
+          title={file.hidden ? 'מוסתר - לחצי כדי להציג לתלמידות' : 'הסתרה מהתלמידות (בלי למחוק)'}
         >
           {file.hidden ? <EyeOff size={12} strokeWidth={2.5} /> : <Eye size={12} strokeWidth={2.5} />}
         </button>
@@ -362,7 +362,7 @@ function FilePreviewBody({ file, source }: { file: GalleryFile; source: FileSour
               type="button"
               onClick={() => setViewer((v) => (v === 'microsoft' ? 'google' : 'microsoft'))}
               className="rounded-input border border-rule px-3 py-1.5 text-xs font-semibold text-ink hover:bg-ground/40"
-              title="אם הקובץ לא מוצג — לנסות להציג אותו בצופה אחר"
+              title="אם הקובץ לא מוצג - לנסות להציג אותו בצופה אחר"
             >
               {viewer === 'microsoft' ? 'לא מוצג? צופה חלופי' : 'חזרה לצופה הראשי'}
             </button>

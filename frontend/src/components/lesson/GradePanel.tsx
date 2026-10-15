@@ -154,7 +154,7 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
     onSuccess: () => {
       setOverrides((prev) => ({ ...prev, aiStatus: 'pending', aiApproved: false }));
       invalidateSubmissions();
-      toast.success('בדיקת ה-AI הופעלה מחדש — התוצאה תופיע בעוד דקה-שתיים');
+      toast.success('בדיקת ה-AI הופעלה מחדש - התוצאה תופיע בעוד דקה-שתיים');
     },
     onError: (err: any) => {
       if (err?.response?.status === 503) qc.invalidateQueries({ queryKey: AI_AVAILABILITY_QUERY_KEY });
@@ -218,7 +218,7 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
           {local.fileUrl && (
             <a href={apiFileUrl(local.fileUrl)} target="_blank" rel="noreferrer"
               className="flex items-center gap-2 text-sm text-clay border border-rule/20 rounded-input px-3 py-2 hover:bg-ground/60">
-              <ExternalLink size={13} /> פתח קובץ שהוגש{local.fileName ? ` — ${local.fileName}` : ''}
+              <ExternalLink size={13} /> פתח קובץ שהוגש{local.fileName ? ` - ${local.fileName}` : ''}
             </a>
           )}
           {local.githubUrl && (
@@ -240,7 +240,7 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
         <div className="rounded-input border border-indigo/20 bg-indigo/10 px-3 py-2 text-sm space-y-1.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="flex items-center gap-1.5 font-medium text-indigo">
-              <Bot size={14} /> בדיקת AI — ציון: {local.aiScore ?? '—'}
+              <Bot size={14} /> בדיקת AI - ציון: {local.aiScore ?? '-'}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               {!aiEdit && (
@@ -283,7 +283,7 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
           {aiEdit ? (
             <div className="space-y-2 pt-1">
               <Input
-                label="ציון AI (0–100)" type="number" min={0} max={100}
+                label="ציון AI (0-100)" type="number" min={0} max={100}
                 value={aiEdit.aiScore}
                 onChange={(e) => setAiEdit((prev) => prev && { ...prev, aiScore: e.target.value })}
               />
@@ -336,7 +336,7 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
           <span>
             {local.aiStatus === 'pending' ? 'בדיקת AI מתבצעת כעת...'
               : local.aiStatus === 'error' ? `בדיקת ה-AI נכשלה${local.aiError ? `: ${local.aiError}` : '.'}`
-              : local.aiStatus === 'done' ? 'אפשר להריץ שוב (למשל אחרי שינוי הנחיות ה-AI) — לא נספר במכסת התלמידה.'
+              : local.aiStatus === 'done' ? 'אפשר להריץ שוב (למשל אחרי שינוי הנחיות ה-AI) - לא נספר במכסת התלמידה.'
               : 'עוד לא בוצעה בדיקת AI להגשה זו.'}
             {!ai.available && local.aiStatus !== 'pending' && <span className="block text-coral">{ai.message}</span>}
           </span>
@@ -371,16 +371,16 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <Input label="ציון הגשה (0–100)" type="number" min={0} max={100} value={form.submissionScore} onChange={(e) => setField('submissionScore', e.target.value)} placeholder="85" />
+          <Input label="ציון הגשה (0-100)" type="number" min={0} max={100} value={form.submissionScore} onChange={(e) => setField('submissionScore', e.target.value)} placeholder="85" />
           {local.grade?.submissionScore == null && (
             <p className="text-xs text-ink/50 mt-1">הצעה אוטומטית: 100 − איחור (10) − דרישות חסרות (5 כ״א)</p>
           )}
         </div>
 
         <div>
-          <Input label="ציון תוכן (0–100)" type="number" min={0} max={100} value={form.contentScore} onChange={(e) => setField('contentScore', e.target.value)} placeholder="90" />
+          <Input label="ציון תוכן (0-100)" type="number" min={0} max={100} value={form.contentScore} onChange={(e) => setField('contentScore', e.target.value)} placeholder="90" />
           {local.grade?.contentScore == null && form.contentScore !== '' && form.contentScore === aiSuggestion(local) && (
-            <p className="mt-1 flex items-center gap-1 text-xs text-indigo"><Bot size={11} /> הוצע מבדיקת ה-AI — יישמר עם שמירת הציון</p>
+            <p className="mt-1 flex items-center gap-1 text-xs text-indigo"><Bot size={11} /> הוצע מבדיקת ה-AI - יישמר עם שמירת הציון</p>
           )}
           {local.grade?.contentApproved ? (
             <p className="mt-1 flex items-center gap-1 text-xs text-sage"><CheckCircle size={11} /> מאושר וגלוי לתלמידה</p>
@@ -440,7 +440,7 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
             </>
           ) : (
             <>
-              <span>ההגשה נבדקה ולכן נעולה — התלמידה לא יכולה לעדכן או למחוק אותה.</span>
+              <span>ההגשה נבדקה ולכן נעולה - התלמידה לא יכולה לעדכן או למחוק אותה.</span>
               <Button size="sm" variant="outline" loading={allowChangesMutation.isPending} onClick={() => allowChangesMutation.mutate(true)}>
                 <Unlock size={12} /> אפשרי לתלמידה לעדכן או למחוק
               </Button>

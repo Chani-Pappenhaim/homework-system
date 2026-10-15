@@ -113,7 +113,7 @@ export async function addStudent(groupId: string, name: string, email: string, g
 
     await prisma.studentGroup.create({ data: { studentId: existing.id, groupId } });
     const warning = existing.name !== name
-      ? `קיימת כבר תלמידה עם המייל הזה בשם "${existing.name}" — היא נוספה לקבוצה, השם החדש לא נשמר`
+      ? `קיימת כבר תלמידה עם המייל הזה בשם "${existing.name}" - היא נוספה לקבוצה, השם החדש לא נשמר`
       : undefined;
     return { id: existing.id, name: existing.name, email: existing.email, githubUsername: existing.githubUsername, warning };
   }
@@ -353,9 +353,9 @@ export function buildStudentImportTemplate() {
       'הוראות מילוי',
       'כל שורה היא תלמידה אחת. השורה הראשונה היא שורת כותרות ולא נקראת.',
       'סדר העמודות קובע, לא שם הכותרת:',
-      'עמודה A — שם מלא — חובה',
-      'עמודה B — אימייל — חובה. כל אימייל פעם אחת בקובץ',
-      'עמודה C — שם משתמש GitHub או קישור לפרופיל — רשות, אפשר להשאיר ריק',
+      'עמודה A - שם מלא - חובה',
+      'עמודה B - אימייל - חובה. כל אימייל פעם אחת בקובץ',
+      'עמודה C - שם משתמש GitHub או קישור לפרופיל - רשות, אפשר להשאיר ריק',
       'תלמידה שכבר יש לה חשבון מצורפת לקבוצה עם החשבון הקיים. תלמידה חדשה מקבלת סיסמה זמנית 12345678.',
       'לפני ההוספה תוצג בדיקה של הקובץ עם כל השגיאות, ואפשר לבחור להוסיף רק את השורות התקינות.',
     ],

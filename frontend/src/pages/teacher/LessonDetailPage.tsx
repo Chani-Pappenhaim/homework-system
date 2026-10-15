@@ -319,7 +319,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
         <CardContent className="space-y-4">
           {lesson.contentMd
             ? <MarkdownRenderer content={lesson.contentMd} />
-            : <p className="text-sm text-ink/50">אין תוכן לשיעור עדיין — לחצי על "ערוך שיעור" כדי להוסיף חומר לימוד.</p>}
+            : <p className="text-sm text-ink/50">אין תוכן לשיעור עדיין - לחצי על "ערוך שיעור" כדי להוסיף חומר לימוד.</p>}
           {lesson.githubUrls.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {lesson.githubUrls.map((url, i) => (

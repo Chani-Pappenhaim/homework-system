@@ -42,7 +42,7 @@ beforeEach(() => {
   aiAvailability.mockResolvedValue({ data: { success: true, data: { available: true, reason: null, resumesAt: null } } });
 });
 
-describe('QuizPanel — creating', () => {
+describe('QuizPanel - creating', () => {
   it('offers to generate when no quiz exists yet', async () => {
     getQuiz.mockResolvedValue(state({ status: 'none' }));
     generate.mockResolvedValue(state({ status: 'generating' }));
@@ -77,11 +77,11 @@ describe('QuizPanel — creating', () => {
   });
 });
 
-describe('QuizPanel — editing', () => {
+describe('QuizPanel - editing', () => {
   it('marks a draft as invisible to students', async () => {
     getQuiz.mockResolvedValue(withQuiz(false));
     renderPanel();
-    expect(await screen.findByText('טיוטה — התלמידות לא רואות')).toBeInTheDocument();
+    expect(await screen.findByText('טיוטה - התלמידות לא רואות')).toBeInTheDocument();
   });
 
   it('saves an edited question', async () => {
@@ -119,7 +119,7 @@ describe('QuizPanel — editing', () => {
   });
 });
 
-describe('QuizPanel — publishing', () => {
+describe('QuizPanel - publishing', () => {
   it('publishes a draft to the class', async () => {
     getQuiz.mockResolvedValue(withQuiz(false));
     setPublished.mockResolvedValue(state({ published: true }));
@@ -139,7 +139,7 @@ describe('QuizPanel — publishing', () => {
     await waitFor(() => expect(setPublished).toHaveBeenCalledWith('l1', false));
   });
 
-  it('refuses to publish while edits are unsaved — that would publish a different quiz', async () => {
+  it('refuses to publish while edits are unsaved - that would publish a different quiz', async () => {
     getQuiz.mockResolvedValue(withQuiz(false));
     renderPanel();
 
@@ -156,7 +156,7 @@ const progress = (over: Record<string, unknown> = {}) => ({
   stage: 'generating', attempt: 1, maxAttempts: 3, withFiles: false, elapsedSeconds: 42, ...over,
 });
 
-describe('QuizPanel — generation progress', () => {
+describe('QuizPanel - generation progress', () => {
   it('shows the current stage and how long it has been running', async () => {
     getQuiz.mockResolvedValue(state({ status: 'generating', progress: progress({ withFiles: true }) }));
     renderPanel();
@@ -179,11 +179,11 @@ describe('QuizPanel — generation progress', () => {
       status: 'generating', progress: progress({ attempt: 2, lastFailure: 'timeout' }),
     }));
     renderPanel();
-    expect(await screen.findByText('ניסיון 2 מתוך 3 — בניסיון הקודם ה-AI לא ענה בזמן')).toBeInTheDocument();
+    expect(await screen.findByText('ניסיון 2 מתוך 3 - בניסיון הקודם ה-AI לא ענה בזמן')).toBeInTheDocument();
   });
 });
 
-describe('QuizPanel — lesson files', () => {
+describe('QuizPanel - lesson files', () => {
   it('lists the files that would be left out, once she chooses to include files', async () => {
     getQuiz.mockResolvedValue(state({ status: 'none', excludedFiles: ['code.zip', 'talk.mp4'] }));
     generate.mockResolvedValue(state({ status: 'generating' }));
@@ -212,7 +212,7 @@ describe('QuizPanel — lesson files', () => {
   });
 });
 
-describe('QuizPanel — regenerating', () => {
+describe('QuizPanel - regenerating', () => {
   it('regenerates a draft after she confirms', async () => {
     getQuiz.mockResolvedValue(withQuiz(false));
     generate.mockResolvedValue(state({ status: 'generating' }));

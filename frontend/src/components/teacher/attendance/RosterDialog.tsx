@@ -58,7 +58,7 @@ export function RosterDialog({ courseId, roster, onClose }: { courseId: string; 
           <section>
             <h3 className="mb-1 text-sm font-semibold text-ink">תלמידות הקבוצה ({group.length})</h3>
             <p className="mb-2 text-xs text-ink-soft">תמיד מופיעות בנוכחות.</p>
-            <p className="text-sm text-ink">{group.map((s) => s.name).join(' · ') || '—'}</p>
+            <p className="text-sm text-ink">{group.map((s) => s.name).join(' · ') || '-'}</p>
           </section>
         </DialogBody>
         <DialogFooter>

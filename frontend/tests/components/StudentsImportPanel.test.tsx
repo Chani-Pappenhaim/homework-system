@@ -38,7 +38,7 @@ describe('StudentsImportPanel', () => {
     expect(importStudents).toHaveBeenCalledTimes(1);
     expect(importStudents).toHaveBeenCalledWith('g1', file, true);
     expect(screen.getByRole('button', { name: 'הוסיפי רק את 2 השורות התקינות' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'לא להוסיף — אתקן את הקובץ' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'לא להוסיף - אתקן את הקובץ' })).toBeInTheDocument();
   });
 
   it('adds only the valid rows when the teacher confirms', async () => {
@@ -58,7 +58,7 @@ describe('StudentsImportPanel', () => {
     importStudents.mockResolvedValueOnce(reply({ totalRows: 2, toAdd: 1, errors: ['שורה 2: חסר שם'] }));
     const { container } = renderWithProviders(<StudentsImportPanel groupId="g1" onDone={() => {}} />);
     await pickFile(container);
-    await userEvent.click(await screen.findByRole('button', { name: 'לא להוסיף — אתקן את הקובץ' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'לא להוסיף - אתקן את הקובץ' }));
 
     expect(importStudents).toHaveBeenCalledTimes(1);
     expect(screen.queryByText('שורה 2: חסר שם')).not.toBeInTheDocument();

@@ -34,7 +34,7 @@ export function QuizResultsCard({ lesson, onManage }: { lesson: LessonDetailDTO;
           {quizState.exists ? (
             <>
               <Badge variant={quizState.published ? 'success' : 'secondary'}>
-                {quizState.published ? 'פורסם לתלמידות' : 'טיוטה — התלמידות לא רואות'}
+                {quizState.published ? 'פורסם לתלמידות' : 'טיוטה - התלמידות לא רואות'}
               </Badge>
               <p className="mt-1.5 font-sans text-xs text-ink/55">
                 {quizResults

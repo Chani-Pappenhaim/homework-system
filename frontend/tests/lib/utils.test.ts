@@ -16,22 +16,22 @@ describe('cn', () => {
 
 describe('formatDate', () => {
   it('returns an em dash for empty input', () => {
-    expect(formatDate(null)).toBe('—');
-    expect(formatDate(undefined)).toBe('—');
+    expect(formatDate(null)).toBe('-');
+    expect(formatDate(undefined)).toBe('-');
   });
   it('formats a date string', () => {
     const out = formatDate('2026-07-11T00:00:00Z');
-    expect(out).not.toBe('—');
+    expect(out).not.toBe('-');
     expect(out).toContain('2026');
   });
 });
 
 describe('formatDateTime', () => {
   it('returns an em dash for empty input', () => {
-    expect(formatDateTime(null)).toBe('—');
+    expect(formatDateTime(null)).toBe('-');
   });
   it('formats a datetime string', () => {
-    expect(formatDateTime('2026-07-11T10:30:00Z')).not.toBe('—');
+    expect(formatDateTime('2026-07-11T10:30:00Z')).not.toBe('-');
   });
 });
 

@@ -165,7 +165,7 @@ describe('TeacherLessonDetailPage', () => {
     renderPage();
     await openAssignment();
 
-    expect(await screen.findByText(/בדיקת AI — ציון: 88/)).toBeInTheDocument();
+    expect(await screen.findByText(/בדיקת AI - ציון: 88/)).toBeInTheDocument();
     const approveBtn = screen.getByRole('button', { name: /אשרי ציון AI לתלמידה/ });
     expect(approveBtn).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /החזירי לציון AI/ })).toBeInTheDocument();
@@ -232,7 +232,7 @@ describe('TeacherLessonDetailPage', () => {
     await openAssignment();
 
     await userEvent.click(await screen.findByRole('button', { name: /עריכת ציון והערות AI/ }));
-    const scoreInput = screen.getByLabelText('ציון AI (0–100)') as HTMLInputElement;
+    const scoreInput = screen.getByLabelText('ציון AI (0-100)') as HTMLInputElement;
     await userEvent.clear(scoreInput);
     await userEvent.type(scoreInput, '70');
     const verbal = screen.getByLabelText('הערה מילולית');
@@ -242,7 +242,7 @@ describe('TeacherLessonDetailPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'שמירת בדיקת ה-AI' }));
 
     await waitFor(() => expect(updateAiReview).toHaveBeenCalledWith('s5', { aiScore: 70, aiVerbalReview: 'מתוקן', aiCodeReview: null }));
-    expect(await screen.findByText(/בדיקת AI — ציון: 70/)).toBeInTheDocument();
+    expect(await screen.findByText(/בדיקת AI - ציון: 70/)).toBeInTheDocument();
     expect(screen.getByText('מתוקן')).toBeInTheDocument();
     expect((screen.getByPlaceholderText('90') as HTMLInputElement).value).toBe('70');
   });
@@ -257,12 +257,12 @@ describe('TeacherLessonDetailPage', () => {
     await userEvent.type(contentInput, '95');
 
     await userEvent.click(screen.getByRole('button', { name: /עריכת ציון והערות AI/ }));
-    const scoreInput = screen.getByLabelText('ציון AI (0–100)');
+    const scoreInput = screen.getByLabelText('ציון AI (0-100)');
     await userEvent.clear(scoreInput);
     await userEvent.type(scoreInput, '70');
     await userEvent.click(screen.getByRole('button', { name: 'שמירת בדיקת ה-AI' }));
 
-    expect(await screen.findByText(/בדיקת AI — ציון: 70/)).toBeInTheDocument();
+    expect(await screen.findByText(/בדיקת AI - ציון: 70/)).toBeInTheDocument();
     expect(contentInput.value).toBe('95');
   });
 
@@ -271,13 +271,13 @@ describe('TeacherLessonDetailPage', () => {
     renderPage();
     await openAssignment();
     await userEvent.click(await screen.findByRole('button', { name: /עריכת ציון והערות AI/ }));
-    const scoreInput = screen.getByLabelText('ציון AI (0–100)');
+    const scoreInput = screen.getByLabelText('ציון AI (0-100)');
     await userEvent.clear(scoreInput);
     await userEvent.type(scoreInput, '150');
     expect(screen.getByRole('button', { name: 'שמירת בדיקת ה-AI' })).toBeDisabled();
     expect(screen.getByText('ציון ה-AI חייב להיות מספר בין 0 ל-100')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'ביטול' }));
-    expect(screen.getByText(/בדיקת AI — ציון: 88/)).toBeInTheDocument();
+    expect(screen.getByText(/בדיקת AI - ציון: 88/)).toBeInTheDocument();
     expect(updateAiReview).not.toHaveBeenCalled();
   });
 
@@ -304,7 +304,7 @@ describe('TeacherLessonDetailPage', () => {
   });
 });
 
-describe('TeacherLessonDetailPage — grading workstation', () => {
+describe('TeacherLessonDetailPage - grading workstation', () => {
   const sub = (id: string, studentName: string, grade: object | null) => ({
     id, studentName, studentEmail: `${id}@x.com`, submittedAt: '2026-07-10T10:00:00Z', isLate: false,
     githubUrl: 'https://github.com/a/b', grade,

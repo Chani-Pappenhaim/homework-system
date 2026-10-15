@@ -78,7 +78,7 @@ export function LessonAccessPanel({ lessonId }: { lessonId: string }) {
         <h2 className="font-display text-base font-bold">הרשאת גישה חריגה לשיעור זה</h2>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-xs text-ink/50">מתן גישה לתלמידה, לקבוצה שלמה, או לרשימת מיילים מקובץ — שאינן בקבוצה הרגילה של הקורס</p>
+        <p className="text-xs text-ink/50">מתן גישה לתלמידה, לקבוצה שלמה, או לרשימת מיילים מקובץ - שאינן בקבוצה הרגילה של הקורס</p>
 
         <div className="flex gap-2">
           {([

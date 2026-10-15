@@ -24,7 +24,7 @@ import {
 const redis = sharedConnection as any;
 const iso = (d: Date) => d.toISOString();
 
-describe('gemini-quota — the free quota day (midnight Pacific)', () => {
+describe('gemini-quota - the free quota day (midnight Pacific)', () => {
   it('starts and ends the day at midnight Pacific daylight time (UTC-7)', () => {
     const now = new Date('2026-10-14T12:00:00Z'); // 05:00 in California
     expect(iso(freeQuotaDayStart(now))).toBe('2026-10-14T07:00:00.000Z');
@@ -61,7 +61,7 @@ describe('gemini-quota — the free quota day (midnight Pacific)', () => {
   });
 });
 
-describe('gemini-quota — free-tier state in Redis', () => {
+describe('gemini-quota - free-tier state in Redis', () => {
   const RESET = '2026-10-15T07:00:00.000Z';
 
   beforeEach(() => {

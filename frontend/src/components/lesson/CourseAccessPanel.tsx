@@ -44,7 +44,7 @@ export function CourseAccessPanel({ courseId }: { courseId: string }) {
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-xs text-ink/50">
-          גישה לכל הקורס לתלמידות שאינן בקבוצה שלו — למשל תלמידה פרטית. לגישה לשיעור בודד בלבד יש לשייך מתוך דף השיעור.
+          גישה לכל הקורס לתלמידות שאינן בקבוצה שלו - למשל תלמידה פרטית. לגישה לשיעור בודד בלבד יש לשייך מתוך דף השיעור.
         </p>
         <StudentGrantPicker onGrant={(id) => grantMutation.mutate(id)} />
         {students.length > 0 && (

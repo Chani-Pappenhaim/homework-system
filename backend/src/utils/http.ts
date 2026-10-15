@@ -9,7 +9,7 @@ export const GENERIC_SERVER_ERROR =
 // from a server fault: a record that no longer exists, a reference to one that
 // doesn't, or a duplicate of a unique value.
 const PRISMA_CLIENT_ERRORS: Record<string, { status: number; message: string }> = {
-  P2025: { status: 404, message: 'הפריט המבוקש לא נמצא. ייתכן שנמחק — יש לרענן את הדף.' },
+  P2025: { status: 404, message: 'הפריט המבוקש לא נמצא. ייתכן שנמחק - יש לרענן את הדף.' },
   P2003: { status: 400, message: 'הפריט שנבחר לא קיים יותר. יש לרענן את הדף ולנסות שוב.' },
   P2002: { status: 409, message: 'כבר קיים פריט עם אותם פרטים.' },
 };

@@ -30,7 +30,7 @@ function quote(text: string, border: string, color: string): string {
 }
 
 export function formatDate(value?: string | Date | null): string {
-  if (!value) return '—';
+  if (!value) return '-';
   return new Date(value).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' });
 }
 
@@ -144,7 +144,7 @@ export function deadlineReportHtml(data: EmailJobMap['deadline-report']): string
     .join('');
 
   return wrapRtl(`
-    <h2 style="margin-bottom: 4px;">דוח הגשות — ${escapeHtml(data.assignmentTitle)}</h2>
+    <h2 style="margin-bottom: 4px;">דוח הגשות - ${escapeHtml(data.assignmentTitle)}</h2>
     <p style="margin-top: 0; color: #555;">
       קורס: ${escapeHtml(data.courseName)} | מועד הגשה אחרון: ${formatDate(data.deadline)}
     </p>

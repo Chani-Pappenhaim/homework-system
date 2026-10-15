@@ -201,12 +201,12 @@ export default function ReportsPage() {
                     <td className="px-4 py-3">
                       {r.submissionScore != null
                         ? <span className="font-semibold text-ink">{r.submissionScore}</span>
-                        : <span className="text-ink/50">—</span>}
+                        : <span className="text-ink/50">-</span>}
                     </td>
                     <td className="px-4 py-3">
                       {r.contentScore != null
                         ? <span className="font-semibold text-ink">{r.contentScore}</span>
-                        : <span className="text-ink/50">—</span>}
+                        : <span className="text-ink/50">-</span>}
                     </td>
                     <td className="px-4 py-3">
                       <Button

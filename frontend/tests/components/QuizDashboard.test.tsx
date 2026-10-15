@@ -38,7 +38,7 @@ describe('QuizDashboard', () => {
     expect(screen.getByText('63%')).toBeInTheDocument();
   });
 
-  it('puts the hardest question first — that is the reason to open the page', () => {
+  it('puts the hardest question first - that is the reason to open the page', () => {
     renderWithProviders(<QuizDashboard data={data()} />);
     const questions = screen.getAllByText(/^שאלה (קלה|קשה)$/);
     expect(questions[0]).toHaveTextContent('שאלה קשה');
