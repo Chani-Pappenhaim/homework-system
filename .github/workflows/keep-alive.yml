@@ -5,6 +5,10 @@ name: Keep backend awake
 # job pings the lightweight /api/health endpoint (no auth, no DB) to keep the
 # instance warm.
 #
+# Now only a backup: GitHub ran this schedule every few hours at best, so the
+# backend pings itself (backend/src/workers/keep-awake.ts, same hours). This
+# job can still wake the instance in the morning before the first visitor.
+#
 # Notes:
 # - A scheduled workflow only runs once this file is on the repo's DEFAULT
 #   branch (main). It will not fire from a feature branch.
