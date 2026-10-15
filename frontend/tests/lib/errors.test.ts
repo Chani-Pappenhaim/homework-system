@@ -7,6 +7,14 @@ describe('getApiErrorMessage', () => {
     expect(getApiErrorMessage(err)).toContain('להתחבר לשרת');
   });
 
+  it('blames a slow server, not the connection, when the request timed out', () => {
+    for (const code of ['ECONNABORTED', 'ETIMEDOUT']) {
+      const msg = getApiErrorMessage({ isAxiosError: true, code, response: undefined });
+      expect(msg).toMatch(/השרת לא הגיב בזמן/);
+      expect(msg).not.toMatch(/חיבור האינטרנט/);
+    }
+  });
+
   it('surfaces the server-provided message when present', () => {
     const err = { isAxiosError: true, response: { data: { error: 'אימייל כבר קיים' } } };
     expect(getApiErrorMessage(err)).toBe('אימייל כבר קיים');

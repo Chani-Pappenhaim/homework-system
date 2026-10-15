@@ -5,6 +5,10 @@
 
 const NETWORK_MESSAGE =
   'לא הצלחנו להתחבר לשרת. אנא בדקו את חיבור האינטרנט ונסו שוב מאוחר יותר.';
+// A timeout is not the user's connection: the server was too slow to answer,
+// typically while a free-tier host is still starting up.
+const TIMEOUT_MESSAGE =
+  'השרת לא הגיב בזמן — ייתכן שהוא עדיין מתעורר אחרי זמן בלי שימוש. נסו שוב בעוד דקה.';
 const GENERIC_MESSAGE = 'אירעה שגיאה. אנא נסו שוב מאוחר יותר.';
 
 export function getApiErrorMessage(error: any, fallback: string = GENERIC_MESSAGE): string {
@@ -17,7 +21,7 @@ export function getApiErrorMessage(error: any, fallback: string = GENERIC_MESSAG
   // Axios sets `response` only when the server actually answered. No response =
   // the request never completed (offline, DNS, connection refused, timeout).
   if (error && typeof error === 'object' && 'isAxiosError' in error && !error.response) {
-    return NETWORK_MESSAGE;
+    return error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT' ? TIMEOUT_MESSAGE : NETWORK_MESSAGE;
   }
 
   const serverMessage = error?.response?.data?.error;
