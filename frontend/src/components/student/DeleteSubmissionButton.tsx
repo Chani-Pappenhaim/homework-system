@@ -15,8 +15,8 @@ interface Props {
 
 /**
  * Lets the student delete her submission so she can submit again. Shown only
- * while the server allows it — once the teacher graded it or an AI review ran,
- * the reason is shown instead.
+ * while the server allows it — once the teacher checked it (and did not allow
+ * changes), the reason is shown instead. An AI review does not lock it.
  */
 export function DeleteSubmissionButton({ submission, onDeleted }: Props) {
   const qc = useQueryClient();
@@ -51,7 +51,7 @@ export function DeleteSubmissionButton({ submission, onDeleted }: Props) {
         open={open}
         onOpenChange={setOpen}
         title="למחוק את ההגשה?"
-        description={`ההגשה של "${submission.assignmentTitle}" תימחק${submission.fileName ? ' יחד עם הקובץ שהועלה' : ''}, והמטלה תחזור לרשימת המטלות שלא הוגשו. אחרי המחיקה אפשר להגיש מחדש — אם המועד האחרון עבר, ההגשה החדשה תסומן כמאוחרת.`}
+        description={`ההגשה של "${submission.assignmentTitle}" תימחק${submission.fileName ? ' יחד עם הקובץ שהועלה' : ''}, והמטלה תחזור לרשימת המטלות שלא הוגשו. אחרי המחיקה אפשר להגיש מחדש — אם המועד האחרון עבר, ההגשה החדשה תסומן כמאוחרת.${submission.aiStatus && submission.aiStatus !== 'none' ? ' בדיקות ה-AI שכבר נוצלו נספרות גם להגשה החדשה.' : ''}`}
         confirmLabel="מחיקה"
         loading={remove.isPending}
         onConfirm={() => remove.mutate()}

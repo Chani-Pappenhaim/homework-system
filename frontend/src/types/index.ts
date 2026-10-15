@@ -276,6 +276,8 @@ export interface SubmissionDTO {
   aiCodeReview?: string | null;
   aiVerbalReview?: string | null;
   aiExtraAllowed?: boolean;
+  /** The teacher let the student delete or replace it after she checked it. */
+  changesAllowed?: boolean;
   aiError?: string | null;
   grade: GradeDTO | null;
 }
@@ -283,7 +285,7 @@ export interface SubmissionDTO {
 export interface MySubmission {
   submissionId: string;
   id: string;
-  /** Why she can no longer delete it (graded, AI-reviewed); null when she can. */
+  /** Why she can no longer delete it (the teacher checked it, a review is running); null when she can. */
   deleteBlockedReason?: string | null;
   assignmentId: string;
   assignmentTitle: string;

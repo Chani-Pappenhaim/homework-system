@@ -23,6 +23,9 @@ const nav = [
   { to: '/teacher/messages', label: 'הודעות', icon: MessageSquare },
 ];
 
+// ⌘ means nothing on Windows, where the same shortcut is Ctrl
+const SEARCH_SHORTCUT = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl+K';
+
 export default function TeacherLayout() {
   const { user, clearAuth } = useAuthStore();
   const { search, setSearch } = useUiStore();
@@ -39,7 +42,8 @@ export default function TeacherLayout() {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      // e.code is the physical key, so the shortcut also works on a Hebrew layout (where K types 'ל')
+      if ((e.metaKey || e.ctrlKey) && (e.code === 'KeyK' || e.key.toLowerCase() === 'k')) {
         e.preventDefault();
         searchRef.current?.focus();
       }
@@ -84,7 +88,13 @@ export default function TeacherLayout() {
             {search ? (
               <button onClick={() => setSearch('')} className="text-xs text-ink-soft hover:text-coral">✕</button>
             ) : (
-              <kbd className="rounded border border-rule px-1.5 text-[10px] text-ink-soft">⌘K</kbd>
+              <kbd
+                dir="ltr"
+                title={`קיצור מקלדת: ${SEARCH_SHORTCUT} מעביר לחיפוש`}
+                className="rounded border border-rule px-1.5 text-[10px] text-ink-soft"
+              >
+                {SEARCH_SHORTCUT}
+              </kbd>
             )}
           </div>
 

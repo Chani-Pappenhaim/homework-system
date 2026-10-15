@@ -411,10 +411,11 @@ describe('client-feedback routes', () => {
   });
 
   it('POST /api/lessons/:id/copy copies to the target course', async () => {
-    (lessonsService.copyLesson as any).mockResolvedValue({ id: 'l9' });
+    (lessonsService.copyLesson as any).mockResolvedValue({ lesson: { id: 'l9' }, clearedDeadlines: 1 });
     const res = await request(app).post('/api/lessons/l1/copy').set(...bearer(admin)).send({ targetCourseId: 'c2' });
     expect(res.status).toBe(201);
     expect(res.body.data.lesson).toMatchObject({ id: 'l9' });
+    expect(res.body.data.clearedDeadlines).toBe(1);
     expect(lessonsService.copyLesson).toHaveBeenCalledWith('l1', 'c2');
   });
 

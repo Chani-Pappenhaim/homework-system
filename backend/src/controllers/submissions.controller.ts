@@ -164,6 +164,19 @@ export async function allowExtraAiReview(req: Request, res: Response) {
   }
 }
 
+export async function setChangesAllowed(req: Request, res: Response) {
+  try {
+    if (typeof req.body?.allowed !== 'boolean') {
+      res.status(400).json({ success: false, error: 'יש לציין allowed: true או false' });
+      return;
+    }
+    await submissionsService.setSubmissionChangesAllowed(req.params.id as string, req.body.allowed);
+    res.json({ success: true, data: null });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
 export async function approveContentScore(req: Request, res: Response) {
   try {
     const grade = await submissionsService.approveContentScore(req.params.id as string);

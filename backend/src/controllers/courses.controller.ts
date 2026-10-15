@@ -39,8 +39,8 @@ export async function updateCourse(req: Request, res: Response) {
 export async function copyCourse(req: Request, res: Response) {
   try {
     const { targetGroupId } = req.body;
-    const course = await coursesService.copyCourse(req.params.id as string, targetGroupId);
-    res.status(201).json({ success: true, data: { course } });
+    const { course, clearedDeadlines } = await coursesService.copyCourse(req.params.id as string, targetGroupId);
+    res.status(201).json({ success: true, data: { course, clearedDeadlines } });
   } catch (err: any) {
     sendError(res, err);
   }

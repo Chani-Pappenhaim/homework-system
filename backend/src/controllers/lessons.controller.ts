@@ -133,8 +133,8 @@ export async function setFileHidden(req: Request, res: Response) {
 
 export async function copyLesson(req: Request, res: Response) {
   try {
-    const lesson = await lessonsService.copyLesson(req.params.id as string, req.body?.targetCourseId);
-    res.status(201).json({ success: true, data: { lesson } });
+    const { lesson, clearedDeadlines } = await lessonsService.copyLesson(req.params.id as string, req.body?.targetCourseId);
+    res.status(201).json({ success: true, data: { lesson, clearedDeadlines } });
   } catch (err: any) {
     sendError(res, err);
   }

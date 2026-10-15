@@ -159,9 +159,14 @@ export async function importAssignments(buffer: Buffer) {
 
     if (!lessonId || !title) { errors.push(`Row ${i}: missing lessonId or title`); continue; }
     if (!description) { errors.push(`Row ${i}: missing description`); continue; }
+    const deadlineDate = deadline ? new Date(deadline) : undefined;
+    if (deadlineDate && Number.isNaN(deadlineDate.getTime())) { errors.push(`Row ${i}: invalid deadline`); continue; }
+    if (deadlineDate && deadlineDate.getTime() < Date.now() - PAST_DEADLINE_GRACE_MS) {
+      errors.push(`Row ${i}: deadline is in the past`); continue;
+    }
 
     try {
-      await prisma.assignment.create({ data: { lessonId, title, description, deadline: deadline ? new Date(deadline) : undefined, allowedTypes } });
+      await prisma.assignment.create({ data: { lessonId, title, description, deadline: deadlineDate, allowedTypes } });
       imported++;
     } catch {
       errors.push(`Row ${i}: failed to create assignment`);
@@ -192,7 +197,7 @@ export async function getAssignmentSubmissions(assignmentId: string, userId: str
       notes: s.notes,
       submittedAt: s.submittedAt, isLate: s.isLate,
       aiStatus: s.aiStatus, aiScore: s.aiScore, aiApproved: s.aiApproved,
-      aiCodeReview: s.aiCodeReview, aiVerbalReview: s.aiVerbalReview, aiExtraAllowed: s.aiExtraAllowed, aiError: s.aiError,
+      aiCodeReview: s.aiCodeReview, aiVerbalReview: s.aiVerbalReview, aiExtraAllowed: s.aiExtraAllowed, changesAllowed: s.changesAllowed, aiError: s.aiError,
       grade: s.grade ? {
         submissionScore: s.grade.submissionScore, contentScore: s.grade.contentScore,
         contentApproved: s.grade.contentApproved,

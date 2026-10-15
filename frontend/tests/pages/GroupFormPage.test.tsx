@@ -87,6 +87,14 @@ describe('GroupFormPage (edit)', () => {
     expect(screen.getByText('דנה')).toBeInTheDocument();
   });
 
+  // Row 24 of the client's sheet: deleting the account itself lives on the
+  // student's page, so the group page leads there.
+  it("links each student to her page, where her account can be deleted", async () => {
+    getGroup.mockResolvedValue({ data: { data: { group } } });
+    renderEdit();
+    expect(await screen.findByRole('link', { name: 'דנה' })).toHaveAttribute('href', '/teacher/students/s1');
+  });
+
   it('opens the add-student modal and submits a new student', async () => {
     getGroup.mockResolvedValue({ data: { data: { group } } });
     addStudent.mockResolvedValue({ data: {} });

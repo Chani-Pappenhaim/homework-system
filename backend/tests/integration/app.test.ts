@@ -23,6 +23,7 @@ vi.mock('../../src/services/submissions.service', () => ({
   requestAiReview: vi.fn(),
   approveAiReview: vi.fn(),
   updateAiReview: vi.fn(),
+  setSubmissionChangesAllowed: vi.fn(),
   restoreAiScore: vi.fn(),
   allowExtraAiReview: vi.fn(),
 }));
@@ -297,6 +298,34 @@ describe('submissions controller — AI review (service-backed routes)', () => {
       .send({ aiScore: 100 });
     expect(res.status).toBe(403);
     expect(submissionsService.updateAiReview).not.toHaveBeenCalled();
+  });
+
+  it('allow-changes lets the teacher unlock a checked submission', async () => {
+    (submissionsService.setSubmissionChangesAllowed as any).mockResolvedValue(undefined);
+    const res = await request(app)
+      .post('/api/submissions/sub1/allow-changes')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ allowed: true });
+    expect(res.status).toBe(200);
+    expect(submissionsService.setSubmissionChangesAllowed).toHaveBeenCalledWith('sub1', true);
+  });
+
+  it('allow-changes needs an explicit true or false', async () => {
+    const res = await request(app)
+      .post('/api/submissions/sub1/allow-changes')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ allowed: 'yes' });
+    expect(res.status).toBe(400);
+    expect(submissionsService.setSubmissionChangesAllowed).not.toHaveBeenCalled();
+  });
+
+  it('allow-changes is 403 for a student (ADMIN-only route)', async () => {
+    const res = await request(app)
+      .post('/api/submissions/sub1/allow-changes')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ allowed: true });
+    expect(res.status).toBe(403);
+    expect(submissionsService.setSubmissionChangesAllowed).not.toHaveBeenCalled();
   });
 });
 

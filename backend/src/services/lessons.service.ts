@@ -4,6 +4,7 @@ import { uploadBuffer, createUploadSignature, toFileDTO, destroyByUrl, isOwnUplo
 import { confirmUpload, discardPendingUpload } from '../utils/pending-uploads';
 import { releaseFileUrls, submissionFileUrls } from '../utils/file-refs';
 import { assertLessonAccess, assertCourseAccess } from '../utils/access';
+import { countPastDeadlines, upcomingDeadline } from '../utils/deadlines';
 
 // Older lessons only have the legacy single `githubUrl` column populated;
 // `githubUrls` is the source of truth, so fall back to wrapping the legacy
@@ -176,8 +177,9 @@ export async function copyLesson(lessonId: string, targetCourseId?: string) {
 
   const last = await prisma.lesson.findFirst({ where: { courseId }, orderBy: { order: 'desc' }, select: { order: true } });
   const sameCourse = courseId === source.courseId;
+  const clearedDeadlines = countPastDeadlines(source.assignments);
 
-  return prisma.lesson.create({
+  const lesson = await prisma.lesson.create({
     data: {
       courseId,
       topic: sameCourse ? `${source.topic} (עותק)` : source.topic,
@@ -194,7 +196,7 @@ export async function copyLesson(lessonId: string, targetCourseId?: string) {
       },
       assignments: {
         create: source.assignments.map((a) => ({
-          title: a.title, description: a.description, deadline: a.deadline,
+          title: a.title, description: a.description, deadline: upcomingDeadline(a.deadline),
           allowedTypes: a.allowedTypes, allowGithub: a.allowGithub, allowFile: a.allowFile,
           requirements: a.requirements ?? undefined, aiInstructions: a.aiInstructions,
           aiReviewEnabled: a.aiReviewEnabled,
@@ -203,6 +205,7 @@ export async function copyLesson(lessonId: string, targetCourseId?: string) {
       ...(source.quiz ? { quiz: { create: { questions: source.quiz.questions ?? [], published: false } } } : {}),
     },
   });
+  return { lesson, clearedDeadlines };
 }
 
 export async function setLessonProgress(studentId: string, lessonId: string, completed: boolean, role = 'STUDENT') {

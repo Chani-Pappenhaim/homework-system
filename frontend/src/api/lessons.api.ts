@@ -53,7 +53,7 @@ export const lessonsApi = {
 
   /** Without a target course the lesson is duplicated in its own course. */
   copy: (id: string, targetCourseId?: string) =>
-    api.post<{ success: true; data: { lesson: { id: string; courseId: string } } }>(`/lessons/${id}/copy`, { targetCourseId }),
+    api.post<{ success: true; data: { lesson: { id: string; courseId: string }; clearedDeadlines?: number } }>(`/lessons/${id}/copy`, { targetCourseId }),
 
   markFileViewed: (id: string, fileId: string) =>
     api.post(`/lessons/${id}/files/${fileId}/view`),

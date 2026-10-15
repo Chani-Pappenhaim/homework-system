@@ -226,6 +226,7 @@ describe('submissionsApi', () => {
     submissionsApi.requestAiReview('s1'); expect(post).toHaveBeenCalledWith('/submissions/s1/request-ai-review');
     submissionsApi.approveAi('s1'); expect(post).toHaveBeenCalledWith('/submissions/s1/approve-ai');
     submissionsApi.allowExtraAi('s1'); expect(post).toHaveBeenCalledWith('/submissions/s1/allow-extra-ai');
+    submissionsApi.allowChanges('s1', true); expect(post).toHaveBeenCalledWith('/submissions/s1/allow-changes', { allowed: true });
     submissionsApi.restoreAiScore('s1'); expect(post).toHaveBeenCalledWith('/submissions/s1/restore-ai-score');
   });
   it('importSubmissions posts FormData', () => {

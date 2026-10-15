@@ -6,6 +6,7 @@ vi.mock('../../src/config/prisma', () => ({
     user: { findUnique: vi.fn() },
     submission: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
     grade: { findUnique: vi.fn(), upsert: vi.fn(), update: vi.fn() },
+    aiReviewCarryover: { findUnique: vi.fn(), upsert: vi.fn(), deleteMany: vi.fn() },
   },
 }));
 
@@ -52,6 +53,7 @@ import {
   rerunAiReview,
   requestAiReview,
   deleteMySubmission,
+  setSubmissionChangesAllowed,
   approveAiReview,
   updateAiReview,
 } from '../../src/services/submissions.service';
@@ -317,6 +319,48 @@ describe('submissions.service.submitAssignment', () => {
     await submitAssignment('a1', 's1', { repoName: 'r' });
     expect(p.submission.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'sub1' } }));
     expect(p.submission.create).not.toHaveBeenCalled();
+  });
+
+  // Row 30 of the client's sheet: an AI review does not lock a submission, the
+  // teacher's check does - unless she explicitly allows changes.
+  const checked = { gradedById: 't1', contentScore: 85, feedback: null, contentApproved: false };
+
+  it('lets her replace a submission the AI already reviewed', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment());
+    p.user.findUnique.mockResolvedValue({ githubUsername: 'g' });
+    p.submission.findUnique.mockResolvedValue({ id: 'sub1', aiStatus: 'done', aiReviewCount: 1, changesAllowed: false, grade: null });
+    p.submission.update.mockResolvedValue({ id: 'sub1' });
+    await submitAssignment('a1', 's1', { repoName: 'r' });
+    expect(p.submission.update).toHaveBeenCalled();
+  });
+
+  it('refuses to replace a submission the teacher already checked', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment());
+    p.user.findUnique.mockResolvedValue({ githubUsername: 'g' });
+    p.submission.findUnique.mockResolvedValue({ id: 'sub1', aiStatus: 'none', changesAllowed: false, grade: checked });
+    await expect(submitAssignment('a1', 's1', { repoName: 'r' })).rejects.toMatchObject({ status: 409 });
+    expect(p.submission.update).not.toHaveBeenCalled();
+    expect(repoStatusMock).not.toHaveBeenCalled();
+  });
+
+  it('replaces a checked submission once the teacher allowed it, and uses the permission up', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment());
+    p.user.findUnique.mockResolvedValue({ githubUsername: 'g' });
+    p.submission.findUnique.mockResolvedValue({ id: 'sub1', aiStatus: 'none', changesAllowed: true, grade: checked });
+    p.submission.update.mockResolvedValue({ id: 'sub1' });
+    await submitAssignment('a1', 's1', { repoName: 'r' });
+    expect(p.submission.update.mock.calls[0][0].data).toMatchObject({ changesAllowed: false });
+  });
+
+  it('a new submission takes over the AI reviews a deleted one used', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment());
+    p.user.findUnique.mockResolvedValue({ githubUsername: 'g' });
+    p.submission.findUnique.mockResolvedValue(null);
+    p.aiReviewCarryover.findUnique.mockResolvedValue({ aiReviewCount: 1, aiExtraAllowed: false });
+    p.submission.create.mockImplementation(({ data }: any) => Promise.resolve({ id: 'sub2', ...data }));
+    const r: any = await submitAssignment('a1', 's1', { repoName: 'r' });
+    expect(r).toMatchObject({ aiReviewCount: 1, aiExtraAllowed: false });
+    expect(p.aiReviewCarryover.deleteMany).toHaveBeenCalledWith({ where: { assignmentId: 'a1', studentId: 's1' } });
   });
 });
 
@@ -829,8 +873,8 @@ describe('submissions.service.requestAiReview', () => {
 
 describe('submissions.service.deleteMySubmission', () => {
   const ownSub = (over: any = {}) => ({
-    id: 'sub1', studentId: 's1', fileUrl: 'https://res.cloudinary.com/x/raw/upload/v1/submissions/a.zip',
-    aiStatus: 'none', aiReviewCount: 0, aiApproved: false,
+    id: 'sub1', assignmentId: 'a1', studentId: 's1', fileUrl: 'https://res.cloudinary.com/x/raw/upload/v1/submissions/a.zip',
+    aiStatus: 'none', aiReviewCount: 0, aiExtraAllowed: false, changesAllowed: false,
     grade: { gradedById: null, contentScore: null, feedback: null, contentApproved: false },
     ...over,
   });
@@ -840,8 +884,9 @@ describe('submissions.service.deleteMySubmission', () => {
     p.submission.deleteMany.mockResolvedValue({ count: 1 });
     await deleteMySubmission('sub1', 's1');
     expect(p.submission.deleteMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ id: 'sub1', studentId: 's1', aiApproved: false }),
+      where: expect.objectContaining({ id: 'sub1', studentId: 's1', aiStatus: { not: 'pending' } }),
     }));
+    expect(p.aiReviewCarryover.upsert).not.toHaveBeenCalled();
     expect(releaseMock).toHaveBeenCalledWith([ownSub().fileUrl]);
   });
 
@@ -851,10 +896,21 @@ describe('submissions.service.deleteMySubmission', () => {
     expect(p.submission.deleteMany).not.toHaveBeenCalled();
   });
 
+  it('deletes after an AI review, keeping the reviews she used for her next submission', async () => {
+    p.submission.findUnique.mockResolvedValue(ownSub({ aiStatus: 'done', aiReviewCount: 2, aiExtraAllowed: true }));
+    p.submission.deleteMany.mockResolvedValue({ count: 1 });
+    await deleteMySubmission('sub1', 's1');
+    expect(p.aiReviewCarryover.upsert).toHaveBeenCalledWith({
+      where: { assignmentId_studentId: { assignmentId: 'a1', studentId: 's1' } },
+      create: { assignmentId: 'a1', studentId: 's1', aiReviewCount: 2, aiExtraAllowed: true },
+      update: { aiReviewCount: 2, aiExtraAllowed: true },
+    });
+    expect(p.submission.deleteMany).toHaveBeenCalled();
+  });
+
   it.each([
-    ['the teacher gave feedback', { grade: { gradedById: 't1', contentScore: null, feedback: 'טוב', contentApproved: false } }],
+    ['the teacher gave feedback', { grade: { gradedById: 't1', contentScore: null, feedback: 'good', contentApproved: false } }],
     ['the teacher gave a content score', { grade: { gradedById: null, contentScore: 90, feedback: null, contentApproved: false } }],
-    ['the teacher approved the AI review', { aiApproved: true }],
     ['an AI review is running', { aiStatus: 'pending' }],
   ])('refuses when %s', async (_label, over) => {
     p.submission.findUnique.mockResolvedValue(ownSub(over));
@@ -862,11 +918,13 @@ describe('submissions.service.deleteMySubmission', () => {
     expect(p.submission.deleteMany).not.toHaveBeenCalled();
   });
 
-  it('allows deleting after an AI review the teacher has not looked at', async () => {
-    p.submission.findUnique.mockResolvedValue(ownSub({ aiStatus: 'done', aiReviewCount: 1, aiScore: 80 }));
+  it('deletes a checked submission once the teacher allowed changes', async () => {
+    p.submission.findUnique.mockResolvedValue(ownSub({
+      changesAllowed: true, grade: { gradedById: 't1', contentScore: 90, feedback: null, contentApproved: true },
+    }));
     p.submission.deleteMany.mockResolvedValue({ count: 1 });
     await deleteMySubmission('sub1', 's1');
-    expect(p.submission.deleteMany).toHaveBeenCalled();
+    expect(p.submission.deleteMany.mock.calls[0][0].where.OR).toContainEqual({ changesAllowed: true });
   });
 
   it('keeps the file when the submission changed before the delete ran', async () => {
@@ -874,5 +932,18 @@ describe('submissions.service.deleteMySubmission', () => {
     p.submission.deleteMany.mockResolvedValue({ count: 0 });
     await expect(deleteMySubmission('sub1', 's1')).rejects.toMatchObject({ status: 409 });
     expect(releaseMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('submissions.service.setSubmissionChangesAllowed', () => {
+  it('records the teacher permission', async () => {
+    p.submission.updateMany.mockResolvedValue({ count: 1 });
+    await setSubmissionChangesAllowed('sub1', true);
+    expect(p.submission.updateMany).toHaveBeenCalledWith({ where: { id: 'sub1' }, data: { changesAllowed: true } });
+  });
+
+  it('answers 404 for an unknown submission', async () => {
+    p.submission.updateMany.mockResolvedValue({ count: 0 });
+    await expect(setSubmissionChangesAllowed('nope', true)).rejects.toMatchObject({ status: 404 });
   });
 });

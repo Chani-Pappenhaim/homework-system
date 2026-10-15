@@ -21,6 +21,8 @@ router.post('/:id/rerun-ai-review', aiRateLimit, requireRole('ADMIN'), submissio
 router.post('/:id/approve-ai', requireRole('ADMIN'), submissionsController.approveAiReview);
 router.patch('/:id/ai-review', requireRole('ADMIN'), submissionsController.updateAiReview);
 router.post('/:id/allow-extra-ai', requireRole('ADMIN'), submissionsController.allowExtraAiReview);
+// Unlocks a checked submission so the student can delete or replace it.
+router.post('/:id/allow-changes', requireRole('ADMIN'), submissionsController.setChangesAllowed);
 router.post('/:id/restore-ai-score', requireRole('ADMIN'), submissionsController.restoreAiScore);
 router.post('/:id/approve-content', requireRole('ADMIN'), submissionsController.approveContentScore);
 router.post('/bulk-approve-content', requireRole('ADMIN'), submissionsController.bulkApproveContentScore);

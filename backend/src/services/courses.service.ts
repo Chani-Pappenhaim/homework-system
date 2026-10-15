@@ -5,6 +5,7 @@ import { confirmUpload, discardPendingUpload } from '../utils/pending-uploads';
 import { releaseFileUrls, submissionFileUrls } from '../utils/file-refs';
 import { assertCourseAccess } from '../utils/access';
 import { groupDisplayName, groupNameSelect } from '../utils/group-name';
+import { countPastDeadlines, upcomingDeadline } from '../utils/deadlines';
 
 export async function getCoursesForUser(userId: string, role: string) {
   if (role === 'ADMIN') {
@@ -136,6 +137,7 @@ export async function copyCourse(courseId: string, targetGroupId: string) {
     },
   });
   if (!source) throw new AppError('Course not found', 'הקורס לא נמצא', 404);
+  const clearedDeadlines = countPastDeadlines(source.lessons.flatMap((l) => l.assignments));
 
   const newCourse = await prisma.course.create({
     data: {
@@ -151,7 +153,8 @@ export async function copyCourse(courseId: string, targetGroupId: string) {
           ...lesson,
           files: { create: files?.map(({ id: _i, lessonId: _l, uploadedAt: _a, ...f }: any) => f) ?? [] },
           assignments: {
-            create: assignments?.map(({ id: _i, lessonId: _l, createdAt: _c, ...a }: any) => a) ?? [],
+            create: assignments?.map(({ id: _i, lessonId: _l, createdAt: _c, ...a }: any) =>
+              ({ ...a, deadline: upcomingDeadline(a.deadline) })) ?? [],
           },
           ...(quiz ? { quiz: { create: { questions: quiz.questions ?? [], published: false } } } : {}),
         })),
@@ -159,7 +162,7 @@ export async function copyCourse(courseId: string, targetGroupId: string) {
     },
     include: { group: { select: groupNameSelect }, _count: { select: { lessons: true } } },
   });
-  return toCourseDTO(newCourse);
+  return { course: toCourseDTO(newCourse), clearedDeadlines };
 }
 
 
