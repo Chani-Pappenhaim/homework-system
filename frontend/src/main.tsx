@@ -1,15 +1,23 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import './globals.css';
 import { useBootstrapAuth } from './hooks/useAuth';
-import { ToastProvider, showErrorToast } from './components/ui/toast';
+import { ToastProvider, showErrorToast, useToast } from './components/ui/toast';
 import { getApiErrorMessage } from './lib/errors';
 import { ServerWakingBanner } from './components/ui/server-waking-banner';
+import { startSessionSync, takeSessionNotice } from './lib/sessionSync';
+
+startSessionSync();
 
 function Root() {
   useBootstrapAuth();
+  const toast = useToast();
+  useEffect(() => {
+    const notice = takeSessionNotice();
+    if (notice) toast.show(notice, 'success', 8000);
+  }, [toast]);
   return (
     <>
       <ServerWakingBanner />

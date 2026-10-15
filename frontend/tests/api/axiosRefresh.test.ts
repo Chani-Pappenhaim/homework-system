@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import axios, { type InternalAxiosRequestConfig } from 'axios';
 import api from '@/api/axios';
 import useAuthStore from '@/store/authStore';
+import { followSessionChange } from '@/lib/sessionSync';
+
+vi.mock('@/lib/sessionSync', () => ({ followSessionChange: vi.fn() }));
 
 function token(iat: number, exp: number, sub = 'u1'): string {
   const b64url = (s: string) => btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -121,6 +124,40 @@ describe('refreshing the access token ahead of expiry', () => {
 
     expect(post).toHaveBeenCalledTimes(2);
     expect(sent.map((r) => r.auth)).toEqual([`Bearer ${old}`, 'Bearer renewed']);
+  });
+});
+
+describe('a refresh that comes back for another user', () => {
+  // Signing in as someone else in another tab replaces the shared refresh cookie.
+  const tokenFor = (userId: string) => {
+    const b64url = (s: string) => btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return `${b64url('{"alg":"HS256"}')}.${b64url(JSON.stringify({ userId, iat: nowSec(), exp: nowSec() + 900 }))}.sig`;
+  };
+
+  afterEach(() => vi.mocked(followSessionChange).mockClear());
+
+  it('reloads as that user instead of sending the request under her name', async () => {
+    useAuthStore.setState({ user: { id: 'teacher' } as any });
+    tokenAboutToExpire();
+    mockRefresh(tokenFor('student'));
+
+    void api.get('/lessons/l1/quiz');
+
+    await vi.waitFor(() => expect(followSessionChange).toHaveBeenCalledTimes(1));
+    expect(sent).toEqual([]);
+    expect(useAuthStore.getState().accessToken).not.toBe(tokenFor('student'));
+  });
+
+  it('carries on when the refreshed token is still hers', async () => {
+    useAuthStore.setState({ user: { id: 'teacher' } as any });
+    tokenAboutToExpire();
+    const renewed = tokenFor('teacher');
+    mockRefresh(renewed);
+
+    await api.get('/courses');
+
+    expect(followSessionChange).not.toHaveBeenCalled();
+    expect(sent).toEqual([{ url: '/courses', auth: `Bearer ${renewed}` }]);
   });
 });
 

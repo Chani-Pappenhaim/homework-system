@@ -11,7 +11,7 @@ interface ToastItem {
 }
 
 interface ToastContextValue {
-  show: (message: string, variant?: ToastVariant) => void;
+  show: (message: string, variant?: ToastVariant, duration?: number) => void;
   success: (message: string) => void;
   error: (message: string) => void;
 }
@@ -43,10 +43,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const show = useCallback((message: string, variant: ToastVariant = 'success') => {
+  const show = useCallback((message: string, variant: ToastVariant = 'success', duration = DURATION) => {
     const id = ++idRef.current;
     setToasts((prev) => [...prev, { id, message, variant }]);
-    setTimeout(() => remove(id), DURATION);
+    setTimeout(() => remove(id), duration);
   }, [remove]);
 
   const value = useMemo<ToastContextValue>(() => ({
