@@ -146,7 +146,7 @@ function isColdStartError(error: any): boolean {
   const safe = SAFE_METHODS.includes(String(error?.config?.method ?? 'get').toLowerCase());
   if (error?.code === 'ECONNABORTED') return safe;  // client-side timeout
   if (!error?.response) return safe;                // no response at all (network / DNS / refused)
-  if (isApplicationResponse(error)) return false;   // the app answered — retrying changes nothing
+  if (isApplicationResponse(error)) return false;   // the app answered - retrying changes nothing
   return [502, 503, 504].includes(error.response.status); // gateway still bringing the app up
 }
 

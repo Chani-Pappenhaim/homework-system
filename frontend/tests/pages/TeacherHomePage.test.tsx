@@ -61,7 +61,7 @@ describe('TeacherHomePage', () => {
 
   it('shows the empty review-queue message when there is nothing pending', async () => {
     renderWithProviders(<TeacherHomePage />);
-    expect(await screen.findByText('התור ריק — כל הכבוד')).toBeInTheDocument();
+    expect(await screen.findByText('התור ריק - כל הכבוד')).toBeInTheDocument();
   });
 
   it('navigates to the groups and courses pages from the KPI tiles', async () => {

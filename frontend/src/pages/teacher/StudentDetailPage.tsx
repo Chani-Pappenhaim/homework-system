@@ -54,7 +54,7 @@ function Score({ label, value, pending }: { label: string; value: number | null;
   return (
     <span className="text-xs text-ink/55">
       {label}{' '}
-      <span className={cn('font-semibold', value != null ? 'text-ink' : 'text-ink/40')}>{value ?? '—'}</span>
+      <span className={cn('font-semibold', value != null ? 'text-ink' : 'text-ink/40')}>{value ?? '-'}</span>
       {pending && <span className="mr-1 text-[10px] text-clay">(טרם אושר)</span>}
     </span>
   );
@@ -139,7 +139,7 @@ function AttendanceList({ courses }: { courses: StudentProfile['attendance'] }) 
                 <div className="flex items-center justify-between gap-2">
                   <p className="truncate font-medium text-ink">{c.courseName}</p>
                   <span className={cn('font-display text-lg font-black', scoreTone(c.summary.rate))}>
-                    {c.summary.rate != null ? `${c.summary.rate}%` : '—'}
+                    {c.summary.rate != null ? `${c.summary.rate}%` : '-'}
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-3 text-xs">
@@ -197,7 +197,7 @@ function QuizList({ quizzes }: { quizzes: StudentProfile['quizzes'] }) {
                 </p>
               </div>
               <span className={cn('font-display text-lg font-black', scoreTone(q.officialScore))}>
-                {q.officialScore != null ? Math.round(q.officialScore) : '—'}
+                {q.officialScore != null ? Math.round(q.officialScore) : '-'}
               </span>
             </li>
           ))}
@@ -334,13 +334,13 @@ export default function StudentDetailPage() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Tile
           label="הגשות"
-          value={work.length ? `${submitted.length}/${work.length}` : '—'}
+          value={work.length ? `${submitted.length}/${work.length}` : '-'}
           sub={[missing && `${missing} חסרות`, late && `${late} באיחור`].filter(Boolean).join(' · ') || undefined}
           tone={scoreTone(work.length ? Math.round((submitted.length * 100) / work.length) : null)}
         />
-        <Tile label="ממוצע ציון תוכן" value={avgContent != null ? String(avgContent) : '—'} tone={scoreTone(avgContent)} />
-        <Tile label="נוכחות" value={rate != null ? `${rate}%` : '—'} sub={rate != null ? `${present} מתוך ${present + absent}` : undefined} tone={scoreTone(rate)} />
-        <Tile label="ממוצע חידונים" value={avgQuiz != null ? String(avgQuiz) : '—'} sub={quizzes.length ? `${quizzes.length} חידונים` : undefined} tone={scoreTone(avgQuiz)} />
+        <Tile label="ממוצע ציון תוכן" value={avgContent != null ? String(avgContent) : '-'} tone={scoreTone(avgContent)} />
+        <Tile label="נוכחות" value={rate != null ? `${rate}%` : '-'} sub={rate != null ? `${present} מתוך ${present + absent}` : undefined} tone={scoreTone(rate)} />
+        <Tile label="ממוצע חידונים" value={avgQuiz != null ? String(avgQuiz) : '-'} sub={quizzes.length ? `${quizzes.length} חידונים` : undefined} tone={scoreTone(avgQuiz)} />
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-5 lg:items-start">

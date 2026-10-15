@@ -147,7 +147,7 @@ export default function GroupFormPage() {
               <input type="checkbox" className="mt-1" checked={notifyDefault} onChange={(e) => setNotifyDefault(e.target.checked)} />
               <span>
                 עדכונים במייל לתלמידות חדשות בקבוצה
-                <span className="block text-xs text-ink/55">ברירת מחדל לתלמידות שיתווספו מעכשיו — כל תלמידה יכולה לשנות בפרופיל שלה</span>
+                <span className="block text-xs text-ink/55">ברירת מחדל לתלמידות שיתווספו מעכשיו - כל תלמידה יכולה לשנות בפרופיל שלה</span>
               </span>
             </label>
             {error && <p className="text-coral text-sm">{error}</p>}
@@ -210,7 +210,7 @@ export default function GroupFormPage() {
                       aria-label={`בחר את ${s.name}`}
                     />
                     <div>
-                      <Link to={`/teacher/students/${s.id}`} className="text-sm font-medium text-ink hover:underline" title="לדף התלמידה — עריכה ומחיקת החשבון">{s.name}</Link>
+                      <Link to={`/teacher/students/${s.id}`} className="text-sm font-medium text-ink hover:underline" title="לדף התלמידה - עריכה ומחיקת החשבון">{s.name}</Link>
                       <p className="flex items-center gap-1 text-xs text-ink/50">
                         {s.email}
                         {s.emailVerified
@@ -251,7 +251,7 @@ export default function GroupFormPage() {
         open={!!removeOneTarget}
         onOpenChange={(open) => !open && setRemoveOneTarget(null)}
         title="הסרת תלמידה מהקבוצה"
-        description={removeOneTarget ? `להסיר את ${removeOneTarget.name} מהקבוצה? חשבון התלמידה עצמו לא יימחק — כדי למחוק אותו, לחצי על שמה ובדף שלה על "מחיקת חשבון".` : ''}
+        description={removeOneTarget ? `להסיר את ${removeOneTarget.name} מהקבוצה? חשבון התלמידה עצמו לא יימחק - כדי למחוק אותו, לחצי על שמה ובדף שלה על "מחיקת חשבון".` : ''}
         confirmLabel="הסר"
         loading={removeStudentMutation.isPending}
         onConfirm={() => removeStudentMutation.mutate(removeOneTarget!.id)}

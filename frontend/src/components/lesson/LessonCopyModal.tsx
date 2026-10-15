@@ -13,8 +13,8 @@ import type { LessonDetailDTO } from '@/types';
 export function clearedDeadlinesNote(count?: number): string {
   if (!count) return '';
   return count === 1
-    ? '. למטלה אחת המועד האחרון כבר עבר והוסר — יש לקבוע לה מועד חדש'
-    : `. ל-${count} מטלות המועד האחרון כבר עבר והוסר — יש לקבוע להן מועד חדש`;
+    ? '. למטלה אחת המועד האחרון כבר עבר והוסר - יש לקבוע לה מועד חדש'
+    : `. ל-${count} מטלות המועד האחרון כבר עבר והוסר - יש לקבוע להן מועד חדש`;
 }
 
 /**
@@ -47,7 +47,7 @@ export function LessonCopyModal({ lesson, open, onClose }: {
       const copy = res.data.data.lesson;
       qc.invalidateQueries({ queryKey: ['course', copy.courseId] });
       qc.invalidateQueries({ queryKey: ['courses'] });
-      toast.success('השיעור הועתק — העותק מוסתר מהתלמידות עד שתציגי אותו' + clearedDeadlinesNote(res.data.data.clearedDeadlines));
+      toast.success('השיעור הועתק - העותק מוסתר מהתלמידות עד שתציגי אותו' + clearedDeadlinesNote(res.data.data.clearedDeadlines));
       onClose();
       navigate(`/teacher/lessons/${copy.id}`);
     },
@@ -70,7 +70,7 @@ export function LessonCopyModal({ lesson, open, onClose }: {
             >
               {courses.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}{c.id === lesson.courseId ? ' (הקורס הנוכחי — שכפול)' : ''}
+                  {c.name}{c.id === lesson.courseId ? ' (הקורס הנוכחי - שכפול)' : ''}
                 </option>
               ))}
             </select>

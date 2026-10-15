@@ -71,7 +71,7 @@ export function StudentEditDialog({ student, onClose, save, onSaved }: StudentEd
             <Input label="שם משתמש GitHub (אופציונלי)" value={github} onChange={(e) => setGithub(e.target.value)} />
             {clearingGithub && (
               <p className="text-xs text-ink/60">
-                שם המשתמש ב-GitHub יימחק. הגשות שכבר הוגשו לא ייפגעו — הקישורים לריפו שלהן נשמרים.
+                שם המשתמש ב-GitHub יימחק. הגשות שכבר הוגשו לא ייפגעו - הקישורים לריפו שלהן נשמרים.
               </p>
             )}
             {error && <p className="text-coral text-sm">{error}</p>}

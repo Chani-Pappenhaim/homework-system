@@ -53,7 +53,7 @@ export function AttendancePanel({ courseId }: { courseId: string }) {
       const { created, undated } = r.data.data;
       qc.invalidateQueries({ queryKey: ['attendance', courseId] });
       toast.success(created ? `נפתחו ${created} מפגשים` : 'לכל השיעורים עם תאריך כבר יש מפגש');
-      if (undated) toast.error(`${undated} שיעורים בלי תאריך — אפשר לפתוח להם מפגש ידנית`);
+      if (undated) toast.error(`${undated} שיעורים בלי תאריך - אפשר לפתוח להם מפגש ידנית`);
     },
     onError: (e) => toast.error(getApiErrorMessage(e, 'פתיחת המפגשים נכשלה')),
   });
@@ -144,7 +144,7 @@ export function AttendancePanel({ courseId }: { courseId: string }) {
                   disabled={fromLessons.isPending}
                   className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-rule px-3 py-2 text-xs font-semibold text-clay hover:bg-ground disabled:opacity-50"
                 >
-                  <CalendarPlus size={13} /> {lessonsWithout} שיעורים באתר בלי מפגש — לפתוח
+                  <CalendarPlus size={13} /> {lessonsWithout} שיעורים באתר בלי מפגש - לפתוח
                 </button>
               )}
             </CardContent>

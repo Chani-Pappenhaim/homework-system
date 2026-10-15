@@ -69,7 +69,7 @@ export function AttendanceGrid({ data, roster, onOpenSession }: Props) {
                   <th key={s.id} className="border-b border-rule px-1 py-1 text-center">
                     <button
                       onClick={() => onOpenSession(s.id)}
-                      title={`${formatFullDay(s.date)} — ${s.title ?? lessonOf(s.lessonId)?.topic ?? 'מפגש'}`}
+                      title={`${formatFullDay(s.date)} - ${s.title ?? lessonOf(s.lessonId)?.topic ?? 'מפגש'}`}
                       className="rounded px-1.5 py-1 text-[11px] font-semibold text-ink-soft hover:bg-ground hover:text-ink"
                     >
                       {shortDay(s.date)}
@@ -103,10 +103,10 @@ export function AttendanceGrid({ data, roster, onOpenSession }: Props) {
                     'border-b border-r border-rule/60 px-3 py-1.5 text-center font-semibold group-hover:bg-ground/60',
                     rate === null ? 'text-ink-soft' : rate >= 85 ? 'text-sage' : rate >= 70 ? 'text-clay' : 'text-coral',
                   )}>
-                    {rate === null ? '—' : `${rate}%`}
+                    {rate === null ? '-' : `${rate}%`}
                     {absent > 0 && <span className="block text-[10px] font-normal text-ink-soft">{absent} חיסורים</span>}
                   </td>
-                  <td className="border-b border-rule/60 px-3 py-1.5 text-center text-ink-soft group-hover:bg-ground/60">{excused || '—'}</td>
+                  <td className="border-b border-rule/60 px-3 py-1.5 text-center text-ink-soft group-hover:bg-ground/60">{excused || '-'}</td>
                   {homeworkCount > 0 && (
                     <td className="border-b border-rule/60 px-3 py-1.5 text-center text-ink group-hover:bg-ground/60">{done}/{homeworkCount}</td>
                   )}

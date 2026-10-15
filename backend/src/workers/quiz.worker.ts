@@ -82,7 +82,7 @@ export async function processQuizJob(job: Job<QuizJobData>): Promise<void> {
       // Gemini was reading itself, and tell her they were left out.
       if (attachments.length === 0 || !(err instanceof GeminiError) || err.status !== 400) throw err;
       console.warn(
-        `[quiz] lesson ${lessonId}: Gemini refused the attached files (${err.message}) — retrying without them`
+        `[quiz] lesson ${lessonId}: Gemini refused the attached files (${err.message}) - retrying without them`
       );
       const refused = new Set(attachments.map((a) => a.name));
       sourceFiles = {
@@ -139,7 +139,7 @@ async function saveQuiz(
       });
       if (count === 0) {
         if (await tx.quiz.findUnique({ where: { lessonId }, select: { id: true } })) {
-          console.warn(`[quiz] lesson ${lessonId} was published during regeneration — keeping the published quiz`);
+          console.warn(`[quiz] lesson ${lessonId} was published during regeneration - keeping the published quiz`);
           return false;
         }
         await tx.quiz.create({ data: { lessonId, ...data, published: false } });
@@ -161,7 +161,7 @@ async function saveQuiz(
     // A quiz appeared while this job ran (a stuck job was replaced and both
     // finished). Never overwrite it: it may already be edited or answered.
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-      console.warn(`[quiz] lesson ${lessonId} already has a quiz — discarding the newly generated one`);
+      console.warn(`[quiz] lesson ${lessonId} already has a quiz - discarding the newly generated one`);
       return false;
     }
     throw err;

@@ -152,6 +152,6 @@ describe('QuizPage', () => {
     await userEvent.click(screen.getAllByRole('radio')[0]);
     await userEvent.click(screen.getByRole('button', { name: 'הגש חידון' }));
 
-    expect(await screen.findByText('התשובה שלך — נכונה')).toBeInTheDocument();
+    expect(await screen.findByText('התשובה שלך - נכונה')).toBeInTheDocument();
   });
 });

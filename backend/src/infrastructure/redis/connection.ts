@@ -5,7 +5,7 @@ import IORedis, { RedisOptions } from 'ioredis';
 // in production). The URL itself is never logged, only that it is missing.
 const REDIS_URL = process.env.REDIS_URL;
 if (!REDIS_URL) {
-  throw new Error('REDIS_URL is not set — configure it before starting the app');
+  throw new Error('REDIS_URL is not set - configure it before starting the app');
 }
 
 // BullMQ requires maxRetriesPerRequest: null on the connections it uses. Passing

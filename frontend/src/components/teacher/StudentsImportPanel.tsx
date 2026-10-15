@@ -127,12 +127,12 @@ export function StudentsImportPanel({ groupId, onDone }: Props) {
             </li>
             {check.alreadyInGroup > 0 && (
               <li className="flex items-center gap-1.5 text-ink/60">
-                <Info size={15} /> {check.alreadyInGroup} כבר נמצאות בקבוצה — ידולגו
+                <Info size={15} /> {check.alreadyInGroup} כבר נמצאות בקבוצה - ידולגו
               </li>
             )}
             {errorCount > 0 && (
               <li className="flex items-center gap-1.5 text-coral">
-                <AlertCircle size={15} /> {errorCount === 1 ? 'שורה אחת עם שגיאה' : `${errorCount} שורות עם שגיאות`} — לא יתווספו
+                <AlertCircle size={15} /> {errorCount === 1 ? 'שורה אחת עם שגיאה' : `${errorCount} שורות עם שגיאות`} - לא יתווספו
               </li>
             )}
           </ul>
@@ -153,7 +153,7 @@ export function StudentsImportPanel({ groupId, onDone }: Props) {
                 </Button>
               )}
               <Button size="sm" variant="outline" onClick={reset} disabled={runImport.isPending}>
-                {errorCount > 0 ? 'לא להוסיף — אתקן את הקובץ' : check.toAdd > 0 ? 'ביטול' : 'בחירת קובץ אחר'}
+                {errorCount > 0 ? 'לא להוסיף - אתקן את הקובץ' : check.toAdd > 0 ? 'ביטול' : 'בחירת קובץ אחר'}
               </Button>
             </div>
           ) : (

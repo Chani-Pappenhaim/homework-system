@@ -98,7 +98,7 @@ export default function QuizDashboard({ data }: { data: QuizResultsDTO }) {
         <CardHeader><h2 className="font-display text-base font-bold">תוצאות הכיתה</h2></CardHeader>
         <CardContent>
           <p className="text-sm text-ink/55">
-            אף תלמידה עוד לא ענתה על החידון. כשיתחילו לענות, כאן יופיע פילוח לפי שאלה — על מה ענו נכון ואיזו תשובה שגויה בחרו.
+            אף תלמידה עוד לא ענתה על החידון. כשיתחילו לענות, כאן יופיע פילוח לפי שאלה - על מה ענו נכון ואיזו תשובה שגויה בחרו.
           </p>
         </CardContent>
       </Card>
@@ -115,11 +115,11 @@ export default function QuizDashboard({ data }: { data: QuizResultsDTO }) {
         <StatTile label="ענו על החידון" value={String(summary.attemptCount)} hint="תלמידות" />
         <StatTile
           label="ממוצע כיתתי"
-          value={summary.averageScore !== null ? `${Math.round(summary.averageScore)}%` : '—'}
+          value={summary.averageScore !== null ? `${Math.round(summary.averageScore)}%` : '-'}
         />
         <StatTile
           label="השאלה הקשה ביותר"
-          value={hardest?.correctRate !== null && hardest ? `${Math.round(hardest.correctRate!)}%` : '—'}
+          value={hardest?.correctRate !== null && hardest ? `${Math.round(hardest.correctRate!)}%` : '-'}
           hint={hardest ? `שאלה ${questions.indexOf(hardest) + 1}` : undefined}
         />
       </div>

@@ -8,7 +8,7 @@ const PLACEHOLDER_VALUES = new Set(['secret', 'changeme', 'password', 'test', '1
 function requireStrongSecret(envVar: string): string {
   const value = process.env[envVar];
   if (!value || value.trim().length < 16 || PLACEHOLDER_VALUES.has(value.trim().toLowerCase())) {
-    throw new Error(`${envVar} is missing or too weak — set a long random value before starting the server`);
+    throw new Error(`${envVar} is missing or too weak - set a long random value before starting the server`);
   }
   return value;
 }

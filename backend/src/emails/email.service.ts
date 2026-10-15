@@ -55,7 +55,7 @@ export async function handleEmailJob(name: EmailJobName, data: EmailJobData): Pr
     }
 
     case 'storage-alert': {
-      if (!adminEmail) { console.warn('[email] ADMIN_EMAIL not set — skipping storage-alert'); return; }
+      if (!adminEmail) { console.warn('[email] ADMIN_EMAIL not set - skipping storage-alert'); return; }
       await sendMail({
         to: adminEmail,
         subject: 'אזהרה: שטח האחסון ב-Cloudinary עבר 80%',
@@ -65,7 +65,7 @@ export async function handleEmailJob(name: EmailJobName, data: EmailJobData): Pr
     }
 
     case 'student-message': {
-      if (!adminEmail) { console.warn('[email] ADMIN_EMAIL not set — skipping student-message'); return; }
+      if (!adminEmail) { console.warn('[email] ADMIN_EMAIL not set - skipping student-message'); return; }
       const d = data as EmailJobMap['student-message'];
       await sendMail({
         to: adminEmail,
@@ -98,7 +98,7 @@ export async function handleEmailJob(name: EmailJobName, data: EmailJobData): Pr
     }
 
     case 'student-reply': {
-      if (!adminEmail) { console.warn('[email] ADMIN_EMAIL not set — skipping student-reply'); return; }
+      if (!adminEmail) { console.warn('[email] ADMIN_EMAIL not set - skipping student-reply'); return; }
       const d = data as EmailJobMap['student-reply'];
       await sendMail({
         to: adminEmail,
@@ -109,7 +109,7 @@ export async function handleEmailJob(name: EmailJobName, data: EmailJobData): Pr
     }
 
     case 'deadline-report': {
-      if (!adminEmail) { console.warn('[email] ADMIN_EMAIL not set — skipping deadline-report'); return; }
+      if (!adminEmail) { console.warn('[email] ADMIN_EMAIL not set - skipping deadline-report'); return; }
       const d = data as EmailJobMap['deadline-report'];
       await sendMail({
         to: adminEmail,

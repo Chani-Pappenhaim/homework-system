@@ -44,7 +44,7 @@ function failedMessage(role: string): string {
 const TEACHER_FAILURE_MESSAGES: Record<Exclude<QuizFailureKind, 'no-content' | 'unknown'>, string> = {
   timeout: 'ה-AI לא הספיק לענות בזמן, גם אחרי כמה ניסיונות. נסי שוב בעוד כמה דקות; אם צירפת קבצים גדולים, אפשר לנסות גם בלעדיהם.',
   'rate-limit': 'הגענו כרגע למכסת השימוש ב-AI. נסי שוב בעוד כמה דקות.',
-  'daily-quota': 'המכסה היומית החינמית של ה-AI נגמרה, והמעבר לגרסה בתשלום אינו זמין (מפתח בתשלום לא מוגדר, או שהמעבר כבוי בהגדרות ה-AI). המכסה מתאפסת כל יום בסביבות 10:00 בבוקר (חצות בשעון קליפורניה) — נסי שוב אחרי כן.',
+  'daily-quota': 'המכסה היומית החינמית של ה-AI נגמרה, והמעבר לגרסה בתשלום אינו זמין (מפתח בתשלום לא מוגדר, או שהמעבר כבוי בהגדרות ה-AI). המכסה מתאפסת כל יום בסביבות 10:00 בבוקר (חצות בשעון קליפורניה) - נסי שוב אחרי כן.',
   unavailable: 'שירות ה-AI לא זמין כרגע. נסי שוב בעוד כמה דקות.',
   config: 'שירות ה-AI לא מוגדר כראוי בשרת, ולכן ניסיון נוסף לא יעזור. פני לתמיכה הטכנית.',
   blocked: 'מסנן התוכן של ה-AI סירב לעבד את תוכן השיעור. נסי לנסח מחדש קטעים רגישים, או ליצור בלי הקבצים המצורפים.',
@@ -107,7 +107,7 @@ async function readGenerationState(lessonId: string, role: string): Promise<Gene
       if (removed) {
         console.error(
           `[quiz] lesson ${lessonId}: no progress for ${Math.round((now - lastSign) / 1000)}s ` +
-            `(stage ${progress.stage ?? 'queued'}) — removed as stuck`
+            `(stage ${progress.stage ?? 'queued'}) - removed as stuck`
         );
         return { status: 'failed', message: failureMessage('stuck', role) };
       }
@@ -148,7 +148,7 @@ async function excludedFilesOf(lessonId: string): Promise<string[]> {
 }
 
 /** What a student is told whenever there is no quiz she may take. */
-const NOT_PUBLISHED_MESSAGE = 'החידון לשיעור הזה עדיין לא פורסם. המורה מכינה אותו — נסי שוב מאוחר יותר.';
+const NOT_PUBLISHED_MESSAGE = 'החידון לשיעור הזה עדיין לא פורסם. המורה מכינה אותו - נסי שוב מאוחר יותר.';
 
 export interface QuizQuestionInput {
   id?: unknown;

@@ -33,14 +33,14 @@ export default function ProfilePage() {
     onSuccess: (res) => {
       const { user: updated, emailChanged } = res.data.data;
       if (accessToken) setAuth(updated, accessToken);
-      toast.success(emailChanged ? 'נשמר — שלחנו קישור אימות לכתובת החדשה' : 'הפרטים נשמרו');
+      toast.success(emailChanged ? 'נשמר - שלחנו קישור אימות לכתובת החדשה' : 'הפרטים נשמרו');
     },
     onError: (err) => toast.error(getApiErrorMessage(err, 'שגיאה בשמירת הפרטים')),
   });
 
   const resendMutation = useMutation({
     mutationFn: () => authApi.resendVerification(),
-    onSuccess: () => toast.success('שלחנו שוב את קישור האימות — בדקי את תיבת המייל'),
+    onSuccess: () => toast.success('שלחנו שוב את קישור האימות - בדקי את תיבת המייל'),
     onError: (err) => toast.error(getApiErrorMessage(err, 'שגיאה בשליחת המייל')),
   });
 
@@ -64,7 +64,7 @@ export default function ProfilePage() {
                 <p className="flex items-center gap-1.5 text-xs text-sage"><MailCheck size={14} /> הכתובת אומתה</p>
               ) : (
                 <p className="flex flex-wrap items-center gap-1.5 text-xs text-coral">
-                  <MailWarning size={14} /> הכתובת עדיין לא אומתה — לא יישלחו אלייך עדכונים במייל.
+                  <MailWarning size={14} /> הכתובת עדיין לא אומתה - לא יישלחו אלייך עדכונים במייל.
                   <button
                     type="button"
                     className="font-semibold underline disabled:opacity-50"

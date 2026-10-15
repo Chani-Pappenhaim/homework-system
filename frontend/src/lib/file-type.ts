@@ -63,7 +63,7 @@ export const PREVIEWABLE_GROUPS: PreviewableGroup[] = [
   { key: 'code', label: 'טקסט וקוד', detail: 'txt, md, csv, json, py, js, java, cs, sql ועוד' },
 ];
 
-export const DOWNLOAD_ONLY_NOTE = 'כל סוג אחר (zip, rar וכדומה) — להורדה בלבד';
+export const DOWNLOAD_ONLY_NOTE = 'כל סוג אחר (zip, rar וכדומה) - להורדה בלבד';
 
 /**
  * The online Office viewer refuses larger files (Word/PowerPoint 10MB, Excel

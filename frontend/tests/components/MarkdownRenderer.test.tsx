@@ -4,7 +4,7 @@ import { MarkdownRenderer, MarkdownText } from '@/components/ui/markdown-rendere
 
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
-describe('MarkdownRenderer — pictures inlined in the text', () => {
+describe('MarkdownRenderer - pictures inlined in the text', () => {
   it('shows a picture converted from a Word file', () => {
     render(<MarkdownRenderer content={`![מסך](${PNG})`} />);
     expect(screen.getByRole('img', { name: 'מסך' })).toHaveAttribute('src', PNG);
@@ -57,7 +57,7 @@ describe('MarkdownRenderer', () => {
     expect((window as any).__pwn).toBeUndefined();
   });
 
-  it('keeps html inside a code block intact — lessons teach html', () => {
+  it('keeps html inside a code block intact - lessons teach html', () => {
     // Regression: DOMPurify ran on the markdown source, so a lesson's ```html
     // example was stripped before it ever became a code block.
     const md = '```html\n<script>alert(1)</script>\n```';

@@ -65,7 +65,7 @@ function runningJob(overrides: Record<string, unknown> = {}) {
   };
 }
 
-describe('quizzes.service.getQuiz — the teacher owns the draft', () => {
+describe('quizzes.service.getQuiz - the teacher owns the draft', () => {
   it('shows the teacher her unpublished draft, with the correct answers', async () => {
     p.quiz.findUnique.mockResolvedValue(draft);
     const r: any = await getQuiz('l1', 'admin', 'ADMIN');
@@ -462,7 +462,7 @@ describe('quizzes.service.setQuizPublished', () => {
     expect(p.quiz.update).not.toHaveBeenCalled();
   });
 
-  it('still allows unpublishing a malformed quiz — that is the way out of the problem', async () => {
+  it('still allows unpublishing a malformed quiz - that is the way out of the problem', async () => {
     p.quiz.findUnique.mockResolvedValue({ id: 'qz1', published: true, questions: [] });
     p.quiz.update.mockResolvedValue({ id: 'qz1', published: false, questions: [] });
     expect(await setQuizPublished('l1', false)).toEqual({ published: false });

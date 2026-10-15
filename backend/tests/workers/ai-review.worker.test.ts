@@ -176,7 +176,7 @@ describe('ai-review worker', () => {
   });
 });
 
-describe('ai-review worker — attempts and the assignment description', () => {
+describe('ai-review worker - attempts and the assignment description', () => {
   const githubSubmission = {
     id: 's5', githubUrl: 'https://github.com/u/r', fileName: null, fileUrl: null,
     assignment: { title: 'Task', aiInstructions: 'strict', description: 'Build a todo list' }, student: {},

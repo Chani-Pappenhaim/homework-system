@@ -9,7 +9,7 @@ export async function sendMail({ to, subject, html }: { to: string; subject: str
 
   // Missing config disables email silently rather than throwing
   if (!apiKey || !senderEmail) {
-    console.warn(`[email] BREVO_API_KEY/BREVO_SENDER_EMAIL not set — skipping email "${subject}" to ${to}`);
+    console.warn(`[email] BREVO_API_KEY/BREVO_SENDER_EMAIL not set - skipping email "${subject}" to ${to}`);
     return;
   }
 

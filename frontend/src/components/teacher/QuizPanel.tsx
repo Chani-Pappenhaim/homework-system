@@ -126,7 +126,7 @@ export default function QuizPanel({
       </h2>
       {quiz && (
         <Badge variant={quiz.published ? 'success' : 'secondary'}>
-          {quiz.published ? 'פורסם לתלמידות' : 'טיוטה — התלמידות לא רואות'}
+          {quiz.published ? 'פורסם לתלמידות' : 'טיוטה - התלמידות לא רואות'}
         </Badge>
       )}
     </CardHeader>
@@ -344,7 +344,7 @@ export default function QuizPanel({
           </DialogHeader>
           <DialogBody className="space-y-3">
             <p className="text-sm text-ink/70">
-              ה-AI יכתוב שאלות חדשות במקום השאלות הנוכחיות — כולל העריכות שלך
+              ה-AI יכתוב שאלות חדשות במקום השאלות הנוכחיות - כולל העריכות שלך
               {dirty && ' ושינויים שעוד לא נשמרו'}. תשובות שכבר הוגשו לבוחן יימחקו.
               עד שהשאלות החדשות יהיו מוכנות, הנוכחיות נשארות.
             </p>

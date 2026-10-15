@@ -57,7 +57,7 @@ beforeEach(() => {
   generate.mockResolvedValue(questions);
 });
 
-describe('quiz worker — generation', () => {
+describe('quiz worker - generation', () => {
   it('generates from the lesson text alone and saves an unpublished draft', async () => {
     const j = job();
     await processQuizJob(j);
@@ -113,7 +113,7 @@ describe('quiz worker — generation', () => {
   });
 });
 
-describe('quiz worker — failures', () => {
+describe('quiz worker - failures', () => {
   it('does not retry a lesson that has no content', async () => {
     p.lesson.findUnique.mockResolvedValue({ contentMd: '  ' });
     const j = job();
@@ -151,7 +151,7 @@ describe('quiz worker — failures', () => {
   });
 });
 
-describe('quiz worker — saving', () => {
+describe('quiz worker - saving', () => {
   it('never overwrites a quiz that appeared while it ran', async () => {
     p.quiz.create.mockRejectedValue(
       new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: 'x' })

@@ -24,7 +24,7 @@ export async function getAiSettings(): Promise<AiSettings> {
     const row = await prisma.appSettings.findUnique({ where: { id: SETTINGS_ID } });
     return row ? { paidFallback: row.aiPaidFallback } : DEFAULT_AI_SETTINGS;
   } catch (err) {
-    console.warn('[settings] could not read the AI settings — using the defaults:', (err as Error)?.message ?? err);
+    console.warn('[settings] could not read the AI settings - using the defaults:', (err as Error)?.message ?? err);
     return DEFAULT_AI_SETTINGS;
   }
 }

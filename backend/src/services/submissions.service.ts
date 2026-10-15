@@ -73,7 +73,7 @@ async function saveSubmission(
   if (existing?.aiStatus === 'pending') {
     throw new AppError(
       'AI review in progress',
-      'בדיקת AI של ההגשה הקודמת עדיין רצה — אפשר להגיש מחדש כשהיא תסתיים',
+      'בדיקת AI של ההגשה הקודמת עדיין רצה - אפשר להגיש מחדש כשהיא תסתיים',
       409
     );
   }
@@ -90,7 +90,7 @@ async function saveSubmission(
   if (payload.repoName) {
     if (!assignment.allowGithub) throw new AppError('GitHub not allowed for this assignment', 'הגשת GitHub אינה מותרת במטלה זו', 400);
     const student = await prisma.user.findUnique({ where: { id: studentId } });
-    if (!student?.githubUsername) throw new AppError('No GitHub username set for your account', 'לא הוגדר שם משתמש GitHub בחשבון שלך — יש לעדכן אותו בפרופיל', 400);
+    if (!student?.githubUsername) throw new AppError('No GitHub username set for your account', 'לא הוגדר שם משתמש GitHub בחשבון שלך - יש לעדכן אותו בפרופיל', 400);
     const repoName = normalizeRepoName(payload.repoName);
     if (!repoName) throw new AppError('Empty repo name', 'יש להזין שם ריפו', 400);
     const repoStatus = await getRepoStatus(student.githubUsername, repoName);
@@ -106,7 +106,7 @@ async function saveSubmission(
     if (repoStatus === 'unknown') {
       throw new AppError(
         'GitHub could not be reached to verify the repo',
-        'לא ניתן לאמת כרגע את הריפו מול GitHub. ההגשה לא נשמרה — יש לנסות שוב בעוד כמה דקות',
+        'לא ניתן לאמת כרגע את הריפו מול GitHub. ההגשה לא נשמרה - יש לנסות שוב בעוד כמה דקות',
         503
       );
     }
@@ -564,7 +564,7 @@ function teacherChecked(g: TeacherGradeFields | null | undefined): boolean {
  * explicitly allowed changes.
  */
 export function submissionDeleteBlock(sub: DeletableSubmission): string | null {
-  if (sub.aiStatus === 'pending') return 'בדיקת AI של ההגשה עדיין רצה — אפשר למחוק כשהיא תסתיים';
+  if (sub.aiStatus === 'pending') return 'בדיקת AI של ההגשה עדיין רצה - אפשר למחוק כשהיא תסתיים';
   if (teacherChecked(sub.grade) && !sub.changesAllowed) return CHECKED_BY_TEACHER;
   return null;
 }
@@ -603,7 +603,7 @@ export async function deleteMySubmission(submissionId: string, studentId: string
     },
   });
   if (deleted.count === 0) {
-    throw new AppError('Submission changed while deleting', 'ההגשה השתנתה בינתיים ולא נמחקה — יש לרענן את הדף', 409);
+    throw new AppError('Submission changed while deleting', 'ההגשה השתנתה בינתיים ולא נמחקה - יש לרענן את הדף', 409);
   }
   if (submission.fileUrl) await releaseFileUrls([submission.fileUrl]);
 }
@@ -664,7 +664,7 @@ export async function importSubmissions(buffer: Buffer) {
         errors.push(`שורה ${rowNumber}: ${studentEmail} אינה רשומה לקורס של המטלה "${assignmentTitle}"`); skipped++; continue;
       }
       if (candidates.length > 1) {
-        errors.push(`שורה ${rowNumber}: יש כמה מטלות בשם "${assignmentTitle}" בקורסים של ${studentEmail} — יש לשנות את שם המטלה כך שיהיה ייחודי`);
+        errors.push(`שורה ${rowNumber}: יש כמה מטלות בשם "${assignmentTitle}" בקורסים של ${studentEmail} - יש לשנות את שם המטלה כך שיהיה ייחודי`);
         skipped++; continue;
       }
       const assignment = candidates[0];
@@ -673,12 +673,12 @@ export async function importSubmissions(buffer: Buffer) {
       // other owner has to be written out, so no link is ever guessed.
       const ref = parseRepoRef(repoName);
       if (!ref) {
-        errors.push(`שורה ${rowNumber}: "${repoName}" אינו שם ריפו תקין — יש לכתוב שם ריפו, owner/repo או קישור מלא ל-GitHub`);
+        errors.push(`שורה ${rowNumber}: "${repoName}" אינו שם ריפו תקין - יש לכתוב שם ריפו, owner/repo או קישור מלא ל-GitHub`);
         skipped++; continue;
       }
       const owner = ref.owner ?? student.githubUsername;
       if (!owner) {
-        errors.push(`שורה ${rowNumber}: ל-${studentEmail} לא מוגדר שם משתמש GitHub — יש לכתוב owner/repo או קישור מלא במקום שם הריפו בלבד`);
+        errors.push(`שורה ${rowNumber}: ל-${studentEmail} לא מוגדר שם משתמש GitHub - יש לכתוב owner/repo או קישור מלא במקום שם הריפו בלבד`);
         skipped++; continue;
       }
       const repoStatus = await getRepoStatus(owner, ref.repo);
@@ -687,7 +687,7 @@ export async function importSubmissions(buffer: Buffer) {
         skipped++; continue;
       }
       if (repoStatus === 'unknown') {
-        errors.push(`שורה ${rowNumber}: לא ניתן היה לאמת את github.com/${owner}/${ref.repo} מול GitHub — השורה לא יובאה, יש לנסות לייבא אותה שוב מאוחר יותר`);
+        errors.push(`שורה ${rowNumber}: לא ניתן היה לאמת את github.com/${owner}/${ref.repo} מול GitHub - השורה לא יובאה, יש לנסות לייבא אותה שוב מאוחר יותר`);
         skipped++; continue;
       }
       const githubUrl = `https://github.com/${owner}/${ref.repo}`;

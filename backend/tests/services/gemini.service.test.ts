@@ -70,9 +70,20 @@ describe('gemini.service.reviewCode', () => {
     const r = await reviewCode('x', 'T');
     expect(r).toEqual({ codeReview: '', verbalReview: '', score: 0 });
   });
+
+  it('turns long dashes into plain hyphens and asks for them in the prompt', async () => {
+    const geminiJson = JSON.stringify({ code_review: '• a — b', verbal_review: 'pages 1–3', score: 90 });
+    const fetchMock = vi.fn().mockResolvedValue(geminiOk(geminiJson));
+    vi.stubGlobal('fetch', fetchMock);
+    p.aiUsageLog.create.mockResolvedValue({});
+
+    const r = await reviewCode('x', 'T');
+    expect(r).toMatchObject({ codeReview: '• a - b', verbalReview: 'pages 1-3' });
+    expect(fetchMock.mock.calls[0][1].body).toContain('מקף רגיל');
+  });
 });
 
-describe('gemini.service — failure reporting', () => {
+describe('gemini.service - failure reporting', () => {
   // Every case here used to reach the caller as an unreadable throw, which the
   // UI showed as an endless "generating" spinner. The message must name the cause.
   it('names the retired model on a 404 so the fix is obvious', async () => {
@@ -83,7 +94,7 @@ describe('gemini.service — failure reporting', () => {
         error: { code: 404, message: 'This model models/gemini-2.0-flash is no longer available.' },
       }),
     }));
-    await expect(generateQuiz('content')).rejects.toThrow(/404 — the model .* is not available/);
+    await expect(generateQuiz('content')).rejects.toThrow(/404 - the model .* is not available/);
   });
 
   it('unwraps Google\'s error message instead of dumping the raw body', async () => {
@@ -166,6 +177,14 @@ describe('gemini.service.generateQuiz', () => {
     }));
   });
 
+  it('turns long dashes in questions and answers into plain hyphens', async () => {
+    const dashed = { id: '1', question: 'מה — מה?', options: ['1–2', 'b', 'c', 'd'], correctIndex: 0 };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(geminiOk(JSON.stringify([dashed]))));
+    const [question] = await generateQuiz('x');
+    expect(question.question).toBe('מה - מה?');
+    expect(question.options[0]).toBe('1-2');
+  });
+
   it('accepts the object-wrapped shape Gemini sometimes returns', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(geminiOk(JSON.stringify({ questions: [q(1)] }))));
     expect(await generateQuiz('x')).toHaveLength(1);
@@ -195,7 +214,7 @@ describe('gemini.service.generateQuiz', () => {
   });
 });
 
-describe('gemini.service.generateQuiz — attached files', () => {
+describe('gemini.service.generateQuiz - attached files', () => {
   const q = { id: '1', question: 'Q?', options: ['a', 'b'], correctIndex: 0 };
   beforeEach(() => p.aiUsageLog.create.mockResolvedValue({}));
 
@@ -233,7 +252,7 @@ describe('gemini.service.generateQuiz — attached files', () => {
   });
 });
 
-describe('gemini.service — free and paid keys', () => {
+describe('gemini.service - free and paid keys', () => {
   /** Google's 429 body: the spent quota is named in a QuotaFailure violation. */
   const quotaExceeded = (quotaId: string, quotaValue = '20') => ({
     ok: false,

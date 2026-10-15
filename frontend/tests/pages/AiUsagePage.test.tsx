@@ -80,7 +80,7 @@ describe('AiUsagePage', () => {
   });
 });
 
-describe('AiUsagePage — Gemini quota card', () => {
+describe('AiUsagePage - Gemini quota card', () => {
   it('shows today\'s free requests out of the daily limit', async () => {
     renderSummary(sampleSummary);
 
@@ -140,7 +140,7 @@ describe('AiUsagePage — Gemini quota card', () => {
   });
 });
 
-describe('AiUsagePage — paid fallback settings', () => {
+describe('AiUsagePage - paid fallback settings', () => {
   it('shows the saved choice', async () => {
     renderSummary(withQuota({ paidFallback: 'ANY_LIMIT' }));
     expect(await screen.findByRole('radio', { name: /גם בעומס רגעי/ })).toBeChecked();

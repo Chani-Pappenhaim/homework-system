@@ -101,7 +101,7 @@ export default function StudentLessonDetailPage({ lessonId, lessonNumber }: Part
               )}
             >
               <Check size={15} strokeWidth={3} />
-              {lesson.completed ? 'הושלם — בטלי סימון' : 'סיימתי את השיעור'}
+              {lesson.completed ? 'הושלם - בטלי סימון' : 'סיימתי את השיעור'}
             </button>
             {!lesson.completed && pendingRequiredFiles.length > 0 && (
               <p className="text-xs text-coral">נותרו {pendingRequiredFiles.length} קבצי חובה לצפייה</p>
@@ -487,7 +487,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                 </div>
                 {!githubUsername ? (
                   <p className="text-xs text-coral">
-                    לא הוגדר שם משתמש GitHub בחשבון שלך —{' '}
+                    לא הוגדר שם משתמש GitHub בחשבון שלך -{' '}
                     <Link to="/student/profile" className="font-semibold underline">יש לעדכן אותו בפרופיל</Link>{' '}
                     לפני הגשת ריפו
                   </p>

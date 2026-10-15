@@ -63,7 +63,7 @@ describe('AttendancePanel', () => {
     // Keep the save in flight so the sheet shows the optimistic mark, not a refetch.
     api.saveRecords.mockReturnValueOnce(new Promise(() => {}));
     renderPanel();
-    const group = await screen.findByRole('radiogroup', { name: 'נוכחות — בתיה' });
+    const group = await screen.findByRole('radiogroup', { name: 'נוכחות - בתיה' });
     await userEvent.click(within(group).getByRole('radio', { name: /חסרה/ }));
     expect(api.saveRecords).toHaveBeenCalledWith('a1', [{ studentId: 's2', status: 'ABSENT' }]);
     // Optimistic: the sheet reflects it before the refetch.
@@ -72,7 +72,7 @@ describe('AttendancePanel', () => {
 
   it('pressing the current status again clears the mark', async () => {
     renderPanel();
-    const group = await screen.findByRole('radiogroup', { name: 'נוכחות — אסתר' });
+    const group = await screen.findByRole('radiogroup', { name: 'נוכחות - אסתר' });
     await userEvent.click(within(group).getByRole('radio', { name: /נוכחת/ }));
     expect(api.saveRecords).toHaveBeenCalledWith('a1', [{ studentId: 's1', status: null }]);
   });
@@ -87,7 +87,7 @@ describe('AttendancePanel', () => {
     renderPanel();
     await userEvent.click(await screen.findByRole('button', { name: /חזרה פרונטלית/ }));
     expect(screen.getByText('מפגש שלא באתר')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('checkbox', { name: 'דף עבודה — בתיה' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'דף עבודה - בתיה' }));
     expect(api.saveHomeworkMarks).toHaveBeenCalledWith('h1', [{ studentId: 's2', done: true }]);
   });
 

@@ -153,7 +153,7 @@ async function assertLessonInCourse(lessonId: string, courseId: string) {
 
 async function requireSession(sessionId: string) {
   const session = await prisma.attendanceSession.findUnique({ where: { id: sessionId }, select: { id: true, courseId: true } });
-  if (!session) throw new AppError('Session not found', 'המפגש לא נמצא. ייתכן שנמחק — יש לרענן את הדף.', 404);
+  if (!session) throw new AppError('Session not found', 'המפגש לא נמצא. ייתכן שנמחק - יש לרענן את הדף.', 404);
   return session;
 }
 
@@ -257,7 +257,7 @@ async function requireHomework(homeworkId: string) {
   const hw = await prisma.extraHomework.findUnique({
     where: { id: homeworkId }, select: { id: true, session: { select: { courseId: true } } },
   });
-  if (!hw) throw new AppError('Homework not found', 'שיעורי הבית לא נמצאו. ייתכן שנמחקו — יש לרענן את הדף.', 404);
+  if (!hw) throw new AppError('Homework not found', 'שיעורי הבית לא נמצאו. ייתכן שנמחקו - יש לרענן את הדף.', 404);
   return hw;
 }
 
@@ -328,11 +328,11 @@ export async function setExclusion(courseId: string, studentId: string, excluded
 // ---------- excel ----------
 
 const COLUMNS = [
-  { key: 'name', header: 'שם (רשות)', match: /^שם/, required: false, hint: 'רק לנוחות הקריאה — המערכת מזהה את התלמידה לפי המייל.' },
+  { key: 'name', header: 'שם (רשות)', match: /^שם/, required: false, hint: 'רק לנוחות הקריאה - המערכת מזהה את התלמידה לפי המייל.' },
   { key: 'email', header: 'מייל תלמידה (חובה)', match: /מייל|אימייל|email/i, required: true, hint: 'המייל שאיתו התלמידה רשומה לאתר.' },
   { key: 'date', header: 'תאריך (חובה)', match: /תאריך|date/i, required: true, hint: 'תאריך המפגש, למשל 15/10/2026.' },
   { key: 'status', header: 'סטטוס (חובה)', match: /סטטוס|status/i, required: true, hint: 'אחד מ: נוכחת / חסרה / מאושרת (חיסור מאושר).' },
-  { key: 'note', header: 'הערה (רשות)', match: /הערה|note/i, required: false, hint: 'הערה פנימית למורה — התלמידה לא רואה אותה.' },
+  { key: 'note', header: 'הערה (רשות)', match: /הערה|note/i, required: false, hint: 'הערה פנימית למורה - התלמידה לא רואה אותה.' },
   { key: 'topic', header: 'נושא המפגש (רשות)', match: /נושא|topic/i, required: false, hint: 'צריך רק אם היו כמה מפגשים באותו תאריך, או כדי לתת שם למפגש חדש.' },
 ] as const;
 type ColumnKey = (typeof COLUMNS)[number]['key'];
@@ -379,9 +379,9 @@ export async function buildAttendanceTemplate(courseId: string): Promise<Buffer>
   for (const c of COLUMNS) help.addRow([c.header.replace(/ \(.*\)$/, ''), c.required ? 'חובה' : 'רשות', c.hint]);
   help.addRow([]);
   for (const line of [
-    'כל שורה = תלמידה אחת במפגש אחד. לכמה מפגשים — מעתיקים את רשימת התלמידות שוב עם תאריך אחר.',
+    'כל שורה = תלמידה אחת במפגש אחד. לכמה מפגשים - מעתיקים את רשימת התלמידות שוב עם תאריך אחר.',
     'שורה בלי תאריך ובלי סטטוס מדלגים עליה, כך שאפשר להשאיר תלמידות לא מסומנות.',
-    'המפגש נמצא לפי התאריך. אם אין עדיין מפגש בתאריך הזה — הוא נוצר, ומקושר לשיעור באתר שתאריכו זהה (אם יש כזה).',
+    'המפגש נמצא לפי התאריך. אם אין עדיין מפגש בתאריך הזה - הוא נוצר, ומקושר לשיעור באתר שתאריכו זהה (אם יש כזה).',
     'ייבוא חוזר מעדכן את הסימון הקיים ולא יוצר כפילויות.',
   ]) help.addRow(['', '', line]);
 
@@ -432,9 +432,9 @@ export async function importAttendance(courseId: string, buffer: Buffer) {
     if (!email) { errors.push(`שורה ${rowNumber}: חסר מייל`); return; }
     if (!isValidEmail(email)) { errors.push(`שורה ${rowNumber}: המייל אינו תקין (${email})`); return; }
     const day = parseDay(rawDate instanceof Date || typeof rawDate === 'number' ? rawDate : cellText(dateCell));
-    if (!day) { errors.push(`שורה ${rowNumber}: חסר תאריך או שאינו תקין — למשל 15/10/2026`); return; }
+    if (!day) { errors.push(`שורה ${rowNumber}: חסר תאריך או שאינו תקין - למשל 15/10/2026`); return; }
     const status = parseStatus(rawStatus);
-    if (!status) { errors.push(`שורה ${rowNumber}: סטטוס לא מוכר${rawStatus ? ` ("${rawStatus}")` : ''} — יש לכתוב נוכחת, חסרה או מאושרת`); return; }
+    if (!status) { errors.push(`שורה ${rowNumber}: סטטוס לא מוכר${rawStatus ? ` ("${rawStatus}")` : ''} - יש לכתוב נוכחת, חסרה או מאושרת`); return; }
     const noteCell = read(row, 'note');
     const topicCell = read(row, 'topic');
     rows.push({
@@ -465,7 +465,7 @@ export async function importAttendance(courseId: string, buffer: Buffer) {
     } else if (onDay.length === 1) {
       return onDay[0].id;
     } else if (onDay.length > 1) {
-      return { error: 'יש כמה מפגשים בתאריך הזה — יש למלא את עמודת נושא המפגש כדי לבחור ביניהם' };
+      return { error: 'יש כמה מפגשים בתאריך הזה - יש למלא את עמודת נושא המפגש כדי לבחור ביניהם' };
     }
     const lessonsOnDay = lessons.filter((l) => dayKey(l.lessonDate!) === key);
     const lesson = topic ? lessonsOnDay.find((l) => sameText(l.topic, topic)) : lessonsOnDay.length === 1 ? lessonsOnDay[0] : undefined;
