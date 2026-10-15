@@ -10,6 +10,7 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { Brand, Tape } from '@/components/decor';
 import { getApiErrorMessage } from '@/lib/errors';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { wakeBackend } from '@/lib/wakeBackend';
 
 export default function LoginPage() {
   usePageTitle('התחברות');
@@ -21,6 +22,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [slow, setSlow] = useState(false);
   const [waking, setWaking] = useState<'github' | 'google' | null>(null);
 
   // The backend redirects here with ?error=oauth_unregistered when someone signs
@@ -35,6 +37,9 @@ export default function LoginPage() {
     }
   }, [searchParams]);
 
+  // Start a cold-starting backend right away, while the user is still typing.
+  useEffect(() => { void wakeBackend(); }, []);
+
   // A restored session landing here (e.g. the old bootstrap race, or a manual
   // /login visit) should go straight in rather than ask for a password again.
   useEffect(() => {
@@ -47,7 +52,11 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
+    const slowTimer = setTimeout(() => setSlow(true), 4000);
     try {
+      // A login is a write, so the API client won't retry it after a timeout;
+      // wait for a cold-starting backend to answer before sending it.
+      await wakeBackend();
       const res = await authApi.login(email.trim(), password);
       const { user, accessToken } = res.data.data;
       setAuth(user, accessToken);
@@ -59,6 +68,8 @@ export default function LoginPage() {
     } catch (err: any) {
       setError(getApiErrorMessage(err, 'שגיאה בכניסה למערכת. אנא בדקו את הפרטים ונסו שוב.'));
     } finally {
+      clearTimeout(slowTimer);
+      setSlow(false);
       setLoading(false);
     }
   }
@@ -73,19 +84,6 @@ export default function LoginPage() {
     // Full-page navigation straight to the backend (not the SPA host) so the OAuth
     // redirect chain and the refresh cookie all live on the backend's origin.
     window.location.href = `${API_URL}/auth/${provider}`;
-  }
-
-  async function wakeBackend() {
-    const deadline = Date.now() + 20_000;
-    while (Date.now() < deadline) {
-      try {
-        const res = await fetch(`${API_URL}/health`);
-        if (res.ok) return;
-      } catch {
-        // still asleep / spinning up — retry until the deadline
-      }
-      await new Promise((r) => setTimeout(r, 1500));
-    }
   }
 
   return (
@@ -130,6 +128,11 @@ export default function LoginPage() {
             <Button type="submit" variant="clay" loading={loading} className="mt-1 w-full" size="lg">
               כניסה למערכת
             </Button>
+            {slow && (
+              <p role="status" className="text-center font-sans text-xs text-ink-soft">
+                השרת מתעורר אחרי זמן בלי שימוש — זה יכול לקחת עד דקה וחצי, לא צריך ללחוץ שוב.
+              </p>
+            )}
           </form>
 
           <div className="my-5 flex items-center gap-3">

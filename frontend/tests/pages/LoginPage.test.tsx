@@ -14,11 +14,16 @@ vi.mock('@/api/auth.api', () => ({
   authApi: { login: vi.fn() },
 }));
 
+vi.mock('@/lib/wakeBackend', () => ({ wakeBackend: vi.fn() }));
+
 import { authApi } from '@/api/auth.api';
+import { wakeBackend } from '@/lib/wakeBackend';
 const loginMock = authApi.login as unknown as ReturnType<typeof vi.fn>;
+const wakeMock = wakeBackend as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  wakeMock.mockResolvedValue(undefined);
   setAuthUser(null);
 });
 
@@ -79,4 +84,30 @@ describe('LoginPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'כניסה למערכת' }));
     expect(await screen.findByText('סיסמא שגויה')).toBeInTheDocument();
   });
+
+  // A sleeping free-tier backend took longer than the request timeout to start,
+  // and a login (a write) is never retried — so the page wakes it first.
+  it('starts waking the backend as soon as the page opens', () => {
+    renderWithProviders(<LoginPage />);
+    expect(wakeMock).toHaveBeenCalled();
+  });
+
+  it('sends the login only after the backend is awake, and explains the wait', async () => {
+    let wake!: () => void;
+    wakeMock.mockReturnValue(new Promise<void>((res) => { wake = res; }));
+    loginMock.mockResolvedValue({
+      data: { data: { user: { role: 'STUDENT', mustChangePassword: false }, accessToken: 'tok' } },
+    });
+    renderWithProviders(<LoginPage />);
+    await userEvent.type(screen.getByPlaceholderText('you@example.com'), 'a@b.com');
+    await userEvent.type(screen.getByPlaceholderText('••••••••'), 'secret');
+    await userEvent.click(screen.getByRole('button', { name: 'כניסה למערכת' }));
+
+    expect(await screen.findByText(/השרת מתעורר/, {}, { timeout: 6000 })).toBeInTheDocument();
+    expect(loginMock).not.toHaveBeenCalled();
+
+    wake();
+    await waitFor(() => expect(loginMock).toHaveBeenCalledWith('a@b.com', 'secret'));
+    await waitFor(() => expect(screen.queryByText(/השרת מתעורר/)).not.toBeInTheDocument());
+  }, 15_000);
 });
