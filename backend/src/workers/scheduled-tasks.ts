@@ -1,6 +1,7 @@
 import { runDeadlineCheck } from './deadline-check';
 import { runStorageCheck } from './storage-check';
 import { sweepPendingUploads } from '../utils/pending-uploads';
+import { KEEP_AWAKE_INTERVAL_MS, keepAwakeUrl, pingSelf } from './keep-awake';
 
 // A deadline report summarises a deadline that has already passed, so checking
 // more than once an hour buys nothing — it only multiplies the Redis lookups
@@ -37,6 +38,13 @@ export function startScheduledTasks(): ScheduledTaskHandles {
     setInterval(() => runSafely('upload-sweep', sweepUploads), UPLOAD_SWEEP_INTERVAL_MS),
   ];
   const timeouts = [setTimeout(() => runSafely('upload-sweep', sweepUploads), UPLOAD_SWEEP_BOOT_DELAY_MS)];
+
+  const selfUrl = keepAwakeUrl();
+  if (selfUrl) {
+    const keepAwake = async () => { await pingSelf(selfUrl); };
+    intervals.push(setInterval(() => runSafely('keep-awake', keepAwake), KEEP_AWAKE_INTERVAL_MS));
+    console.log('[workers] Keep-awake ping enabled for', selfUrl);
+  }
 
   console.log('[workers] Scheduled tasks started (deadline-check, storage-monitor, upload-sweep)');
   return { intervals, timeouts };
