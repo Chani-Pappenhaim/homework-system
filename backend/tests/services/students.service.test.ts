@@ -15,7 +15,7 @@ vi.mock('../../src/services/attendance.service', () => ({ getMyAttendance: vi.fn
 
 import { prisma } from '../../src/config/prisma';
 import { getMyAttendance } from '../../src/services/attendance.service';
-import { getStudentsOverview, getStudentProfile } from '../../src/services/students.service';
+import { getStudentsOverview, getStudentProfile, searchStudents } from '../../src/services/students.service';
 
 const p = prisma as any;
 const past = new Date(Date.now() - 86_400_000);
@@ -165,5 +165,43 @@ describe('getStudentProfile', () => {
     const { messages } = await getStudentProfile('rachel');
     expect(messages.map((m) => m.id)).toEqual(['m2', 'm1']);
     expect(messages[0]).toMatchObject({ assignmentTitle: 'תרגיל 2', preview: 'אפשר הארכה?', unread: 2, lastFromTeacher: false });
+  });
+});
+
+describe('searchStudents', () => {
+  const where = () => p.user.findMany.mock.calls[0][0].where;
+  const wordFilter = (w: string) => ({
+    OR: [
+      { name: { contains: w, mode: 'insensitive' } },
+      { email: { contains: w, mode: 'insensitive' } },
+    ],
+  });
+
+  beforeEach(() => p.user.findMany.mockResolvedValue([]));
+
+  it('requires every word, in any order, so a surname-first query still matches', async () => {
+    await searchStudents('כהן דנה');
+    expect(where()).toEqual({ role: 'STUDENT', AND: [wordFilter('כהן'), wordFilter('דנה')] });
+  });
+
+  it('ignores extra spaces between and around the words', async () => {
+    await searchStudents('  דנה   כהן ');
+    expect(where().AND).toEqual([wordFilter('דנה'), wordFilter('כהן')]);
+  });
+
+  it('lists every student when the query is empty or only spaces', async () => {
+    await searchStudents('   ');
+    expect(where()).toEqual({ role: 'STUDENT' });
+  });
+
+  it('returns each student with her group names', async () => {
+    p.user.findMany.mockResolvedValue([
+      { id: 's1', name: 'דנה כהן', email: 'd@x.com', studentGroups: [{ group: { name: 'א', seminar: null, year: '2026' } }] },
+      { id: 's2', name: 'רחל', email: 'r@x.com', studentGroups: [] },
+    ]);
+    const res = await searchStudents('דנה');
+    expect(res.map((s) => s.id)).toEqual(['s1', 's2']);
+    expect(res[0].groupNames).toHaveLength(1);
+    expect(res[1].groupNames).toEqual([]);
   });
 });

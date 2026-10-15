@@ -16,15 +16,19 @@ export async function findStudentByEmail(email: string) {
  * query instead of an exact-match lookup.
  */
 export async function searchStudents(query?: string) {
-  const q = query?.trim();
+  // Every word must appear in the name or the email, in any order, so a
+  // surname-first query or one with extra spaces still finds the student.
+  const words = query?.trim().split(/\s+/).filter(Boolean) ?? [];
   const students = await prisma.user.findMany({
     where: {
       role: 'STUDENT',
-      ...(q ? {
-        OR: [
-          { name: { contains: q, mode: 'insensitive' as const } },
-          { email: { contains: q, mode: 'insensitive' as const } },
-        ],
+      ...(words.length ? {
+        AND: words.map((w) => ({
+          OR: [
+            { name: { contains: w, mode: 'insensitive' as const } },
+            { email: { contains: w, mode: 'insensitive' as const } },
+          ],
+        })),
       } : {}),
     },
     select: {
