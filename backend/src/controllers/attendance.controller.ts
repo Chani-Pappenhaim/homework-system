@@ -23,7 +23,9 @@ export const createSession = handle(async (req) => ({ session: await attendanceS
 export const createSessionsFromLessons = handle((req) => attendanceService.createSessionsFromLessons(param(req, 'id')), 201);
 export const setExclusion = handle((req) =>
   attendanceService.setExclusion(param(req, 'id'), param(req, 'studentId'), Boolean(req.body?.excluded)));
-export const importAttendance = handle((req) => attendanceService.importAttendance(param(req, 'id'), req.file!.buffer));
+// ?dryRun=true only checks the file; the teacher then confirms the real import.
+export const importAttendance = handle((req) =>
+  attendanceService.importAttendance(param(req, 'id'), req.file!.buffer, { dryRun: req.query.dryRun === 'true' }));
 
 export async function downloadTemplate(req: Request, res: Response) {
   try {

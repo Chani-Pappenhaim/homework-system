@@ -81,5 +81,12 @@ describe('attendance routes', () => {
       .attach('file', Buffer.from('xlsx'), 'attendance.xlsx');
     expect(res.status).toBe(200);
     expect(res.body.data.saved).toBe(1);
+    expect(attendanceService.importAttendance).toHaveBeenCalledWith('c1', expect.any(Buffer), { dryRun: false });
+  });
+
+  it('only checks the sheet when asked for a dry run', async () => {
+    await request(app).post('/api/courses/c1/attendance/import?dryRun=true').set('Authorization', admin)
+      .attach('file', Buffer.from('xlsx'), 'attendance.xlsx');
+    expect(attendanceService.importAttendance).toHaveBeenCalledWith('c1', expect.any(Buffer), { dryRun: true });
   });
 });

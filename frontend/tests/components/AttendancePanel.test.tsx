@@ -107,6 +107,33 @@ describe('AttendancePanel', () => {
     expect(within(dialog).getByRole('button', { name: /הורדת קובץ דוגמה/ })).toBeInTheDocument();
   });
 
+  it('checks an excel file first and saves it only once the teacher confirms', async () => {
+    const preview = {
+      dryRun: true, saved: 2, updated: 1, added: 1, unchanged: 0, skipped: 0,
+      sessionsCreated: 1, newSessions: ['10/12/2026'], errors: ['שורה 4: סטטוס לא מוכר ("אולי")'],
+    };
+    api.importFile
+      .mockResolvedValueOnce({ data: { data: preview } })
+      .mockResolvedValueOnce({ data: { data: { ...preview, dryRun: false } } });
+    renderPanel();
+    await userEvent.click(await screen.findByRole('button', { name: /ייבוא מ-Excel/ }));
+    const dialog = await screen.findByRole('dialog');
+    const file = new File(['x'], 'נוכחות.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    await userEvent.upload(dialog.querySelector('input[type="file"]') as HTMLInputElement, file);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'העלה קובץ' }));
+
+    expect(await within(dialog).findByText('2 סימונים תקינים ייקלטו')).toBeInTheDocument();
+    expect(within(dialog).getByText(/1 ישנו סימון קיים · 1 יתווספו/)).toBeInTheDocument();
+    expect(within(dialog).getByText('10/12/2026')).toBeInTheDocument();
+    expect(within(dialog).getByText(/סטטוס לא מוכר/)).toBeInTheDocument();
+    expect(api.importFile).toHaveBeenCalledTimes(1);
+    expect(api.importFile).toHaveBeenLastCalledWith('c1', file, true);
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'קליטת 2 הסימונים התקינים' }));
+    expect(await within(dialog).findByText('נשמרו 2 סימונים')).toBeInTheDocument();
+    expect(api.importFile).toHaveBeenLastCalledWith('c1', file);
+  });
+
   it('offers to open meetings from the lessons when there are none yet', async () => {
     renderPanel(course({ sessions: [] }));
     await userEvent.click(await screen.findByRole('button', { name: /מפגש לכל שיעור עם תאריך/ }));
