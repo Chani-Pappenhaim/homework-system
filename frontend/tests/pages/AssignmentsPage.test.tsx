@@ -94,6 +94,30 @@ describe('AssignmentsPage', () => {
     expect(await screen.findByText('לא הוגשו (1)')).toBeInTheDocument();
   });
 
+  describe('the link the teacher sends the class (?assignment=)', () => {
+    it('opens the assignment for a student who has yet to submit it', async () => {
+      mine.mockResolvedValue({ data: { data: {
+        pending: [{ assignmentId: 'a1', assignmentTitle: 'מטלה 1', courseName: 'קורס', lessonId: 'l1', lessonTopic: 'שיעור' }],
+        submitted: [],
+      } } });
+      renderWithProviders(<AssignmentsPage />, { initialEntries: ['/student/assignments?assignment=a1'] });
+      expect(await screen.findByText('חזרה לרשימה')).toBeInTheDocument();
+      expect(screen.queryByText('לא הוגשו (1)')).not.toBeInTheDocument();
+    });
+
+    it('opens her submission for a student who already submitted it', async () => {
+      mine.mockResolvedValue({ data: { data: {
+        pending: [],
+        submitted: [{
+          submissionId: 's1', assignmentId: 'a1', assignmentTitle: 'מטלה שהוגשה', courseName: 'קורס',
+          submittedAt: '2026-07-01T10:00:00Z', isLate: false, grade: null,
+        }],
+      } } });
+      renderWithProviders(<AssignmentsPage />, { initialEntries: ['/student/assignments?assignment=a1'] });
+      expect(await screen.findByText('חזרה לרשימה')).toBeInTheDocument();
+    });
+  });
+
   it('ignores an unknown assignment in the URL and shows the list', async () => {
     mine.mockResolvedValue({ data: { data: { pending: [], submitted: [] } } });
     renderWithProviders(<AssignmentsPage />, { initialEntries: ['/student/assignments?submission=missing'] });
