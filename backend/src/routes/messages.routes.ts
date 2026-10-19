@@ -8,6 +8,7 @@ router.use(verifyAccessTokenMiddleware);
 
 router.post('/', requireRole('STUDENT'), messagesController.sendMessage);
 router.post('/teacher', requireRole('ADMIN'), messagesController.sendTeacherMessage);
+router.post('/teacher/group', requireRole('ADMIN'), messagesController.sendGroupMessage);
 router.get('/', requireRole('ADMIN'), messagesController.getMessages);
 router.get('/mine', requireRole('STUDENT'), messagesController.getMyMessages);
 router.get('/unread-count', requireRole('ADMIN'), messagesController.getUnreadCount);

@@ -65,6 +65,23 @@ export async function sendTeacherMessage(studentId: string, content: string, ass
   return message;
 }
 
+/**
+ * The same message to every student of a group. Each gets it in a conversation
+ * of her own, as if written to her alone, so her reply stays between her and
+ * the teacher; each is emailed as usual.
+ */
+export async function sendGroupMessage(groupId: string, content: unknown) {
+  const trimmed = messageText(content);
+  const group = await prisma.group.findUnique({
+    where: { id: groupId },
+    select: { students: { select: { studentId: true } } },
+  });
+  if (!group) throw new AppError('Group not found', 'הקבוצה לא נמצאה', 404);
+  if (group.students.length === 0) throw new AppError('Group has no students', 'אין תלמידות בקבוצה הזו', 400);
+  for (const { studentId } of group.students) await sendTeacherMessage(studentId, trimmed);
+  return { sent: group.students.length };
+}
+
 export async function getAllMessages() {
   return prisma.teacherMessage.findMany({
     orderBy: { createdAt: 'desc' },

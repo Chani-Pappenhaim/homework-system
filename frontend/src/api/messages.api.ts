@@ -5,6 +5,10 @@ export const messagesApi = {
   send: (content: string, assignmentId?: string) => api.post('/messages', { content, assignmentId }),
   sendTeacher: (studentId: string, content: string, assignmentId?: string) =>
     api.post('/messages/teacher', { studentId, content, assignmentId }),
+
+  /** The same message to every student of the group, each in her own conversation. */
+  sendToGroup: (groupId: string, content: string) =>
+    api.post<{ success: true; data: { sent: number } }>('/messages/teacher/group', { groupId, content }),
   getAll: () => api.get<{ success: true; data: { messages: MessageDTO[] } }>('/messages'),
   getMine: () => api.get<{ success: true; data: { messages: MessageDTO[] } }>('/messages/mine'),
   getUnreadCount: () => api.get<{ success: true; data: { count: number } }>('/messages/unread-count'),

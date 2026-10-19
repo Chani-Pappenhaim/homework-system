@@ -5,13 +5,14 @@ vi.mock('../../src/config/prisma', () => ({
     teacherMessage: { create: vi.fn(), findUnique: vi.fn() },
     messageEntry: { create: vi.fn() },
     user: { findUnique: vi.fn() },
+    group: { findUnique: vi.fn() },
   },
 }));
 vi.mock('../../src/infrastructure/queues/queues', () => ({ emailQueue: { add: vi.fn() } }));
 
 import { prisma } from '../../src/config/prisma';
 import {
-  sendMessage, sendTeacherMessage, replyMessage, studentReplyMessage, MAX_MESSAGE_LENGTH,
+  sendMessage, sendTeacherMessage, sendGroupMessage, replyMessage, studentReplyMessage, MAX_MESSAGE_LENGTH,
 } from '../../src/services/messages.service';
 
 const p = prisma as any;
@@ -42,5 +43,27 @@ describe('messages.service content limits', () => {
     await sendMessage('s1', `  ${'א'.repeat(MAX_MESSAGE_LENGTH)}  `);
     const content = p.teacherMessage.create.mock.calls[0][0].data.entries.create.content;
     expect(content).toHaveLength(MAX_MESSAGE_LENGTH);
+  });
+});
+
+describe('sendGroupMessage', () => {
+  it('opens a conversation of her own with every student of the group, each emailed', async () => {
+    p.group.findUnique.mockResolvedValue({ students: [{ studentId: 's1' }, { studentId: 's2' }] });
+    const r = await sendGroupMessage('g1', '  שיעור מחר מבוטל  ');
+    expect(r).toEqual({ sent: 2 });
+    const calls = p.teacherMessage.create.mock.calls.map(([a]: any) => [a.data.studentId, a.data.entries.create]);
+    expect(calls).toEqual([
+      ['s1', { fromTeacher: true, content: 'שיעור מחר מבוטל' }],
+      ['s2', { fromTeacher: true, content: 'שיעור מחר מבוטל' }],
+    ]);
+  });
+
+  it('refuses an empty group, an unknown group and an empty message', async () => {
+    p.group.findUnique.mockResolvedValue({ students: [] });
+    await expect(sendGroupMessage('g1', 'שלום')).rejects.toMatchObject({ status: 400 });
+    p.group.findUnique.mockResolvedValue(null);
+    await expect(sendGroupMessage('nope', 'שלום')).rejects.toMatchObject({ status: 404 });
+    await expect(sendGroupMessage('g1', '   ')).rejects.toMatchObject({ status: 400 });
+    expect(p.teacherMessage.create).not.toHaveBeenCalled();
   });
 });
