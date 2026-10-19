@@ -126,6 +126,20 @@ export default function GroupFormPage() {
     });
   }
 
+  // "Select all" takes the students on screen - all of them, or those the search found.
+  const allVisibleSelected = visibleStudents.length > 0 && visibleStudents.every((s) => selected.has(s.id));
+  const someVisibleSelected = visibleStudents.some((s) => selected.has(s.id));
+
+  function toggleAllVisible() {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const s of visibleStudents) {
+        if (allVisibleSelected) next.delete(s.id); else next.add(s.id);
+      }
+      return next;
+    });
+  }
+
   return (
     <div className="space-y-5" dir="rtl">
       <div className="border-b border-rule pb-3">
@@ -177,6 +191,17 @@ export default function GroupFormPage() {
             </CardHeader>
             {(group?.students.length ?? 0) > 0 && (
               <div className="flex items-center gap-2 px-5 py-3 border-b border-rule/20">
+                <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs font-semibold text-ink/70">
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    ref={(el) => { if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected; }}
+                    onChange={toggleAllVisible}
+                    disabled={visibleStudents.length === 0}
+                    className="size-4 accent-ink"
+                  />
+                  בחירת כולן
+                </label>
                 <Input
                   placeholder="חיפוש לפי שם או מייל..."
                   value={studentQuery}
