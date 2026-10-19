@@ -23,7 +23,7 @@ import { LessonAccessPanel } from '@/components/lesson/LessonAccessPanel';
 import { QuizResultsCard } from '@/components/lesson/QuizResultsCard';
 import QuizPanel from '@/components/teacher/QuizPanel';
 import QuizDashboard from '@/components/teacher/QuizDashboard';
-import { cn, formatDate, toExternalUrl } from '@/lib/utils';
+import { cn, formatDateFull, toExternalUrl } from '@/lib/utils';
 import { getApiErrorMessage } from '@/lib/errors';
 import { useTabParam } from '@/hooks/useTabParam';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -206,7 +206,11 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{lesson.topic}</h1>
-            {lesson.lessonDate && <p className="mt-1 text-sm text-ink/70">{formatDate(lesson.lessonDate)}</p>}
+            {(lessonNumber || lesson.lessonDate) && (
+              <p className="mt-1 text-sm text-ink/70">
+                {[lessonNumber && `שיעור ${lessonNumber}`, lesson.lessonDate && formatDateFull(lesson.lessonDate)].filter(Boolean).join(' · ')}
+              </p>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {lesson.hidden && <Badge variant="warning">מוסתר</Badge>}

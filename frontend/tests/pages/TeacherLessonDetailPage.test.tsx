@@ -81,6 +81,12 @@ beforeEach(() => {
 });
 
 describe('TeacherLessonDetailPage', () => {
+  it('shows the lesson number, weekday and Hebrew date under the title', async () => {
+    renderWithProviders(<TeacherLessonDetailPage lessonId="l1" lessonNumber={3} />);
+    await screen.findByRole('heading', { name: 'שיעור בדיקה' });
+    expect(screen.getByText('שיעור 3 · יום ד׳, 1 ביולי 2026 · ט״ז בתמוז תשפ״ו')).toBeInTheDocument();
+  });
+
   it('renders the lesson and its submissions', async () => {
     getSubmissions.mockResolvedValue({
       data: { data: { submissions: [

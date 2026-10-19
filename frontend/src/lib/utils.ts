@@ -10,6 +10,31 @@ export function formatDate(date: string | Date | null | undefined): string {
   return new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(date));
 }
 
+// ---------- Hebrew calendar ----------
+
+const hebrewCalendar = new Intl.DateTimeFormat('he-IL-u-ca-hebrew-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' });
+
+/** The Hebrew date, as written: ח׳ בחשוון תשפ״ז (without the year: ח׳ בחשוון). */
+export function formatHebrewDate(date: string | Date, { year = true } = {}): string {
+  const parts = hebrewCalendar.formatToParts(new Date(date));
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  const dayMonth = `${toGematria(Number(part('day')))} ב${part('month')}`;
+  return year ? `${dayMonth} ${toGematria(Number(part('year')))}` : dayMonth;
+}
+
+const WEEKDAYS = ['יום א׳', 'יום ב׳', 'יום ג׳', 'יום ד׳', 'יום ה׳', 'יום ו׳', 'שבת'];
+
+/** יום ב׳ */
+export function formatWeekday(date: string | Date): string {
+  return WEEKDAYS[new Date(date).getDay()];
+}
+
+/** A lesson date or a deadline in full: יום ב׳, 19 באוקטובר 2026 · ח׳ בחשוון תשפ״ז */
+export function formatDateFull(date: string | Date | null | undefined): string {
+  if (!date) return '-';
+  return `${formatWeekday(date)}, ${formatDate(date)} · ${formatHebrewDate(date)}`;
+}
+
 export function formatDateTime(date: string | Date | null | undefined): string {
   if (!date) return '-';
   return new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(date));
@@ -80,14 +105,7 @@ export function toGematria(n: number): string {
 export function toHebrewDate(isoDate: string | null | undefined): string {
   if (!isoDate) return '';
   try {
-    const parts = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric' })
-      .formatToParts(new Date(`${isoDate}T00:00:00`));
-    const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
-    const day = Number(part('day'));
-    const year = Number(part('year'));
-    const month = part('month');
-    if (!day || !year || !month) return '';
-    return `${toGematria(day)} ב${month} ${toGematria(year)}`;
+    return formatHebrewDate(new Date(`${isoDate}T00:00:00`));
   } catch {
     return '';
   }

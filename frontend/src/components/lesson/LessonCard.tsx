@@ -1,6 +1,6 @@
 import type { HTMLAttributes, ReactNode } from 'react';
 import { Lock } from 'lucide-react';
-import { cn, formatDate } from '@/lib/utils';
+import { cn, formatDate, formatHebrewDate, formatWeekday } from '@/lib/utils';
 
 export type LessonCardLesson = {
   topic: string;
@@ -42,6 +42,9 @@ export function LessonCard({ lesson, number, as: Tag = 'button', className, chil
       <p className="text-[10px] text-ink-soft">
         {lesson.lessonDate ? formatDate(lesson.lessonDate) : 'ללא תאריך'}
       </p>
+      {lesson.lessonDate && (
+        <p className="text-[10px] text-ink-soft">{formatWeekday(lesson.lessonDate)} · {formatHebrewDate(lesson.lessonDate, { year: false })}</p>
+      )}
       {Boolean(lesson.groupStudentCount) && (
         <p className="text-[10px] text-ink-soft">{lesson.completedCount ?? 0}/{lesson.groupStudentCount} סיימו</p>
       )}
