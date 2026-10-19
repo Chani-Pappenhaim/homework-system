@@ -22,6 +22,8 @@ export interface GroupDTO {
   emailNotificationsDefault?: boolean;
   createdAt: string;
   studentCount: number;
+  /** Sent with the groups list. */
+  courseCount?: number;
 }
 
 export interface GroupDetailDTO extends GroupDTO {

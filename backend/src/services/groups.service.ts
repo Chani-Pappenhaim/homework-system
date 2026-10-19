@@ -10,13 +10,13 @@ import { groupDisplayName } from '../utils/group-name';
 
 export async function getGroups() {
   const groups = await prisma.group.findMany({
-    include: { _count: { select: { students: true } } },
+    include: { _count: { select: { students: true, courses: true } } },
     orderBy: { createdAt: 'desc' },
   });
   return groups.map((g) => ({
     id: g.id, name: g.name, seminar: g.seminar, year: g.year,
     emailNotificationsDefault: g.emailNotificationsDefault,
-    createdAt: g.createdAt, studentCount: g._count.students,
+    createdAt: g.createdAt, studentCount: g._count.students, courseCount: g._count.courses,
   }));
 }
 

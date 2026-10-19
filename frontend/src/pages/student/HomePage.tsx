@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Clock, TrendingUp, ArrowLeft, Search } from 'lucide-react';
+import { Clock, TrendingUp, ArrowLeft } from 'lucide-react';
+import { SearchField } from '@/components/ui/search-field';
 import useAuthStore from '@/store/authStore';
 import { coursesApi } from '@/api/courses.api';
 import { lessonsApi } from '@/api/lessons.api';
@@ -74,18 +75,7 @@ export default function StudentHomePage() {
             )}
           </div>
           {courses.length > 0 && (
-            <div className="flex items-center gap-2 rounded-input border border-rule bg-ground/60 px-3 py-1.5 transition-colors focus-within:border-clay sm:w-56">
-              <Search size={15} className="text-ink-soft" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink-soft"
-                placeholder="חיפוש קורס"
-              />
-              {search && (
-                <button onClick={() => setSearch('')} className="text-xs text-ink-soft hover:text-coral">✕</button>
-              )}
-            </div>
+            <SearchField value={search} onChange={setSearch} placeholder="חיפוש קורס" className="bg-ground/60 sm:w-56" />
           )}
         </div>
         <div className="mt-3 flex items-center gap-2">

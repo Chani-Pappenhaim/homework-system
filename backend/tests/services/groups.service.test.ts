@@ -199,12 +199,16 @@ describe('groups.service', () => {
   });
 
   describe('getGroups', () => {
-    it('maps _count.students into studentCount', async () => {
+    it('maps _count into studentCount and courseCount', async () => {
       p.group.findMany.mockResolvedValue([
-        { id: 'g1', name: 'G', seminar: null, year: '2026', createdAt: new Date(), _count: { students: 5 } },
+        { id: 'g1', name: 'G', seminar: null, year: '2026', createdAt: new Date(), _count: { students: 5, courses: 2 } },
       ]);
       const r = await getGroups();
-      expect(r[0]).toMatchObject({ id: 'g1', studentCount: 5 });
+      expect(r[0]).toMatchObject({ id: 'g1', studentCount: 5, courseCount: 2 });
+      // The list can warn how many courses a deletion takes with it.
+      expect(p.group.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        include: { _count: { select: { students: true, courses: true } } },
+      }));
     });
   });
 

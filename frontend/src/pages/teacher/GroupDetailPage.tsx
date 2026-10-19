@@ -7,11 +7,10 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { BackLink } from '@/components/ui/back-link';
-import { useToast } from '@/components/ui/toast';
 import { cn, groupDisplayName } from '@/lib/utils';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useTabParam } from '@/hooks/useTabParam';
-import { useConfirm } from '@/components/ui/use-confirm';
+import { useDeleteGroup } from '@/hooks/useDeleteGroup';
 
 const GROUP_TABS = ['courses', 'students'] as const;
 
@@ -19,8 +18,6 @@ export default function GroupDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const toast = useToast();
-  const [confirmDialog, ask] = useConfirm();
   const [tab, setTab] = useTabParam(GROUP_TABS, 'courses');
 
   const { data, isLoading } = useQuery({
@@ -37,14 +34,8 @@ export default function GroupDetailPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['group', id] }),
   });
 
-  const deleteGroupMutation = useMutation({
-    mutationFn: () => groupsApi.delete(id!),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['groups'] });
-      qc.invalidateQueries({ queryKey: ['courses'] });
-      toast.success('הקבוצה נמחקה');
-      navigate('/teacher/groups');
-    },
+  const { confirmDialog, deleteGroup, deletingId } = useDeleteGroup({
+    onDeleted: () => navigate('/teacher/groups'),
   });
 
   if (isLoading) return <div className="p-6 font-sans text-ink/50">טוען…</div>;
@@ -74,15 +65,8 @@ export default function GroupDetailPage() {
             <Button
               variant="destructive"
               size="sm"
-              loading={deleteGroupMutation.isPending}
-              onClick={async () => {
-                const coursesNote = group.courses.length > 0
-                  ? `כל ${group.courses.length} הקורסים של הקבוצה (כולל שיעורים, מטלות והגשות) יימחקו גם הם לצמיתות.`
-                  : '';
-                if (await ask({ title: `למחוק את הקבוצה "${groupDisplayName(group)}"?`, description: `${coursesNote}${coursesNote ? ' ' : ''}התלמידות לא יימחקו מהמערכת, רק ישויכו החוצה מהקבוצה.` })) {
-                  deleteGroupMutation.mutate();
-                }
-              }}
+              loading={deletingId === group.id}
+              onClick={() => deleteGroup({ ...group, courseCount: group.courses.length })}
             >
               <Trash2 size={13} /> מחק קבוצה
             </Button>

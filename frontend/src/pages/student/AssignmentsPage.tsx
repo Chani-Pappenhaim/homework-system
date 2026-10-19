@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowRight, Github, Paperclip, Search } from 'lucide-react';
+import { ArrowRight, Github, Paperclip } from 'lucide-react';
+import { SearchField } from '@/components/ui/search-field';
 import { submissionsApi } from '@/api/submissions.api';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
@@ -93,18 +94,13 @@ export default function AssignmentsPage() {
                 קורס
               </button>
             </div>
-            <div className="flex items-center gap-2 rounded-input border border-rule bg-sheet px-3 py-1.5 transition-colors focus-within:border-clay">
-              <Search size={15} className="text-ink-soft" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-40 bg-transparent text-sm text-ink outline-none placeholder:text-ink-soft"
-                placeholder={searchMode === 'assignment' ? 'חיפוש לפי מטלה' : 'חיפוש לפי קורס'}
-              />
-              {search && (
-                <button onClick={() => setSearch('')} className="text-xs text-ink-soft hover:text-coral">✕</button>
-              )}
-            </div>
+            <SearchField
+              value={search}
+              onChange={setSearch}
+              placeholder={searchMode === 'assignment' ? 'חיפוש לפי מטלה' : 'חיפוש לפי קורס'}
+              className="bg-sheet"
+              inputClassName="w-40"
+            />
           </div>
         }
       />
