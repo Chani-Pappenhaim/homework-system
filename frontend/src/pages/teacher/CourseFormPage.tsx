@@ -43,6 +43,7 @@ export default function CourseFormPage(props: Partial<CoursePageProps>) {
   const [year, setYear] = useState('');
   const [description, setDescription] = useState('');
   const [groupId, setGroupId] = useState('');
+  const [hidden, setHidden] = useState(false);
   const [error, setError] = useState('');
   const [copyModal, setCopyModal] = useState(false);
   const [copyGroupId, setCopyGroupId] = useState('');
@@ -70,6 +71,7 @@ export default function CourseFormPage(props: Partial<CoursePageProps>) {
       setYear(course.year ?? '');
       setDescription(course.description ?? '');
       setGroupId(course.groupId);
+      setHidden(course.hidden);
     }
   }, [course]);
 
@@ -83,8 +85,8 @@ export default function CourseFormPage(props: Partial<CoursePageProps>) {
 
   const saveMutation = useMutation({
     mutationFn: () => isEdit
-      ? coursesApi.update(id!, { name, year, description, groupId })
-      : coursesApi.create({ name, year, description, groupId }),
+      ? coursesApi.update(id!, { name, year, description, groupId, hidden })
+      : coursesApi.create({ name, year, description, groupId, hidden }),
     onSuccess: async (res) => {
       // The course's address comes from its name — wait for the list with the
       // new name, or the page would open at the old address.
@@ -233,6 +235,13 @@ export default function CourseFormPage(props: Partial<CoursePageProps>) {
               rows={3}
               placeholder="תיאור קצר של הקורס..."
             />
+            <label className="flex items-start gap-2 text-sm text-ink cursor-pointer">
+              <input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} className="mt-0.5 accent-ink" />
+              <span>
+                הסתר קורס מהתלמידות
+                <span className="block text-xs text-ink-soft">כדי להכין אותו בשקט ולפרסם כשהוא מוכן</span>
+              </span>
+            </label>
           </CardContent>
         </Card>
 
