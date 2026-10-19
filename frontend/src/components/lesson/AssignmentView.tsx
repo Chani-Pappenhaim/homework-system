@@ -6,7 +6,7 @@ import { useToast } from '@/components/ui/toast';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { SubmissionsWorkstation } from '@/components/lesson/SubmissionsWorkstation';
 import { AssignmentSubmissionsImportDialog } from '@/components/lesson/AssignmentSubmissionsImportDialog';
-import { cn, formatDate } from '@/lib/utils';
+import { cn, formatDateFull } from '@/lib/utils';
 import type { AssignmentDTO } from '@/types';
 
 export const ASSIGNMENT_SECTIONS = ['submissions', 'details', 'ai'] as const;
@@ -52,7 +52,7 @@ export function AssignmentView({
           <div>
             <h2 className="font-display text-lg font-bold text-ink">{assignment.title}</h2>
             {assignment.deadline && (
-              <p className="text-xs text-ink/55">מועד אחרון: {formatDate(assignment.deadline)}</p>
+              <p className="text-xs text-ink/55">מועד אחרון: {formatDateFull(assignment.deadline)}</p>
             )}
           </div>
           <div className="flex shrink-0 gap-1">
@@ -110,7 +110,7 @@ export function AssignmentView({
 function AssignmentDetails({ assignment }: { assignment: AssignmentDTO }) {
   const methods = [assignment.allowFile && 'העלאת קובץ', assignment.allowGithub && 'קישור GitHub'].filter(Boolean);
   const methodsText = methods.length > 0 ? methods.join(' או ') : '-';
-  const deadlineText = assignment.deadline ? formatDate(assignment.deadline) : 'ללא';
+  const deadlineText = assignment.deadline ? formatDateFull(assignment.deadline) : 'ללא';
   const requirements = assignment.requirements ?? [];
   return (
     <div className="divide-y divide-rule/20 px-5 py-1">

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cn, formatDate, formatDateTime, isOverdue, formatBytes, toGematria, toHebrewDate, markdownToPlainText } from '@/lib/utils';
+import { cn, formatDate, formatDateTime, isOverdue, formatBytes, toGematria, toHebrewDate, markdownToPlainText, formatHebrewDate, formatDateFull, formatWeekday } from '@/lib/utils';
 
 describe('cn', () => {
   it('merges class names', () => {
@@ -100,5 +100,19 @@ describe('toHebrewDate', () => {
 describe('markdownToPlainText', () => {
   it('strips Markdown syntax for a one-line preview', () => {
     expect(markdownToPlainText('# כותרת\n\n**חשוב:** ראי [קישור](https://x.com)\n- פריט')).toBe('כותרת חשוב: ראי קישור פריט');
+  });
+});
+
+describe('Hebrew dates', () => {
+  it('gives the Hebrew date of a day', () => {
+    expect(formatHebrewDate('2025-08-25T12:00:00Z')).toBe('א׳ באלול תשפ״ה');
+    expect(formatHebrewDate('2026-03-04T12:00:00Z')).toBe('ט״ו באדר תשפ״ו');
+    expect(formatHebrewDate('2026-10-19T12:00:00Z', { year: false })).toBe('ח׳ בחשוון');
+  });
+
+  it('shows a date in full: weekday, date and Hebrew date', () => {
+    expect(formatDateFull('2026-10-19T12:00:00Z')).toBe('יום ב׳, 19 באוקטובר 2026 · ח׳ בחשוון תשפ״ז');
+    expect(formatWeekday('2026-10-24T12:00:00Z')).toBe('שבת');
+    expect(formatDateFull(null)).toBe('-');
   });
 });

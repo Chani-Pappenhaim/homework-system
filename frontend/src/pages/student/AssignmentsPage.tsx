@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { PageHeader } from '@/components/ui/page-header';
 import { DeleteSubmissionButton } from '@/components/student/DeleteSubmissionButton';
-import { cn, formatDate, formatDateTime, isOverdue } from '@/lib/utils';
+import { cn, formatDate, formatDateFull, formatDateTime, isOverdue } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import { apiFileUrl } from '@/lib/config';
 import type { MySubmission, PendingAssignment } from '@/types';
@@ -209,7 +209,7 @@ function PendingDetail({ item, onGoToLesson }: { item: PendingAssignment; onGoTo
       {item.deadline && (
         <p className="text-sm">
           <span className="text-ink-soft">מועד אחרון: </span>
-          <Badge variant={overdue ? 'default' : 'warning'}>{overdue ? 'פג תוקף' : formatDate(item.deadline)}</Badge>
+          <Badge variant={overdue ? 'default' : 'warning'}>{overdue ? 'פג תוקף' : formatDateFull(item.deadline)}</Badge>
         </p>
       )}
       <Button onClick={onGoToLesson}>מעבר לשיעור להגשה</Button>

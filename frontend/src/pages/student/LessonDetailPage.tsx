@@ -16,7 +16,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import useAuthStore from '@/store/authStore';
 import QuizContent from '@/components/student/QuizContent';
 import { DeleteSubmissionButton } from '@/components/student/DeleteSubmissionButton';
-import { cn, formatDate, formatDateTime, isOverdue, toExternalUrl } from '@/lib/utils';
+import { cn, formatDateFull, formatDateTime, isOverdue, toExternalUrl } from '@/lib/utils';
 import { getApiErrorMessage } from '@/lib/errors';
 import { useTeacherRequest } from '@/hooks/useTeacherRequest';
 import { unwrap } from '@/lib/api-utils';
@@ -86,7 +86,7 @@ export default function StudentLessonDetailPage({ lessonId, lessonNumber }: Part
     <div className="space-y-5" dir="rtl">
       <PageHeader
         title={lesson.topic}
-        meta={lesson.lessonDate ? formatDate(lesson.lessonDate) : undefined}
+        meta={[lessonNumber && `שיעור ${lessonNumber}`, lesson.lessonDate && formatDateFull(lesson.lessonDate)].filter(Boolean).join(' · ') || undefined}
         back={`/student/courses/${lesson.courseId}`}
         backLabel="חזרה לקורס"
         actions={
@@ -305,7 +305,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
       <CardContent className="space-y-3">
         {a.description && <MarkdownRenderer content={a.description} className="text-ink/80" />}
         {a.deadline && (
-          <p className="text-xs text-ink/50">מועד אחרון: <span className="font-medium">{formatDate(a.deadline)}</span></p>
+          <p className="text-xs text-ink/50">מועד אחרון: <span className="font-medium">{formatDateFull(a.deadline)}</span></p>
         )}
 
         {sub ? (
