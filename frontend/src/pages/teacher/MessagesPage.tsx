@@ -249,6 +249,9 @@ export default function TeacherMessagesPage() {
                     placeholder="כתבי תגובה לתלמידה…"
                     value={replyText}
                     onChange={setReplyText}
+                    onSubmit={() => {
+                      if (replyText.trim() && !replyMutation.isPending) replyMutation.mutate({ id: openMsg.id, reply: replyText });
+                    }}
                   />
                 </div>
               </DialogBody>
@@ -316,6 +319,7 @@ export default function TeacherMessagesPage() {
                 placeholder="כתבי הודעה לתלמידה…"
                 value={composeText}
                 onChange={setComposeText}
+                onSubmit={() => { if (composeStudent && composeText.trim() && !composeMutation.isPending) composeMutation.mutate(); }}
               />
             </div>
           </DialogBody>

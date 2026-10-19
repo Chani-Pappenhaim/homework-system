@@ -80,6 +80,16 @@ describe('TeacherMessagesPage', () => {
     // Typing into the rich editor is slow when the whole suite runs in parallel.
   }, 15000);
 
+  it('sends a reply on Ctrl+Enter', async () => {
+    getAll.mockResolvedValue({ data: { data: { messages } } });
+    reply.mockResolvedValue({ data: {} });
+    renderWithProviders(<TeacherMessagesPage />);
+    await userEvent.click(await screen.findByRole('button', { name: /דנה/ }));
+    const textarea = await screen.findByPlaceholderText('כתבי תגובה לתלמידה…');
+    await userEvent.type(textarea, 'תשובה{Control>}{Enter}{/Control}');
+    await waitFor(() => expect(reply).toHaveBeenCalledWith('m1', 'תשובה'));
+  }, 15000);
+
   describe('the unread badges', () => {
     const entry = (id: string, isRead = false) =>
       ({ id, fromTeacher: false, content: `תוכן ${id}`, isRead, createdAt: '2026-07-01T09:00:00Z' });
