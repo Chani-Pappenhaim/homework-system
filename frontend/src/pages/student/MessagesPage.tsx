@@ -178,6 +178,7 @@ export default function StudentMessagesPage() {
               placeholder="כתבי את ההודעה שלך..."
               value={content}
               onChange={setContent}
+              onSubmit={() => { if (content.trim() && !mutation.isPending) mutation.mutate(); }}
             />
             {error && <p className="text-coral text-xs">{error}</p>}
           </DialogBody>
@@ -229,6 +230,9 @@ export default function StudentMessagesPage() {
                     placeholder="כתבי תגובה למורה…"
                     value={replyText}
                     onChange={setReplyText}
+                    onSubmit={() => {
+                      if (replyText.trim() && !studentReplyMutation.isPending) studentReplyMutation.mutate({ id: openMsg.id, reply: replyText });
+                    }}
                   />
                 </div>
               </DialogBody>
