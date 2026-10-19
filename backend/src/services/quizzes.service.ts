@@ -353,6 +353,27 @@ export async function requestQuizGeneration(
  * questions that no longer exist — so the attempts are cleared with it. That is
  * also why publishing is a separate, deliberate step.
  */
+/**
+ * A quiz the teacher writes herself, without the AI - so it needs no lesson
+ * content and costs nothing. It starts as a draft, like a generated one.
+ */
+export async function createManualQuiz(lessonId: string, questions: unknown) {
+  await lessonOr404(lessonId);
+  const validated = validateQuestions(questions);
+  try {
+    const quiz = await prisma.quiz.create({
+      data: { lessonId, questions: toJson(validated), published: false, sourceFiles: Prisma.DbNull },
+    });
+    return { quiz: { id: quiz.id, published: quiz.published, questionCount: validated.length, questions: validated } };
+  } catch (err) {
+    // One quiz per lesson: an existing one (or one the AI just finished) is edited, not replaced.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      throw new AppError('Quiz already exists for this lesson', 'כבר קיים בוחן לשיעור זה - אפשר לערוך אותו', 409);
+    }
+    throw err;
+  }
+}
+
 export async function updateQuizQuestions(lessonId: string, questions: unknown) {
   const quiz = await prisma.quiz.findUnique({ where: { lessonId } });
   if (!quiz) throw new AppError('Quiz not found', 'החידון לא נמצא', 404);

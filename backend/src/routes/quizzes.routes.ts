@@ -13,6 +13,7 @@ router.get('/:id/quiz', quizzesController.getQuiz);
 // Teacher-owned lifecycle: generate a draft, edit it, publish it.
 // Only the generate route can cause a paid Gemini call.
 router.post('/:id/quiz/generate', requireRole('ADMIN'), aiRateLimit, quizzesController.generate);
+router.post('/:id/quiz', requireRole('ADMIN'), quizzesController.createManual);
 router.put('/:id/quiz', requireRole('ADMIN'), quizzesController.updateQuestions);
 router.patch('/:id/quiz/publish', requireRole('ADMIN'), quizzesController.setPublished);
 router.get('/:id/quiz/results', requireRole('ADMIN'), quizzesController.getResults);

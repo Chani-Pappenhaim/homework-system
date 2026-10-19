@@ -9,6 +9,7 @@ vi.mock('@/api/quizzes.api', () => ({
     get: vi.fn(),
     generate: vi.fn(),
     updateQuestions: vi.fn(),
+    createManual: vi.fn(),
     setPublished: vi.fn(),
     results: vi.fn(),
     attempt: vi.fn(),
@@ -22,6 +23,7 @@ const getQuiz = quizzesApi.get as unknown as ReturnType<typeof vi.fn>;
 const generate = quizzesApi.generate as unknown as ReturnType<typeof vi.fn>;
 const updateQuestions = quizzesApi.updateQuestions as unknown as ReturnType<typeof vi.fn>;
 const setPublished = quizzesApi.setPublished as unknown as ReturnType<typeof vi.fn>;
+const createManual = quizzesApi.createManual as unknown as ReturnType<typeof vi.fn>;
 
 const questions = [
   { id: 'q-1', question: 'מהו React?', options: ['ספרייה', 'שפה', 'DB', 'OS'], correctIndex: 0 },
@@ -256,5 +258,71 @@ describe('QuizPanel - regenerating', () => {
     renderPanel();
     expect(await screen.findByText(/מכסת השימוש/)).toBeInTheDocument();
     expect(screen.getByLabelText('שאלה 1')).not.toBeDisabled();
+  });
+});
+
+describe('QuizPanel - writing a quiz by hand', () => {
+  it('writes the questions herself and saves them as a draft', async () => {
+    getQuiz.mockResolvedValue(state({ status: 'none' }));
+    createManual.mockResolvedValue({ data: {} });
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.click(await screen.findByRole('button', { name: /בניית בוחן ידנית/ }));
+    await user.type(screen.getByLabelText('שאלה 1'), 'מהו JSX?');
+    for (const [i, text] of ['תחביר', 'ספרייה', 'שרת', 'מסד נתונים'].entries()) {
+      await user.type(screen.getByLabelText(`אפשרות ${i + 1} לשאלה 1`), text);
+    }
+    await user.click(screen.getByLabelText('סמני כתשובה נכונה לשאלה 1, אפשרות 1'));
+    await user.click(screen.getByRole('button', { name: /שמרי את הבוחן/ }));
+
+    await waitFor(() => expect(createManual).toHaveBeenCalledTimes(1));
+    const [lessonId, sent] = createManual.mock.calls[0];
+    expect(lessonId).toBe('l1');
+    expect(sent).toEqual([expect.objectContaining({
+      question: 'מהו JSX?', options: ['תחביר', 'ספרייה', 'שרת', 'מסד נתונים'], correctIndex: 0,
+    })]);
+  });
+
+  it('is offered for a lesson with no content, where the AI cannot write one', async () => {
+    getQuiz.mockResolvedValue(state({ status: 'unavailable', message: 'לשיעור אין תוכן' }));
+    renderPanel(false);
+    expect(await screen.findByRole('button', { name: /בניית בוחן ידנית/ })).toBeInTheDocument();
+  });
+
+  it('adds and removes questions and options, keeping the marked answer on its text', async () => {
+    getQuiz.mockResolvedValue(state({ status: 'none' }));
+    const user = userEvent.setup();
+    renderPanel();
+    await user.click(await screen.findByRole('button', { name: /בניית בוחן ידנית/ }));
+
+    await user.click(screen.getByRole('button', { name: /הוספת שאלה/ }));
+    expect(screen.getByLabelText('שאלה 2')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'מחיקת שאלה 2' }));
+    expect(screen.queryByLabelText('שאלה 2')).not.toBeInTheDocument();
+
+    await user.click(screen.getByLabelText('סמני כתשובה נכונה לשאלה 1, אפשרות 3'));
+    await user.click(screen.getByRole('button', { name: 'מחיקת אפשרות 1 בשאלה 1' }));
+    expect(screen.getAllByLabelText(/^אפשרות \d לשאלה 1$/)).toHaveLength(3);
+    // The marked answer moved up with its option.
+    expect(screen.getByLabelText('סמני כתשובה נכונה לשאלה 1, אפשרות 2')).toBeChecked();
+  });
+
+  it('goes back to the start when she cancels', async () => {
+    getQuiz.mockResolvedValue(state({ status: 'none' }));
+    const user = userEvent.setup();
+    renderPanel();
+    await user.click(await screen.findByRole('button', { name: /בניית בוחן ידנית/ }));
+    await user.click(screen.getByRole('button', { name: 'ביטול' }));
+    expect(await screen.findByRole('button', { name: /צרי בוחן בעזרת AI/ })).toBeInTheDocument();
+  });
+
+  it('lets her add a question to a quiz the AI wrote', async () => {
+    getQuiz.mockResolvedValue(withQuiz(false));
+    const user = userEvent.setup();
+    renderPanel();
+    await user.click(await screen.findByRole('button', { name: /הוספת שאלה/ }));
+    expect(screen.getByLabelText('שאלה 2')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /שמרי שינויים/ })).toBeEnabled();
   });
 });

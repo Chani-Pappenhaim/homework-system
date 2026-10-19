@@ -14,6 +14,10 @@ export const quizzesApi = {
   generate: (lessonId: string, includeFiles: boolean, replace = false) =>
     api.post(`/lessons/${lessonId}/quiz/generate`, { includeFiles, replace }),
 
+  /** A quiz the teacher writes herself, without the AI. Starts as a draft. */
+  createManual: (lessonId: string, questions: QuizQuestionDTO[]) =>
+    api.post(`/lessons/${lessonId}/quiz`, { questions }),
+
   updateQuestions: (lessonId: string, questions: QuizQuestionDTO[]) =>
     api.put(`/lessons/${lessonId}/quiz`, { questions }),
 
