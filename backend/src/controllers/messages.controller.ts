@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as messagesService from '../services/messages.service';
 import { sendError } from '../utils/http';
+import * as settingsService from '../services/settings.service';
 
 export async function sendMessage(req: Request, res: Response) {
   try {
@@ -20,6 +21,33 @@ export async function sendTeacherMessage(req: Request, res: Response) {
     if (!content?.trim()) { res.status(400).json({ success: false, error: 'תוכן ההודעה נדרש' }); return; }
     const message = await messagesService.sendTeacherMessage(studentId, content, assignmentId);
     res.status(201).json({ success: true, data: { message } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function sendGroupMessage(req: Request, res: Response) {
+  try {
+    const { groupId, content } = req.body ?? {};
+    if (!groupId) { res.status(400).json({ success: false, error: 'יש לבחור קבוצה' }); return; }
+    const result = await messagesService.sendGroupMessage(groupId, content);
+    res.status(201).json({ success: true, data: result });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function getEmailSettings(_req: Request, res: Response) {
+  try {
+    res.json({ success: true, data: await settingsService.getEmailSettings() });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function updateEmailSettings(req: Request, res: Response) {
+  try {
+    res.json({ success: true, data: await settingsService.updateEmailSettings(req.body ?? {}) });
   } catch (err: any) {
     sendError(res, err);
   }

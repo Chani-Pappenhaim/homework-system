@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../src/config/prisma', () => ({
   prisma: {
-    quiz: { findUnique: vi.fn(), update: vi.fn() },
+    quiz: { findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
     lesson: { findUnique: vi.fn() },
     lessonFile: { findMany: vi.fn() },
     quizAttempt: { findFirst: vi.fn(), create: vi.fn(), findMany: vi.fn(), deleteMany: vi.fn() },
@@ -21,11 +21,13 @@ vi.mock('../../src/utils/access', () => ({ assertLessonAccess: assertLessonAcces
 const { assertAiAvailableMock } = vi.hoisted(() => ({ assertAiAvailableMock: vi.fn() }));
 vi.mock('../../src/services/ai-availability', () => ({ assertAiAvailable: assertAiAvailableMock }));
 
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../src/config/prisma';
 import {
   getQuiz,
   requestQuizGeneration,
   updateQuizQuestions,
+  createManualQuiz,
   setQuizPublished,
   validateQuestions,
   submitQuizAttempt,
@@ -65,7 +67,7 @@ function runningJob(overrides: Record<string, unknown> = {}) {
   };
 }
 
-describe('quizzes.service.getQuiz — the teacher owns the draft', () => {
+describe('quizzes.service.getQuiz - the teacher owns the draft', () => {
   it('shows the teacher her unpublished draft, with the correct answers', async () => {
     p.quiz.findUnique.mockResolvedValue(draft);
     const r: any = await getQuiz('l1', 'admin', 'ADMIN');
@@ -408,6 +410,35 @@ describe('quizzes.service.validateQuestions', () => {
   });
 });
 
+describe('quizzes.service.createManualQuiz', () => {
+  it('creates a draft from the questions she wrote, even for a lesson with no content', async () => {
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1', contentMd: '' });
+    p.quiz.create.mockResolvedValue({ id: 'qz9', published: false });
+
+    const r: any = await createManualQuiz('l1', questions);
+    expect(r.quiz).toMatchObject({ id: 'qz9', published: false, questionCount: 2 });
+    expect(p.quiz.create.mock.calls[0][0].data).toMatchObject({ lessonId: 'l1', published: false });
+  });
+
+  it('refuses questions that are not complete', async () => {
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1' });
+    await expect(createManualQuiz('l1', [{ question: 'q', options: ['a', 'b'], correctIndex: -1 }]))
+      .rejects.toMatchObject({ status: 400 });
+    expect(p.quiz.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses a second quiz for the same lesson', async () => {
+    p.lesson.findUnique.mockResolvedValue({ id: 'l1' });
+    p.quiz.create.mockRejectedValue(new Prisma.PrismaClientKnownRequestError('dup', { code: 'P2002', clientVersion: 'x' }));
+    await expect(createManualQuiz('l1', questions)).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('refuses a lesson that does not exist', async () => {
+    p.lesson.findUnique.mockResolvedValue(null);
+    await expect(createManualQuiz('nope', questions)).rejects.toMatchObject({ status: 404 });
+  });
+});
+
 describe('quizzes.service.updateQuizQuestions', () => {
   it('saves the edited questions', async () => {
     p.quiz.findUnique.mockResolvedValue(draft);
@@ -462,7 +493,7 @@ describe('quizzes.service.setQuizPublished', () => {
     expect(p.quiz.update).not.toHaveBeenCalled();
   });
 
-  it('still allows unpublishing a malformed quiz — that is the way out of the problem', async () => {
+  it('still allows unpublishing a malformed quiz - that is the way out of the problem', async () => {
     p.quiz.findUnique.mockResolvedValue({ id: 'qz1', published: true, questions: [] });
     p.quiz.update.mockResolvedValue({ id: 'qz1', published: false, questions: [] });
     expect(await setQuizPublished('l1', false)).toEqual({ published: false });

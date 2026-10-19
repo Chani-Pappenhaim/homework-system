@@ -35,7 +35,7 @@ export function StudentGrantPicker({ onGrant, initialEmail }: {
     mutationFn: () => studentsApi.create({ name: name.trim(), email: email.trim(), githubUsername: github.trim() || undefined }),
     onSuccess: (res) => {
       const student = res.data.data.student;
-      toast.success(`נוצר חשבון ל${student.name} — סיסמה ראשונית 12345678 (תתבקש להחליף בכניסה הראשונה)`);
+      toast.success(`נוצר חשבון ל${student.name} - סיסמה ראשונית 12345678 (תתבקש להחליף בכניסה הראשונה)`);
       setCreating(false);
       onGrant(student.id);
     },

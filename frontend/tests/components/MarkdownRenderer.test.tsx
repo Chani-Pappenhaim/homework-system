@@ -4,7 +4,7 @@ import { MarkdownRenderer, MarkdownText } from '@/components/ui/markdown-rendere
 
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
-describe('MarkdownRenderer — pictures inlined in the text', () => {
+describe('MarkdownRenderer - pictures inlined in the text', () => {
   it('shows a picture converted from a Word file', () => {
     render(<MarkdownRenderer content={`![מסך](${PNG})`} />);
     expect(screen.getByRole('img', { name: 'מסך' })).toHaveAttribute('src', PNG);
@@ -57,7 +57,7 @@ describe('MarkdownRenderer', () => {
     expect((window as any).__pwn).toBeUndefined();
   });
 
-  it('keeps html inside a code block intact — lessons teach html', () => {
+  it('keeps html inside a code block intact - lessons teach html', () => {
     // Regression: DOMPurify ran on the markdown source, so a lesson's ```html
     // example was stripped before it ever became a code block.
     const md = '```html\n<script>alert(1)</script>\n```';
@@ -121,5 +121,28 @@ describe('MarkdownText', () => {
   it('opens links in a new tab', () => {
     render(<MarkdownText content={'[תיעוד](https://react.dev)'} />);
     expect(screen.getByRole('link', { name: 'תיעוד' })).toHaveAttribute('target', '_blank');
+  });
+});
+
+describe('MarkdownRenderer - code blocks', () => {
+  it('colours a block by its language', () => {
+    const { container } = render(<MarkdownRenderer content={'```js\nconst x = 1;\n```'} />);
+    expect(container.querySelector('pre code.hljs .hljs-keyword')).toHaveTextContent('const');
+  });
+
+  it('guesses the language of a block that names none', () => {
+    const { container } = render(<MarkdownRenderer content={'```\nfunction add(a, b) {\n  return a + b;\n}\n```'} />);
+    expect(container.querySelector('pre code')).toHaveClass('language-javascript');
+    expect(container.querySelector('pre code .hljs-keyword')).toHaveTextContent('function');
+  });
+
+  it('still colours a block marked as CSS', () => {
+    const { container } = render(<MarkdownRenderer content={['```css', '.card { color: red; }', '```'].join('\n')} />);
+    expect(container.querySelector('pre code')).toHaveClass('language-css');
+  });
+
+  it('sits in the block that the left-to-right code styles apply to', () => {
+    const { container } = render(<MarkdownRenderer content={'```\nx\n```'} />);
+    expect(container.querySelector('.markdown-body pre')).not.toBeNull();
   });
 });

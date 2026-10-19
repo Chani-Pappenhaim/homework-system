@@ -5,7 +5,9 @@ vi.mock('../../src/config/prisma', () => ({
 }));
 
 import { prisma } from '../../src/config/prisma';
-import { getAiSettings, updateAiSettings } from '../../src/services/settings.service';
+import {
+  getAiSettings, updateAiSettings, getEmailSettings, updateEmailSettings, emailSenderName, MAX_SENDER_NAME,
+} from '../../src/services/settings.service';
 
 const p = prisma as any;
 
@@ -46,5 +48,40 @@ describe('settings.service.updateAiSettings', () => {
   it.each([['SOMETIMES'], [undefined], [42]])('rejects %s', async (paidFallback) => {
     await expect(updateAiSettings({ paidFallback })).rejects.toMatchObject({ status: 400 });
     expect(p.appSettings.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe('the email sender name', () => {
+  beforeEach(() => { process.env.BREVO_SENDER_NAME = 'Teacher Feature'; });
+
+  it('is the site default until the teacher chooses one', async () => {
+    p.appSettings.findUnique.mockResolvedValue(null);
+    expect(await getEmailSettings()).toEqual({ senderName: null, defaultSenderName: 'Teacher Feature' });
+    expect(await emailSenderName()).toBe('Teacher Feature');
+  });
+
+  it('saves her name on one line, and an empty one goes back to the default', async () => {
+    p.appSettings.upsert.mockResolvedValue({});
+    const saved = await updateEmailSettings({ senderName: '  המורה\n עדי שלום ' });
+    expect(saved.senderName).toBe('המורה עדי שלום');
+    expect(p.appSettings.upsert.mock.calls[0][0].update).toEqual({ emailSenderName: 'המורה עדי שלום' });
+
+    expect((await updateEmailSettings({ senderName: '   ' })).senderName).toBeNull();
+    expect(p.appSettings.upsert.mock.calls[1][0].update).toEqual({ emailSenderName: null });
+  });
+
+  it('refuses a name that is too long or not text', async () => {
+    await expect(updateEmailSettings({ senderName: 'א'.repeat(MAX_SENDER_NAME + 1) })).rejects.toMatchObject({ status: 400 });
+    await expect(updateEmailSettings({ senderName: 5 })).rejects.toMatchObject({ status: 400 });
+    expect(p.appSettings.upsert).not.toHaveBeenCalled();
+  });
+
+  it('sends from her name, and from the default if the database cannot be read', async () => {
+    p.appSettings.findUnique.mockResolvedValue({ emailSenderName: 'המורה עדי' });
+    expect(await emailSenderName()).toBe('המורה עדי');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    p.appSettings.findUnique.mockRejectedValue(new Error('db down'));
+    expect(await emailSenderName()).toBe('Teacher Feature');
+    warn.mockRestore();
   });
 });

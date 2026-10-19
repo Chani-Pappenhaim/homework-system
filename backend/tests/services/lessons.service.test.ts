@@ -183,15 +183,55 @@ describe('lessons.service lesson access', () => {
 
 describe('lessons.service create / update / markdown', () => {
   it('createLesson converts lessonDate string into a Date', async () => {
+    p.lesson.findMany.mockResolvedValue([]);
     p.lesson.create.mockImplementation(({ data }: any) => Promise.resolve(data));
     const r: any = await createLesson('c1', { topic: 'T', lessonDate: '2026-03-01T00:00:00.000Z' });
     expect(r.courseId).toBe('c1');
     expect(r.lessonDate).toBeInstanceOf(Date);
   });
   it('createLesson omits lessonDate when not given', async () => {
+    p.lesson.findMany.mockResolvedValue([]);
     p.lesson.create.mockImplementation(({ data }: any) => Promise.resolve(data));
     const r: any = await createLesson('c1', { topic: 'T' });
     expect(r).not.toHaveProperty('lessonDate');
+  });
+  describe('where createLesson puts the new lesson', () => {
+    const existing = [
+      { id: 'a', order: 0, lessonDate: new Date('2026-10-01T00:00:00Z') },
+      { id: 'b', order: 1, lessonDate: null },
+      { id: 'c', order: 2, lessonDate: new Date('2026-10-20T00:00:00Z') },
+    ];
+    beforeEach(() => {
+      p.lesson.create.mockImplementation(({ data }: any) => Promise.resolve(data));
+      p.lesson.update.mockImplementation(({ where, data }: any) => Promise.resolve({ id: where.id, ...data }));
+    });
+
+    it('before the first lesson dated after it, moving the later ones down', async () => {
+      p.lesson.findMany.mockResolvedValue(existing);
+      const r: any = await createLesson('c1', { topic: 'T', lessonDate: '2026-10-15' });
+      expect(r.order).toBe(2);
+      expect(p.lesson.update.mock.calls.map(([a]: any) => [a.where.id, a.data.order])).toEqual([['c', 3]]);
+    });
+
+    it('at the end when it has no date', async () => {
+      p.lesson.findMany.mockResolvedValue(existing);
+      const r: any = await createLesson('c1', { topic: 'T' });
+      expect(r.order).toBe(3);
+      expect(p.lesson.update).not.toHaveBeenCalled();
+    });
+
+    it('at the end when no lesson is later', async () => {
+      p.lesson.findMany.mockResolvedValue(existing);
+      const r: any = await createLesson('c1', { topic: 'T', lessonDate: '2026-11-01' });
+      expect(r.order).toBe(3);
+    });
+
+    it('settles lessons that all still sit at order 0', async () => {
+      p.lesson.findMany.mockResolvedValue(existing.map((l) => ({ ...l, order: 0 })));
+      const r: any = await createLesson('c1', { topic: 'T' });
+      expect(r.order).toBe(3);
+      expect(p.lesson.update.mock.calls.map(([a]: any) => [a.where.id, a.data.order])).toEqual([['b', 1], ['c', 2]]);
+    });
   });
   it('updateLesson delegates to prisma.lesson.update', async () => {
     p.lesson.update.mockResolvedValue({ id: 'l1' });

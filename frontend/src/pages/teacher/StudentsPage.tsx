@@ -51,9 +51,9 @@ function StudentCard({ s }: { s: StudentOverview }) {
         )}
 
         <div className="mt-3 grid grid-cols-3 gap-2">
-          <Stat label="הגשות" value={total ? `${submitted}/${total}` : '—'} tone={scoreTone(submittedPct)} />
-          <Stat label="ממוצע תוכן" value={s.averageContentScore != null ? String(s.averageContentScore) : '—'} tone={scoreTone(s.averageContentScore)} />
-          <Stat label="נוכחות" value={s.attendance.rate != null ? `${s.attendance.rate}%` : '—'} tone={scoreTone(s.attendance.rate)} />
+          <Stat label="הגשות" value={total ? `${submitted}/${total}` : '-'} tone={scoreTone(submittedPct)} />
+          <Stat label="ממוצע תוכן" value={s.averageContentScore != null ? String(s.averageContentScore) : '-'} tone={scoreTone(s.averageContentScore)} />
+          <Stat label="נוכחות" value={s.attendance.rate != null ? `${s.attendance.rate}%` : '-'} tone={scoreTone(s.attendance.rate)} />
         </div>
 
         {(missing > 0 || late > 0) && (

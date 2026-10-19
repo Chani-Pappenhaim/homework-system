@@ -40,7 +40,7 @@ const PAST_DEADLINE_GRACE_MS = 60_000;
 
 function rejectPastDeadline(deadline: Date) {
   if (deadline.getTime() < Date.now() - PAST_DEADLINE_GRACE_MS) {
-    throw new AppError('Deadline is in the past', 'המועד האחרון כבר עבר — יש לבחור תאריך עתידי', 400);
+    throw new AppError('Deadline is in the past', 'המועד האחרון כבר עבר - יש לבחור תאריך עתידי', 400);
   }
 }
 

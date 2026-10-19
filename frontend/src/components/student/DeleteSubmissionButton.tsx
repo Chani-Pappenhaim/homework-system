@@ -51,7 +51,7 @@ export function DeleteSubmissionButton({ submission, onDeleted }: Props) {
         open={open}
         onOpenChange={setOpen}
         title="למחוק את ההגשה?"
-        description={`ההגשה של "${submission.assignmentTitle}" תימחק${submission.fileName ? ' יחד עם הקובץ שהועלה' : ''}, והמטלה תחזור לרשימת המטלות שלא הוגשו. אחרי המחיקה אפשר להגיש מחדש — אם המועד האחרון עבר, ההגשה החדשה תסומן כמאוחרת.${submission.aiStatus && submission.aiStatus !== 'none' ? ' בדיקות ה-AI שכבר נוצלו נספרות גם להגשה החדשה.' : ''}`}
+        description={`ההגשה של "${submission.assignmentTitle}" תימחק${submission.fileName ? ' יחד עם הקובץ שהועלה' : ''}, והמטלה תחזור לרשימת המטלות שלא הוגשו. אחרי המחיקה אפשר להגיש מחדש - אם המועד האחרון עבר, ההגשה החדשה תסומן כמאוחרת.${submission.aiStatus && submission.aiStatus !== 'none' ? ' בדיקות ה-AI שכבר נוצלו נספרות גם להגשה החדשה.' : ''}`}
         confirmLabel="מחיקה"
         loading={remove.isPending}
         onConfirm={() => remove.mutate()}

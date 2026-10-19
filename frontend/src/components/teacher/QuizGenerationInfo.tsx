@@ -25,7 +25,7 @@ const HEADLINES: Record<QuizGenerationStage, string> = {
   'reading-files': 'קורא את הקבצים המצורפים לשיעור…',
   generating: 'ה-AI כותב שאלות על תוכן השיעור…',
   saving: 'שומר את השאלות…',
-  retrying: 'הניסיון הקודם לא הצליח — מנסה שוב בעוד רגע…',
+  retrying: 'הניסיון הקודם לא הצליח - מנסה שוב בעוד רגע…',
 };
 
 /** Why the previous attempt failed, phrased to follow "בניסיון הקודם". */
@@ -107,12 +107,12 @@ export function GenerationProgress({ progress, replacing = false }: {
       {progress.attempt > 1 && (
         <p className="text-xs text-clay">
           ניסיון {progress.attempt} מתוך {progress.maxAttempts}
-          {previousFailure && ` — בניסיון הקודם ${previousFailure}`}
+          {previousFailure && ` - בניסיון הקודם ${previousFailure}`}
         </p>
       )}
 
       <p className="text-xs text-ink/45">
-        עברו {formatElapsed(elapsed)} · לרוב זה לוקח 1–3 דקות. אפשר לצאת מהעמוד — היצירה ממשיכה ברקע.
+        עברו {formatElapsed(elapsed)} · לרוב זה לוקח 1-3 דקות. אפשר לצאת מהעמוד - היצירה ממשיכה ברקע.
       </p>
     </div>
   );

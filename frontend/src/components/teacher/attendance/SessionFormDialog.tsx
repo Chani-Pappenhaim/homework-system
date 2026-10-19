@@ -110,7 +110,7 @@ export function SessionFormDialog({ courseId, lessons, session, onClose, onSaved
 
             <DateField label="תאריך המפגש" value={date} onChange={setDate} />
             <Input
-              label={kind === 'lesson' ? 'כותרת (רשות — ברירת המחדל היא נושא השיעור)' : 'נושא המפגש (רשות)'}
+              label={kind === 'lesson' ? 'כותרת (רשות - ברירת המחדל היא נושא השיעור)' : 'נושא המפגש (רשות)'}
               value={title}
               maxLength={200}
               onChange={(e) => setTitle(e.target.value)}

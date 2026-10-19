@@ -22,6 +22,7 @@ import { FileUpload } from '@/components/ui/file-upload';
 import { PreviewableTypes } from '@/components/ui/previewable-types';
 import { FileGallery } from '@/components/ui/file-gallery';
 import { BackLink } from '@/components/ui/back-link';
+import { LinkExistingFile } from '@/components/teacher/LinkExistingFile';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
 import { clearedDeadlinesNote } from '@/components/lesson/LessonCopyModal';
@@ -43,6 +44,7 @@ export default function CourseFormPage(props: Partial<CoursePageProps>) {
   const [year, setYear] = useState('');
   const [description, setDescription] = useState('');
   const [groupId, setGroupId] = useState('');
+  const [hidden, setHidden] = useState(false);
   const [error, setError] = useState('');
   const [copyModal, setCopyModal] = useState(false);
   const [copyGroupId, setCopyGroupId] = useState('');
@@ -70,6 +72,7 @@ export default function CourseFormPage(props: Partial<CoursePageProps>) {
       setYear(course.year ?? '');
       setDescription(course.description ?? '');
       setGroupId(course.groupId);
+      setHidden(course.hidden);
     }
   }, [course]);
 
@@ -83,8 +86,8 @@ export default function CourseFormPage(props: Partial<CoursePageProps>) {
 
   const saveMutation = useMutation({
     mutationFn: () => isEdit
-      ? coursesApi.update(id!, { name, year, description, groupId })
-      : coursesApi.create({ name, year, description, groupId }),
+      ? coursesApi.update(id!, { name, year, description, groupId, hidden })
+      : coursesApi.create({ name, year, description, groupId, hidden }),
     onSuccess: async (res) => {
       // The course's address comes from its name — wait for the list with the
       // new name, or the page would open at the old address.
@@ -233,6 +236,13 @@ export default function CourseFormPage(props: Partial<CoursePageProps>) {
               rows={3}
               placeholder="תיאור קצר של הקורס..."
             />
+            <label className="flex items-start gap-2 text-sm text-ink cursor-pointer">
+              <input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} className="mt-0.5 accent-ink" />
+              <span>
+                הסתר קורס מהתלמידות
+                <span className="block text-xs text-ink-soft">כדי להכין אותו בשקט ולפרסם כשהוא מוכן</span>
+              </span>
+            </label>
           </CardContent>
         </Card>
 
@@ -311,6 +321,7 @@ export default function CourseFormPage(props: Partial<CoursePageProps>) {
                 onFile={(file, name) => uploadFileMutation.mutate({ file, name })}
                 label={uploadFileMutation.isPending ? `מעלה... ${uploadProgress ?? 0}%` : 'העלה קובץ לקורס'}
               />
+              <LinkExistingFile target="course" targetId={course.id} onLinked={() => qc.invalidateQueries({ queryKey: ['course', id] })} />
               <FileGallery source="course" files={course.files} onDelete={(fileId) => deleteFileMutation.mutate(fileId)} onRename={(fileId, name) => renameFileMutation.mutate({ fileId, name })} onToggleHidden={(fileId, hidden) => hiddenFileMutation.mutate({ fileId, hidden })} className="mt-1" />
             </CardContent>
           </Card>

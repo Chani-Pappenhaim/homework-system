@@ -187,7 +187,7 @@ export function SessionSheet({ courseId, data, session, roster, onEdit, onDelete
                   <th className="border-b border-rule py-2 pe-3 font-semibold">תלמידה</th>
                   <th className="border-b border-rule py-2 pe-3 font-semibold">נוכחות</th>
                   {siteWork.map((a) => (
-                    <th key={a.id} className="border-b border-rule px-2 py-2 text-center font-semibold" title="מטלה מהאתר — מסומנת אוטומטית לפי הגשה">
+                    <th key={a.id} className="border-b border-rule px-2 py-2 text-center font-semibold" title="מטלה מהאתר - מסומנת אוטומטית לפי הגשה">
                       <span className="block max-w-[7rem] truncate">{a.title}</span>
                       <span className="block text-[10px] font-normal">מהאתר · {a.submittedBy.length} הגישו</span>
                     </th>
@@ -195,7 +195,7 @@ export function SessionSheet({ courseId, data, session, roster, onEdit, onDelete
                   {session.homework.map((h) => (
                     <th key={h.id} className="border-b border-rule px-2 py-2 text-center font-semibold">
                       <span className="flex items-center justify-center gap-0.5">
-                        <button className="max-w-[7rem] truncate hover:text-ink" title={`${h.title} — לחיצה לשינוי השם`} onClick={() => setRenaming({ id: h.id, title: h.title })}>{h.title}</button>
+                        <button className="max-w-[7rem] truncate hover:text-ink" title={`${h.title} - לחיצה לשינוי השם`} onClick={() => setRenaming({ id: h.id, title: h.title })}>{h.title}</button>
                         <button aria-label={`מחיקת ${h.title}`} className="text-ink-soft/60 hover:text-coral" onClick={() => setHomeworkToDelete(h)}><Trash2 size={11} /></button>
                       </span>
                       <span className="block text-[10px] font-normal">נוסף · {h.doneBy.length} הכינו</span>
@@ -214,7 +214,7 @@ export function SessionSheet({ courseId, data, session, roster, onEdit, onDelete
                         {s.source === 'access' && <span className="ms-1.5 text-[10px] text-ink-soft">גישה אישית</span>}
                       </td>
                       <td className="border-b border-rule/60 py-2 pe-3">
-                        <div role="radiogroup" aria-label={`נוכחות — ${s.name}`} className="inline-flex overflow-hidden rounded-lg border border-rule">
+                        <div role="radiogroup" aria-label={`נוכחות - ${s.name}`} className="inline-flex overflow-hidden rounded-lg border border-rule">
                           {STATUS_ORDER.map((st) => {
                             const { label, icon: Icon, active } = STATUS_META[st];
                             const on = record?.status === st;
@@ -241,7 +241,7 @@ export function SessionSheet({ courseId, data, session, roster, onEdit, onDelete
                           <td key={a.id} className="border-b border-rule/60 px-2 py-2 text-center">
                             {done
                               ? <Check size={15} className="inline text-sage" aria-label="הגישה" />
-                              : <span className="text-ink-soft/50" aria-label="לא הגישה">—</span>}
+                              : <span className="text-ink-soft/50" aria-label="לא הגישה">-</span>}
                           </td>
                         );
                       })}
@@ -253,7 +253,7 @@ export function SessionSheet({ courseId, data, session, roster, onEdit, onDelete
                               type="checkbox"
                               className="size-4 accent-sage"
                               checked={done}
-                              aria-label={`${h.title} — ${s.name}`}
+                              aria-label={`${h.title} - ${s.name}`}
                               onChange={() => homeworkMark.mutate({ homeworkId: h.id, studentId: s.id, done: !done })}
                             />
                           </td>
@@ -266,7 +266,7 @@ export function SessionSheet({ courseId, data, session, roster, onEdit, onDelete
                             className="w-full min-w-[10rem] rounded-input border border-clay bg-sheet px-2 py-1 text-xs focus:outline-none"
                             value={noteDraft}
                             maxLength={500}
-                            placeholder="הערה פנימית — התלמידה לא רואה"
+                            placeholder="הערה פנימית - התלמידה לא רואה"
                             onChange={(e) => setNoteDraft(e.target.value)}
                             onBlur={() => saveNote(s.id)}
                             onKeyDown={(e) => { if (e.key === 'Enter') saveNote(s.id); if (e.key === 'Escape') setNoteFor(null); }}
@@ -304,7 +304,7 @@ export function SessionSheet({ courseId, data, session, roster, onEdit, onDelete
               <input
                 autoFocus
                 className="min-w-[12rem] flex-1 rounded-input border border-rule bg-sheet px-3 py-1.5 text-sm focus:border-clay focus:outline-none"
-                placeholder="מה היו שיעורי הבית? למשל: תרגילים 1–5 בעמוד 40"
+                placeholder="מה היו שיעורי הבית? למשל: תרגילים 1-5 בעמוד 40"
                 value={newHomework}
                 maxLength={200}
                 onChange={(e) => setNewHomework(e.target.value)}
@@ -318,7 +318,7 @@ export function SessionSheet({ courseId, data, session, roster, onEdit, onDelete
           <p className="text-xs text-ink-soft">
             {siteWork.length > 0
               ? 'מטלות מהאתר מסומנות לבד לפי הגשה; שיעורי בית נוספים מסמנים כאן ידנית.'
-              : 'שיעורי בית שניתנו במפגש ולא הוגשו דרך האתר — מסמנים כאן מי הכינה.'}
+              : 'שיעורי בית שניתנו במפגש ולא הוגשו דרך האתר - מסמנים כאן מי הכינה.'}
           </p>
         </div>
       </CardContent>

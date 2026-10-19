@@ -70,7 +70,7 @@ describe('authApi', () => {
     authApi.me();
     expect(get).toHaveBeenCalledWith('/auth/me');
   });
-  it('changePassword posts (the backend route is POST — PATCH used to 404)', () => {
+  it('changePassword posts (the backend route is POST - PATCH used to 404)', () => {
     authApi.changePassword('old', 'new');
     expect(post).toHaveBeenCalledWith('/auth/change-password', { currentPassword: 'old', newPassword: 'new' });
   });

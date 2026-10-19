@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../../src/config/prisma', () => ({
   prisma: {
     assignment: { findUnique: vi.fn(), findMany: vi.fn(), findFirst: vi.fn() },
-    user: { findUnique: vi.fn() },
+    user: { findUnique: vi.fn(), findMany: vi.fn() },
     submission: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
     grade: { findUnique: vi.fn(), upsert: vi.fn(), update: vi.fn() },
     aiReviewCarryover: { findUnique: vi.fn(), upsert: vi.fn(), deleteMany: vi.fn() },
@@ -41,6 +41,8 @@ vi.mock('../../src/utils/github', async (importOriginal) => ({
 }));
 const { assertAiAvailableMock } = vi.hoisted(() => ({ assertAiAvailableMock: vi.fn() }));
 vi.mock('../../src/services/ai-availability', () => ({ assertAiAvailable: assertAiAvailableMock }));
+const loadRosterMock = vi.hoisted(() => vi.fn());
+vi.mock('../../src/services/attendance.service', () => ({ loadRoster: loadRosterMock }));
 
 import ExcelJS from 'exceljs';
 import { prisma } from '../../src/config/prisma';
@@ -49,6 +51,8 @@ import {
   getMySubmissions,
   getSubmissionById,
   importSubmissions,
+  importAssignmentSubmissions,
+  buildAssignmentSubmissionsTemplate,
   getVideoUploadSignature,
   rerunAiReview,
   requestAiReview,
@@ -490,8 +494,19 @@ describe('submissions.service.getSubmissionById', () => {
       aiScore: 62, aiVerbalReview: 'summary', aiCodeReview: 'code notes',
     });
     const r: any = await getSubmissionById('sub1', 's1', 'STUDENT');
-    expect(r.aiCodeReview).toBe('code notes'); // the review itself is hers right away
+    // the comments are hers right away; only the score waits for the teacher
+    expect(r.aiCodeReview).toBe('code notes');
+    expect(r.aiVerbalReview).toBe('summary');
     expect(r.aiScore).toBeNull();
+  });
+
+  it('sends no comments while the review has not finished', async () => {
+    p.submission.findUnique.mockResolvedValue({
+      id: 'sub1', studentId: 's1', aiStatus: 'pending', aiApproved: false,
+      aiScore: null, aiVerbalReview: 'stale', aiCodeReview: 'stale',
+    });
+    const r: any = await getSubmissionById('sub1', 's1', 'STUDENT');
+    expect(r.aiCodeReview).toBeNull();
     expect(r.aiVerbalReview).toBeNull();
   });
 
@@ -591,6 +606,15 @@ describe('submissions.service.importSubmissions', () => {
     expect(r.imported).toBe(1);
     expect(repoStatusMock).toHaveBeenCalledWith('other', 'proj');
     expect(p.submission.create.mock.calls[0][0].data.githubUrl).toBe('https://github.com/other/proj');
+  });
+
+  it('does not mark an imported submission late because the import came after the deadline', async () => {
+    p.user.findUnique.mockResolvedValue(dina);
+    p.assignment.findMany.mockResolvedValue([{ ...oneAssignment[0], deadline: new Date('2020-01-01') }]);
+    p.submission.findUnique.mockResolvedValue(null);
+    p.submission.create.mockResolvedValue({});
+    await importSubmissions(await xlsxBuffer([['Task1', 'a@x.com', 'repo']]));
+    expect(p.submission.create.mock.calls[0][0].data.isLate).toBe(false);
   });
 
   it('rejects text that is not a repo reference', async () => {
@@ -934,5 +958,61 @@ describe('submissions.service.setSubmissionChangesAllowed', () => {
   it('answers 404 for an unknown submission', async () => {
     p.submission.updateMany.mockResolvedValue({ count: 0 });
     await expect(setSubmissionChangesAllowed('nope', true)).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe('submissions.service - one assignment from a sheet of its course', () => {
+  const assignment = { id: 'a1', title: 'תרגיל 1', lesson: { course: { id: 'c1', groupId: 'g1' } } };
+  const roster = [
+    { id: 's1', name: 'דינה', email: 'dina@x.com', source: 'group', excluded: false },
+    { id: 's2', name: 'רחל', email: 'rachel@x.com', source: 'group', excluded: false },
+  ];
+  async function sheet(rows: string[][]): Promise<Buffer> {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('הגשות');
+    ws.addRow(['שם (רשות)', 'מייל התלמידה', 'ריפו']);
+    rows.forEach((r) => ws.addRow(r));
+    return (await wb.xlsx.writeBuffer()) as Buffer;
+  }
+  beforeEach(() => {
+    p.assignment.findUnique.mockResolvedValue(assignment);
+    loadRosterMock.mockResolvedValue(roster);
+    p.user.findMany.mockResolvedValue([{ id: 's1', githubUsername: 'dina' }, { id: 's2', githubUsername: null }]);
+    p.submission.findUnique.mockResolvedValue(null);
+    p.submission.create.mockResolvedValue({});
+    repoStatusMock.mockResolvedValue('exists');
+  });
+
+  it('lists every student of the course with the repo she already submitted', async () => {
+    p.submission.findMany = vi.fn().mockResolvedValue([{ studentId: 's2', githubUrl: 'https://github.com/rachel/ex1' }]);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(await buildAssignmentSubmissionsTemplate('a1') as any);
+    const rows = wb.worksheets[0].getSheetValues().slice(2).map((r: any) => r.slice(1));
+    expect(rows).toEqual([['דינה', 'dina@x.com', ''], ['רחל', 'rachel@x.com', 'https://github.com/rachel/ex1']]);
+  });
+
+  it('saves the filled rows to this assignment, skips the empty ones and names the bad ones', async () => {
+    const r = await importAssignmentSubmissions('a1', await sheet([
+      ['דינה', 'dina@x.com', 'ex1'],
+      ['רחל', 'rachel@x.com', ''],
+      ['', 'stranger@x.com', 'other/ex1'],
+    ]));
+    expect(r).toEqual({ imported: 1, unchanged: 0, empty: 1, errors: ['שורה 4: stranger@x.com אינה תלמידה בקורס של המטלה'] });
+    expect(p.submission.create).toHaveBeenCalledWith({
+      data: { assignmentId: 'a1', studentId: 's1', githubUrl: 'https://github.com/dina/ex1', isLate: false },
+    });
+  });
+
+  it('leaves a submission whose repo is already the one in the sheet', async () => {
+    p.submission.findUnique.mockResolvedValue({ id: 'sub1', githubUrl: 'https://github.com/dina/ex1' });
+    const r = await importAssignmentSubmissions('a1', await sheet([['דינה', 'dina@x.com', 'https://github.com/dina/ex1']]));
+    expect(r).toMatchObject({ imported: 0, unchanged: 1, errors: [] });
+    expect(p.submission.update).not.toHaveBeenCalled();
+    expect(repoStatusMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses an assignment that does not exist', async () => {
+    p.assignment.findUnique.mockResolvedValue(null);
+    await expect(importAssignmentSubmissions('nope', await sheet([]))).rejects.toMatchObject({ status: 404 });
   });
 });

@@ -1,6 +1,7 @@
 ﻿import { Request, Response } from 'express';
 import * as lessonsService from '../services/lessons.service';
 import { sendError } from '../utils/http';
+import * as fileLinks from '../services/file-links.service';
 import { fixMulterFilename } from '../utils/storage';
 import { fileToMarkdown } from '../utils/content-convert';
 
@@ -207,3 +208,21 @@ export async function importMarkdown(req: Request, res: Response) {
   }
 }
 
+/** Files stored elsewhere on the site, to show here without uploading them again. */
+export async function listLinkableFiles(req: Request, res: Response) {
+  try {
+    const files = await fileLinks.listLinkableFiles({ kind: 'lesson', id: req.params.id as string });
+    res.json({ success: true, data: { files } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function linkFile(req: Request, res: Response) {
+  try {
+    const file = await fileLinks.linkFile({ kind: 'lesson', id: req.params.id as string }, req.body?.source, req.body?.fileId, req.user!.userId);
+    res.status(201).json({ success: true, data: { file } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}

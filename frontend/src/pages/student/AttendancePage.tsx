@@ -76,7 +76,7 @@ export default function AttendancePage() {
                                 >
                                   {h.done ? <Check size={11} /> : <Circle size={9} />}
                                   {h.title}
-                                  <span className="sr-only">{h.done ? ' — בוצע' : ' — לא סומן כבוצע'}</span>
+                                  <span className="sr-only">{h.done ? ' - בוצע' : ' - לא סומן כבוצע'}</span>
                                 </li>
                               ))}
                             </ul>
@@ -111,7 +111,7 @@ function Summary({ present, absent, partial, sessions }: { present: number; abse
         <div>
           <p className="text-xs font-semibold text-ink-soft">אחוז נוכחות</p>
           <p className={cn('font-display text-3xl font-bold', rate === null ? 'text-ink-soft' : rate >= 85 ? 'text-sage' : rate >= 70 ? 'text-clay' : 'text-coral')}>
-            {rate === null ? '—' : `${rate}%`}
+            {rate === null ? '-' : `${rate}%`}
           </p>
         </div>
         {STATUS_ORDER.map((st) => {

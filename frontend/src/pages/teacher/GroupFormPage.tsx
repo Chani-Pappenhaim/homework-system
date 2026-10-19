@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Trash2, RotateCcw, UserPlus, Pencil, MailCheck, MailWarning, BellOff } from 'lucide-react';
+import { Trash2, RotateCcw, UserPlus, Pencil, MailCheck, MailWarning, BellOff, Download } from 'lucide-react';
 import { groupsApi } from '@/api/groups.api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,7 @@ import { StudentEditDialog, type EditableStudent } from '@/components/teacher/St
 import { BackLink } from '@/components/ui/back-link';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
-import { groupDisplayName } from '@/lib/utils';
+import { downloadBlob, groupDisplayName } from '@/lib/utils';
 import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function GroupFormPage() {
@@ -113,6 +113,12 @@ export default function GroupFormPage() {
     },
   });
 
+  const exportMutation = useMutation({
+    mutationFn: () => groupsApi.exportStudents(id!),
+    onSuccess: (res) => downloadBlob(res.data as Blob, group ? `תלמידות ${groupDisplayName(group)}.xlsx` : 'group-students.xlsx'),
+    onError: (e) => toast.error(getApiErrorMessage(e, 'ההורדה נכשלה')),
+  });
+
   const resetPasswordMutation = useMutation({
     mutationFn: (studentId: string) => groupsApi.resetPassword(id!, studentId),
     onSuccess: () => { setResetTarget(null); toast.success('הסיסמא אופסה ל-12345678'); },
@@ -122,6 +128,20 @@ export default function GroupFormPage() {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(studentId)) next.delete(studentId); else next.add(studentId);
+      return next;
+    });
+  }
+
+  // "Select all" takes the students on screen - all of them, or those the search found.
+  const allVisibleSelected = visibleStudents.length > 0 && visibleStudents.every((s) => selected.has(s.id));
+  const someVisibleSelected = visibleStudents.some((s) => selected.has(s.id));
+
+  function toggleAllVisible() {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const s of visibleStudents) {
+        if (allVisibleSelected) next.delete(s.id); else next.add(s.id);
+      }
       return next;
     });
   }
@@ -147,7 +167,7 @@ export default function GroupFormPage() {
               <input type="checkbox" className="mt-1" checked={notifyDefault} onChange={(e) => setNotifyDefault(e.target.checked)} />
               <span>
                 עדכונים במייל לתלמידות חדשות בקבוצה
-                <span className="block text-xs text-ink/55">ברירת מחדל לתלמידות שיתווספו מעכשיו — כל תלמידה יכולה לשנות בפרופיל שלה</span>
+                <span className="block text-xs text-ink/55">ברירת מחדל לתלמידות שיתווספו מעכשיו - כל תלמידה יכולה לשנות בפרופיל שלה</span>
               </span>
             </label>
             {error && <p className="text-coral text-sm">{error}</p>}
@@ -169,6 +189,14 @@ export default function GroupFormPage() {
                       <Trash2 size={13} /> הסר נבחרות ({selected.size})
                     </Button>
                   )}
+                  {(group?.students.length ?? 0) > 0 && (
+                    <Button
+                      size="sm" variant="outline" loading={exportMutation.isPending} onClick={() => exportMutation.mutate()}
+                      title="קובץ באותו מבנה של ייבוא התלמידות - אפשר להעלות אותו כמו שהוא לקבוצה אחרת"
+                    >
+                      <Download size={13} /> הורדה לאקסל
+                    </Button>
+                  )}
                   <Button size="sm" variant="secondary" onClick={() => setAddModal(true)}>
                     <UserPlus size={13} /> הוספת תלמידה
                   </Button>
@@ -177,6 +205,17 @@ export default function GroupFormPage() {
             </CardHeader>
             {(group?.students.length ?? 0) > 0 && (
               <div className="flex items-center gap-2 px-5 py-3 border-b border-rule/20">
+                <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs font-semibold text-ink/70">
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    ref={(el) => { if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected; }}
+                    onChange={toggleAllVisible}
+                    disabled={visibleStudents.length === 0}
+                    className="size-4 accent-ink"
+                  />
+                  בחירת כולן
+                </label>
                 <Input
                   placeholder="חיפוש לפי שם או מייל..."
                   value={studentQuery}
@@ -210,7 +249,7 @@ export default function GroupFormPage() {
                       aria-label={`בחר את ${s.name}`}
                     />
                     <div>
-                      <Link to={`/teacher/students/${s.id}`} className="text-sm font-medium text-ink hover:underline" title="לדף התלמידה — עריכה ומחיקת החשבון">{s.name}</Link>
+                      <Link to={`/teacher/students/${s.id}`} className="text-sm font-medium text-ink hover:underline" title="לדף התלמידה - עריכה ומחיקת החשבון">{s.name}</Link>
                       <p className="flex items-center gap-1 text-xs text-ink/50">
                         {s.email}
                         {s.emailVerified
@@ -251,7 +290,7 @@ export default function GroupFormPage() {
         open={!!removeOneTarget}
         onOpenChange={(open) => !open && setRemoveOneTarget(null)}
         title="הסרת תלמידה מהקבוצה"
-        description={removeOneTarget ? `להסיר את ${removeOneTarget.name} מהקבוצה? חשבון התלמידה עצמו לא יימחק — כדי למחוק אותו, לחצי על שמה ובדף שלה על "מחיקת חשבון".` : ''}
+        description={removeOneTarget ? `להסיר את ${removeOneTarget.name} מהקבוצה? חשבון התלמידה עצמו לא יימחק - כדי למחוק אותו, לחצי על שמה ובדף שלה על "מחיקת חשבון".` : ''}
         confirmLabel="הסר"
         loading={removeStudentMutation.isPending}
         onConfirm={() => removeStudentMutation.mutate(removeOneTarget!.id)}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Sparkles, Eye, EyeOff, Save, RotateCcw, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Sparkles, Eye, EyeOff, Save, RotateCcw, AlertTriangle, RefreshCw, Plus, Trash2, X, PencilLine } from 'lucide-react';
 import { quizzesApi } from '@/api/quizzes.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,10 +16,17 @@ import type { QuizQuestionDTO, QuizStateDTO } from '@/types';
 import { GenerationProgress, IncludeFilesOption, SourceFilesLine } from './QuizGenerationInfo';
 
 /**
- * Teacher-facing quiz editor: generate questions with AI, review and correct
- * them, then publish to the class. Students never trigger generation and
- * never see a draft.
+ * Teacher-facing quiz editor: generate questions with AI - or write them by
+ * hand - review and correct them, then publish to the class. Students never
+ * trigger generation and never see a draft.
  */
+
+const MAX_OPTIONS = 6;
+
+/** A blank question to fill in; its id only has to be unique among the quiz's questions. */
+function blankQuestion(): QuizQuestionDTO {
+  return { id: `m${Date.now()}${Math.random().toString(36).slice(2, 6)}`, question: '', options: ['', '', '', ''], correctIndex: -1 };
+}
 export default function QuizPanel({
   lessonId, hasContent, hasFiles,
 }: { lessonId: string; hasContent: boolean; hasFiles: boolean }) {
@@ -31,6 +38,8 @@ export default function QuizPanel({
   const [error, setError] = useState('');
   const [includeFiles, setIncludeFiles] = useState(false);
   const [regenerateOpen, setRegenerateOpen] = useState(false);
+  // Writing a new quiz by hand: the editor shows before any quiz exists.
+  const [creating, setCreating] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['quiz', lessonId],
@@ -94,6 +103,30 @@ export default function QuizPanel({
     onError: (e: any) => setError(getApiErrorMessage(e, 'שמירת השאלות נכשלה')),
   });
 
+  const createMutation = useMutation({
+    mutationFn: () => quizzesApi.createManual(lessonId, draft ?? []),
+    onSuccess: () => {
+      setError('');
+      setCreating(false);
+      setDraft(null); // reloaded from the saved quiz
+      toast.success('הבוחן נשמר כטיוטה - אפשר לפרסם אותו לתלמידות');
+      qc.invalidateQueries({ queryKey: ['quiz', lessonId] });
+    },
+    onError: (e: any) => setError(getApiErrorMessage(e, 'שמירת הבוחן נכשלה')),
+  });
+
+  function startManual() {
+    setError('');
+    setDraft([blankQuestion()]);
+    setCreating(true);
+  }
+
+  function cancelManual() {
+    setError('');
+    setDraft(null);
+    setCreating(false);
+  }
+
   const publishMutation = useMutation({
     mutationFn: (published: boolean) => quizzesApi.setPublished(lessonId, published),
     onSuccess: (_res, published) => {
@@ -117,7 +150,29 @@ export default function QuizPanel({
     );
   }
 
-  const dirty = Boolean(draft && quiz && JSON.stringify(draft) !== JSON.stringify(quiz.questions));
+  function addQuestion() {
+    setDraft((prev) => prev && [...prev, blankQuestion()]);
+  }
+
+  function removeQuestion(i: number) {
+    setDraft((prev) => prev && prev.filter((_, idx) => idx !== i));
+  }
+
+  function addOption(qi: number) {
+    setDraft((prev) => prev && prev.map((q, idx) => (idx === qi ? { ...q, options: [...q.options, ''] } : q)));
+  }
+
+  function removeOption(qi: number, oi: number) {
+    setDraft((prev) => prev && prev.map((q, idx) => {
+      if (idx !== qi) return q;
+      const correct = q.correctIndex ?? -1;
+      // The marked answer keeps pointing at the same text; removing it leaves none marked.
+      const correctIndex = correct === oi ? -1 : correct > oi ? correct - 1 : correct;
+      return { ...q, options: q.options.filter((_, j) => j !== oi), correctIndex };
+    }));
+  }
+
+  const dirty = creating || Boolean(draft && quiz && JSON.stringify(draft) !== JSON.stringify(quiz.questions));
 
   const header = (
     <CardHeader className="flex flex-row items-center justify-between gap-2">
@@ -126,7 +181,7 @@ export default function QuizPanel({
       </h2>
       {quiz && (
         <Badge variant={quiz.published ? 'success' : 'secondary'}>
-          {quiz.published ? 'פורסם לתלמידות' : 'טיוטה — התלמידות לא רואות'}
+          {quiz.published ? 'פורסם לתלמידות' : 'טיוטה - התלמידות לא רואות'}
         </Badge>
       )}
     </CardHeader>
@@ -147,13 +202,21 @@ export default function QuizPanel({
     return <Card accent="indigo">{header}<CardContent><p className="text-sm text-ink/50">טוען…</p></CardContent></Card>;
   }
 
+  const manualButton = (
+    <Button variant="outline" onClick={startManual}>
+      <PencilLine size={14} /> בניית בוחן ידנית
+    </Button>
+  );
+
   // No content to generate from, or the server refused for another reason.
-  if (state?.status === 'unavailable') {
+  if (!creating && state?.status === 'unavailable') {
     return (
       <Card accent="indigo">
         {header}
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-3">
           <p className="text-sm text-ink/60">{state.message}</p>
+          <p className="text-sm text-ink/60">אפשר גם לכתוב את השאלות בעצמך, בלי AI:</p>
+          {manualButton}
         </CardContent>
       </Card>
     );
@@ -178,7 +241,7 @@ export default function QuizPanel({
   }
 
   // Nothing generated yet (or the last attempt failed) — offer to create one.
-  if (state?.status === 'none' || state?.status === 'failed') {
+  if (!creating && (state?.status === 'none' || state?.status === 'failed')) {
     return (
       <Card accent="indigo">
         {header}
@@ -196,14 +259,17 @@ export default function QuizPanel({
             />
           )}
           {errorLine}
-          <Button
-            variant="clay"
-            loading={generateMutation.isPending}
-            disabled={!hasContent || !ai.available}
-            onClick={() => generateMutation.mutate(false)}
-          >
-            <Sparkles size={14} /> {state.status === 'failed' ? 'נסי שוב' : 'צרי בוחן בעזרת AI'}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="clay"
+              loading={generateMutation.isPending}
+              disabled={!hasContent || !ai.available}
+              onClick={() => generateMutation.mutate(false)}
+            >
+              <Sparkles size={14} /> {state.status === 'failed' ? 'נסי שוב' : 'צרי בוחן בעזרת AI'}
+            </Button>
+            {manualButton}
+          </div>
           {hasContent && aiNote}
           {!hasContent && (
             <p className="text-xs text-ink/50">יש להוסיף תוכן שיעור לפני יצירת בוחן.</p>
@@ -213,18 +279,20 @@ export default function QuizPanel({
     );
   }
 
-  if (!quiz || !draft) return null;
+  if (!draft || (!quiz && !creating)) return null;
 
   return (
     <Card accent="indigo">
       {header}
       <CardContent className="space-y-4">
         <p className="text-xs text-ink/50">
-          {quiz.published
-            ? 'הבוחן גלוי לתלמידות. עריכה תמחק את כל התשובות שכבר נענו.'
-            : 'עברי על השאלות, תקני מה שצריך, ואז פרסמי. עד לפרסום התלמידות לא רואות דבר.'}
+          {!quiz
+            ? 'כתבי שאלות אמריקאיות וסמני לכל אחת את התשובה הנכונה. אחרי השמירה הבוחן נשאר טיוטה עד שתפרסמי אותו.'
+            : quiz.published
+              ? 'הבוחן גלוי לתלמידות. עריכה תמחק את כל התשובות שכבר נענו.'
+              : 'עברי על השאלות, תקני מה שצריך, ואז פרסמי. עד לפרסום התלמידות לא רואות דבר.'}
         </p>
-        <SourceFilesLine sourceFiles={quiz.sourceFiles} />
+        {quiz && <SourceFilesLine sourceFiles={quiz.sourceFiles} />}
         <p className="text-xs text-ink/50">
           שאלות ותשובות תומכות ב-Markdown: `קוד` בשורה, ``` לבלוק קוד, **הדגשה** וקישורים. את טקסט השאלה אפשר גם לטעון מקובץ Markdown, HTML או Word.
         </p>
@@ -244,16 +312,29 @@ export default function QuizPanel({
         <fieldset disabled={regenerating} className={cn('space-y-4', regenerating && 'opacity-60')}>
           {draft.map((q, qi) => (
             <div key={q.id} className="rounded-card border border-rule/60 bg-ground/30 p-3">
-              <div className="mb-2">
-                <MarkdownField
-                  id={`quiz-question-${q.id}`}
-                  label={`שאלה ${qi + 1}`}
-                  value={q.question}
-                  onChange={(question) => editQuestion(qi, { question })}
-                  rows={2}
-                  showHint={false}
-                  inline
-                />
+              <div className="mb-2 flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <MarkdownField
+                    id={`quiz-question-${q.id}`}
+                    label={`שאלה ${qi + 1}`}
+                    value={q.question}
+                    onChange={(question) => editQuestion(qi, { question })}
+                    rows={2}
+                    showHint={false}
+                    inline
+                  />
+                </div>
+                {draft.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeQuestion(qi)}
+                    className="mt-6 shrink-0 rounded p-1 text-ink/40 hover:bg-coral/10 hover:text-coral"
+                    aria-label={`מחיקת שאלה ${qi + 1}`}
+                    title="מחיקת השאלה"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
               </div>
 
               <div className="space-y-1.5 pr-6">
@@ -280,15 +361,44 @@ export default function QuizPanel({
                       className="min-w-0 flex-1 border-0 bg-transparent px-1 py-1 shadow-none focus-visible:ring-0"
                       aria-label={`אפשרות ${oi + 1} לשאלה ${qi + 1}`}
                     />
+                    {q.options.length > 2 && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); removeOption(qi, oi); }}
+                        className="mt-1.5 shrink-0 rounded p-0.5 text-ink/30 hover:text-coral"
+                        aria-label={`מחיקת אפשרות ${oi + 1} בשאלה ${qi + 1}`}
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
                   </label>
                 ))}
               </div>
-              <p className="mt-1.5 pr-6 text-[11px] text-ink/40">סמני בעיגול את התשובה הנכונה</p>
+              <div className="mt-1.5 flex items-center justify-between pr-6">
+                <p className="text-[11px] text-ink/40">סמני בעיגול את התשובה הנכונה</p>
+                {q.options.length < MAX_OPTIONS && (
+                  <button type="button" onClick={() => addOption(qi)} className="text-[11px] font-semibold text-clay hover:underline">
+                    + אפשרות
+                  </button>
+                )}
+              </div>
             </div>
           ))}
 
+          <Button variant="outline" size="sm" onClick={addQuestion}>
+            <Plus size={14} /> הוספת שאלה
+          </Button>
+
         {/* Inside the fieldset too: no saving or publishing while new questions are on their way. */}
         <div className="flex flex-wrap items-center gap-2 border-t border-rule/40 pt-3">
+          {creating ? (
+            <>
+              <Button variant="clay" loading={createMutation.isPending} onClick={() => createMutation.mutate()}>
+                <Save size={14} /> שמרי את הבוחן
+              </Button>
+              <Button variant="ghost" onClick={cancelManual}>ביטול</Button>
+            </>
+          ) : (
           <Button
             variant="default"
             loading={saveMutation.isPending}
@@ -297,8 +407,9 @@ export default function QuizPanel({
           >
             <Save size={14} /> שמרי שינויים
           </Button>
+          )}
 
-          {dirty && (
+          {quiz && dirty && (
             <Button variant="ghost" onClick={() => { setDraft(quiz.questions); setError(''); }}>
               <RotateCcw size={14} /> בטלי שינויים
             </Button>
@@ -307,7 +418,7 @@ export default function QuizPanel({
           <div className="flex-1" />
 
           {/* Only a draft: students may already be sitting a published quiz. */}
-          {!quiz.published && hasContent && (
+          {quiz && !quiz.published && hasContent && (
             <Button
               variant="ghost"
               disabled={!ai.available}
@@ -318,6 +429,7 @@ export default function QuizPanel({
             </Button>
           )}
 
+          {quiz && (
           <Button
             variant={quiz.published ? 'outline' : 'clay'}
             loading={publishMutation.isPending}
@@ -328,13 +440,14 @@ export default function QuizPanel({
           >
             {quiz.published ? <><EyeOff size={14} /> החזירי לטיוטה</> : <><Eye size={14} /> פרסמי לתלמידות</>}
           </Button>
+          )}
         </div>
         </fieldset>
 
-        {dirty && (
+        {quiz && dirty && (
           <p className="text-xs text-ink/50">יש שינויים שלא נשמרו. שמרי אותם כדי לאפשר פרסום.</p>
         )}
-        {!quiz.published && hasContent && aiNote}
+        {quiz && !quiz.published && hasContent && aiNote}
       </CardContent>
 
       <Dialog open={regenerateOpen} onOpenChange={setRegenerateOpen}>
@@ -344,7 +457,7 @@ export default function QuizPanel({
           </DialogHeader>
           <DialogBody className="space-y-3">
             <p className="text-sm text-ink/70">
-              ה-AI יכתוב שאלות חדשות במקום השאלות הנוכחיות — כולל העריכות שלך
+              ה-AI יכתוב שאלות חדשות במקום השאלות הנוכחיות - כולל העריכות שלך
               {dirty && ' ושינויים שעוד לא נשמרו'}. תשובות שכבר הוגשו לבוחן יימחקו.
               עד שהשאלות החדשות יהיו מוכנות, הנוכחיות נשארות.
             </p>

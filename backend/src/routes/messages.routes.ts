@@ -8,7 +8,11 @@ router.use(verifyAccessTokenMiddleware);
 
 router.post('/', requireRole('STUDENT'), messagesController.sendMessage);
 router.post('/teacher', requireRole('ADMIN'), messagesController.sendTeacherMessage);
+router.post('/teacher/group', requireRole('ADMIN'), messagesController.sendGroupMessage);
 router.get('/', requireRole('ADMIN'), messagesController.getMessages);
+// The name the students' emails come from.
+router.get('/email-settings', requireRole('ADMIN'), messagesController.getEmailSettings);
+router.put('/email-settings', requireRole('ADMIN'), messagesController.updateEmailSettings);
 router.get('/mine', requireRole('STUDENT'), messagesController.getMyMessages);
 router.get('/unread-count', requireRole('ADMIN'), messagesController.getUnreadCount);
 router.get('/unread-replies-count', requireRole('STUDENT'), messagesController.getUnreadReplyCount);

@@ -124,7 +124,7 @@ export function AssignmentModal({ lessonId, lessonDate, value, onClose }: {
                   value={deadline}
                   min={formatLocal(new Date())}
                   onChange={(e) => setDeadline(e.target.value)}
-                  error={deadlineInPast ? 'המועד האחרון כבר עבר — בחרי תאריך עתידי' : undefined}
+                  error={deadlineInPast ? 'המועד האחרון כבר עבר - בחרי תאריך עתידי' : undefined}
                 />
                 <button type="button" onClick={() => setDeadline('')} className="self-start text-xs font-semibold text-coral hover:underline">
                   ללא מועד אחרון
@@ -153,7 +153,7 @@ export function AssignmentModal({ lessonId, lessonDate, value, onClose }: {
               <span className="block text-xs text-ink-soft">
                 {aiReviewEnabled
                   ? 'התלמידות יוכלו לבקש בדיקת AI לעבודה שהגישו'
-                  : 'העבודות ייבדקו רק על ידך — בלי כפתור בדיקת AI'}
+                  : 'העבודות ייבדקו רק על ידך - בלי כפתור בדיקת AI'}
               </span>
             </span>
           </label>

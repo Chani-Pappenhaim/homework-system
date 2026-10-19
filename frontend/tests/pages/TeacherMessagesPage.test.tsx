@@ -14,11 +14,17 @@ vi.mock('@/api/messages.api', () => ({
     delete: vi.fn(),
     deleteReply: vi.fn(),
     sendTeacher: vi.fn(),
+    sendToGroup: vi.fn(),
   },
 }));
+vi.mock('@/api/groups.api', () => ({ groupsApi: { list: vi.fn() } }));
+import { groupsApi } from '@/api/groups.api';
+import { ToastProvider } from '@/components/ui/toast';
+const groupsList = groupsApi.list as unknown as ReturnType<typeof vi.fn>;
 
 import { messagesApi } from '@/api/messages.api';
 const getAll = messagesApi.getAll as unknown as ReturnType<typeof vi.fn>;
+const sendToGroup = messagesApi.sendToGroup as unknown as ReturnType<typeof vi.fn>;
 const reply = messagesApi.reply as unknown as ReturnType<typeof vi.fn>;
 const markRead = messagesApi.markRead as unknown as ReturnType<typeof vi.fn>;
 const getUnreadCount = messagesApi.getUnreadCount as unknown as ReturnType<typeof vi.fn>;
@@ -80,6 +86,16 @@ describe('TeacherMessagesPage', () => {
     // Typing into the rich editor is slow when the whole suite runs in parallel.
   }, 15000);
 
+  it('sends a reply on Ctrl+Enter', async () => {
+    getAll.mockResolvedValue({ data: { data: { messages } } });
+    reply.mockResolvedValue({ data: {} });
+    renderWithProviders(<TeacherMessagesPage />);
+    await userEvent.click(await screen.findByRole('button', { name: /דנה/ }));
+    const textarea = await screen.findByPlaceholderText('כתבי תגובה לתלמידה…');
+    await userEvent.type(textarea, 'תשובה{Control>}{Enter}{/Control}');
+    await waitFor(() => expect(reply).toHaveBeenCalledWith('m1', 'תשובה'));
+  }, 15000);
+
   describe('the unread badges', () => {
     const entry = (id: string, isRead = false) =>
       ({ id, fromTeacher: false, content: `תוכן ${id}`, isRead, createdAt: '2026-07-01T09:00:00Z' });
@@ -130,4 +146,22 @@ describe('TeacherMessagesPage', () => {
       expect(markRead).toHaveBeenCalledTimes(1);
     });
   });
+});
+
+describe('a message to a whole group', () => {
+  it('sends the message to the group chosen and says how many students got it', async () => {
+    getAll.mockResolvedValue({ data: { data: { messages: [] } } });
+    groupsList.mockResolvedValue({ data: { data: { groups: [{ id: 'g1', name: 'יד', seminar: 'סמינר', year: 'תשפ״ז', studentCount: 12 }] } } });
+    sendToGroup.mockResolvedValue({ data: { data: { sent: 12 } } });
+    const user = userEvent.setup();
+    renderWithProviders(<ToastProvider><TeacherMessagesPage /></ToastProvider>, { initialEntries: ['/teacher/messages?compose=1'] });
+
+    await user.click(await screen.findByRole('radio', { name: 'לקבוצה' }));
+    await user.selectOptions(await screen.findByLabelText('קבוצה'), 'g1');
+    await user.type(screen.getByPlaceholderText('כתבי הודעה לכל התלמידות בקבוצה…'), 'שיעור מחר מבוטל');
+    await user.click(screen.getByRole('button', { name: /שליחה/ }));
+
+    await waitFor(() => expect(sendToGroup).toHaveBeenCalledWith('g1', 'שיעור מחר מבוטל'));
+    expect(await screen.findByText(/ההודעה נשלחה ל-12 תלמידות/)).toBeInTheDocument();
+  }, 15000);
 });

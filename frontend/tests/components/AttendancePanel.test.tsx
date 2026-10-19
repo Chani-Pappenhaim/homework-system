@@ -63,7 +63,7 @@ describe('AttendancePanel', () => {
     // Keep the save in flight so the sheet shows the optimistic mark, not a refetch.
     api.saveRecords.mockReturnValueOnce(new Promise(() => {}));
     renderPanel();
-    const group = await screen.findByRole('radiogroup', { name: 'נוכחות — בתיה' });
+    const group = await screen.findByRole('radiogroup', { name: 'נוכחות - בתיה' });
     await userEvent.click(within(group).getByRole('radio', { name: /חסרה/ }));
     expect(api.saveRecords).toHaveBeenCalledWith('a1', [{ studentId: 's2', status: 'ABSENT' }]);
     // Optimistic: the sheet reflects it before the refetch.
@@ -72,7 +72,7 @@ describe('AttendancePanel', () => {
 
   it('pressing the current status again clears the mark', async () => {
     renderPanel();
-    const group = await screen.findByRole('radiogroup', { name: 'נוכחות — אסתר' });
+    const group = await screen.findByRole('radiogroup', { name: 'נוכחות - אסתר' });
     await userEvent.click(within(group).getByRole('radio', { name: /נוכחת/ }));
     expect(api.saveRecords).toHaveBeenCalledWith('a1', [{ studentId: 's1', status: null }]);
   });
@@ -87,7 +87,7 @@ describe('AttendancePanel', () => {
     renderPanel();
     await userEvent.click(await screen.findByRole('button', { name: /חזרה פרונטלית/ }));
     expect(screen.getByText('מפגש שלא באתר')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('checkbox', { name: 'דף עבודה — בתיה' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'דף עבודה - בתיה' }));
     expect(api.saveHomeworkMarks).toHaveBeenCalledWith('h1', [{ studentId: 's2', done: true }]);
   });
 
@@ -105,6 +105,33 @@ describe('AttendancePanel', () => {
     expect(within(dialog).getAllByText('חובה')).toHaveLength(3);
     expect(within(dialog).getAllByText('רשות')).toHaveLength(3);
     expect(within(dialog).getByRole('button', { name: /הורדת קובץ דוגמה/ })).toBeInTheDocument();
+  });
+
+  it('checks an excel file first and saves it only once the teacher confirms', async () => {
+    const preview = {
+      dryRun: true, saved: 2, updated: 1, added: 1, unchanged: 0, skipped: 0,
+      sessionsCreated: 1, newSessions: ['10/12/2026'], errors: ['שורה 4: סטטוס לא מוכר ("אולי")'],
+    };
+    api.importFile
+      .mockResolvedValueOnce({ data: { data: preview } })
+      .mockResolvedValueOnce({ data: { data: { ...preview, dryRun: false } } });
+    renderPanel();
+    await userEvent.click(await screen.findByRole('button', { name: /ייבוא מ-Excel/ }));
+    const dialog = await screen.findByRole('dialog');
+    const file = new File(['x'], 'נוכחות.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    await userEvent.upload(dialog.querySelector('input[type="file"]') as HTMLInputElement, file);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'העלה קובץ' }));
+
+    expect(await within(dialog).findByText('2 סימונים תקינים ייקלטו')).toBeInTheDocument();
+    expect(within(dialog).getByText(/1 ישנו סימון קיים · 1 יתווספו/)).toBeInTheDocument();
+    expect(within(dialog).getByText('10/12/2026')).toBeInTheDocument();
+    expect(within(dialog).getByText(/סטטוס לא מוכר/)).toBeInTheDocument();
+    expect(api.importFile).toHaveBeenCalledTimes(1);
+    expect(api.importFile).toHaveBeenLastCalledWith('c1', file, true);
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'קליטת 2 הסימונים התקינים' }));
+    expect(await within(dialog).findByText('נשמרו 2 סימונים')).toBeInTheDocument();
+    expect(api.importFile).toHaveBeenLastCalledWith('c1', file);
   });
 
   it('offers to open meetings from the lessons when there are none yet', async () => {

@@ -108,6 +108,34 @@ describe('StudentMessagesPage', () => {
     await waitFor(() => expect(screen.queryByPlaceholderText('כתבי את ההודעה שלך...')).not.toBeInTheDocument());
   });
 
+  it('sends on Ctrl+Enter, while Enter alone only breaks the line', async () => {
+    getMine.mockResolvedValue({ data: { data: { messages: [] } } });
+    send.mockResolvedValue({ data: {} });
+    renderWithProviders(<StudentMessagesPage />);
+    await userEvent.click(screen.getByRole('button', { name: /הודעה חדשה/ }));
+    const box = screen.getByPlaceholderText('כתבי את ההודעה שלך...');
+    await userEvent.type(box, 'שורה{Enter}עוד');
+    expect(send).not.toHaveBeenCalled();
+    await userEvent.type(box, '{Control>}{Enter}{/Control}');
+    await waitFor(() => expect(send).toHaveBeenCalledWith(['שורה', 'עוד'].join('\n')));
+  });
+
+  it('starts the new message with the draft a "contact the teacher" link carried', async () => {
+    getMine.mockResolvedValue({ data: { data: { messages: [] } } });
+    renderWithProviders(<StudentMessagesPage />, {
+      initialEntries: [`/student/messages?compose=1&draft=${encodeURIComponent('בנוגע לחידון: ')}`],
+    });
+    expect(await screen.findByPlaceholderText('כתבי את ההודעה שלך...')).toHaveValue('בנוגע לחידון: ');
+  });
+
+  it('does not send an empty message on Ctrl+Enter', async () => {
+    getMine.mockResolvedValue({ data: { data: { messages: [] } } });
+    renderWithProviders(<StudentMessagesPage />);
+    await userEvent.click(screen.getByRole('button', { name: /הודעה חדשה/ }));
+    await userEvent.type(screen.getByPlaceholderText('כתבי את ההודעה שלך...'), '{Control>}{Enter}{/Control}');
+    expect(send).not.toHaveBeenCalled();
+  });
+
   describe('the address of the open conversation', () => {
     beforeEach(() => {
       getMine.mockResolvedValue(twoConversations);

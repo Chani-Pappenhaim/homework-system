@@ -37,7 +37,20 @@ export interface CourseAttendanceDTO {
   sessions: AttendanceSessionDTO[];
 }
 
-export interface ImportResult { saved: number; skipped: number; sessionsCreated: number; errors: string[] }
+export interface ImportResult {
+  /** True when the file was only checked and nothing was saved yet. */
+  dryRun: boolean;
+  /** Marks saved (or to be saved): updated + added + unchanged. */
+  saved: number;
+  updated: number;
+  added: number;
+  unchanged: number;
+  skipped: number;
+  sessionsCreated: number;
+  /** New meetings, as "15/10/2026" or "15/10/2026 (topic)". */
+  newSessions: string[];
+  errors: string[];
+}
 
 export interface MyAttendanceCourse {
   courseId: string;
@@ -92,10 +105,11 @@ export const attendanceApi = {
   downloadTemplate: (courseId: string) =>
     api.get(`/courses/${courseId}/attendance/template`, { responseType: 'blob' }),
 
-  importFile: (courseId: string, file: File) => {
+  /** With dryRun the server only checks the file; the teacher then confirms the real import. */
+  importFile: (courseId: string, file: File, dryRun = false) => {
     const form = new FormData();
     form.append('file', file);
-    return api.post<Ok<ImportResult>>(`/courses/${courseId}/attendance/import`, form);
+    return api.post<Ok<ImportResult>>(`/courses/${courseId}/attendance/import${dryRun ? '?dryRun=true' : ''}`, form);
   },
 
   getMine: () =>

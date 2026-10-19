@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cn, formatDate, formatDateTime, isOverdue, formatBytes, toGematria, toHebrewDate, markdownToPlainText } from '@/lib/utils';
+import { cn, formatDate, formatDateTime, isOverdue, formatBytes, toGematria, toHebrewDate, markdownToPlainText, formatHebrewDate, formatDateFull, formatWeekday } from '@/lib/utils';
 
 describe('cn', () => {
   it('merges class names', () => {
@@ -16,22 +16,22 @@ describe('cn', () => {
 
 describe('formatDate', () => {
   it('returns an em dash for empty input', () => {
-    expect(formatDate(null)).toBe('—');
-    expect(formatDate(undefined)).toBe('—');
+    expect(formatDate(null)).toBe('-');
+    expect(formatDate(undefined)).toBe('-');
   });
   it('formats a date string', () => {
     const out = formatDate('2026-07-11T00:00:00Z');
-    expect(out).not.toBe('—');
+    expect(out).not.toBe('-');
     expect(out).toContain('2026');
   });
 });
 
 describe('formatDateTime', () => {
   it('returns an em dash for empty input', () => {
-    expect(formatDateTime(null)).toBe('—');
+    expect(formatDateTime(null)).toBe('-');
   });
   it('formats a datetime string', () => {
-    expect(formatDateTime('2026-07-11T10:30:00Z')).not.toBe('—');
+    expect(formatDateTime('2026-07-11T10:30:00Z')).not.toBe('-');
   });
 });
 
@@ -100,5 +100,19 @@ describe('toHebrewDate', () => {
 describe('markdownToPlainText', () => {
   it('strips Markdown syntax for a one-line preview', () => {
     expect(markdownToPlainText('# כותרת\n\n**חשוב:** ראי [קישור](https://x.com)\n- פריט')).toBe('כותרת חשוב: ראי קישור פריט');
+  });
+});
+
+describe('Hebrew dates', () => {
+  it('gives the Hebrew date of a day', () => {
+    expect(formatHebrewDate('2025-08-25T12:00:00Z')).toBe('א׳ באלול תשפ״ה');
+    expect(formatHebrewDate('2026-03-04T12:00:00Z')).toBe('ט״ו באדר תשפ״ו');
+    expect(formatHebrewDate('2026-10-19T12:00:00Z', { year: false })).toBe('ח׳ בחשוון');
+  });
+
+  it('shows a date in full: weekday, date and Hebrew date', () => {
+    expect(formatDateFull('2026-10-19T12:00:00Z')).toBe('יום ב׳, 19 באוקטובר 2026 · ח׳ בחשוון תשפ״ז');
+    expect(formatWeekday('2026-10-24T12:00:00Z')).toBe('שבת');
+    expect(formatDateFull(null)).toBe('-');
   });
 });

@@ -191,7 +191,7 @@ describe('assignments.service hardening', () => {
   it('rejects a new assignment whose deadline already passed', async () => {
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     await expect(createAssignment('l1', { title: 'T', description: 'D', deadline: yesterday }))
-      .rejects.toMatchObject({ status: 400, clientMessage: 'המועד האחרון כבר עבר — יש לבחור תאריך עתידי' });
+      .rejects.toMatchObject({ status: 400, clientMessage: 'המועד האחרון כבר עבר - יש לבחור תאריך עתידי' });
     expect(p.assignment.create).not.toHaveBeenCalled();
   });
 

@@ -173,7 +173,7 @@ export default function GroupDetailPage() {
             {[...group.students].sort((a, b) => a.name.localeCompare(b.name, 'he')).map((s) => (
               <div key={s.id} className="flex items-center justify-between gap-3 px-5 py-3">
                 <div>
-                  <Link to={`/teacher/students/${s.id}`} className="text-sm font-medium text-ink hover:underline" title="לדף התלמידה — עריכה ומחיקת החשבון">{s.name}</Link>
+                  <Link to={`/teacher/students/${s.id}`} className="text-sm font-medium text-ink hover:underline" title="לדף התלמידה - עריכה ומחיקת החשבון">{s.name}</Link>
                   <p className="text-xs text-ink/50">{s.email}</p>
                   <p className="text-xs text-ink/50 flex items-center gap-1 mt-0.5">
                     <Github size={11} /> {s.githubUsername || 'לא הוזן שם משתמש GitHub'}

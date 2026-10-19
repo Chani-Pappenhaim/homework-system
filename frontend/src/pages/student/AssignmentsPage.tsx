@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { PageHeader } from '@/components/ui/page-header';
 import { DeleteSubmissionButton } from '@/components/student/DeleteSubmissionButton';
-import { cn, formatDate, formatDateTime, isOverdue } from '@/lib/utils';
+import { cn, formatDate, formatDateFull, formatDateTime, isOverdue } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import { apiFileUrl } from '@/lib/config';
 import type { MySubmission, PendingAssignment } from '@/types';
@@ -25,12 +25,17 @@ export default function AssignmentsPage() {
   const submitted: MySubmission[] = mine?.submitted ?? [];
   // The open assignment lives in the URL (`?pending=<assignmentId>` or
   // `?submission=<submissionId>`), so a refresh or a shared link reopens it and
-  // the browser's back button returns to the list.
+  // the browser's back button returns to the list. `?assignment=<assignmentId>`
+  // is the link a teacher sends the whole class: it opens the assignment for a
+  // student who has yet to submit it, and her submission for one who has.
   const [searchParams, setSearchParams] = useSearchParams();
-  const pendingId = searchParams.get('pending');
+  const assignmentId = searchParams.get('assignment');
+  const pendingId = searchParams.get('pending') ?? assignmentId;
   const submissionId = searchParams.get('submission');
   const pendingItem = pendingId ? pending.find((p) => p.assignmentId === pendingId) : undefined;
-  const submittedItem = submissionId ? submitted.find((s) => s.submissionId === submissionId) : undefined;
+  const submittedItem = submissionId
+    ? submitted.find((s) => s.submissionId === submissionId)
+    : assignmentId ? submitted.find((s) => s.assignmentId === assignmentId) : undefined;
   const viewing: ViewingItem | null = pendingItem
     ? { type: 'pending', item: pendingItem }
     : submittedItem ? { type: 'submitted', item: submittedItem } : null;
@@ -38,6 +43,7 @@ export default function AssignmentsPage() {
     const params = new URLSearchParams(p);
     params.delete('pending');
     params.delete('submission');
+    params.delete('assignment');
     if (next?.type === 'pending') params.set('pending', next.item.assignmentId);
     if (next?.type === 'submitted') params.set('submission', next.item.submissionId);
     return params;
@@ -203,7 +209,7 @@ function PendingDetail({ item, onGoToLesson }: { item: PendingAssignment; onGoTo
       {item.deadline && (
         <p className="text-sm">
           <span className="text-ink-soft">מועד אחרון: </span>
-          <Badge variant={overdue ? 'default' : 'warning'}>{overdue ? 'פג תוקף' : formatDate(item.deadline)}</Badge>
+          <Badge variant={overdue ? 'default' : 'warning'}>{overdue ? 'פג תוקף' : formatDateFull(item.deadline)}</Badge>
         </p>
       )}
       <Button onClick={onGoToLesson}>מעבר לשיעור להגשה</Button>
@@ -241,11 +247,18 @@ function SubmittedDetail({ item, onDeleted }: { item: MySubmission; onDeleted: (
         </div>
       )}
 
-      {item.aiStatus === 'done' && item.aiApproved && (
+      {item.aiStatus === 'done' && (
         <div className="border border-rule/15 rounded-input p-3 text-sm space-y-1">
           <p className="font-medium text-ink">בדיקת AI</p>
-          <p className="font-semibold">ציון: {item.aiScore}</p>
+          {item.aiApproved && item.aiScore != null ? (
+            <p className="font-semibold">ציון: {item.aiScore}</p>
+          ) : (
+            <p className="text-xs text-ink/50">הציון יוצג אחרי שהמורה תאשר אותו</p>
+          )}
           {item.aiVerbalReview && <p className="text-ink/70 text-xs">{item.aiVerbalReview}</p>}
+          {item.aiCodeReview && (
+            <pre className="text-xs bg-ground/60 rounded p-2 whitespace-pre-wrap">{item.aiCodeReview}</pre>
+          )}
         </div>
       )}
 

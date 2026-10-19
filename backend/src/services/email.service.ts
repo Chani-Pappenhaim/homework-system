@@ -1,6 +1,8 @@
 // Sends transactional email via the Brevo HTTP API rather than SMTP, since
 // some hosting providers block outbound SMTP connections.
 
+import { emailSenderName } from './settings.service';
+
 const BREVO_ENDPOINT = 'https://api.brevo.com/v3/smtp/email';
 
 export async function sendMail({ to, subject, html }: { to: string; subject: string; html: string }) {
@@ -9,7 +11,7 @@ export async function sendMail({ to, subject, html }: { to: string; subject: str
 
   // Missing config disables email silently rather than throwing
   if (!apiKey || !senderEmail) {
-    console.warn(`[email] BREVO_API_KEY/BREVO_SENDER_EMAIL not set — skipping email "${subject}" to ${to}`);
+    console.warn(`[email] BREVO_API_KEY/BREVO_SENDER_EMAIL not set - skipping email "${subject}" to ${to}`);
     return;
   }
 
@@ -21,7 +23,8 @@ export async function sendMail({ to, subject, html }: { to: string; subject: str
       Accept: 'application/json',
     },
     body: JSON.stringify({
-      sender: { email: senderEmail, name: process.env.BREVO_SENDER_NAME || senderEmail },
+      // The teacher may set the name (the dashboard's settings); the address stays the verified one.
+      sender: { email: senderEmail, name: (await emailSenderName()) || senderEmail },
       to: [{ email: to }],
       subject,
       htmlContent: html,

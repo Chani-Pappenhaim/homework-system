@@ -66,7 +66,10 @@ export default function AiUsagePage() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard icon={<Bot size={18} />} tile="cobalt" label='סה"כ בדיקות AI' value={summary?.totalReviews ?? 0} />
         <StatCard icon={<HelpCircle size={18} />} tile="tomato" label='סה"כ חידונים' value={summary?.totalQuizzes ?? 0} />
-        <StatCard icon={<Cpu size={18} />} tile="forest" label='סה"כ טוקנים' value={totalTokens.toLocaleString()} />
+        <StatCard
+          icon={<Cpu size={18} />} tile="forest" label='סה"כ טוקנים' value={totalTokens.toLocaleString()}
+          note={freeShare(summary?.quota)}
+        />
         <StatCard icon={<DollarSign size={18} />} tile="mustard" label="עלות בפועל (מסלול בתשלום)" value={<Usd value={summary?.totalCostUsd} />} />
       </div>
 
@@ -117,7 +120,7 @@ export default function AiUsagePage() {
                 </div>
                 {storage.percent >= 80 && (
                   <p className="rounded-input border border-coral/40 bg-coral/10 px-3 py-2 text-sm text-coral">
-                    האחסון עבר 80% — כדאי למחוק קבצים ישנים כדי שהגשות חדשות לא ייכשלו.
+                    האחסון עבר 80% - כדאי למחוק קבצים ישנים כדי שהגשות חדשות לא ייכשלו.
                   </p>
                 )}
               </>
@@ -212,7 +215,7 @@ function GeminiQuotaCard({ quota, free, paid }: {
                 </div>
                 <div className="flex items-center justify-between font-sans text-[11px] text-ink-soft">
                   <span>{quota.freeRequestsToday.toLocaleString()} בקשות חינמיות היום</span>
-                  <span>מתוך {limit.toLocaleString()}</span>
+                  <span>מתוך {limit.toLocaleString()} ({Math.round(percent)}%)</span>
                 </div>
               </>
             ) : (
@@ -232,7 +235,7 @@ function GeminiQuotaCard({ quota, free, paid }: {
             )}
             <p className="text-xs text-ink-soft">
               המכסה מתאפסת ב-{formatTime(quota.resetsAt)} (חצות בשעון קליפורניה). במסלול החינמי אין הגבלה על סך
-              הטוקנים — רק על מספר הבקשות ביום ובדקה.
+              הטוקנים - רק על מספר הבקשות ביום ובדקה.
             </p>
           </div>
         )}
@@ -248,7 +251,7 @@ function GeminiQuotaCard({ quota, free, paid }: {
         )}
         {!quota.freeKeyConfigured && quota.paidKeyConfigured && !paidAllowed && (
           <p className="rounded-input border border-coral/40 bg-coral/10 px-3 py-2 text-sm text-coral">
-            מוגדר רק מפתח בתשלום, והשימוש בו כבוי בהגדרות — ולכן כפתורי ה-AI מושבתים.
+            מוגדר רק מפתח בתשלום, והשימוש בו כבוי בהגדרות - ולכן כפתורי ה-AI מושבתים.
           </p>
         )}
 
@@ -285,7 +288,7 @@ const PAID_FALLBACK_OPTIONS: { value: AiPaidFallback; label: string; description
   {
     value: 'DAILY_QUOTA',
     label: 'רק כשהמכסה היומית נגמרת (מומלץ)',
-    description: 'ה-AI עובד במסלול החינמי, ועובר למסלול בתשלום רק אחרי שמכסת הבקשות היומית נגמרה — עד האיפוס.',
+    description: 'ה-AI עובד במסלול החינמי, ועובר למסלול בתשלום רק אחרי שמכסת הבקשות היומית נגמרה - עד האיפוס.',
   },
   {
     value: 'ANY_LIMIT',
@@ -294,7 +297,7 @@ const PAID_FALLBACK_OPTIONS: { value: AiPaidFallback; label: string; description
   },
   {
     value: 'NEVER',
-    label: 'אף פעם — לחסום את ה-AI',
+    label: 'אף פעם - לחסום את ה-AI',
     description: 'לא משתמשים במסלול בתשלום בכלל. כשהמכסה היומית נגמרת, כפתורי ה-AI מושבתים עד האיפוס.',
   },
 ];
@@ -374,8 +377,10 @@ const tiles: Record<string, string> = {
   mustard: 'bg-butter text-ink',
 };
 
-function StatCard({ icon, label, value, tile }: {
+function StatCard({ icon, label, value, tile, note }: {
   icon: React.ReactNode; label: string; value: React.ReactNode; tile: keyof typeof tiles | string;
+  /** A line of small print under the label. */
+  note?: React.ReactNode;
 }) {
   return (
     <Card className="lift">
@@ -386,8 +391,21 @@ function StatCard({ icon, label, value, tile }: {
         <div>
           <p className="font-display text-2xl font-bold tabular text-ink">{value}</p>
           <p className="font-sans text-[11px] text-ink/60">{label}</p>
+          {note && <p className="mt-0.5 font-sans text-[11px] text-ink-soft">{note}</p>}
         </div>
       </CardContent>
     </Card>
   );
+}
+
+/**
+ * What the tokens count against: the free tier limits requests per day, not
+ * tokens, so the card points at today's share of the free requests instead.
+ */
+function freeShare(quota: GeminiQuotaStatus | undefined): string | undefined {
+  if (!quota?.freeKeyConfigured) return undefined;
+  if (quota.freeExhaustedUntil) return 'המכסה החינמית של היום נוצלה';
+  if (!quota.freeDailyLimit) return 'במסלול החינמי אין מכסת טוקנים - רק מכסת בקשות ביום';
+  const percent = Math.round((quota.freeRequestsToday / quota.freeDailyLimit) * 100);
+  return `אין מכסת טוקנים; נוצלו היום ${percent}% מהבקשות החינמיות`;
 }

@@ -2,7 +2,9 @@ import axios from 'axios';
 import useAuthStore from '@/store/authStore';
 import useServerStatus from '@/store/serverStatus';
 import { API_URL } from '@/lib/config';
-import { readJwtTimes } from '@/lib/jwt';
+import { readJwtTimes, readJwtUserId } from '@/lib/jwt';
+import { isPublicPath } from '@/lib/publicPaths';
+import { followSessionChange } from '@/lib/sessionSync';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -50,6 +52,16 @@ function refreshAccessToken(): Promise<string> {
       .post<{ success: true; data: { accessToken: string } }>(`${API_URL}/auth/refresh`, {}, { withCredentials: true })
       .then((r) => {
         const token = r.data.data.accessToken;
+        // The refresh cookie is shared by every tab; if someone else signed in
+        // since, the new token is hers. Reload as her rather than send this
+        // tab's requests under another user's name - they wait for the reload.
+        const user = useAuthStore.getState().user;
+        const tokenUser = readJwtUserId(token);
+        if (user && tokenUser && tokenUser !== user.id) {
+          followSessionChange();
+          refreshing = null; // the promise below never settles, so `finally` won't clear it
+          return new Promise<string>(() => {});
+        }
         useAuthStore.getState().setAccessToken(token);
         return token;
       })
@@ -84,10 +96,6 @@ function expiresSoon(token: string): boolean {
 // Signing in and refreshing do not use the access token.
 const NO_TOKEN_URLS = ['/auth/login', '/auth/refresh'];
 const isNoTokenUrl = (url?: string) => NO_TOKEN_URLS.some((u) => url?.startsWith(u));
-
-// Pages that work signed out. An expired session must not pull someone off
-// them - e.g. the reset-password link from an email, opened in a fresh tab.
-const PUBLIC_PATHS = ['/login', '/forgot-password', '/reset-password', '/verify-email', '/auth/callback'];
 
 api.interceptors.request.use(async (config) => {
   // Count each logical request only once — a retry re-enters here with the same
@@ -138,7 +146,7 @@ function isColdStartError(error: any): boolean {
   const safe = SAFE_METHODS.includes(String(error?.config?.method ?? 'get').toLowerCase());
   if (error?.code === 'ECONNABORTED') return safe;  // client-side timeout
   if (!error?.response) return safe;                // no response at all (network / DNS / refused)
-  if (isApplicationResponse(error)) return false;   // the app answered — retrying changes nothing
+  if (isApplicationResponse(error)) return false;   // the app answered - retrying changes nothing
   return [502, 503, 504].includes(error.response.status); // gateway still bringing the app up
 }
 
@@ -161,7 +169,7 @@ api.interceptors.response.use(
       } catch {
         useAuthStore.getState().clearAuth();
         requestSettled();
-        if (!PUBLIC_PATHS.includes(window.location.pathname)) {
+        if (!isPublicPath(window.location.pathname)) {
           window.location.href = '/login';
         }
         return Promise.reject(error);

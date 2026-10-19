@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Mail, ChevronLeft, Clock, Trash2, Plus, Send, X } from 'lucide-react';
 import { messagesApi } from '@/api/messages.api';
+import { groupsApi } from '@/api/groups.api';
+import { useToast } from '@/components/ui/toast';
 import { MAX_MESSAGE_LENGTH } from '@/lib/limits';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { cn, formatDateTime, markdownToPlainText } from '@/lib/utils';
+import { cn, formatDateTime, groupDisplayName, markdownToPlainText } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import type { MessageDTO } from '@/types';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -33,7 +35,17 @@ export default function TeacherMessagesPage() {
   const [confirmDialog, ask] = useConfirm();
   const { openId, composeOpen, openConversation, closeConversation, setComposeOpen } = useMessageDialogs();
   const [replyText, setReplyText] = useState('');
+  const toast = useToast();
   const [composeStudent, setComposeStudent] = useState<StudentSearchResult | null>(null);
+  // A new message goes to one student, or to every student of a group.
+  const [composeTo, setComposeTo] = useState<'student' | 'group'>('student');
+  const [composeGroupId, setComposeGroupId] = useState('');
+  const { data: groupsData } = useQuery({
+    queryKey: ['groups'],
+    queryFn: () => groupsApi.list(),
+    enabled: composeOpen && composeTo === 'group',
+  });
+  const groups = groupsData?.data.data.groups ?? [];
   const [composeText, setComposeText] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -79,14 +91,27 @@ export default function TeacherMessagesPage() {
   });
 
   const composeMutation = useMutation({
-    mutationFn: () => messagesApi.sendTeacher(composeStudent!.id, composeText),
-    onSuccess: () => {
+    mutationFn: async () => {
+      if (composeTo === 'group') return (await messagesApi.sendToGroup(composeGroupId, composeText)).data.data.sent;
+      await messagesApi.sendTeacher(composeStudent!.id, composeText);
+      return 1;
+    },
+    onSuccess: (sent) => {
       qc.invalidateQueries({ queryKey: ['teacher-messages'] });
+      if (composeTo === 'group') toast.success(`ההודעה נשלחה ל-${sent} תלמידות, לכל אחת בשיחה משלה`);
       setComposeOpen(false);
-      setComposeStudent(null);
-      setComposeText('');
+      resetCompose();
     },
   });
+
+  function resetCompose() {
+    setComposeStudent(null);
+    setComposeText('');
+    setComposeGroupId('');
+    setComposeTo('student');
+  }
+
+  const canSendCompose = Boolean((composeTo === 'group' ? composeGroupId : composeStudent) && composeText.trim());
 
   const messages: MessageDTO[] = unwrap(data)?.messages ?? [];
   const openMsg = messages.find((m) => m.id === openId) ?? null;
@@ -249,6 +274,9 @@ export default function TeacherMessagesPage() {
                     placeholder="כתבי תגובה לתלמידה…"
                     value={replyText}
                     onChange={setReplyText}
+                    onSubmit={() => {
+                      if (replyText.trim() && !replyMutation.isPending) replyMutation.mutate({ id: openMsg.id, reply: replyText });
+                    }}
                   />
                 </div>
               </DialogBody>
@@ -282,12 +310,43 @@ export default function TeacherMessagesPage() {
       </Dialog>
 
       {/* Compose: teacher starting a new conversation with a student */}
-      <Dialog open={composeOpen} onOpenChange={(o) => { setComposeOpen(o); if (!o) { setComposeStudent(null); setComposeText(''); } }}>
+      <Dialog open={composeOpen} onOpenChange={(o) => { setComposeOpen(o); if (!o) resetCompose(); }}>
         <DialogContent size="lg">
           <DialogHeader>
-            <DialogTitle>הודעה חדשה לתלמידה</DialogTitle>
+            <DialogTitle>{composeTo === 'group' ? 'הודעה חדשה לקבוצה' : 'הודעה חדשה לתלמידה'}</DialogTitle>
           </DialogHeader>
           <DialogBody className="space-y-4">
+            <div className="inline-flex rounded-lg border border-rule bg-sheet p-0.5" role="radiogroup" aria-label="למי">
+              {([['student', 'לתלמידה'], ['group', 'לקבוצה']] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="radio"
+                  aria-checked={composeTo === key}
+                  onClick={() => setComposeTo(key)}
+                  className={cn('rounded-md px-3 py-1 text-xs font-semibold', composeTo === key ? 'bg-ink text-sheet' : 'text-ink/60 hover:text-ink')}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {composeTo === 'group' ? (
+              <div>
+                <label htmlFor="compose-group" className="label mb-1 block">קבוצה</label>
+                <select
+                  id="compose-group"
+                  value={composeGroupId}
+                  onChange={(e) => setComposeGroupId(e.target.value)}
+                  className="w-full rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft focus:border-clay focus:outline-none"
+                >
+                  <option value="">בחרי קבוצה...</option>
+                  {groups.map((g) => (
+                    <option key={g.id} value={g.id}>{groupDisplayName(g)} ({g.studentCount} תלמידות)</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-ink-soft">כל תלמידה מקבלת את ההודעה בשיחה משלה, כך שהתשובה שלה מגיעה רק אלייך.</p>
+              </div>
+            ) : (
             <div>
               <div className="label mb-1">תלמידה</div>
               {composeStudent ? (
@@ -308,21 +367,23 @@ export default function TeacherMessagesPage() {
                 <StudentAutocomplete onSelect={setComposeStudent} />
               )}
             </div>
+            )}
             <div>
               <MarkdownField
                     maxLength={MAX_MESSAGE_LENGTH}
                 label="תוכן ההודעה"
                 rows={5}
-                placeholder="כתבי הודעה לתלמידה…"
+                placeholder={composeTo === 'group' ? 'כתבי הודעה לכל התלמידות בקבוצה…' : 'כתבי הודעה לתלמידה…'}
                 value={composeText}
                 onChange={setComposeText}
+                onSubmit={() => { if (canSendCompose && !composeMutation.isPending) composeMutation.mutate(); }}
               />
             </div>
           </DialogBody>
           <DialogFooter>
             <Button
               loading={composeMutation.isPending}
-              disabled={!composeStudent || !composeText.trim()}
+              disabled={!canSendCompose}
               onClick={() => composeMutation.mutate()}
             >
               <Send size={14} /> שליחה

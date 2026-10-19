@@ -16,7 +16,7 @@ import { unwrap } from '@/lib/api-utils';
 import type { ReportRow } from '@/types';
 
 function relTime(iso?: string): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
   if (m < 1) return 'עכשיו';
   if (m < 60) return m === 1 ? 'לפני דקה' : `לפני ${m} דקות`;
@@ -75,7 +75,7 @@ export default function TeacherHomePage() {
   const visible = showAll ? queue : queue.slice(0, 8);
   const avg = graded.length
     ? (graded.reduce((s, r) => s + (r.contentScore ?? 0), 0) / graded.length).toFixed(1)
-    : '—';
+    : '-';
 
   const dateMeta = new Intl.DateTimeFormat('he-IL', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
   // Fallback name is a pun: "שלום" doubles as both the greeting word and a surname.
@@ -85,7 +85,7 @@ export default function TeacherHomePage() {
     { value: groups.length, label: 'קבוצות', accent: 'indigo' as const, to: '/teacher/groups' },
     { value: courses.length, label: 'קורסים', accent: 'clay' as const, to: '/teacher/courses' },
     { value: pending, label: 'ממתינות לבדיקה', accent: 'coral' as const, to: '/teacher/reports' },
-    { value: aiCost != null ? <span dir="ltr">{formatUsd(aiCost)}</span> : '—', label: 'עלות AI', accent: 'sage' as const, to: '/teacher/ai-usage' },
+    { value: aiCost != null ? <span dir="ltr">{formatUsd(aiCost)}</span> : '-', label: 'עלות AI', accent: 'sage' as const, to: '/teacher/ai-usage' },
   ];
 
   return (
@@ -154,7 +154,7 @@ export default function TeacherHomePage() {
               <div className="py-12 text-center text-sm text-ink-soft">טוען…</div>
             ) : queue.length === 0 ? (
               <div className="py-12 text-center text-sm text-ink-soft">
-                {search ? `אין תוצאות ל"${search}"` : 'התור ריק — כל הכבוד'}
+                {search ? `אין תוצאות ל"${search}"` : 'התור ריק - כל הכבוד'}
               </div>
             ) : (
               visible.map((r, i) => {

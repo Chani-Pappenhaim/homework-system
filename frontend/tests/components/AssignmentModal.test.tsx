@@ -66,13 +66,13 @@ describe('AssignmentModal', () => {
     await userEvent.type(screen.getByLabelText('כותרת המטלה'), 'פרויקט');
     await userEvent.type(screen.getByLabelText('תיאור המטלה *'), 'הוראות');
     fireEvent.change(screen.getByLabelText('מועד אחרון'), { target: { value: '2020-01-01T10:00' } });
-    expect(screen.getByText('המועד האחרון כבר עבר — בחרי תאריך עתידי')).toBeInTheDocument();
+    expect(screen.getByText('המועד האחרון כבר עבר - בחרי תאריך עתידי')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'צרי מטלה' })).toBeDisabled();
   });
 
   it('still saves an old assignment whose deadline passed, when the deadline is not changed', async () => {
     renderModal({ id: 'a1', title: 'T', description: 'D', deadline: '2020-01-01T08:00:00.000Z' } as never);
-    expect(screen.queryByText('המועד האחרון כבר עבר — בחרי תאריך עתידי')).not.toBeInTheDocument();
+    expect(screen.queryByText('המועד האחרון כבר עבר - בחרי תאריך עתידי')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'שמרי שינויים' }));
     await waitFor(() => expect(update).toHaveBeenCalledWith('a1', expect.objectContaining({ deadline: '2020-01-01T08:00:00.000Z' })));
   });

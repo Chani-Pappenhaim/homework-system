@@ -50,6 +50,10 @@ export const groupsApi = {
   downloadImportTemplate: () =>
     api.get('/groups/import-template', { responseType: 'blob' }),
 
+  /** The group's students in the import's columns - uploading it fills another group. */
+  exportStudents: (groupId: string) =>
+    api.get(`/groups/${groupId}/students/export`, { responseType: 'blob' }),
+
   resetPassword: (groupId: string, studentId: string) =>
     api.post(`/groups/${groupId}/reset-password/${studentId}`),
 };

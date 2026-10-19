@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
+import { ContactTeacherText } from '@/components/student/ContactTeacherText';
 import { MarkdownField } from '@/components/ui/markdown-field';
 import { FileUpload } from '@/components/ui/file-upload';
 import { FileGallery } from '@/components/ui/file-gallery';
@@ -16,7 +17,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import useAuthStore from '@/store/authStore';
 import QuizContent from '@/components/student/QuizContent';
 import { DeleteSubmissionButton } from '@/components/student/DeleteSubmissionButton';
-import { cn, formatDate, formatDateTime, isOverdue, toExternalUrl } from '@/lib/utils';
+import { cn, formatDateFull, formatDateTime, isOverdue, toExternalUrl } from '@/lib/utils';
 import { getApiErrorMessage } from '@/lib/errors';
 import { useTeacherRequest } from '@/hooks/useTeacherRequest';
 import { unwrap } from '@/lib/api-utils';
@@ -86,7 +87,7 @@ export default function StudentLessonDetailPage({ lessonId, lessonNumber }: Part
     <div className="space-y-5" dir="rtl">
       <PageHeader
         title={lesson.topic}
-        meta={lesson.lessonDate ? formatDate(lesson.lessonDate) : undefined}
+        meta={[lessonNumber && `שיעור ${lessonNumber}`, lesson.lessonDate && formatDateFull(lesson.lessonDate)].filter(Boolean).join(' · ') || undefined}
         back={`/student/courses/${lesson.courseId}`}
         backLabel="חזרה לקורס"
         actions={
@@ -101,7 +102,7 @@ export default function StudentLessonDetailPage({ lessonId, lessonNumber }: Part
               )}
             >
               <Check size={15} strokeWidth={3} />
-              {lesson.completed ? 'הושלם — בטלי סימון' : 'סיימתי את השיעור'}
+              {lesson.completed ? 'הושלם - בטלי סימון' : 'סיימתי את השיעור'}
             </button>
             {!lesson.completed && pendingRequiredFiles.length > 0 && (
               <p className="text-xs text-coral">נותרו {pendingRequiredFiles.length} קבצי חובה לצפייה</p>
@@ -305,7 +306,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
       <CardContent className="space-y-3">
         {a.description && <MarkdownRenderer content={a.description} className="text-ink/80" />}
         {a.deadline && (
-          <p className="text-xs text-ink/50">מועד אחרון: <span className="font-medium">{formatDate(a.deadline)}</span></p>
+          <p className="text-xs text-ink/50">מועד אחרון: <span className="font-medium">{formatDateFull(a.deadline)}</span></p>
         )}
 
         {sub ? (
@@ -351,7 +352,11 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                   ))}
                 </div>
                 {sub.aiStatus === 'error' && (
-                  <p className="text-xs text-coral">{sub.aiError || 'בדיקת ה-AI לא הצליחה. אפשר לבקש בדיקה שוב.'}</p>
+                  <ContactTeacherText
+                    className="text-xs text-coral"
+                    text={sub.aiError || 'בדיקת ה-AI לא הצליחה. אפשר לבקש בדיקה שוב.'}
+                    about={`בנוגע לבדיקת ה-AI של המטלה "${a.title}": `}
+                  />
                 )}
                 {aiLimitReached && (
                   <div className="space-y-2 pt-1">
@@ -388,15 +393,23 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                     )}
                   </div>
                 )}
-                {sub.aiStatus === 'done' && sub.aiApproved && (
+                {sub.aiStatus === 'done' && (
                   <div className="space-y-2 pt-1">
-                    <p className="font-semibold text-ink">ציון: {sub.aiScore}</p>
-                    <p className="text-ink/70 text-xs">{sub.aiVerbalReview}</p>
-                    <button className="text-xs text-clay underline" onClick={() => setShowAiReview(!showAiReview)}>
-                      {showAiReview ? 'הסתירי הערות קוד' : 'הצגי הערות קוד'}
-                    </button>
-                    {showAiReview && (
-                      <pre className="text-xs bg-ground/60 rounded p-2 whitespace-pre-wrap">{sub.aiCodeReview}</pre>
+                    {sub.aiApproved && sub.aiScore != null ? (
+                      <p className="font-semibold text-ink">ציון: {sub.aiScore}</p>
+                    ) : (
+                      <p className="text-xs text-ink/50">הציון יוצג אחרי שהמורה תאשר אותו</p>
+                    )}
+                    {sub.aiVerbalReview && <p className="text-ink/70 text-xs">{sub.aiVerbalReview}</p>}
+                    {sub.aiCodeReview && (
+                      <>
+                        <button className="text-xs text-clay underline" onClick={() => setShowAiReview(!showAiReview)}>
+                          {showAiReview ? 'הסתירי הערות קוד' : 'הצגי הערות קוד'}
+                        </button>
+                        {showAiReview && (
+                          <pre className="text-xs bg-ground/60 rounded p-2 whitespace-pre-wrap">{sub.aiCodeReview}</pre>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
@@ -479,7 +492,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                 </div>
                 {!githubUsername ? (
                   <p className="text-xs text-coral">
-                    לא הוגדר שם משתמש GitHub בחשבון שלך —{' '}
+                    לא הוגדר שם משתמש GitHub בחשבון שלך -{' '}
                     <Link to="/student/profile" className="font-semibold underline">יש לעדכן אותו בפרופיל</Link>{' '}
                     לפני הגשת ריפו
                   </p>

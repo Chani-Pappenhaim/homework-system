@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+const senderNameMock = vi.hoisted(() => vi.fn());
+vi.mock('../../src/services/settings.service', () => ({ emailSenderName: senderNameMock }));
+
 import { sendMail } from '../../src/services/email.service';
 
 const OLD_ENV = { ...process.env };
@@ -8,6 +11,8 @@ const fetchMock = vi.fn();
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubGlobal('fetch', fetchMock);
+  // As the real one does when the teacher has chosen no name.
+  senderNameMock.mockImplementation(async () => process.env.BREVO_SENDER_NAME ?? '');
 });
 
 afterEach(() => {
@@ -56,5 +61,18 @@ describe('email.service.sendMail', () => {
 
     await expect(sendMail({ to: 'b@x.com', subject: 'Report', html: '<p>hello</p>' }))
       .rejects.toThrow('Brevo email failed (400): bad request');
+  });
+});
+
+describe('email.service.sendMail - the sender name', () => {
+  it('sends from the name the teacher chose, at the site address', async () => {
+    process.env.BREVO_API_KEY = 'key123';
+    process.env.BREVO_SENDER_EMAIL = 'noreply@x.com';
+    senderNameMock.mockResolvedValue('TeacherFeature - המורה עדי שלום');
+    fetchMock.mockResolvedValue({ ok: true });
+
+    await sendMail({ to: 'b@x.com', subject: 'שלום', html: '<p>x</p>' });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.sender).toEqual({ email: 'noreply@x.com', name: 'TeacherFeature - המורה עדי שלום' });
   });
 });

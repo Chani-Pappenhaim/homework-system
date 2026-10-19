@@ -77,8 +77,20 @@ describe('TeacherCourseDetailPage', () => {
       lessonDate: expect.any(String),
       contentMd: undefined,
       githubUrls: [],
+      hidden: false,
     }));
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/teacher/lessons/l99'));
+  });
+
+  it('creates a lesson hidden from the students when asked to', async () => {
+    createLesson.mockResolvedValue({ data: { data: { lesson: { id: 'l99' } } } });
+    renderPage();
+    await screen.findByRole('heading', { name: 'קורס React' });
+    await userEvent.click(screen.getByRole('button', { name: /שיעור חדש/ }));
+    await userEvent.type(await screen.findByPlaceholderText('React Hooks'), 'טיוטה');
+    await userEvent.click(screen.getByRole('checkbox', { name: 'הסתר שיעור מהתלמידות' }));
+    await userEvent.click(screen.getByRole('button', { name: 'צור שיעור' }));
+    await waitFor(() => expect(createLesson).toHaveBeenCalledWith('c1', expect.objectContaining({ topic: 'טיוטה', hidden: true })));
   });
 
   it('shows a not-found message when the course is missing', async () => {

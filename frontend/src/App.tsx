@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { CourseByName, LessonById, LessonByNumber } from '@/components/lesson/LessonRoute';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { useBackNavigationTracker } from '@/lib/backNavigation';
 import AuthGuard from '@/components/guards/AuthGuard';
 import AdminGuard from '@/components/guards/AdminGuard';
 import ChangePasswordGuard from '@/components/guards/ChangePasswordGuard';
@@ -25,6 +26,7 @@ import TeacherQuizPage from '@/pages/teacher/QuizPage';
 import ReportsPage from '@/pages/teacher/ReportsPage';
 import TeacherMessagesPage from '@/pages/teacher/MessagesPage';
 import AiUsagePage from '@/pages/teacher/AiUsagePage';
+import TeacherSettingsPage from '@/pages/teacher/SettingsPage';
 import StudentsPage from '@/pages/teacher/StudentsPage';
 import StudentDetailPage from '@/pages/teacher/StudentDetailPage';
 
@@ -40,6 +42,7 @@ import ProfilePage from '@/pages/student/ProfilePage';
 
 function AppRoutes() {
   const location = useLocation();
+  useBackNavigationTracker();
   return (
     <ErrorBoundary key={location.pathname}>
       <Routes>
@@ -74,6 +77,7 @@ function AppRoutes() {
           <Route path="reports" element={<ReportsPage />} />
           <Route path="messages" element={<TeacherMessagesPage />} />
           <Route path="ai-usage" element={<AiUsagePage />} />
+          <Route path="settings" element={<TeacherSettingsPage />} />
         </Route>
 
         <Route path="/student" element={

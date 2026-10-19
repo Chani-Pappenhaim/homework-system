@@ -1,10 +1,12 @@
 import { useId, useState, type ReactNode } from 'react';
-import { Bot, ChevronDown, ChevronRight, ClipboardCheck, Edit, FileText, Trash2 } from 'lucide-react';
+import { Bot, ChevronDown, ChevronRight, ClipboardCheck, Edit, FileSpreadsheet, FileText, Link2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { useToast } from '@/components/ui/toast';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { SubmissionsWorkstation } from '@/components/lesson/SubmissionsWorkstation';
-import { cn, formatDate } from '@/lib/utils';
+import { AssignmentSubmissionsImportDialog } from '@/components/lesson/AssignmentSubmissionsImportDialog';
+import { cn, formatDateFull } from '@/lib/utils';
 import type { AssignmentDTO } from '@/types';
 
 export const ASSIGNMENT_SECTIONS = ['submissions', 'details', 'ai'] as const;
@@ -35,6 +37,7 @@ export function AssignmentView({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const [importOpen, setImportOpen] = useState(false);
   return (
     <Card>
       <div className="space-y-3 border-b border-rule/20 px-5 pt-4">
@@ -49,10 +52,14 @@ export function AssignmentView({
           <div>
             <h2 className="font-display text-lg font-bold text-ink">{assignment.title}</h2>
             {assignment.deadline && (
-              <p className="text-xs text-ink/55">מועד אחרון: {formatDate(assignment.deadline)}</p>
+              <p className="text-xs text-ink/55">מועד אחרון: {formatDateFull(assignment.deadline)}</p>
             )}
           </div>
           <div className="flex shrink-0 gap-1">
+            <CopyStudentLink assignmentId={assignment.id} />
+            <Button size="sm" variant="outline" onClick={() => setImportOpen(true)} title="הגשות שהתלמידות שלחו בדרך אחרת, למשל לשיעור שנוסף לאתר מאוחר">
+              <FileSpreadsheet size={12} /> ייבוא הגשות מקובץ
+            </Button>
             <Button size="sm" variant="outline" onClick={onEdit}>
               <Edit size={12} /> עריכה
             </Button>
@@ -95,14 +102,15 @@ export function AssignmentView({
       </div>
       {section === 'details' && <div role="tabpanel"><AssignmentDetails assignment={assignment} /></div>}
       {section === 'ai' && <div role="tabpanel"><AiInstructions assignment={assignment} onEdit={onEdit} /></div>}
+      <AssignmentSubmissionsImportDialog assignmentId={assignment.id} open={importOpen} onOpenChange={setImportOpen} />
     </Card>
   );
 }
 
 function AssignmentDetails({ assignment }: { assignment: AssignmentDTO }) {
   const methods = [assignment.allowFile && 'העלאת קובץ', assignment.allowGithub && 'קישור GitHub'].filter(Boolean);
-  const methodsText = methods.length > 0 ? methods.join(' או ') : '—';
-  const deadlineText = assignment.deadline ? formatDate(assignment.deadline) : 'ללא';
+  const methodsText = methods.length > 0 ? methods.join(' או ') : '-';
+  const deadlineText = assignment.deadline ? formatDateFull(assignment.deadline) : 'ללא';
   const requirements = assignment.requirements ?? [];
   return (
     <div className="divide-y divide-rule/20 px-5 py-1">
@@ -188,5 +196,30 @@ function AiInstructions({ assignment, onEdit }: { assignment: AssignmentDTO; onE
         <Edit size={12} /> הוספת הנחיות
       </Button>
     </div>
+  );
+}
+
+/** The address a student opens the assignment at - the teacher's own page address is not one she can open. */
+export function studentAssignmentUrl(assignmentId: string): string {
+  return `${window.location.origin}/student/assignments?assignment=${assignmentId}`;
+}
+
+/** Copies the link to send the students, so they land on this assignment's submission. */
+function CopyStudentLink({ assignmentId }: { assignmentId: string }) {
+  const toast = useToast();
+  const url = studentAssignmentUrl(assignmentId);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('הקישור הועתק - אפשר להדביק ולשלוח לתלמידות');
+    } catch {
+      // Clipboard access can be refused (an old browser, a blocked permission): show the link to copy by hand.
+      toast.show(`לא הצלחנו להעתיק. זה הקישור: ${url}`, 'error', 15000);
+    }
+  }
+  return (
+    <Button size="sm" variant="outline" onClick={copy} title="קישור שהתלמידות יכולות לפתוח כדי להגיש את המטלה">
+      <Link2 size={12} /> העתקת קישור לתלמידות
+    </Button>
   );
 }

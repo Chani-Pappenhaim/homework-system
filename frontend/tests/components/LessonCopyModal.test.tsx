@@ -50,6 +50,6 @@ describe('LessonCopyModal', () => {
     copy.mockResolvedValue({ data: { data: { lesson: { id: 'l2', courseId: 'c1' }, clearedDeadlines: 0 } } });
     renderModal();
     await userEvent.click(await screen.findByRole('button', { name: 'שכפול' }));
-    expect(await screen.findByText('השיעור הועתק — העותק מוסתר מהתלמידות עד שתציגי אותו')).toBeInTheDocument();
+    expect(await screen.findByText('השיעור הועתק - העותק מוסתר מהתלמידות עד שתציגי אותו')).toBeInTheDocument();
   });
 });

@@ -80,15 +80,25 @@ describe('AiUsagePage', () => {
   });
 });
 
-describe('AiUsagePage — Gemini quota card', () => {
+describe('AiUsagePage - Gemini quota card', () => {
   it('shows today\'s free requests out of the daily limit', async () => {
     renderSummary(sampleSummary);
 
     expect(await screen.findByText('מסלול חינמי')).toBeInTheDocument();
     expect(screen.getByText('12 בקשות חינמיות היום')).toBeInTheDocument();
-    expect(screen.getByText('מתוך 20')).toBeInTheDocument();
+    expect(screen.getByText('מתוך 20 (60%)')).toBeInTheDocument();
     expect(screen.getByText(/אין הגבלה על סך\s+הטוקנים/)).toBeInTheDocument();
     expect(screen.queryByText(/לא מוגדר מפתח בתשלום/)).not.toBeInTheDocument();
+  });
+
+  it("notes on the tokens card that the free tier counts requests, with today's share of them", async () => {
+    renderSummary(sampleSummary);
+    expect(await screen.findByText('אין מכסת טוקנים; נוצלו היום 60% מהבקשות החינמיות')).toBeInTheDocument();
+  });
+
+  it('says so on the tokens card once the free quota is spent', async () => {
+    renderSummary(withQuota({ freeRequestsToday: 20, freeExhaustedUntil: '2026-10-15T07:00:00.000Z' }));
+    expect(await screen.findByText('המכסה החינמית של היום נוצלה')).toBeInTheDocument();
   });
 
   it('breaks calls, tokens and cost down by tier', async () => {
@@ -140,7 +150,7 @@ describe('AiUsagePage — Gemini quota card', () => {
   });
 });
 
-describe('AiUsagePage — paid fallback settings', () => {
+describe('AiUsagePage - paid fallback settings', () => {
   it('shows the saved choice', async () => {
     renderSummary(withQuota({ paidFallback: 'ANY_LIMIT' }));
     expect(await screen.findByRole('radio', { name: /גם בעומס רגעי/ })).toBeChecked();

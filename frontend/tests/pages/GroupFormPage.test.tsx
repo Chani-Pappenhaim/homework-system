@@ -3,6 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import GroupFormPage from '@/pages/teacher/GroupFormPage';
 import { renderWithProviders } from '../utils/render';
+import * as utils from '@/lib/utils';
 
 const navigate = vi.fn();
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -11,7 +12,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
 });
 
 vi.mock('@/api/groups.api', () => ({
-  groupsApi: { get: vi.fn(), create: vi.fn(), update: vi.fn(), addStudent: vi.fn(), removeStudent: vi.fn(), updateStudent: vi.fn(), resetPassword: vi.fn(), importStudents: vi.fn() },
+  groupsApi: { get: vi.fn(), create: vi.fn(), update: vi.fn(), addStudent: vi.fn(), removeStudent: vi.fn(), removeStudents: vi.fn(), exportStudents: vi.fn(), updateStudent: vi.fn(), resetPassword: vi.fn(), importStudents: vi.fn() },
 }));
 
 import { groupsApi } from '@/api/groups.api';
@@ -19,6 +20,7 @@ const getGroup = groupsApi.get as unknown as ReturnType<typeof vi.fn>;
 const createGroup = groupsApi.create as unknown as ReturnType<typeof vi.fn>;
 const addStudent = groupsApi.addStudent as unknown as ReturnType<typeof vi.fn>;
 const updateStudent = groupsApi.updateStudent as unknown as ReturnType<typeof vi.fn>;
+const removeStudents = groupsApi.removeStudents as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -120,5 +122,51 @@ describe('GroupFormPage (edit)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'שמור שינויים' }));
     // An empty string (not undefined) tells the server to remove the username
     await waitFor(() => expect(updateStudent).toHaveBeenCalledWith('g1', 's1', { name: 'דנה', email: 'dana@x.com', githubUsername: '' }));
+  });
+  it('selects every student shown with one click and removes them together', async () => {
+    const three = {
+      ...group,
+      students: [
+        group.students[0],
+        { id: 's2', name: 'רחל', email: 'rachel@x.com', githubUsername: null, createdAt: '' },
+        { id: 's3', name: 'לאה', email: 'leah@x.com', githubUsername: null, createdAt: '' },
+      ],
+    };
+    getGroup.mockResolvedValue({ data: { data: { group: three } } });
+    removeStudents.mockResolvedValue({ data: { data: { removed: 3 } } });
+    renderEdit();
+    const all = await screen.findByRole('checkbox', { name: 'בחירת כולן' });
+
+    await userEvent.click(all);
+    expect(screen.getByRole('button', { name: /הסר נבחרות \(3\)/ })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /הסר נבחרות/ }));
+    await userEvent.click(await screen.findByRole('button', { name: 'הסר את כולן' }));
+    await waitFor(() => expect(removeStudents).toHaveBeenCalledTimes(1));
+    expect([...removeStudents.mock.calls[0][1]].sort()).toEqual(['s1', 's2', 's3']);
+  });
+
+  it('selects only the students the search found, and unselects them again', async () => {
+    const two = {
+      ...group,
+      students: [group.students[0], { id: 's2', name: 'רחל', email: 'rachel@x.com', githubUsername: null, createdAt: '' }],
+    };
+    getGroup.mockResolvedValue({ data: { data: { group: two } } });
+    renderEdit();
+    await userEvent.type(await screen.findByPlaceholderText('חיפוש לפי שם או מייל...'), 'רחל');
+    const all = screen.getByRole('checkbox', { name: 'בחירת כולן' });
+    await userEvent.click(all);
+    expect(screen.getByRole('button', { name: /הסר נבחרות \(1\)/ })).toBeInTheDocument();
+    await userEvent.click(all);
+    expect(screen.queryByRole('button', { name: /הסר נבחרות/ })).not.toBeInTheDocument();
+  });
+
+  it("downloads the group's students as an Excel file named after the group", async () => {
+    const download = vi.spyOn(utils, 'downloadBlob').mockImplementation(() => {});
+    (groupsApi.exportStudents as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ data: new Blob(['x']) });
+    getGroup.mockResolvedValue({ data: { data: { group } } });
+    renderEdit();
+    await userEvent.click(await screen.findByRole('button', { name: /הורדה לאקסל/ }));
+    await waitFor(() => expect(download).toHaveBeenCalledWith(expect.any(Blob), 'תלמידות סמינר קבוצה א 2026.xlsx'));
+    expect(groupsApi.exportStudents).toHaveBeenCalledWith('g1');
   });
 });

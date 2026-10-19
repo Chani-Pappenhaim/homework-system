@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn, formatDateTime } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import { getApiErrorMessage } from '@/lib/errors';
+import { ContactTeacherText } from '@/components/student/ContactTeacherText';
 import useAuthStore from '@/store/authStore';
 import type { QuizAttemptResultDTO } from '@/types';
 import { MarkdownText } from '@/components/ui/markdown-renderer';
@@ -73,7 +74,11 @@ export default function QuizContent({ lessonId }: { lessonId: string }) {
     <div className="py-16 text-center" dir="rtl">
       <div className="mx-auto max-w-md rounded-card border border-rule bg-sheet p-6 shadow-sheet">
         <p className="font-display text-xl font-bold text-ink">{title}</p>
-        <p className="mt-2 font-sans text-sm text-ink/60">{body}</p>
+        <ContactTeacherText
+          className="mt-2 font-sans text-sm text-ink/60"
+          text={body}
+          about={`בנוגע לחידון בשיעור ${window.location.origin}/teacher/lessons/${lessonId} : `}
+        />
         {retry && (
           <div className="mt-4 flex justify-center">
             <button
@@ -116,7 +121,7 @@ export default function QuizContent({ lessonId }: { lessonId: string }) {
                 {result.score >= 80 ? 'מצוין!' : result.score >= 60 ? 'טוב' : 'נסי שוב'}
               </Badge>
               <Badge variant={result.isOfficial ? 'secondary' : 'warning'}>
-                {result.isOfficial ? 'זהו הניסיון הרשמי — הציון נשמר' : 'ניסיון תרגול — לא משפיע על הציון'}
+                {result.isOfficial ? 'זהו הניסיון הרשמי - הציון נשמר' : 'ניסיון תרגול - לא משפיע על הציון'}
               </Badge>
             </div>
             {!result.isOfficial && (
@@ -174,7 +179,7 @@ export default function QuizContent({ lessonId }: { lessonId: string }) {
                   </span>
                   <p className="text-sm font-bold text-ink">
                     {i + 1}. <MarkdownText content={q.question} />
-                    <span className="sr-only">{q.isCorrect ? ' — ענית נכון' : ' — ענית לא נכון'}</span>
+                    <span className="sr-only">{q.isCorrect ? ' - ענית נכון' : ' - ענית לא נכון'}</span>
                   </p>
                 </div>
 
@@ -201,7 +206,7 @@ export default function QuizContent({ lessonId }: { lessonId: string }) {
                           useful if she can tell which line was hers. */}
                       {isCorrect && (
                         <span className="shrink-0 text-[11px] font-semibold">
-                          {isSelected ? 'התשובה שלך — נכונה' : 'התשובה הנכונה'}
+                          {isSelected ? 'התשובה שלך - נכונה' : 'התשובה הנכונה'}
                         </span>
                       )}
                       {isSelected && !isCorrect && (
