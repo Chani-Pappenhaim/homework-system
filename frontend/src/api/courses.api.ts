@@ -9,7 +9,7 @@ export const coursesApi = {
   get: (id: string) =>
     api.get<{ success: true; data: { course: CourseDetailDTO } }>(`/courses/${id}`),
 
-  create: (data: { name: string; year?: string; description?: string; groupId: string }) =>
+  create: (data: { name: string; year?: string; description?: string; groupId: string; hidden?: boolean }) =>
     api.post<{ success: true; data: { course: CourseDTO } }>('/courses', data),
 
   update: (id: string, data: Partial<{ name: string; year: string; description: string; imageUrl: string; hidden: boolean; groupId: string }>) =>

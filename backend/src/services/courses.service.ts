@@ -48,7 +48,7 @@ export async function getCoursesForUser(userId: string, role: string) {
   return courses.map((c) => ({ ...toCourseDTO(c), completedLessons: completedByCourse[c.id] ?? 0 }));
 }
 
-export async function createCourse(data: { name: string; year?: string; description?: string; groupId: string }) {
+export async function createCourse(data: { name: string; year?: string; description?: string; groupId: string; hidden?: boolean }) {
   const course = await prisma.course.create({
     data,
     include: { group: { select: groupNameSelect }, _count: { select: { lessons: true } } },

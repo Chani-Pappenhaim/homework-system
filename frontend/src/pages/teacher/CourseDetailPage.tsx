@@ -58,6 +58,7 @@ export default function CourseDetailPage(props: Partial<CoursePageProps>) {
   const [newDate, setNewDate] = useState(todayISO());
   const [newContent, setNewContent] = useState('');
   const [newGithubUrls, setNewGithubUrls] = useState<string[]>(['']);
+  const [newHidden, setNewHidden] = useState(false);
 
   const createLessonMutation = useMutation({
     mutationFn: () => lessonsApi.create(id!, {
@@ -65,6 +66,7 @@ export default function CourseDetailPage(props: Partial<CoursePageProps>) {
       lessonDate: newDate || undefined,
       contentMd: newContent || undefined,
       githubUrls: newGithubUrls.map((u) => u.trim()).filter(Boolean),
+      hidden: newHidden,
     }),
     onSuccess: (res) => {
       const lessonId = res.data.data.lesson.id;
@@ -261,6 +263,10 @@ export default function CourseDetailPage(props: Partial<CoursePageProps>) {
             placeholder={'# כותרת\n\nתוכן השיעור, הסברים, דוגמאות קוד...'}
           />
           <MultiUrlInput label="קישורים לקוד ב-GitHub (אופציונלי)" values={newGithubUrls} onChange={setNewGithubUrls} placeholder="https://github.com/..." />
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" checked={newHidden} onChange={(e) => setNewHidden(e.target.checked)} className="accent-ink" />
+            הסתר שיעור מהתלמידות
+          </label>
           <p className="text-xs text-ink/50">קבצים מצורפים אפשר להעלות אחרי היצירה, בתוך דף השיעור.</p>
           <Button
             loading={createLessonMutation.isPending}

@@ -63,6 +63,17 @@ describe('CourseFormPage (new)', () => {
     ));
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/teacher/courses/c123'));
   });
+
+  it('creates a course hidden from the students when asked to', async () => {
+    createCourse.mockResolvedValue({ data: { data: { course: { id: 'c123' } } } });
+    renderNew();
+    await userEvent.type(screen.getByPlaceholderText('React מתקדם'), 'קורס בהכנה');
+    await screen.findByRole('option', { name: /קבוצה א/ });
+    await userEvent.selectOptions(screen.getByRole('combobox'), 'g1');
+    await userEvent.click(screen.getByRole('checkbox', { name: /הסתר קורס מהתלמידות/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'צור קורס' }));
+    await waitFor(() => expect(createCourse).toHaveBeenCalledWith(expect.objectContaining({ name: 'קורס בהכנה', hidden: true })));
+  });
 });
 
 describe('CourseFormPage (edit)', () => {
