@@ -120,6 +120,14 @@ describe('StudentMessagesPage', () => {
     await waitFor(() => expect(send).toHaveBeenCalledWith(['שורה', 'עוד'].join('\n')));
   });
 
+  it('starts the new message with the draft a "contact the teacher" link carried', async () => {
+    getMine.mockResolvedValue({ data: { data: { messages: [] } } });
+    renderWithProviders(<StudentMessagesPage />, {
+      initialEntries: [`/student/messages?compose=1&draft=${encodeURIComponent('בנוגע לחידון: ')}`],
+    });
+    expect(await screen.findByPlaceholderText('כתבי את ההודעה שלך...')).toHaveValue('בנוגע לחידון: ');
+  });
+
   it('does not send an empty message on Ctrl+Enter', async () => {
     getMine.mockResolvedValue({ data: { data: { messages: [] } } });
     renderWithProviders(<StudentMessagesPage />);

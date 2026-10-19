@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
+import { ContactTeacherText } from '@/components/student/ContactTeacherText';
 import { MarkdownField } from '@/components/ui/markdown-field';
 import { FileUpload } from '@/components/ui/file-upload';
 import { FileGallery } from '@/components/ui/file-gallery';
@@ -351,7 +352,11 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                   ))}
                 </div>
                 {sub.aiStatus === 'error' && (
-                  <p className="text-xs text-coral">{sub.aiError || 'בדיקת ה-AI לא הצליחה. אפשר לבקש בדיקה שוב.'}</p>
+                  <ContactTeacherText
+                    className="text-xs text-coral"
+                    text={sub.aiError || 'בדיקת ה-AI לא הצליחה. אפשר לבקש בדיקה שוב.'}
+                    about={`בנוגע לבדיקת ה-AI של המטלה "${a.title}": `}
+                  />
                 )}
                 {aiLimitReached && (
                   <div className="space-y-2 pt-1">

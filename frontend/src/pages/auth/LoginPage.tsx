@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authApi } from '@/api/auth.api';
 import useAuthStore from '@/store/authStore';
-import { API_URL } from '@/lib/config';
+import { API_URL, CONTACT_EMAIL } from '@/lib/config';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -122,6 +122,15 @@ export default function LoginPage() {
             {error && (
               <p className="border border-coral bg-coral/10 px-3 py-2 font-sans text-sm text-coral">
                 {error}
+                {/* She cannot sign in to send a message, so the teacher's address is offered instead. */}
+                {CONTACT_EMAIL && /למורה/.test(error) && (
+                  <>
+                    {' '}
+                    <a href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('כניסה לאתר המטלות')}`} className="font-semibold underline">
+                      שליחת מייל למורה
+                    </a>
+                  </>
+                )}
               </p>
             )}
 

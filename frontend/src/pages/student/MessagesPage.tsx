@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, Clock, Trash2, Send, MessageSquarePlus } from 'lucide-react';
 import { messagesApi } from '@/api/messages.api';
@@ -32,6 +33,12 @@ export default function StudentMessagesPage() {
   const [confirmDialog, ask] = useConfirm();
   const { openId, composeOpen, openConversation, closeConversation, setComposeOpen } = useMessageDialogs();
   const [content, setContent] = useState('');
+  // A link from elsewhere on the site ("contact the teacher") starts the message for her.
+  const [searchParams] = useSearchParams();
+  const draft = searchParams.get('draft');
+  useEffect(() => {
+    if (composeOpen && draft) setContent((c) => c || draft);
+  }, [composeOpen, draft]);
   const [error, setError] = useState('');
   const [replyText, setReplyText] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);

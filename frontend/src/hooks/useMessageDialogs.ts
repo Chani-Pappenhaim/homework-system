@@ -30,7 +30,7 @@ export function useMessageDialogs() {
   const closeConversation = useCallback(() => update((p) => p.delete('highlight'), true), [update]);
   const setComposeOpen = useCallback(
     (open: boolean) => update((p) => {
-      if (open) { p.set('compose', '1'); p.delete('highlight'); } else p.delete('compose');
+      if (open) { p.set('compose', '1'); p.delete('highlight'); } else { p.delete('compose'); p.delete('draft'); }
     }, !open),
     [update],
   );

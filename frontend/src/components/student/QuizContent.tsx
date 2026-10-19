@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn, formatDateTime } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import { getApiErrorMessage } from '@/lib/errors';
+import { ContactTeacherText } from '@/components/student/ContactTeacherText';
 import useAuthStore from '@/store/authStore';
 import type { QuizAttemptResultDTO } from '@/types';
 import { MarkdownText } from '@/components/ui/markdown-renderer';
@@ -73,7 +74,11 @@ export default function QuizContent({ lessonId }: { lessonId: string }) {
     <div className="py-16 text-center" dir="rtl">
       <div className="mx-auto max-w-md rounded-card border border-rule bg-sheet p-6 shadow-sheet">
         <p className="font-display text-xl font-bold text-ink">{title}</p>
-        <p className="mt-2 font-sans text-sm text-ink/60">{body}</p>
+        <ContactTeacherText
+          className="mt-2 font-sans text-sm text-ink/60"
+          text={body}
+          about={`בנוגע לחידון בשיעור ${window.location.origin}/teacher/lessons/${lessonId} : `}
+        />
         {retry && (
           <div className="mt-4 flex justify-center">
             <button
