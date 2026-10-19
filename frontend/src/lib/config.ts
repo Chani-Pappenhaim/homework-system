@@ -11,6 +11,10 @@ export const API_BASE_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/,
 // Full base for API calls, e.g. '' -> '/api', 'https://api.x.com' -> 'https://api.x.com/api'.
 export const API_URL = `${API_BASE_URL}/api`;
 
+// The teacher's address, for someone who cannot sign in yet (VITE_CONTACT_EMAIL).
+// Left unset, the login page only says to contact her, with no address shown.
+export const CONTACT_EMAIL: string | undefined = import.meta.env.VITE_CONTACT_EMAIL || undefined;
+
 // File links the API issues (study material, submissions) are API paths like
 // '/files/download/…'; a full URL (an older stored link) is used as is.
 export function apiFileUrl(url: string): string {

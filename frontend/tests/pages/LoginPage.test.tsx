@@ -15,6 +15,10 @@ vi.mock('@/api/auth.api', () => ({
 }));
 
 vi.mock('@/lib/wakeBackend', () => ({ wakeBackend: vi.fn() }));
+vi.mock('@/lib/config', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/config')>()),
+  CONTACT_EMAIL: 'teacher@example.com',
+}));
 
 import { authApi } from '@/api/auth.api';
 import { wakeBackend } from '@/lib/wakeBackend';
@@ -110,4 +114,10 @@ describe('LoginPage', () => {
     await waitFor(() => expect(loginMock).toHaveBeenCalledWith('a@b.com', 'secret'));
     await waitFor(() => expect(screen.queryByText(/השרת מתעורר/)).not.toBeInTheDocument());
   }, 15_000);
+
+  it('offers to email the teacher when the account is not registered', async () => {
+    renderWithProviders(<LoginPage />, { initialEntries: ['/login?error=oauth_unregistered'] });
+    const link = await screen.findByRole('link', { name: 'שליחת מייל למורה' });
+    expect(link.getAttribute('href')).toMatch(/^mailto:teacher@example\.com\?subject=/);
+  });
 });
