@@ -1,10 +1,11 @@
 import { useId, useState, type ReactNode } from 'react';
-import { Bot, ChevronDown, ChevronRight, ClipboardCheck, Edit, FileText, Link2, Trash2 } from 'lucide-react';
+import { Bot, ChevronDown, ChevronRight, ClipboardCheck, Edit, FileSpreadsheet, FileText, Link2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { SubmissionsWorkstation } from '@/components/lesson/SubmissionsWorkstation';
+import { AssignmentSubmissionsImportDialog } from '@/components/lesson/AssignmentSubmissionsImportDialog';
 import { cn, formatDate } from '@/lib/utils';
 import type { AssignmentDTO } from '@/types';
 
@@ -36,6 +37,7 @@ export function AssignmentView({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const [importOpen, setImportOpen] = useState(false);
   return (
     <Card>
       <div className="space-y-3 border-b border-rule/20 px-5 pt-4">
@@ -55,6 +57,9 @@ export function AssignmentView({
           </div>
           <div className="flex shrink-0 gap-1">
             <CopyStudentLink assignmentId={assignment.id} />
+            <Button size="sm" variant="outline" onClick={() => setImportOpen(true)} title="הגשות שהתלמידות שלחו בדרך אחרת, למשל לשיעור שנוסף לאתר מאוחר">
+              <FileSpreadsheet size={12} /> ייבוא הגשות מקובץ
+            </Button>
             <Button size="sm" variant="outline" onClick={onEdit}>
               <Edit size={12} /> עריכה
             </Button>
@@ -97,6 +102,7 @@ export function AssignmentView({
       </div>
       {section === 'details' && <div role="tabpanel"><AssignmentDetails assignment={assignment} /></div>}
       {section === 'ai' && <div role="tabpanel"><AiInstructions assignment={assignment} onEdit={onEdit} /></div>}
+      <AssignmentSubmissionsImportDialog assignmentId={assignment.id} open={importOpen} onOpenChange={setImportOpen} />
     </Card>
   );
 }

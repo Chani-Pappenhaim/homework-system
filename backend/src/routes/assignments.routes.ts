@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { verifyAccessTokenMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/role';
 import * as assignmentsController from '../controllers/assignments.controller';
+import * as submissionsController from '../controllers/submissions.controller';
 import { requireFile } from '../middleware/requireFile';
 import { uploadImport as upload } from '../middleware/upload';
 
@@ -15,5 +16,8 @@ router.delete('/:id', requireRole('ADMIN'), assignmentsController.deleteAssignme
 // upload.single('file') must run before requireFile so req.file is populated.
 router.post('/import', requireRole('ADMIN'), upload.single('file'), requireFile, assignmentsController.importAssignments);
 router.get('/:id/submissions', requireRole('ADMIN'), assignmentsController.getSubmissions);
+// One assignment's submissions from a sheet listing the course's students.
+router.get('/:id/submissions/import-template', requireRole('ADMIN'), submissionsController.downloadAssignmentImportTemplate);
+router.post('/:id/submissions/import', requireRole('ADMIN'), upload.single('file'), requireFile, submissionsController.importAssignmentSubmissions);
 
 export default router;

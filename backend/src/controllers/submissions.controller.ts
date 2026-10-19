@@ -107,6 +107,26 @@ export async function importSubmissions(req: Request, res: Response) {
   }
 }
 
+export async function downloadAssignmentImportTemplate(req: Request, res: Response) {
+  try {
+    const buffer = await submissionsService.buildAssignmentSubmissionsTemplate(req.params.id as string);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=assignment-submissions.xlsx');
+    res.send(buffer);
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function importAssignmentSubmissions(req: Request, res: Response) {
+  try {
+    const result = await submissionsService.importAssignmentSubmissions(req.params.id as string, req.file!.buffer);
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
 export async function requestAiReview(req: Request, res: Response) {
   try {
     await submissionsService.requestAiReview(req.params.id as string, req.user!.userId);

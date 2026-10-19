@@ -16,6 +16,16 @@ export interface SubmissionsImportResult {
   errors: string[];
 }
 
+export interface AssignmentSubmissionsImportResult {
+  /** Submissions saved or changed. */
+  imported: number;
+  /** Rows whose repo already was the student's submission. */
+  unchanged: number;
+  /** Students left without a repo in the sheet. */
+  empty: number;
+  errors: string[];
+}
+
 export const submissionsApi = {
   submitFile: (assignmentId: string, file: File, notes?: string, onProgress?: (percent: number) => void) => {
     const form = new FormData();
@@ -63,6 +73,16 @@ export const submissionsApi = {
 
   downloadImportTemplate: () =>
     api.get('/submissions/import-template', { responseType: 'blob' }),
+
+  /** One assignment's sheet: the course's students listed, with the repo each already submitted. */
+  downloadAssignmentImportTemplate: (assignmentId: string) =>
+    api.get(`/assignments/${assignmentId}/submissions/import-template`, { responseType: 'blob' }),
+
+  importAssignmentSubmissions: (assignmentId: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.post<{ success: true; data: AssignmentSubmissionsImportResult }>(`/assignments/${assignmentId}/submissions/import`, form);
+  },
 
   requestAiReview: (submissionId: string) =>
     api.post(`/submissions/${submissionId}/request-ai-review`),
