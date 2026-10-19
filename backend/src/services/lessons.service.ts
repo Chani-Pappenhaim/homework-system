@@ -24,7 +24,7 @@ export async function getLessons(courseId: string, userId: string, role: string)
   const lessons = await prisma.lesson.findMany({
     where: { courseId, ...(role !== 'ADMIN' && { hidden: false }) },
     include: { _count: { select: { assignments: true } } },
-    orderBy: { order: 'asc' },
+    orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
   });
   return lessons.map((l) => ({
     id: l.id, topic: l.topic, lessonDate: l.lessonDate,
@@ -37,15 +37,45 @@ export async function createLesson(courseId: string, data: {
   topic: string; lessonDate?: string; contentMd?: string;
   githubUrls?: string[]; hidden?: boolean; order?: number;
 }) {
-  const { lessonDate, githubUrls, ...rest } = data;
-  return prisma.lesson.create({
-    data: {
-      courseId,
-      ...rest,
-      githubUrls: cleanGithubUrls(githubUrls) ?? [],
-      ...(lessonDate ? { lessonDate: new Date(lessonDate) } : {}),
-    },
+  const { lessonDate, githubUrls, order, ...rest } = data;
+  const day = lessonDate ? new Date(lessonDate) : null;
+  const { position, shifts } = order === undefined
+    ? await placeNewLesson(courseId, day)
+    : { position: order, shifts: [] };
+  const [lesson] = await prisma.$transaction([
+    prisma.lesson.create({
+      data: {
+        courseId,
+        ...rest,
+        order: position,
+        githubUrls: cleanGithubUrls(githubUrls) ?? [],
+        ...(day ? { lessonDate: day } : {}),
+      },
+    }),
+    ...shifts,
+  ]);
+  return lesson;
+}
+
+/**
+ * Where a new lesson goes: before the first lesson dated after it, or at the end
+ * when it has no date or none is later. Every lesson used to start at order 0,
+ * so a new one landed among the others at random; the course's lessons are
+ * renumbered 0..n around the new one, which also settles such ties.
+ */
+async function placeNewLesson(courseId: string, day: Date | null) {
+  const lessons = await prisma.lesson.findMany({
+    where: { courseId },
+    orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+    select: { id: true, order: true, lessonDate: true },
   });
+  const later = day ? lessons.findIndex((l) => l.lessonDate && l.lessonDate > day) : -1;
+  const position = later >= 0 ? later : lessons.length;
+  const shifts = lessons.flatMap((l, i) => {
+    const wanted = i < position ? i : i + 1;
+    return l.order === wanted ? [] : [prisma.lesson.update({ where: { id: l.id }, data: { order: wanted } })];
+  });
+  return { position, shifts };
 }
 
 export async function getLessonById(id: string, userId: string, role: string) {
