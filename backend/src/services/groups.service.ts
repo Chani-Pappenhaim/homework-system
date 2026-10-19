@@ -6,6 +6,7 @@ import { AppError } from '../utils/errors';
 import { releaseFileUrls, submissionFileUrls } from '../utils/file-refs';
 import { sendEmailVerification, changeEmail } from './auth.service';
 import { cellText, isValidEmail, normalizeGithubUsername, buildTemplateWorkbook } from '../utils/excel';
+import { groupDisplayName } from '../utils/group-name';
 
 export async function getGroups() {
   const groups = await prisma.group.findMany({
@@ -360,6 +361,32 @@ export function buildStudentImportTemplate() {
       'לפני ההוספה תוצג בדיקה של הקובץ עם כל השגיאות, ואפשר לבחור להוסיף רק את השורות התקינות.',
     ],
   );
+}
+
+/**
+ * The group's students as a sheet in the import's own columns (name, email,
+ * GitHub), so it can be uploaded as is to fill another group - or kept as a list.
+ */
+export async function exportGroupStudents(groupId: string): Promise<{ buffer: Buffer; groupName: string }> {
+  const group = await prisma.group.findUnique({
+    where: { id: groupId },
+    select: {
+      name: true, seminar: true, year: true,
+      students: { select: { student: { select: { name: true, email: true, githubUsername: true } } } },
+    },
+  });
+  if (!group) throw new AppError('Group not found', 'הקבוצה לא נמצאה', 404);
+  const students = group.students.map((s) => s.student).sort((a, b) => a.name.localeCompare(b.name, 'he'));
+
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('תלמידות', { views: [{ rightToLeft: true, state: 'frozen', ySplit: 1 }] });
+  sheet.addRow(STUDENT_IMPORT_COLUMNS.map((c) => c.header));
+  sheet.getRow(1).font = { bold: true };
+  for (const s of students) sheet.addRow([s.name, s.email, s.githubUsername ?? '']);
+  sheet.getColumn(1).width = 26;
+  sheet.getColumn(2).width = 32;
+  sheet.getColumn(3).width = 24;
+  return { buffer: (await workbook.xlsx.writeBuffer()) as unknown as Buffer, groupName: groupDisplayName(group) };
 }
 
 // Scoped to the group in the URL: a teacher resets a student of that group,

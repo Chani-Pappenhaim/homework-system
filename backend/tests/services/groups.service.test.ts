@@ -41,6 +41,7 @@ import {
   getGroups,
   getGroupById,
   importStudents,
+  exportGroupStudents,
   deleteGroup,
   createStudentAccount,
   updateStudentAccount,
@@ -248,6 +249,30 @@ describe('groups.service', () => {
       p.$transaction.mockRejectedValueOnce(new Error('db down'));
       await expect(deleteGroup('g1')).rejects.toThrow('db down');
       expect(releaseMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('exportGroupStudents', () => {
+    it("lists the group's students in the import's own columns, so the file imports back as is", async () => {
+      p.group.findUnique.mockResolvedValue({
+        name: 'יד', seminar: 'סמינר מאיר', year: 'תשפ״ז',
+        students: [
+          { student: { name: 'רחל לוי', email: 'rachel@x.com', githubUsername: null } },
+          { student: { name: 'דינה כהן', email: 'dina@x.com', githubUsername: 'dina-gh' } },
+        ],
+      });
+      const { buffer, groupName } = await exportGroupStudents('g1');
+      expect(groupName).toBe('סמינר מאיר יד תשפ״ז');
+
+      p.user.findUnique.mockResolvedValue(null);
+      p.studentGroup.findUnique.mockResolvedValue(null);
+      const back = await importStudents('g2', buffer, { dryRun: true });
+      expect(back).toMatchObject({ totalRows: 2, toAdd: 2, errors: [] });
+    });
+
+    it('refuses a group that does not exist', async () => {
+      p.group.findUnique.mockResolvedValue(null);
+      await expect(exportGroupStudents('nope')).rejects.toMatchObject({ status: 404 });
     });
   });
 
