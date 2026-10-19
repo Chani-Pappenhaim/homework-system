@@ -1,7 +1,8 @@
 import { useId, useState, type ReactNode } from 'react';
-import { Bot, ChevronDown, ChevronRight, ClipboardCheck, Edit, FileText, Trash2 } from 'lucide-react';
+import { Bot, ChevronDown, ChevronRight, ClipboardCheck, Edit, FileText, Link2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { useToast } from '@/components/ui/toast';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { SubmissionsWorkstation } from '@/components/lesson/SubmissionsWorkstation';
 import { cn, formatDate } from '@/lib/utils';
@@ -53,6 +54,7 @@ export function AssignmentView({
             )}
           </div>
           <div className="flex shrink-0 gap-1">
+            <CopyStudentLink assignmentId={assignment.id} />
             <Button size="sm" variant="outline" onClick={onEdit}>
               <Edit size={12} /> עריכה
             </Button>
@@ -188,5 +190,30 @@ function AiInstructions({ assignment, onEdit }: { assignment: AssignmentDTO; onE
         <Edit size={12} /> הוספת הנחיות
       </Button>
     </div>
+  );
+}
+
+/** The address a student opens the assignment at - the teacher's own page address is not one she can open. */
+export function studentAssignmentUrl(assignmentId: string): string {
+  return `${window.location.origin}/student/assignments?assignment=${assignmentId}`;
+}
+
+/** Copies the link to send the students, so they land on this assignment's submission. */
+function CopyStudentLink({ assignmentId }: { assignmentId: string }) {
+  const toast = useToast();
+  const url = studentAssignmentUrl(assignmentId);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('הקישור הועתק - אפשר להדביק ולשלוח לתלמידות');
+    } catch {
+      // Clipboard access can be refused (an old browser, a blocked permission): show the link to copy by hand.
+      toast.show(`לא הצלחנו להעתיק. זה הקישור: ${url}`, 'error', 15000);
+    }
+  }
+  return (
+    <Button size="sm" variant="outline" onClick={copy} title="קישור שהתלמידות יכולות לפתוח כדי להגיש את המטלה">
+      <Link2 size={12} /> העתקת קישור לתלמידות
+    </Button>
   );
 }

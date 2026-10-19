@@ -25,12 +25,17 @@ export default function AssignmentsPage() {
   const submitted: MySubmission[] = mine?.submitted ?? [];
   // The open assignment lives in the URL (`?pending=<assignmentId>` or
   // `?submission=<submissionId>`), so a refresh or a shared link reopens it and
-  // the browser's back button returns to the list.
+  // the browser's back button returns to the list. `?assignment=<assignmentId>`
+  // is the link a teacher sends the whole class: it opens the assignment for a
+  // student who has yet to submit it, and her submission for one who has.
   const [searchParams, setSearchParams] = useSearchParams();
-  const pendingId = searchParams.get('pending');
+  const assignmentId = searchParams.get('assignment');
+  const pendingId = searchParams.get('pending') ?? assignmentId;
   const submissionId = searchParams.get('submission');
   const pendingItem = pendingId ? pending.find((p) => p.assignmentId === pendingId) : undefined;
-  const submittedItem = submissionId ? submitted.find((s) => s.submissionId === submissionId) : undefined;
+  const submittedItem = submissionId
+    ? submitted.find((s) => s.submissionId === submissionId)
+    : assignmentId ? submitted.find((s) => s.assignmentId === assignmentId) : undefined;
   const viewing: ViewingItem | null = pendingItem
     ? { type: 'pending', item: pendingItem }
     : submittedItem ? { type: 'submitted', item: submittedItem } : null;
@@ -38,6 +43,7 @@ export default function AssignmentsPage() {
     const params = new URLSearchParams(p);
     params.delete('pending');
     params.delete('submission');
+    params.delete('assignment');
     if (next?.type === 'pending') params.set('pending', next.item.assignmentId);
     if (next?.type === 'submitted') params.set('submission', next.item.submissionId);
     return params;
