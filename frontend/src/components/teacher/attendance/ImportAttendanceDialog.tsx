@@ -13,7 +13,7 @@ import { downloadBlob } from '@/lib/utils';
 const COLUMNS: { name: string; required: boolean; hint: string }[] = [
   { name: 'מייל תלמידה', required: true, hint: 'כך מזהים את התלמידה — חייב להיות של תלמידה בקורס' },
   { name: 'תאריך', required: true, hint: 'למשל 15/10/2026' },
-  { name: 'סטטוס', required: true, hint: 'נוכחת / חסרה / מאושרת' },
+  { name: 'סטטוס', required: true, hint: 'נוכחת / חסרה / חלקית' },
   { name: 'שם', required: false, hint: 'לנוחות הקריאה בלבד' },
   { name: 'הערה', required: false, hint: 'הערה פנימית — התלמידה לא רואה' },
   { name: 'נושא המפגש', required: false, hint: 'מבדיל בין שני מפגשים באותו יום' },

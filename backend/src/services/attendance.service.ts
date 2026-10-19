@@ -4,7 +4,7 @@ import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
 import { cellText, isValidEmail } from '../utils/excel';
 
-const STATUSES: AttendanceStatus[] = ['PRESENT', 'ABSENT', 'EXCUSED'];
+const STATUSES: AttendanceStatus[] = ['PRESENT', 'ABSENT', 'PARTIAL'];
 const MAX_NOTE = 500;
 const MAX_TITLE = 200;
 const MAX_ROWS = 5000;
@@ -331,7 +331,7 @@ const COLUMNS = [
   { key: 'name', header: 'שם (רשות)', match: /^שם/, required: false, hint: 'רק לנוחות הקריאה — המערכת מזהה את התלמידה לפי המייל.' },
   { key: 'email', header: 'מייל תלמידה (חובה)', match: /מייל|אימייל|email/i, required: true, hint: 'המייל שאיתו התלמידה רשומה לאתר.' },
   { key: 'date', header: 'תאריך (חובה)', match: /תאריך|date/i, required: true, hint: 'תאריך המפגש, למשל 15/10/2026.' },
-  { key: 'status', header: 'סטטוס (חובה)', match: /סטטוס|status/i, required: true, hint: 'אחד מ: נוכחת / חסרה / מאושרת (חיסור מאושר).' },
+  { key: 'status', header: 'סטטוס (חובה)', match: /סטטוס|status/i, required: true, hint: 'אחד מ: נוכחת / חסרה / חלקית (נוכחות חלקית — נחשבת חצי חיסור).' },
   { key: 'note', header: 'הערה (רשות)', match: /הערה|note/i, required: false, hint: 'הערה פנימית למורה — התלמידה לא רואה אותה.' },
   { key: 'topic', header: 'נושא המפגש (רשות)', match: /נושא|topic/i, required: false, hint: 'צריך רק אם היו כמה מפגשים באותו תאריך, או כדי לתת שם למפגש חדש.' },
 ] as const;
@@ -340,7 +340,9 @@ type ColumnKey = (typeof COLUMNS)[number]['key'];
 const STATUS_WORDS: Record<string, AttendanceStatus> = {
   'נוכחת': 'PRESENT', 'נוכח': 'PRESENT', 'נכחה': 'PRESENT', 'כן': 'PRESENT', 'v': 'PRESENT', '✓': 'PRESENT', '1': 'PRESENT', 'present': 'PRESENT',
   'חסרה': 'ABSENT', 'חסר': 'ABSENT', 'לא': 'ABSENT', 'x': 'ABSENT', '0': 'ABSENT', 'absent': 'ABSENT',
-  'מאושרת': 'EXCUSED', 'מאושר': 'EXCUSED', 'חיסור מאושר': 'EXCUSED', 'מוצדק': 'EXCUSED', 'excused': 'EXCUSED',
+  'חלקית': 'PARTIAL', 'חלקי': 'PARTIAL', 'נוכחות חלקית': 'PARTIAL', 'partial': 'PARTIAL',
+  // Words of the earlier "excused" status, which became partial attendance — older files still import.
+  'מאושרת': 'PARTIAL', 'מאושר': 'PARTIAL', 'חיסור מאושר': 'PARTIAL', 'מוצדק': 'PARTIAL', 'excused': 'PARTIAL',
 };
 
 export function parseStatus(raw: string): AttendanceStatus | null {
@@ -368,8 +370,8 @@ export async function buildAttendanceTemplate(courseId: string): Promise<Buffer>
   sheet.getColumn('date').numFmt = 'dd/mm/yyyy';
   for (let r = 2; r <= last; r++) {
     sheet.getCell(r, 4).dataValidation = {
-      type: 'list', allowBlank: true, formulae: ['"נוכחת,חסרה,מאושרת"'],
-      showErrorMessage: true, errorTitle: 'סטטוס לא מוכר', error: 'יש לבחור: נוכחת, חסרה או מאושרת',
+      type: 'list', allowBlank: true, formulae: ['"נוכחת,חסרה,חלקית"'],
+      showErrorMessage: true, errorTitle: 'סטטוס לא מוכר', error: 'יש לבחור: נוכחת, חסרה או חלקית',
     };
   }
 
@@ -434,7 +436,7 @@ export async function importAttendance(courseId: string, buffer: Buffer) {
     const day = parseDay(rawDate instanceof Date || typeof rawDate === 'number' ? rawDate : cellText(dateCell));
     if (!day) { errors.push(`שורה ${rowNumber}: חסר תאריך או שאינו תקין — למשל 15/10/2026`); return; }
     const status = parseStatus(rawStatus);
-    if (!status) { errors.push(`שורה ${rowNumber}: סטטוס לא מוכר${rawStatus ? ` ("${rawStatus}")` : ''} — יש לכתוב נוכחת, חסרה או מאושרת`); return; }
+    if (!status) { errors.push(`שורה ${rowNumber}: סטטוס לא מוכר${rawStatus ? ` ("${rawStatus}")` : ''} — יש לכתוב נוכחת, חסרה או חלקית`); return; }
     const noteCell = read(row, 'note');
     const topicCell = read(row, 'topic');
     rows.push({
@@ -559,7 +561,7 @@ export async function getMyAttendance(studentId: string) {
     return {
       courseId: c.id,
       courseName: c.name,
-      summary: { present: count('PRESENT'), absent: count('ABSENT'), excused: count('EXCUSED'), sessions: sessions.length },
+      summary: { present: count('PRESENT'), absent: count('ABSENT'), partial: count('PARTIAL'), sessions: sessions.length },
       sessions,
     };
   });

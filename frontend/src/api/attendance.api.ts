@@ -1,6 +1,6 @@
 import api from './axios';
 
-export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'EXCUSED';
+export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'PARTIAL';
 
 export interface RosterStudent {
   id: string;
@@ -42,7 +42,7 @@ export interface ImportResult { saved: number; skipped: number; sessionsCreated:
 export interface MyAttendanceCourse {
   courseId: string;
   courseName: string;
-  summary: { present: number; absent: number; excused: number; sessions: number };
+  summary: { present: number; absent: number; partial: number; sessions: number };
   sessions: {
     id: string;
     date: string;

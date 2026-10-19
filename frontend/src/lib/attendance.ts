@@ -1,4 +1,4 @@
-import { Check, ShieldCheck, X, type LucideIcon } from 'lucide-react';
+import { Check, Clock, X, type LucideIcon } from 'lucide-react';
 import type { AttendanceStatus } from '@/api/attendance.api';
 
 /**
@@ -8,10 +8,10 @@ import type { AttendanceStatus } from '@/api/attendance.api';
 export const STATUS_META: Record<AttendanceStatus, { label: string; icon: LucideIcon; active: string; text: string }> = {
   PRESENT: { label: 'נוכחת', icon: Check, active: 'border-sage bg-sage text-sheet', text: 'text-sage' },
   ABSENT: { label: 'חסרה', icon: X, active: 'border-coral bg-coral text-sheet', text: 'text-coral' },
-  EXCUSED: { label: 'מאושרת', icon: ShieldCheck, active: 'border-butter bg-butter text-ink', text: 'text-clay' },
+  PARTIAL: { label: 'נוכחות חלקית', icon: Clock, active: 'border-butter bg-butter text-ink', text: 'text-clay' },
 };
 
-export const STATUS_ORDER: AttendanceStatus[] = ['PRESENT', 'ABSENT', 'EXCUSED'];
+export const STATUS_ORDER: AttendanceStatus[] = ['PRESENT', 'ABSENT', 'PARTIAL'];
 
 // Meetings are stored as a calendar day at UTC midnight, so they are always
 // formatted in UTC — otherwise a browser west of Greenwich shows the day before.
@@ -24,14 +24,14 @@ export const shortDay = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}
 /** The value a date input expects. */
 export const dayValue = (iso: string) => iso.slice(0, 10);
 
-/** Share of meetings attended out of those that counted; an excused absence doesn't count against. */
-export function attendanceRate(present: number, absent: number): number | null {
-  const counted = present + absent;
-  return counted ? Math.round((present * 100) / counted) : null;
+/** Share of the marked meetings attended; a partial attendance counts as half an absence. */
+export function attendanceRate(present: number, absent: number, partial: number): number | null {
+  const counted = present + absent + partial;
+  return counted ? Math.round(((present + partial / 2) * 100) / counted) : null;
 }
 
 export function countStatuses(statuses: (AttendanceStatus | null | undefined)[]) {
-  const counts = { PRESENT: 0, ABSENT: 0, EXCUSED: 0, none: 0 };
+  const counts = { PRESENT: 0, ABSENT: 0, PARTIAL: 0, none: 0 };
   for (const s of statuses) counts[s ?? 'none']++;
   return counts;
 }

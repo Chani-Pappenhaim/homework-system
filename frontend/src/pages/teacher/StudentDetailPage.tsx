@@ -143,9 +143,9 @@ function AttendanceList({ courses }: { courses: StudentProfile['attendance'] }) 
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-3 text-xs">
-                  {(['PRESENT', 'ABSENT', 'EXCUSED'] as const).map((st) => {
+                  {(['PRESENT', 'ABSENT', 'PARTIAL'] as const).map((st) => {
                     const { icon: Icon, label, text } = STATUS_META[st];
-                    const n = c.summary[st === 'PRESENT' ? 'present' : st === 'ABSENT' ? 'absent' : 'excused'];
+                    const n = c.summary[st === 'PRESENT' ? 'present' : st === 'ABSENT' ? 'absent' : 'partial'];
                     return (
                       <span key={st} className={cn('inline-flex items-center gap-1', text)}>
                         <Icon size={12} /> {label} {n}
@@ -161,7 +161,7 @@ function AttendanceList({ courses }: { courses: StudentProfile['attendance'] }) 
                       title={`${formatDay(s.date)}${s.title ? ` · ${s.title}` : ''} · ${s.status ? STATUS_META[s.status].label : 'לא סומן'}`}
                       className={cn(
                         'size-3 rounded-sm',
-                        s.status === 'PRESENT' ? 'bg-sage' : s.status === 'ABSENT' ? 'bg-coral' : s.status === 'EXCUSED' ? 'bg-butter' : 'bg-rule/40',
+                        s.status === 'PRESENT' ? 'bg-sage' : s.status === 'ABSENT' ? 'bg-coral' : s.status === 'PARTIAL' ? 'bg-butter' : 'bg-rule/40',
                       )}
                     />
                   ))}

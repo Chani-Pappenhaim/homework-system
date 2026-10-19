@@ -11,13 +11,13 @@ const getMine = attendanceApi.getMine as unknown as ReturnType<typeof vi.fn>;
 const courses = [
   {
     courseId: 'c1', courseName: 'React',
-    summary: { present: 3, absent: 1, excused: 1, sessions: 5 },
+    summary: { present: 3, absent: 1, partial: 1, sessions: 5 },
     sessions: [
       { id: 'a1', date: '2026-10-05T00:00:00.000Z', title: 'Hooks', status: 'ABSENT', homework: [{ id: 'h1', title: 'תרגיל', kind: 'site', done: true }] },
       { id: 'a2', date: '2026-10-12T00:00:00.000Z', title: null, status: null, homework: [] },
     ],
   },
-  { courseId: 'c2', courseName: 'Node', summary: { present: 0, absent: 0, excused: 0, sessions: 0 }, sessions: [] },
+  { courseId: 'c2', courseName: 'Node', summary: { present: 0, absent: 0, partial: 0, sessions: 0 }, sessions: [] },
 ];
 
 beforeEach(() => {
@@ -28,7 +28,7 @@ beforeEach(() => {
 describe('Student AttendancePage', () => {
   it('shows the rate, each meeting\'s status and the homework she did', async () => {
     renderWithProviders(<AttendancePage />);
-    expect(await screen.findByText('75%')).toBeInTheDocument();
+    expect(await screen.findByText('70%')).toBeInTheDocument();
     expect(screen.getByText('Hooks')).toBeInTheDocument();
     expect(screen.getAllByText('חסרה').length).toBeGreaterThan(0);
     expect(screen.getByText('טרם סומן')).toBeInTheDocument();

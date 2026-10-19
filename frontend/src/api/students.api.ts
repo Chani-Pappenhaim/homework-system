@@ -18,7 +18,7 @@ export interface StudentOverview {
   groupNames: string[];
   assignments: { total: number; submitted: number; late: number; missing: number };
   averageContentScore: number | null;
-  attendance: { present: number; absent: number; excused: number; rate: number | null };
+  attendance: { present: number; absent: number; partial: number; rate: number | null };
   unreadMessages: number;
 }
 
@@ -57,7 +57,7 @@ export interface StudentProfile {
   attendance: Array<{
     courseId: string;
     courseName: string;
-    summary: { present: number; absent: number; excused: number; sessions: number; rate: number | null };
+    summary: { present: number; absent: number; partial: number; sessions: number; rate: number | null };
     sessions: Array<{ id: string; date: string; title: string | null; status: AttendanceStatus | null; note: string | null }>;
   }>;
   quizzes: Array<{

@@ -57,9 +57,10 @@ function reaches(r: Reach, a: { lessonId: string; lesson: { courseId: string; co
   return r.groupIds.has(a.lesson.course.groupId) || r.courseIds.has(a.lesson.courseId) || r.lessonIds.has(a.lessonId);
 }
 
-/** Same rule as the frontend: an excused absence does not count against the student. */
-function attendanceRate(present: number, absent: number): number | null {
-  return present + absent ? Math.round((present * 100) / (present + absent)) : null;
+/** Same rule as the frontend: a partial attendance counts as half an absence. */
+function attendanceRate(present: number, absent: number, partial: number): number | null {
+  const counted = present + absent + partial;
+  return counted ? Math.round(((present + partial / 2) * 100) / counted) : null;
 }
 
 function average(values: number[]): number | null {
@@ -100,12 +101,12 @@ export async function getStudentsOverview() {
   for (const s of submissions) subsByStudent.set(s.studentId, [...(subsByStudent.get(s.studentId) ?? []), s]);
   const unreadByStudent = new Map<string, number>();
   for (const e of unread) unreadByStudent.set(e.message.studentId, (unreadByStudent.get(e.message.studentId) ?? 0) + 1);
-  const attendanceByStudent = new Map<string, { present: number; absent: number; excused: number }>();
+  const attendanceByStudent = new Map<string, { present: number; absent: number; partial: number }>();
   for (const r of records) {
-    const a = attendanceByStudent.get(r.studentId) ?? { present: 0, absent: 0, excused: 0 };
+    const a = attendanceByStudent.get(r.studentId) ?? { present: 0, absent: 0, partial: 0 };
     if (r.status === 'PRESENT') a.present++;
     else if (r.status === 'ABSENT') a.absent++;
-    else a.excused++;
+    else a.partial++;
     attendanceByStudent.set(r.studentId, a);
   }
 
@@ -120,7 +121,7 @@ export async function getStudentsOverview() {
     const assignedIds = new Set(assigned.map((a) => a.id));
     const subs = (subsByStudent.get(st.id) ?? []).filter((s) => assignedIds.has(s.assignmentId));
     const submittedIds = new Set(subs.map((s) => s.assignmentId));
-    const att = attendanceByStudent.get(st.id) ?? { present: 0, absent: 0, excused: 0 };
+    const att = attendanceByStudent.get(st.id) ?? { present: 0, absent: 0, partial: 0 };
     return {
       id: st.id,
       name: st.name,
@@ -134,7 +135,7 @@ export async function getStudentsOverview() {
         missing: assigned.filter((a) => !submittedIds.has(a.id) && a.deadline && a.deadline < now).length,
       },
       averageContentScore: average(subs.flatMap((s) => (s.grade?.contentScore != null ? [s.grade.contentScore] : []))),
-      attendance: { ...att, rate: attendanceRate(att.present, att.absent) },
+      attendance: { ...att, rate: attendanceRate(att.present, att.absent, att.partial) },
       unreadMessages: unreadByStudent.get(st.id) ?? 0,
     };
   });
@@ -269,7 +270,7 @@ export async function getStudentProfile(studentId: string) {
     attendance: attendance.map((c) => ({
       courseId: c.courseId,
       courseName: c.courseName,
-      summary: { ...c.summary, rate: attendanceRate(c.summary.present, c.summary.absent) },
+      summary: { ...c.summary, rate: attendanceRate(c.summary.present, c.summary.absent, c.summary.partial) },
       sessions: c.sessions.map((s) => ({ id: s.id, date: s.date, title: s.title, status: s.status, note: noteBySession.get(s.id) ?? null })),
     })),
     quizzes: [...quizzes.values()],

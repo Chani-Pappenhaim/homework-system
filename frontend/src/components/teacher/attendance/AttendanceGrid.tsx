@@ -26,17 +26,17 @@ export function AttendanceGrid({ data, roster, onOpenSession }: Props) {
   const homeworkCount = sessions.reduce((n, s) => n + s.homework.length + (lessonOf(s.lessonId)?.assignments.length ?? 0), 0);
 
   const rows = roster.map((student) => {
-    let present = 0, absent = 0, excused = 0, done = 0;
+    let present = 0, absent = 0, partial = 0, done = 0;
     const cells = sessions.map((s) => {
       const status = s.records.find((r) => r.studentId === student.id)?.status ?? null;
       if (status === 'PRESENT') present++;
       else if (status === 'ABSENT') absent++;
-      else if (status === 'EXCUSED') excused++;
+      else if (status === 'PARTIAL') partial++;
       done += s.homework.filter((h) => h.doneBy.includes(student.id)).length;
       done += lessonOf(s.lessonId)?.assignments.filter((a) => a.submittedBy.includes(student.id)).length ?? 0;
       return status;
     });
-    return { student, cells, present, absent, excused, done, rate: attendanceRate(present, absent) };
+    return { student, cells, present, absent, partial, done, rate: attendanceRate(present, absent, partial) };
   });
 
   const dateInput = 'rounded-input border border-rule bg-sheet px-2 py-1 text-xs text-ink focus:border-clay focus:outline-none';
@@ -48,7 +48,7 @@ export function AttendanceGrid({ data, roster, onOpenSession }: Props) {
         <label className="flex items-center gap-1">עד <input type="date" className={dateInput} value={to} onChange={(e) => setTo(e.target.value)} /></label>
         {(from || to) && <button className="font-semibold text-clay hover:underline" onClick={() => { setFrom(''); setTo(''); }}>ניקוי</button>}
         <span className="ms-auto flex flex-wrap gap-3">
-          {(['PRESENT', 'ABSENT', 'EXCUSED'] as const).map((st) => {
+          {(['PRESENT', 'ABSENT', 'PARTIAL'] as const).map((st) => {
             const { label, icon: Icon, text } = STATUS_META[st];
             return <span key={st} className={cn('flex items-center gap-1', text)}><Icon size={12} /> {label}</span>;
           })}
@@ -78,12 +78,12 @@ export function AttendanceGrid({ data, roster, onOpenSession }: Props) {
                   </th>
                 ))}
                 <th className="border-b border-r border-rule px-3 py-2 text-xs font-semibold text-ink-soft">נוכחות</th>
-                <th className="border-b border-rule px-3 py-2 text-xs font-semibold text-ink-soft">מאושרות</th>
+                <th className="border-b border-rule px-3 py-2 text-xs font-semibold text-ink-soft">חלקיות</th>
                 {homeworkCount > 0 && <th className="border-b border-rule px-3 py-2 text-xs font-semibold text-ink-soft">שיעורי בית</th>}
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ student, cells, absent, excused, done, rate }) => (
+              {rows.map(({ student, cells, absent, partial, done, rate }) => (
                 <tr key={student.id} className="group">
                   <th scope="row" className="sticky right-0 z-10 whitespace-nowrap border-b border-l border-rule/60 bg-sheet px-3 py-1.5 text-start font-semibold text-ink group-hover:bg-ground">
                     {student.name}
@@ -106,7 +106,7 @@ export function AttendanceGrid({ data, roster, onOpenSession }: Props) {
                     {rate === null ? '—' : `${rate}%`}
                     {absent > 0 && <span className="block text-[10px] font-normal text-ink-soft">{absent} חיסורים</span>}
                   </td>
-                  <td className="border-b border-rule/60 px-3 py-1.5 text-center text-ink-soft group-hover:bg-ground/60">{excused || '—'}</td>
+                  <td className="border-b border-rule/60 px-3 py-1.5 text-center text-ink-soft group-hover:bg-ground/60">{partial || '—'}</td>
                   {homeworkCount > 0 && (
                     <td className="border-b border-rule/60 px-3 py-1.5 text-center text-ink group-hover:bg-ground/60">{done}/{homeworkCount}</td>
                   )}
@@ -116,7 +116,7 @@ export function AttendanceGrid({ data, roster, onOpenSession }: Props) {
           </table>
         </div>
       )}
-      <p className="text-xs text-ink-soft">אחוז הנוכחות מחושב מתוך המפגשים שסומנו; היעדרות מאושרת לא נחשבת חיסור. לחיצה על תאריך פותחת את המפגש.</p>
+      <p className="text-xs text-ink-soft">אחוז הנוכחות מחושב מתוך המפגשים שסומנו; נוכחות חלקית נחשבת חצי חיסור. לחיצה על תאריך פותחת את המפגש.</p>
     </div>
   );
 }

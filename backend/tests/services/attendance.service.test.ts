@@ -61,7 +61,9 @@ describe('parseStatus', () => {
     expect(parseStatus('נוכחת')).toBe('PRESENT');
     expect(parseStatus(' V ')).toBe('PRESENT');
     expect(parseStatus('חסרה')).toBe('ABSENT');
-    expect(parseStatus('חיסור מאושר')).toBe('EXCUSED');
+    expect(parseStatus('חלקית')).toBe('PARTIAL');
+    expect(parseStatus('נוכחות חלקית')).toBe('PARTIAL');
+    expect(parseStatus('מאושרת')).toBe('PARTIAL'); // the earlier status, so older files still import
     expect(parseStatus('אולי')).toBeNull();
   });
 });
@@ -113,12 +115,12 @@ describe('saveRecords', () => {
   it('upserts marks and clears a mark set back to none', async () => {
     await saveRecords('s1', [
       { studentId: 'rachel', status: 'PRESENT' },
-      { studentId: 'leah', status: 'EXCUSED', note: '  מחלה ' },
+      { studentId: 'leah', status: 'PARTIAL', note: '  מחלה ' },
       { studentId: 'dina', status: null },
     ]);
     const ops = p.$transaction.mock.calls[0][0];
     expect(ops[0]).toMatchObject({ op: 'upsert', update: { status: 'PRESENT' } });
-    expect(ops[1]).toMatchObject({ op: 'upsert', update: { status: 'EXCUSED', note: 'מחלה' } });
+    expect(ops[1]).toMatchObject({ op: 'upsert', update: { status: 'PARTIAL', note: 'מחלה' } });
     expect(ops[2]).toMatchObject({ op: 'delete', where: { sessionId: 's1', studentId: 'dina' } });
   });
 
@@ -172,7 +174,7 @@ describe('buildAttendanceTemplate', () => {
     const headers = (sheet.getRow(1).values as string[]).filter(Boolean);
     expect(headers).toEqual(['שם (רשות)', 'מייל תלמידה (חובה)', 'תאריך (חובה)', 'סטטוס (חובה)', 'הערה (רשות)', 'נושא המפגש (רשות)']);
     expect(sheet.getCell('B2').value).toBe('dina@x.com');
-    expect(sheet.getCell('D2').dataValidation.formulae).toEqual(['"נוכחת,חסרה,מאושרת"']);
+    expect(sheet.getCell('D2').dataValidation.formulae).toEqual(['"נוכחת,חסרה,חלקית"']);
     expect(wb.getWorksheet('הוראות')).toBeDefined();
   });
 
@@ -278,7 +280,7 @@ describe('getMyAttendance', () => {
       ],
     }]);
     const [course] = await getMyAttendance('rachel');
-    expect(course.summary).toEqual({ present: 1, absent: 0, excused: 0, sessions: 2 });
+    expect(course.summary).toEqual({ present: 1, absent: 0, partial: 0, sessions: 2 });
     expect(course.sessions[0]).toEqual({
       id: 's1', date: new Date('2026-10-01T00:00:00Z'), title: 'לולאות', status: 'PRESENT',
       homework: [

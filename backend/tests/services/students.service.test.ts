@@ -66,14 +66,14 @@ describe('getStudentsOverview', () => {
     expect(dina!.averageContentScore).toBeNull();
   });
 
-  it('sums attendance and leaves excused absences out of the rate', async () => {
+  it('sums attendance and counts a partial attendance as half an absence', async () => {
     p.attendanceRecord.findMany.mockResolvedValue([
       { studentId: 'rachel', status: 'PRESENT' }, { studentId: 'rachel', status: 'PRESENT' },
       { studentId: 'rachel', status: 'PRESENT' }, { studentId: 'rachel', status: 'ABSENT' },
-      { studentId: 'rachel', status: 'EXCUSED' },
+      { studentId: 'rachel', status: 'PARTIAL' },
     ]);
     const [rachel, dina] = await getStudentsOverview();
-    expect(rachel!.attendance).toEqual({ present: 3, absent: 1, excused: 1, rate: 75 });
+    expect(rachel!.attendance).toEqual({ present: 3, absent: 1, partial: 1, rate: 70 });
     expect(dina!.attendance.rate).toBeNull();
   });
 
@@ -129,7 +129,7 @@ describe('getStudentProfile', () => {
   it('adds the teacher notes and rate to each course attendance', async () => {
     (getMyAttendance as any).mockResolvedValue([{
       courseId: 'c1', courseName: 'JS',
-      summary: { present: 1, absent: 1, excused: 0, sessions: 2 },
+      summary: { present: 1, absent: 1, partial: 0, sessions: 2 },
       sessions: [
         { id: 'x1', date: past, title: 'מפגש 1', status: 'PRESENT', homework: [] },
         { id: 'x2', date: past, title: 'מפגש 2', status: 'ABSENT', homework: [] },

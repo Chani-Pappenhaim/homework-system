@@ -364,7 +364,7 @@ model QuizAttempt {
 enum AttendanceStatus {
   PRESENT
   ABSENT
-  EXCUSED
+  PARTIAL
 }
 
 // One meeting of a course. Linked to a lesson on the site, or standing on its

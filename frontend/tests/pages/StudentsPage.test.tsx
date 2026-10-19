@@ -23,7 +23,7 @@ const deleteStudent = studentsApi.delete as unknown as ReturnType<typeof vi.fn>;
 const student = (over: Record<string, unknown>) => ({
   id: 's1', name: 'רחל', email: 'rachel@x.com', githubUsername: null, groupNames: ['קבוצה א'],
   assignments: { total: 4, submitted: 3, late: 1, missing: 1 },
-  averageContentScore: 88, attendance: { present: 9, absent: 1, excused: 0, rate: 90 }, unreadMessages: 0,
+  averageContentScore: 88, attendance: { present: 9, absent: 1, partial: 0, rate: 90 }, unreadMessages: 0,
   ...over,
 });
 
@@ -39,7 +39,7 @@ describe('StudentsPage', () => {
             student({
               id: 's2', name: 'לאה', email: 'leah@x.com', groupNames: ['קבוצה ב'],
               assignments: { total: 4, submitted: 4, late: 0, missing: 0 }, unreadMessages: 0,
-              attendance: { present: 5, absent: 5, excused: 0, rate: 50 },
+              attendance: { present: 5, absent: 5, partial: 0, rate: 50 },
             }),
           ],
         },
@@ -99,7 +99,7 @@ const fullProfile = {
   ],
   attendance: [{
     courseId: 'c1', courseName: 'JS',
-    summary: { present: 1, absent: 1, excused: 0, sessions: 2, rate: 50 },
+    summary: { present: 1, absent: 1, partial: 0, sessions: 2, rate: 50 },
     sessions: [
       { id: 'x2', date: '2026-02-08T00:00:00Z', title: 'מפגש 2', status: 'ABSENT', note: 'הודיעה מראש' },
       { id: 'x1', date: '2026-02-01T00:00:00Z', title: 'מפגש 1', status: 'PRESENT', note: null },

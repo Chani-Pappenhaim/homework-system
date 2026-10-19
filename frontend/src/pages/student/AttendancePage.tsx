@@ -102,9 +102,9 @@ export default function AttendancePage() {
   );
 }
 
-function Summary({ present, absent, excused, sessions }: { present: number; absent: number; excused: number; sessions: number }) {
-  const rate = attendanceRate(present, absent);
-  const counts = { PRESENT: present, ABSENT: absent, EXCUSED: excused };
+function Summary({ present, absent, partial, sessions }: { present: number; absent: number; partial: number; sessions: number }) {
+  const rate = attendanceRate(present, absent, partial);
+  const counts = { PRESENT: present, ABSENT: absent, PARTIAL: partial };
   return (
     <Card accent="sage">
       <CardContent className="flex flex-wrap items-center gap-x-8 gap-y-3 pt-5">
@@ -123,7 +123,7 @@ function Summary({ present, absent, excused, sessions }: { present: number; abse
             </div>
           );
         })}
-        <p className="text-xs text-ink-soft sm:ms-auto">{sessions} מפגשים · היעדרות מאושרת לא נחשבת חיסור</p>
+        <p className="text-xs text-ink-soft sm:ms-auto">{sessions} מפגשים · נוכחות חלקית נחשבת חצי חיסור</p>
       </CardContent>
     </Card>
   );
