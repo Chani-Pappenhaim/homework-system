@@ -123,3 +123,26 @@ describe('MarkdownText', () => {
     expect(screen.getByRole('link', { name: 'תיעוד' })).toHaveAttribute('target', '_blank');
   });
 });
+
+describe('MarkdownRenderer - code blocks', () => {
+  it('colours a block by its language', () => {
+    const { container } = render(<MarkdownRenderer content={'```js\nconst x = 1;\n```'} />);
+    expect(container.querySelector('pre code.hljs .hljs-keyword')).toHaveTextContent('const');
+  });
+
+  it('guesses the language of a block that names none', () => {
+    const { container } = render(<MarkdownRenderer content={'```\nfunction add(a, b) {\n  return a + b;\n}\n```'} />);
+    expect(container.querySelector('pre code')).toHaveClass('language-javascript');
+    expect(container.querySelector('pre code .hljs-keyword')).toHaveTextContent('function');
+  });
+
+  it('still colours a block marked as CSS', () => {
+    const { container } = render(<MarkdownRenderer content={['```css', '.card { color: red; }', '```'].join('\n')} />);
+    expect(container.querySelector('pre code')).toHaveClass('language-css');
+  });
+
+  it('sits in the block that the left-to-right code styles apply to', () => {
+    const { container } = render(<MarkdownRenderer content={'```\nx\n```'} />);
+    expect(container.querySelector('.markdown-body pre')).not.toBeNull();
+  });
+});

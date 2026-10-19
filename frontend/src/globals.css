@@ -240,3 +240,53 @@
   .marquee-track { display: inline-flex; white-space: nowrap; }
   .tape-hatch, .torn-top, .torn-edge { background-image: none; -webkit-mask-image: none; mask-image: none; }
 }
+
+/* Code in Markdown (lessons, assignments, AI reviews). The page is right-to-left,
+   which reversed code lines; code always reads left-to-right. Block colours come
+   from rehype-highlight's classes, in a GitHub-dark palette that suits the dark
+   block background of the prose styles. */
+.markdown-body pre {
+  direction: ltr;
+  text-align: left;
+}
+.markdown-body :not(pre) > code {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.markdown-body pre code.hljs { color: #e6edf3; }
+.markdown-body .hljs-comment,
+.markdown-body .hljs-quote { color: #8b949e; font-style: italic; }
+.markdown-body .hljs-keyword,
+.markdown-body .hljs-selector-tag,
+.markdown-body .hljs-meta .hljs-keyword,
+.markdown-body .hljs-doctag,
+.markdown-body .hljs-template-tag { color: #ff7b72; }
+.markdown-body .hljs-string,
+.markdown-body .hljs-regexp,
+.markdown-body .hljs-meta .hljs-string { color: #a5d6ff; }
+.markdown-body .hljs-number,
+.markdown-body .hljs-literal,
+.markdown-body .hljs-variable,
+.markdown-body .hljs-template-variable,
+.markdown-body .hljs-attr,
+.markdown-body .hljs-attribute,
+.markdown-body .hljs-selector-attr,
+.markdown-body .hljs-selector-class,
+.markdown-body .hljs-selector-id,
+.markdown-body .hljs-operator { color: #79c0ff; }
+.markdown-body .hljs-title,
+.markdown-body .hljs-title.class_,
+.markdown-body .hljs-title.function_,
+.markdown-body .hljs-section { color: #d2a8ff; }
+.markdown-body .hljs-type,
+.markdown-body .hljs-built_in,
+.markdown-body .hljs-params,
+.markdown-body .hljs-symbol { color: #ffa657; }
+.markdown-body .hljs-name,
+.markdown-body .hljs-tag,
+.markdown-body .hljs-selector-pseudo,
+.markdown-body .hljs-meta { color: #7ee787; }
+.markdown-body .hljs-addition { color: #aff5b4; background: #033a16; }
+.markdown-body .hljs-deletion { color: #ffdcd7; background: #67060c; }
+.markdown-body .hljs-emphasis { font-style: italic; }
+.markdown-body .hljs-strong { font-weight: 700; }

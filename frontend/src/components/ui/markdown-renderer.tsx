@@ -1,5 +1,6 @@
 import ReactMarkdown, { defaultUrlTransform, type UrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { rehypeHighlightCode } from '@/lib/highlightCode';
 
 interface Props {
   content: string;
@@ -40,8 +41,9 @@ function MarkdownRenderer({ content, className, keepLineBreaks }: Props) {
     <div className={className}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeHighlightCode]}
         urlTransform={urlTransform}
-        className="prose prose-sm max-w-none text-ink prose-headings:text-ink prose-code:bg-cream prose-code:px-1 prose-code:rounded"
+        className="markdown-body prose prose-sm max-w-none text-ink prose-headings:text-ink prose-code:bg-cream prose-code:px-1 prose-code:rounded"
       >
         {keepLineBreaks ? withHardBreaks(content) : content}
       </ReactMarkdown>
