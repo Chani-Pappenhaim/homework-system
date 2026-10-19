@@ -1,9 +1,14 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { goBackTo } from '@/lib/backNavigation';
 
 interface BackLinkProps {
-  /** Explicit parent route. When omitted, steps back one entry in browser history instead. */
+  /**
+   * Explicit parent route. It is reached as a step back - to the previous history
+   * entry when that shows it, else in place of this page - never as a new entry.
+   * When omitted, steps back one entry in browser history instead.
+   */
   to?: string;
   label?: string;
   className?: string;
@@ -24,7 +29,16 @@ export function BackLink({ to, label = 'חזרה', className }: BackLinkProps) {
 
   if (to) {
     return (
-      <Link to={to} className={cls}>
+      <Link
+        to={to}
+        className={cls}
+        onClick={(e) => {
+          // Let a ctrl/middle click open the page in a new tab as a normal link.
+          if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+          e.preventDefault();
+          goBackTo(to, navigate);
+        }}
+      >
         {inner}
       </Link>
     );
