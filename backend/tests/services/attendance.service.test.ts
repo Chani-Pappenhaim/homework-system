@@ -9,7 +9,7 @@ vi.mock('../../src/config/prisma', () => ({
     courseAccess: { findMany: vi.fn() },
     attendanceExclusion: { findMany: vi.fn(), upsert: vi.fn(), deleteMany: vi.fn() },
     attendanceSession: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), createMany: vi.fn(), update: vi.fn(), delete: vi.fn() },
-    attendanceRecord: { upsert: vi.fn((a) => ({ op: 'upsert', ...a })), deleteMany: vi.fn((a) => ({ op: 'delete', ...a })) },
+    attendanceRecord: { findMany: vi.fn(), upsert: vi.fn((a) => ({ op: 'upsert', ...a })), deleteMany: vi.fn((a) => ({ op: 'delete', ...a })) },
     extraHomework: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
     homeworkMark: { upsert: vi.fn((a) => ({ op: 'upsert', ...a })), deleteMany: vi.fn((a) => ({ op: 'delete', ...a })) },
     $transaction: vi.fn(async (ops) => ops),
@@ -35,6 +35,7 @@ beforeEach(() => {
   p.attendanceSession.findUnique.mockResolvedValue({ id: 's1', courseId: 'c1' });
   p.attendanceSession.findMany.mockResolvedValue([]);
   p.lesson.findMany.mockResolvedValue([]);
+  p.attendanceRecord.findMany.mockResolvedValue([]);
 });
 
 describe('parseDay', () => {
@@ -185,7 +186,10 @@ describe('buildAttendanceTemplate', () => {
     p.attendanceSession.create.mockResolvedValue({ id: 'new' });
     const result = await importAttendance('c1', (await wb.xlsx.writeBuffer()) as unknown as Buffer);
     // Dina filled; Leah and Rachel were left blank and are skipped quietly.
-    expect(result).toEqual({ saved: 1, skipped: 2, sessionsCreated: 1, errors: [] });
+    expect(result).toEqual({
+      dryRun: false, saved: 1, updated: 0, added: 1, unchanged: 0,
+      skipped: 2, sessionsCreated: 1, newSessions: ['15/10/2026'], errors: [],
+    });
   });
 });
 
@@ -249,6 +253,51 @@ describe('importAttendance', () => {
 
   it('refuses a file that is not a spreadsheet', async () => {
     await expect(importAttendance('c1', Buffer.from('hello'))).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('a dry run writes nothing and tells changed, new and unchanged marks apart', async () => {
+    p.attendanceSession.findMany.mockResolvedValue([{ id: 's1', date: new Date('2026-10-01T00:00:00Z'), title: null, lesson: null }]);
+    p.attendanceRecord.findMany.mockResolvedValue([
+      { sessionId: 's1', studentId: 'rachel', status: 'PRESENT' },
+      { sessionId: 's1', studentId: 'leah', status: 'PRESENT' },
+    ]);
+    const result = await importAttendance('c1', await sheetFrom([
+      HEAD,
+      ['rachel@x.com', '01/10/2026', 'חסרה', '', ''],
+      ['leah@x.com', '01/10/2026', 'נוכחת', '', ''],
+      ['dina@x.com', '01/10/2026', 'נוכחת', '', ''],
+      ['dina@x.com', '08/10/2026', 'נוכחת', '', 'חזרה'],
+      ['leah@x.com', '01/10/2026', 'אולי', '', ''],
+    ]), { dryRun: true });
+    expect(result).toMatchObject({
+      dryRun: true, saved: 4, updated: 1, added: 2, unchanged: 1,
+      sessionsCreated: 1, newSessions: ['08/10/2026 (חזרה)'],
+    });
+    expect(result.errors).toEqual([expect.stringMatching(/^שורה 6: סטטוס לא מוכר/)]);
+    expect(p.attendanceSession.create).not.toHaveBeenCalled();
+    expect(p.attendanceRecord.upsert).not.toHaveBeenCalled();
+  });
+
+  it('refuses an Excel date whose day and month came out swapped, instead of opening a new meeting', async () => {
+    // The meeting is on 12 October; a computer set to month-first read "12/10" as 10 December.
+    p.attendanceSession.findMany.mockResolvedValue([{ id: 's1', date: new Date('2026-10-12T00:00:00Z'), title: null, lesson: null }]);
+    const result = await importAttendance('c1', await sheetFrom([
+      HEAD,
+      ['rachel@x.com', new Date(Date.UTC(2026, 11, 10)), 'נוכחת'],
+      ['leah@x.com', new Date(Date.UTC(2026, 9, 12)), 'נוכחת'],
+    ]));
+    expect(result.saved).toBe(1);
+    expect(result.errors).toEqual([expect.stringMatching(/^שורה 2: .*10\/12\/2026.*12\/10\/2026/)]);
+    expect(p.attendanceSession.create).not.toHaveBeenCalled();
+  });
+
+  it('opens a meeting on a new date when the swapped date is not a meeting either', async () => {
+    p.attendanceSession.create.mockResolvedValue({ id: 's2' });
+    const result = await importAttendance('c1', await sheetFrom([
+      HEAD,
+      ['rachel@x.com', new Date(Date.UTC(2026, 11, 10)), 'נוכחת'],
+    ]));
+    expect(result).toMatchObject({ saved: 1, newSessions: ['10/12/2026'], errors: [] });
   });
 
   it('skips a student the teacher left off the attendance', async () => {
