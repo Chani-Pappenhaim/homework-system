@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { CourseByName, LessonById, LessonByNumber } from '@/components/lesson/LessonRoute';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { useBackNavigationTracker } from '@/lib/backNavigation';
 import AuthGuard from '@/components/guards/AuthGuard';
 import AdminGuard from '@/components/guards/AdminGuard';
 import ChangePasswordGuard from '@/components/guards/ChangePasswordGuard';
@@ -40,6 +41,7 @@ import ProfilePage from '@/pages/student/ProfilePage';
 
 function AppRoutes() {
   const location = useLocation();
+  useBackNavigationTracker();
   return (
     <ErrorBoundary key={location.pathname}>
       <Routes>
