@@ -25,6 +25,16 @@ export async function generate(req: Request, res: Response) {
   }
 }
 
+/** Creates a quiz from questions the teacher wrote, without the AI. Teacher-only. */
+export async function createManual(req: Request, res: Response) {
+  try {
+    const result = await quizzesService.createManualQuiz(req.params.id as string, req.body?.questions);
+    res.status(201).json({ success: true, data: result });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
 /** Saves edited quiz questions. Teacher-only. */
 export async function updateQuestions(req: Request, res: Response) {
   try {
