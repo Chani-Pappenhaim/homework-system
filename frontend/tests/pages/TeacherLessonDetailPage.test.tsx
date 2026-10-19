@@ -3,6 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import TeacherLessonDetailPage from '@/pages/teacher/LessonDetailPage';
 import { renderWithProviders } from '../utils/render';
+import { submissionPath } from '@/components/lesson/LessonRoute';
 
 vi.mock('@/api/lessons.api', () => ({
   lessonsApi: { get: vi.fn(), getAccess: vi.fn(), grantAccess: vi.fn(), revokeAccess: vi.fn(), setFileRequired: vi.fn() },
@@ -71,6 +72,8 @@ async function openAssignmentsTab() {
 async function openAssignment(title = 'מטלה ראשית') {
   await openAssignmentsTab();
   await userEvent.click(await screen.findByRole('button', { name: new RegExp(title) }));
+  // An assignment opens on its brief; these tests grade.
+  await userEvent.click(await screen.findByRole('tab', { name: /הגשות/ }));
 }
 
 beforeEach(() => {
@@ -335,7 +338,7 @@ describe('TeacherLessonDetailPage - grading workstation', () => {
   });
 
   it('lists the students by name and starts on the first one waiting for a grade', async () => {
-    renderAt('');
+    renderAt('&section=submissions');
     expect(await screen.findByRole('heading', { name: 'מרים' })).toBeInTheDocument();
     const names = within(screen.getByRole('list', { name: 'הגשות' })).getAllByRole('listitem').map((li) => li.textContent);
     expect(names[0]).toContain('אביגיל');
@@ -348,7 +351,7 @@ describe('TeacherLessonDetailPage - grading workstation', () => {
   });
 
   it('switches student from the list and with next', async () => {
-    renderAt('');
+    renderAt('&section=submissions');
     await screen.findByRole('heading', { name: 'מרים' });
     await userEvent.click(within(screen.getByRole('list', { name: 'הגשות' })).getByRole('button', { name: /אביגיל/ }));
     expect(await screen.findByRole('heading', { name: 'אביגיל' })).toBeInTheDocument();
@@ -361,7 +364,7 @@ describe('TeacherLessonDetailPage - grading workstation', () => {
   });
 
   it('opens the student named in the link and saves her grade before moving to the next', async () => {
-    renderAt('&submissionId=s-a');
+    renderAt('&submissionId=s-a&section=submissions');
     expect(await screen.findByRole('heading', { name: 'אביגיל' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /שמרי ועברי לבאה/ }));
 
@@ -371,7 +374,7 @@ describe('TeacherLessonDetailPage - grading workstation', () => {
   });
 
   it('asks before leaving a grade with unsaved changes', async () => {
-    renderAt('');
+    renderAt('&section=submissions');
     await screen.findByRole('heading', { name: 'מרים' });
     await userEvent.type(screen.getByPlaceholderText('90'), '70');
     expect(screen.getByText('יש שינויים שלא נשמרו')).toBeInTheDocument();
@@ -390,7 +393,7 @@ describe('TeacherLessonDetailPage - grading workstation', () => {
   });
 
   it('keeps an unsaved grade while she looks at the brief', async () => {
-    renderAt('');
+    renderAt('&section=submissions');
     await screen.findByRole('heading', { name: 'מרים' });
     await userEvent.type(screen.getByPlaceholderText('90'), '70');
 
@@ -403,7 +406,7 @@ describe('TeacherLessonDetailPage - grading workstation', () => {
   });
 
   it('asks before leaving the assignment with an unsaved grade', async () => {
-    renderAt('');
+    renderAt('&section=submissions');
     await screen.findByRole('heading', { name: 'מרים' });
     await userEvent.type(screen.getByPlaceholderText('90'), '70');
 
@@ -420,7 +423,7 @@ describe('TeacherLessonDetailPage - grading workstation', () => {
   });
 
   it('has the browser ask before closing the page only while a grade is unsaved', async () => {
-    renderAt('');
+    renderAt('&section=submissions');
     await screen.findByRole('heading', { name: 'מרים' });
     const unload = () => {
       const e = new Event('beforeunload', { cancelable: true });
@@ -436,10 +439,24 @@ describe('TeacherLessonDetailPage - grading workstation', () => {
     expect(unload()).toBe(false);
   });
 
-  it('keeps the brief and the AI instructions in their own tabs', async () => {
+  it('opens an assignment on its brief, with the submissions as the last tab', async () => {
     renderAt('');
-    await screen.findByRole('heading', { name: 'מרים' });
+    const tabs = await screen.findAllByRole('tab');
+    expect(tabs.map((t) => t.textContent?.trim())).toEqual(['פרטי המטלה', 'הנחיות AI', 'הגשות']);
+    expect(screen.getByRole('tab', { name: /פרטי המטלה/ })).toHaveAttribute('aria-selected', 'true');
+    expect(await within(screen.getByRole('tabpanel')).findByText('דרישה 1')).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'הגשות' })).not.toBeInTheDocument();
+  });
+
+  it('opens grading on the student a link to her submission names', async () => {
+    renderAt(`&${submissionPath('l1', 'a1', 's-a').split('?')[1]}`);
+    expect(await screen.findByRole('heading', { name: 'אביגיל' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /הגשות/ })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('keeps the brief and the AI instructions in their own tabs', async () => {
+    renderAt('&section=submissions');
+    await screen.findByRole('heading', { name: 'מרים' });
 
     await userEvent.click(screen.getByRole('tab', { name: /פרטי המטלה/ }));
     const details = screen.getByRole('tabpanel');

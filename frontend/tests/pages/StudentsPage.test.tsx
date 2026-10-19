@@ -119,7 +119,7 @@ describe('StudentDetailPage', () => {
     expect(screen.getByText('1/2')).toBeInTheDocument();
     expect(screen.getByText('(טרם אושר)')).toBeInTheDocument();
     expect(screen.getByText('חסר')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /בדיקה/ })).toHaveAttribute('href', '/teacher/lessons/l1?assignmentId=a1&submissionId=sub1');
+    expect(screen.getByRole('link', { name: /בדיקה/ })).toHaveAttribute('href', '/teacher/lessons/l1?assignmentId=a1&submissionId=sub1&section=submissions');
     expect(screen.getByText(/הודיעה מראש/)).toBeInTheDocument();
     expect(screen.getByText(/2 ניסיונות תרגול/)).toBeInTheDocument();
     expect(screen.getByText('אפשר הארכה?').closest('a')).toHaveAttribute('href', '/teacher/messages?highlight=m1');

@@ -32,6 +32,14 @@ export function lessonPath(area: Area, courseSlug: string, lessonNumber: number,
   return `${coursePath(area, courseSlug)}/lessons/${lessonSegment(lessonNumber, topic)}`;
 }
 
+/**
+ * One student's submission, opened for grading on the teacher's lesson page. The
+ * submissions tab is named outright, since an assignment otherwise opens on its brief.
+ */
+export function submissionPath(lessonId: string, assignmentId: string, submissionId: string): string {
+  return `/teacher/lessons/${lessonId}?assignmentId=${assignmentId}&submissionId=${submissionId}&section=submissions`;
+}
+
 /** The pathname as written, Hebrew included — browsers hand it over percent-encoded. */
 function decodedPathname(pathname: string): string {
   try { return decodeURI(pathname); } catch { return pathname; }

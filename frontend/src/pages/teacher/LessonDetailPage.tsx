@@ -19,7 +19,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { LessonEditModal } from '@/components/lesson/LessonEditModal';
 import { LessonCopyModal } from '@/components/lesson/LessonCopyModal';
 import { AssignmentModal } from '@/components/lesson/AssignmentModal';
-import { AssignmentView, ASSIGNMENT_SECTIONS, type AssignmentSection } from '@/components/lesson/AssignmentView';
+import { AssignmentView, ASSIGNMENT_SECTIONS, DEFAULT_ASSIGNMENT_SECTION, type AssignmentSection } from '@/components/lesson/AssignmentView';
 import { LessonAccessPanel } from '@/components/lesson/LessonAccessPanel';
 import { QuizResultsCard } from '@/components/lesson/QuizResultsCard';
 import QuizPanel from '@/components/teacher/QuizPanel';
@@ -65,7 +65,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
   const rawSection = searchParams.get('section');
   const assignmentSection: AssignmentSection = ASSIGNMENT_SECTIONS.includes(rawSection as AssignmentSection)
     ? rawSection as AssignmentSection
-    : 'submissions';
+    : DEFAULT_ASSIGNMENT_SECTION;
 
   const openAssignment = (assignmentId: string) => setSearchParams((p) => {
     const next = new URLSearchParams(p);
@@ -109,7 +109,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
   // entry, so "back" leaves the assignment rather than replaying every click.
   const setAssignmentSection = (section: AssignmentSection) => setSearchParams((p) => {
     const next = new URLSearchParams(p);
-    if (section === 'submissions') next.delete('section'); else next.set('section', section);
+    if (section === DEFAULT_ASSIGNMENT_SECTION) next.delete('section'); else next.set('section', section);
     return next;
   }, { replace: true });
   const selectSubmission = useCallback((submissionId: string) => setSearchParams((p) => {

@@ -16,6 +16,7 @@ import { formatDate, formatDateTime, groupDisplayName } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import type { ReportRow } from '@/types';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { submissionPath } from '@/components/lesson/LessonRoute';
 
 /**
  * Option labels for a filter dropdown: a name that appears more than once
@@ -212,7 +213,7 @@ export default function ReportsPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => navigate(`/teacher/lessons/${r.lessonId}?assignmentId=${r.assignmentId}&submissionId=${r.submissionId}`)}
+                        onClick={() => navigate(submissionPath(r.lessonId, r.assignmentId, r.submissionId))}
                       >
                         <ClipboardCheck size={12} /> בדיקה
                       </Button>

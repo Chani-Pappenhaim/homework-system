@@ -9,8 +9,10 @@ import { AssignmentSubmissionsImportDialog } from '@/components/lesson/Assignmen
 import { cn, formatDateFull } from '@/lib/utils';
 import type { AssignmentDTO } from '@/types';
 
-export const ASSIGNMENT_SECTIONS = ['submissions', 'details', 'ai'] as const;
+export const ASSIGNMENT_SECTIONS = ['details', 'ai', 'submissions'] as const;
 export type AssignmentSection = typeof ASSIGNMENT_SECTIONS[number];
+/** The tab an assignment opens on when the address names none. */
+export const DEFAULT_ASSIGNMENT_SECTION: AssignmentSection = 'details';
 
 const SECTION_LABELS: Record<AssignmentSection, { label: string; icon: typeof FileText }> = {
   submissions: { label: 'הגשות', icon: ClipboardCheck },
@@ -19,9 +21,9 @@ const SECTION_LABELS: Record<AssignmentSection, { label: string; icon: typeof Fi
 };
 
 /**
- * One assignment on the teacher's lesson page. Grading is what she comes for,
- * so the submissions open first; the brief and the AI instructions sit in
- * their own tabs instead of stacking above the students.
+ * One assignment on the teacher's lesson page. It opens on the brief, with the
+ * submissions as the last tab; the brief, the AI instructions and the grading
+ * each sit in their own tab instead of stacking above the students.
  */
 export function AssignmentView({
   assignment, section, onSectionChange, selectedSubmissionId, onSelectSubmission, onDirtyChange, onBack, onEdit, onDelete,

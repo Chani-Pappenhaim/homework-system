@@ -17,6 +17,7 @@ import { cn, formatDate, formatDateTime } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import { getApiErrorMessage } from '@/lib/errors';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { submissionPath } from '@/components/lesson/LessonRoute';
 import { scoreTone } from '@/lib/scores';
 
 type Work = StudentProfile['work'][number];
@@ -109,7 +110,7 @@ function WorkList({ work }: { work: Work[] }) {
                     />
                   </div>
                   <Link
-                    to={`/teacher/lessons/${w.lessonId}?assignmentId=${w.assignmentId}&submissionId=${w.submission.id}`}
+                    to={submissionPath(w.lessonId, w.assignmentId, w.submission.id)}
                     className="inline-flex items-center gap-1 text-xs text-clay hover:underline"
                   >
                     <ClipboardCheck size={12} /> בדיקה
