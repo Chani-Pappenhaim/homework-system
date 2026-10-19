@@ -42,6 +42,8 @@ export function LessonEditModal({ lesson, open, onClose }: {
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['lesson', lesson.id] });
+      // The course's lesson list shows the date and topic too (and the page address is built from the topic).
+      qc.invalidateQueries({ queryKey: ['course', lesson.courseId] });
       onClose();
       toast.success('השיעור נשמר בהצלחה');
     },
