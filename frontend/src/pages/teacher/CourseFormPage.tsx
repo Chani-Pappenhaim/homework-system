@@ -22,6 +22,7 @@ import { FileUpload } from '@/components/ui/file-upload';
 import { PreviewableTypes } from '@/components/ui/previewable-types';
 import { FileGallery } from '@/components/ui/file-gallery';
 import { BackLink } from '@/components/ui/back-link';
+import { LinkExistingFile } from '@/components/teacher/LinkExistingFile';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
 import { clearedDeadlinesNote } from '@/components/lesson/LessonCopyModal';
@@ -320,6 +321,7 @@ export default function CourseFormPage(props: Partial<CoursePageProps>) {
                 onFile={(file, name) => uploadFileMutation.mutate({ file, name })}
                 label={uploadFileMutation.isPending ? `מעלה... ${uploadProgress ?? 0}%` : 'העלה קובץ לקורס'}
               />
+              <LinkExistingFile target="course" targetId={course.id} onLinked={() => qc.invalidateQueries({ queryKey: ['course', id] })} />
               <FileGallery source="course" files={course.files} onDelete={(fileId) => deleteFileMutation.mutate(fileId)} onRename={(fileId, name) => renameFileMutation.mutate({ fileId, name })} onToggleHidden={(fileId, hidden) => hiddenFileMutation.mutate({ fileId, hidden })} className="mt-1" />
             </CardContent>
           </Card>

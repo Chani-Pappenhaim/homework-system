@@ -16,6 +16,9 @@ router.put('/:id', requireRole('ADMIN'), lessonsController.updateLesson);
 router.delete('/:id', requireRole('ADMIN'), lessonsController.deleteLesson);
 router.patch('/reorder', requireRole('ADMIN'), lessonsController.reorderLessons);
 router.post('/:id/files', requireRole('ADMIN'), upload.single('file'), lessonsController.uploadFile);
+// A file already stored on the site, shown here too without uploading it again.
+router.get('/:id/files/linkable', requireRole('ADMIN'), lessonsController.listLinkableFiles);
+router.post('/:id/files/link', requireRole('ADMIN'), lessonsController.linkFile);
 // Signed Cloudinary params for a direct browser upload — see the matching
 // comment on submissions.routes for why the file never touches this server.
 router.post('/:id/upload-signature', requireRole('ADMIN'), lessonsController.getUploadSignature);

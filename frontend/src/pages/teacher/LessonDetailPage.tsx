@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { BackLink } from '@/components/ui/back-link';
+import { LinkExistingFile } from '@/components/teacher/LinkExistingFile';
 import { FileUpload } from '@/components/ui/file-upload';
 import { PreviewableTypes } from '@/components/ui/previewable-types';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
@@ -300,6 +301,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
             onFile={(file, name) => uploadFileMutation.mutate({ file, name })}
             label={uploadFileMutation.isPending ? `מעלה... ${uploadProgress ?? 0}%` : 'גרור קובץ להעלאה או לחצי לבחירה'}
           />
+          <LinkExistingFile target="lesson" targetId={lesson.id} onLinked={() => qc.invalidateQueries({ queryKey: ['lesson', id] })} />
           <FileGallery source="lesson"
             files={lesson.files}
             onDelete={(fileId) => deleteFileMutation.mutate(fileId)}
