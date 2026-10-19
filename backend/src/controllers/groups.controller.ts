@@ -95,6 +95,19 @@ export async function downloadImportTemplate(_req: Request, res: Response) {
   res.send(buffer);
 }
 
+export async function exportStudents(req: Request, res: Response) {
+  try {
+    const { buffer, groupName } = await groupsService.exportGroupStudents(req.params.id as string);
+    // The group's name in the file name; the plain one is for clients that can't read UTF-8 names.
+    const name = `תלמידות ${groupName}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="group-students.xlsx"; filename*=UTF-8''${encodeURIComponent(name)}`);
+    res.send(buffer);
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
 export async function resetPassword(req: Request, res: Response) {
   try {
     await groupsService.resetStudentPassword(req.params.id as string, req.params.studentId as string);

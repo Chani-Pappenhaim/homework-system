@@ -3,6 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import GroupFormPage from '@/pages/teacher/GroupFormPage';
 import { renderWithProviders } from '../utils/render';
+import * as utils from '@/lib/utils';
 
 const navigate = vi.fn();
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -11,7 +12,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
 });
 
 vi.mock('@/api/groups.api', () => ({
-  groupsApi: { get: vi.fn(), create: vi.fn(), update: vi.fn(), addStudent: vi.fn(), removeStudent: vi.fn(), removeStudents: vi.fn(), updateStudent: vi.fn(), resetPassword: vi.fn(), importStudents: vi.fn() },
+  groupsApi: { get: vi.fn(), create: vi.fn(), update: vi.fn(), addStudent: vi.fn(), removeStudent: vi.fn(), removeStudents: vi.fn(), exportStudents: vi.fn(), updateStudent: vi.fn(), resetPassword: vi.fn(), importStudents: vi.fn() },
 }));
 
 import { groupsApi } from '@/api/groups.api';
@@ -157,5 +158,15 @@ describe('GroupFormPage (edit)', () => {
     expect(screen.getByRole('button', { name: /הסר נבחרות \(1\)/ })).toBeInTheDocument();
     await userEvent.click(all);
     expect(screen.queryByRole('button', { name: /הסר נבחרות/ })).not.toBeInTheDocument();
+  });
+
+  it("downloads the group's students as an Excel file named after the group", async () => {
+    const download = vi.spyOn(utils, 'downloadBlob').mockImplementation(() => {});
+    (groupsApi.exportStudents as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ data: new Blob(['x']) });
+    getGroup.mockResolvedValue({ data: { data: { group } } });
+    renderEdit();
+    await userEvent.click(await screen.findByRole('button', { name: /הורדה לאקסל/ }));
+    await waitFor(() => expect(download).toHaveBeenCalledWith(expect.any(Blob), 'תלמידות סמינר קבוצה א 2026.xlsx'));
+    expect(groupsApi.exportStudents).toHaveBeenCalledWith('g1');
   });
 });

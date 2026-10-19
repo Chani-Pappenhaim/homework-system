@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Trash2, RotateCcw, UserPlus, Pencil, MailCheck, MailWarning, BellOff } from 'lucide-react';
+import { Trash2, RotateCcw, UserPlus, Pencil, MailCheck, MailWarning, BellOff, Download } from 'lucide-react';
 import { groupsApi } from '@/api/groups.api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,7 @@ import { StudentEditDialog, type EditableStudent } from '@/components/teacher/St
 import { BackLink } from '@/components/ui/back-link';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
-import { groupDisplayName } from '@/lib/utils';
+import { downloadBlob, groupDisplayName } from '@/lib/utils';
 import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function GroupFormPage() {
@@ -113,6 +113,12 @@ export default function GroupFormPage() {
     },
   });
 
+  const exportMutation = useMutation({
+    mutationFn: () => groupsApi.exportStudents(id!),
+    onSuccess: (res) => downloadBlob(res.data as Blob, group ? `תלמידות ${groupDisplayName(group)}.xlsx` : 'group-students.xlsx'),
+    onError: (e) => toast.error(getApiErrorMessage(e, 'ההורדה נכשלה')),
+  });
+
   const resetPasswordMutation = useMutation({
     mutationFn: (studentId: string) => groupsApi.resetPassword(id!, studentId),
     onSuccess: () => { setResetTarget(null); toast.success('הסיסמא אופסה ל-12345678'); },
@@ -181,6 +187,14 @@ export default function GroupFormPage() {
                   {selected.size > 0 && (
                     <Button size="sm" variant="destructive" onClick={() => setRemoveBulkOpen(true)}>
                       <Trash2 size={13} /> הסר נבחרות ({selected.size})
+                    </Button>
+                  )}
+                  {(group?.students.length ?? 0) > 0 && (
+                    <Button
+                      size="sm" variant="outline" loading={exportMutation.isPending} onClick={() => exportMutation.mutate()}
+                      title="קובץ באותו מבנה של ייבוא התלמידות - אפשר להעלות אותו כמו שהוא לקבוצה אחרת"
+                    >
+                      <Download size={13} /> הורדה לאקסל
                     </Button>
                   )}
                   <Button size="sm" variant="secondary" onClick={() => setAddModal(true)}>

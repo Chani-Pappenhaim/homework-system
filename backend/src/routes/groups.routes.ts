@@ -21,6 +21,7 @@ router.put('/:id/students/:studentId', groupsController.updateStudent);
 router.delete('/:id/students/:studentId', groupsController.removeStudent);
 // upload.single('file') must run first so it populates req.file for requireFile.
 router.post('/:id/import', upload.single('file'), requireFile, groupsController.importStudents);
+router.get('/:id/students/export', groupsController.exportStudents);
 router.post('/:id/reset-password/:studentId', groupsController.resetPassword);
 
 export default router;
