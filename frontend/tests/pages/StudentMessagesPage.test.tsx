@@ -153,7 +153,7 @@ describe('StudentMessagesPage', () => {
     it('stays closed after closing, even when the list refreshes', async () => {
       const { queryClient } = renderWithProviders(<><StudentMessagesPage /><UrlProbe /></>, { initialEntries: ['/?highlight=m1'] });
       await screen.findByRole('dialog');
-      await userEvent.click(within(screen.getByRole('dialog')).getAllByRole('button', { name: 'סגירה' }).at(-1)!);
+      await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'חזרה להודעות' }));
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
       expect(url()).toBe('');
       const fetches = getMine.mock.calls.length;
@@ -166,10 +166,10 @@ describe('StudentMessagesPage', () => {
       renderWithProviders(<><StudentMessagesPage /><UrlProbe /></>);
       await userEvent.click(await screen.findByText('שיחה שנייה'));
       expect(url()).toBe('?highlight=m2');
-      await userEvent.click(within(screen.getByRole('dialog')).getAllByRole('button', { name: 'סגירה' }).at(-1)!);
+      await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'חזרה להודעות' }));
       await userEvent.click(screen.getByText('תשובה ראשונה'));
       expect(url()).toBe('?highlight=m1');
-      await userEvent.click(within(screen.getByRole('dialog')).getAllByRole('button', { name: 'סגירה' }).at(-1)!);
+      await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'חזרה להודעות' }));
       await userEvent.click(screen.getByRole('button', { name: /הודעה חדשה/ }));
       expect(url()).toBe('?compose=1');
     });

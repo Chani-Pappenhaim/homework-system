@@ -253,7 +253,7 @@ export default function StudentMessagesPage() {
                   <Send size={14} /> שלחי
                 </Button>
                 <Button variant="outline" onClick={closeConversation}>
-                  סגירה
+                  חזרה להודעות
                 </Button>
                 <Button
                   variant="destructive"

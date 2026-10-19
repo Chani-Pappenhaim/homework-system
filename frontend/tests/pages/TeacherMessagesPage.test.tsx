@@ -86,6 +86,16 @@ describe('TeacherMessagesPage', () => {
     // Typing into the rich editor is slow when the whole suite runs in parallel.
   }, 15000);
 
+  it('"back to messages" only closes the conversation - nothing is deleted and it stays listed', async () => {
+    getAll.mockResolvedValue({ data: { data: { messages } } });
+    renderWithProviders(<TeacherMessagesPage />);
+    await userEvent.click(await screen.findByRole('button', { name: /דנה/ }));
+    await userEvent.click(await screen.findByRole('button', { name: 'חזרה להודעות' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(messagesApi.delete).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /דנה/ })).toBeInTheDocument();
+  });
+
   it('sends a reply on Ctrl+Enter', async () => {
     getAll.mockResolvedValue({ data: { data: { messages } } });
     reply.mockResolvedValue({ data: {} });
