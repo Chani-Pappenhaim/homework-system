@@ -25,6 +25,17 @@ export async function sendTeacherMessage(req: Request, res: Response) {
   }
 }
 
+export async function sendGroupMessage(req: Request, res: Response) {
+  try {
+    const { groupId, content } = req.body ?? {};
+    if (!groupId) { res.status(400).json({ success: false, error: 'יש לבחור קבוצה' }); return; }
+    const result = await messagesService.sendGroupMessage(groupId, content);
+    res.status(201).json({ success: true, data: result });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
 export async function getMessages(req: Request, res: Response) {
   try {
     const messages = await messagesService.getAllMessages();
