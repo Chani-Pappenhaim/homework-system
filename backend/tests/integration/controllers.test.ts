@@ -497,4 +497,16 @@ describe('client-feedback routes', () => {
     expect(res.headers['content-disposition']).toContain('submissions-import-template.xlsx');
     expect((await request(app).get('/api/submissions/import-template').set(...bearer(student))).status).toBe(403);
   });
+
+  it("one assignment's submissions import is admin-only", async () => {
+    expect((await request(app).get('/api/assignments/a1/submissions/import-template').set(...bearer(student))).status).toBe(403);
+    const res = await request(app).post('/api/assignments/a1/submissions/import').set(...bearer(student))
+      .attach('file', Buffer.from('xlsx'), 'sheet.xlsx');
+    expect(res.status).toBe(403);
+  });
+
+  it("refuses one assignment's submissions import without a file", async () => {
+    const res = await request(app).post('/api/assignments/a1/submissions/import').set(...bearer(admin));
+    expect(res.status).toBe(400);
+  });
 });
