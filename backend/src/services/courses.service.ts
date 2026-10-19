@@ -62,7 +62,7 @@ export async function getCourseById(id: string, userId: string, role: string) {
     include: {
       links: { orderBy: { order: 'asc' } },
       files: { where: role === 'ADMIN' ? {} : { hidden: false }, orderBy: { uploadedAt: 'desc' } },
-      lessons: { orderBy: { order: 'asc' } },
+      lessons: { orderBy: [{ order: 'asc' }, { createdAt: 'asc' }] },
       group: { select: groupNameSelect },
       _count: { select: { lessons: true } },
     },
