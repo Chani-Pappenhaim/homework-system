@@ -18,6 +18,9 @@ router.post('/:id/copy', requireRole('ADMIN'), coursesController.copyCourse);
 router.post('/:id/links', requireRole('ADMIN'), coursesController.addLink);
 router.delete('/:id/links/:linkId', requireRole('ADMIN'), coursesController.deleteLink);
 router.post('/:id/files', requireRole('ADMIN'), upload.single('file'), coursesController.uploadFile);
+// A file already stored on the site, shown here too without uploading it again.
+router.get('/:id/files/linkable', requireRole('ADMIN'), coursesController.listLinkableFiles);
+router.post('/:id/files/link', requireRole('ADMIN'), coursesController.linkFile);
 // Signed Cloudinary params for a direct browser upload — see the matching
 // comment on submissions.routes for why the file never touches this server.
 router.post('/:id/upload-signature', requireRole('ADMIN'), coursesController.getUploadSignature);
