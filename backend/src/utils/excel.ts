@@ -6,19 +6,27 @@ import ExcelJS, { type Cell } from 'exceljs';
  * returned as objects that would otherwise stringify to "[object Object]".
  */
 export function cellText(cell: Cell): string {
-  const v = cell.value;
+  return valueText(cell.value);
+}
+
+/**
+ * A cell value as text. Hyperlink text and formula results can themselves be rich text,
+ * a link or an error object, so each nested value is read the same way; an unknown
+ * object becomes '' rather than "[object Object]".
+ */
+function valueText(v: unknown): string {
   if (v === null || v === undefined) return '';
   if (v instanceof Date) return v.toISOString();
-  if (typeof v === 'object') {
-    if ('text' in v && typeof (v as any).text === 'string') return (v as any).text;
-    if ('richText' in v && Array.isArray((v as any).richText)) {
-      return (v as any).richText.map((r: any) => r.text ?? '').join('');
-    }
-    if ('result' in v) return String((v as any).result ?? '');
-    if ('hyperlink' in v) return String((v as any).hyperlink ?? '');
-    return '';
+  if (typeof v !== 'object') return String(v);
+  const o = v as Record<string, unknown>;
+  if (Array.isArray(o.richText)) return o.richText.map((r: { text?: unknown }) => valueText(r.text)).join('');
+  if ('text' in o) {
+    const text = valueText(o.text);
+    if (text) return text;
   }
-  return String(v);
+  if ('result' in o) return valueText(o.result);
+  if ('hyperlink' in o) return valueText(o.hyperlink);
+  return '';
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
