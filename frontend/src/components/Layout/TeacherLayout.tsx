@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard, BookOpen, Users, GraduationCap, BarChart2, Sparkles, MessageSquare,
-  Bell, LogOut, Search,
+  Bell, LogOut, Search, Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import useAuthStore from '@/store/authStore';
@@ -21,6 +21,7 @@ const nav = [
   { to: '/teacher/reports', label: 'ציונים', icon: BarChart2 },
   { to: '/teacher/ai-usage', label: 'שימוש AI', icon: Sparkles },
   { to: '/teacher/messages', label: 'הודעות', icon: MessageSquare },
+  { to: '/teacher/settings', label: 'הגדרות', icon: Settings },
 ];
 
 // ⌘ means nothing on Windows, where the same shortcut is Ctrl

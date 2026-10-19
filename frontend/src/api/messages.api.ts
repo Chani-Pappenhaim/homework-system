@@ -6,6 +6,14 @@ export const messagesApi = {
   sendTeacher: (studentId: string, content: string, assignmentId?: string) =>
     api.post('/messages/teacher', { studentId, content, assignmentId }),
 
+  /** The name the students' emails come from: hers, or the site's default while she chose none. */
+  getEmailSettings: () =>
+    api.get<{ success: true; data: EmailSettings }>('/messages/email-settings'),
+
+  /** An empty name goes back to the site's default. */
+  updateEmailSettings: (senderName: string) =>
+    api.put<{ success: true; data: EmailSettings }>('/messages/email-settings', { senderName }),
+
   /** The same message to every student of the group, each in her own conversation. */
   sendToGroup: (groupId: string, content: string) =>
     api.post<{ success: true; data: { sent: number } }>('/messages/teacher/group', { groupId, content }),
@@ -21,3 +29,8 @@ export const messagesApi = {
   deleteMine: (id: string) => api.delete(`/messages/${id}/mine`),
   delete: (id: string) => api.delete(`/messages/${id}`),
 };
+
+export interface EmailSettings {
+  senderName: string | null;
+  defaultSenderName: string;
+}
