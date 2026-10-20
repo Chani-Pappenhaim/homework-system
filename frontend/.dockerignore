@@ -1,0 +1,10 @@
+node_modules
+dist
+coverage
+test-results
+e2e
+tests
+tsconfig.tsbuildinfo
+.env
+.env.*
+*.log
