@@ -1,4 +1,5 @@
 import { prisma } from '../config/prisma';
+import { AppError } from '../utils/errors';
 
 export type RosterStudent = {
   id: string;
@@ -30,4 +31,10 @@ export async function loadRoster(courseId: string, groupId: string): Promise<Ros
     if (!roster.has(student.id)) roster.set(student.id, { ...student, source: 'access', excluded: excluded.has(student.id) });
   }
   return [...roster.values()].sort((a, b) => a.name.localeCompare(b.name, 'he'));
+}
+
+export async function requireCourse(courseId: string) {
+  const course = await prisma.course.findUnique({ where: { id: courseId }, select: { id: true, name: true, groupId: true } });
+  if (!course) throw new AppError('Course not found', 'הקורס לא נמצא', 404);
+  return course;
 }
