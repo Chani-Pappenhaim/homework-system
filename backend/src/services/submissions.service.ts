@@ -5,21 +5,13 @@ import { confirmUpload, discardPendingUpload } from '../utils/pending-uploads';
 import { releaseFileUrls } from '../utils/file-refs';
 import { assertLessonAccess } from '../utils/access';
 import { computeSubmissionScore } from '../utils/grading';
-import { aiReviewQueue, emailQueue } from '../infrastructure/queues/queues';
-import type { EmailJobMap } from '../infrastructure/queues/job-types';
+import { aiReviewQueue } from '../infrastructure/queues/queues';
+import { enqueueEmail } from '../infrastructure/queues/enqueue-email';
 import { buildTemplateWorkbook, cellText } from '../utils/excel';
 import { getRepoStatus, normalizeRepoName, parseRepoRef } from '../utils/github';
 import { assertAiAvailable } from './ai-availability';
 import ExcelJS from 'exceljs';
 import { loadRoster } from './attendance.service';
-
-async function enqueueEmail<T extends keyof EmailJobMap>(jobName: T, data: EmailJobMap[T]) {
-  try {
-    await emailQueue.add(jobName, data);
-  } catch (err) {
-    console.error(`[submissions] Failed to enqueue ${jobName} email:`, err);
-  }
-}
 
 function urlExtension(url: string): string {
   const match = /\.([a-z0-9]+)(?:[?#].*)?$/i.exec(url);
