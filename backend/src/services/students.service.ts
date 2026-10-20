@@ -1,7 +1,7 @@
 import { groupDisplayName, groupNameSelect } from '../utils/group-name';
 import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
-import { getMyAttendance } from './attendance.service';
+import { getMyAttendance } from './student-attendance.service';
 
 export async function findStudentByEmail(email: string) {
   return prisma.user.findFirst({

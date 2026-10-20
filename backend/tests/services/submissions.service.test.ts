@@ -42,7 +42,7 @@ vi.mock('../../src/utils/github', async (importOriginal) => ({
 const { assertAiAvailableMock } = vi.hoisted(() => ({ assertAiAvailableMock: vi.fn() }));
 vi.mock('../../src/services/ai-availability', () => ({ assertAiAvailable: assertAiAvailableMock }));
 const loadRosterMock = vi.hoisted(() => vi.fn());
-vi.mock('../../src/services/attendance.service', () => ({ loadRoster: loadRosterMock }));
+vi.mock('../../src/services/roster.service', () => ({ loadRoster: loadRosterMock }));
 
 import ExcelJS from 'exceljs';
 import { prisma } from '../../src/config/prisma';

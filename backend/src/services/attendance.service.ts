@@ -3,21 +3,16 @@ import type { AttendanceStatus } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
 import { cellText, isValidEmail } from '../utils/excel';
+import { loadRoster, type RosterStudent } from './roster.service';
+
+// Kept importable from here for the controller and existing callers.
+export { loadRoster, type RosterStudent };
+export { getMyAttendance } from './student-attendance.service';
 
 const STATUSES: AttendanceStatus[] = ['PRESENT', 'ABSENT', 'PARTIAL'];
 const MAX_NOTE = 500;
 const MAX_TITLE = 200;
 const MAX_ROWS = 5000;
-
-export type RosterStudent = {
-  id: string;
-  name: string;
-  email: string;
-  // 'group' — a member of the course's group; 'access' — let in personally.
-  source: 'group' | 'access';
-  // Only an 'access' student can be left off the attendance.
-  excluded: boolean;
-};
 
 // ---------- dates ----------
 
@@ -65,34 +60,12 @@ function cleanTitle(value: unknown): string | null {
   return t || null;
 }
 
-// ---------- roster ----------
+// ---------- course lookup ----------
 
 async function requireCourse(courseId: string) {
   const course = await prisma.course.findUnique({ where: { id: courseId }, select: { id: true, name: true, groupId: true } });
   if (!course) throw new AppError('Course not found', 'הקורס לא נמצא', 404);
   return course;
-}
-
-/** Everyone attendance is taken for in a course, sorted by name. */
-export async function loadRoster(courseId: string, groupId: string): Promise<RosterStudent[]> {
-  const [members, grants, exclusions] = await Promise.all([
-    prisma.studentGroup.findMany({
-      where: { groupId, student: { role: 'STUDENT' } },
-      select: { student: { select: { id: true, name: true, email: true } } },
-    }),
-    prisma.courseAccess.findMany({
-      where: { courseId, student: { role: 'STUDENT' } },
-      select: { student: { select: { id: true, name: true, email: true } } },
-    }),
-    prisma.attendanceExclusion.findMany({ where: { courseId }, select: { studentId: true } }),
-  ]);
-  const excluded = new Set(exclusions.map((e) => e.studentId));
-  const roster = new Map<string, RosterStudent>();
-  for (const { student } of members) roster.set(student.id, { ...student, source: 'group', excluded: false });
-  for (const { student } of grants) {
-    if (!roster.has(student.id)) roster.set(student.id, { ...student, source: 'access', excluded: excluded.has(student.id) });
-  }
-  return [...roster.values()].sort((a, b) => a.name.localeCompare(b.name, 'he'));
 }
 
 // ---------- teacher: overview ----------
@@ -571,69 +544,4 @@ export async function importAttendance(
     dryRun, saved: updated + added + unchanged, updated, added, unchanged,
     skipped, sessionsCreated: newSessions.length, newSessions, errors,
   };
-}
-
-// ---------- student ----------
-
-/**
- * The student's own attendance and homework, per course. Teacher notes are
- * deliberately left out, and lessons hidden from her show no topic or work.
- */
-export async function getMyAttendance(studentId: string) {
-  const courses = await prisma.course.findMany({
-    where: {
-      hidden: false,
-      OR: [
-        { group: { students: { some: { studentId } } } },
-        { access: { some: { studentId } }, attendanceExclusions: { none: { studentId } } },
-      ],
-    },
-    orderBy: { createdAt: 'asc' },
-    select: {
-      id: true, name: true,
-      attendanceSessions: {
-        orderBy: { date: 'desc' },
-        select: {
-          id: true, date: true, title: true,
-          lesson: {
-            select: {
-              topic: true, hidden: true,
-              assignments: {
-                orderBy: { createdAt: 'asc' },
-                select: { id: true, title: true, submissions: { where: { studentId }, select: { id: true } } },
-              },
-            },
-          },
-          records: { where: { studentId }, select: { status: true } },
-          homework: {
-            orderBy: { createdAt: 'asc' },
-            select: { id: true, title: true, marks: { where: { studentId, done: true }, select: { done: true } } },
-          },
-        },
-      },
-    },
-  });
-
-  return courses.map((c) => {
-    const sessions = c.attendanceSessions.map((s) => {
-      const lesson = s.lesson && !s.lesson.hidden ? s.lesson : null;
-      return {
-        id: s.id,
-        date: s.date,
-        title: s.title ?? lesson?.topic ?? null,
-        status: s.records[0]?.status ?? null,
-        homework: [
-          ...(lesson?.assignments ?? []).map((a) => ({ id: a.id, title: a.title, kind: 'site' as const, done: a.submissions.length > 0 })),
-          ...s.homework.map((h) => ({ id: h.id, title: h.title, kind: 'extra' as const, done: h.marks.length > 0 })),
-        ],
-      };
-    });
-    const count = (st: AttendanceStatus) => sessions.filter((s) => s.status === st).length;
-    return {
-      courseId: c.id,
-      courseName: c.name,
-      summary: { present: count('PRESENT'), absent: count('ABSENT'), partial: count('PARTIAL'), sessions: sessions.length },
-      sessions,
-    };
-  });
 }

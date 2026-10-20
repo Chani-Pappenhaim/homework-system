@@ -11,7 +11,7 @@ import { buildTemplateWorkbook, cellText } from '../utils/excel';
 import { getRepoStatus, normalizeRepoName, parseRepoRef } from '../utils/github';
 import { assertAiAvailable } from './ai-availability';
 import ExcelJS from 'exceljs';
-import { loadRoster } from './attendance.service';
+import { loadRoster } from './roster.service';
 
 function urlExtension(url: string): string {
   const match = /\.([a-z0-9]+)(?:[?#].*)?$/i.exec(url);
