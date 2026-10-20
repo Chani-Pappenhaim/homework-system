@@ -6,6 +6,10 @@ set -e
 # Safe to run on every boot: `migrate deploy` only applies pending migrations,
 # and the seed script skips itself if the admin already exists.
 if [ "$RUN_MIGRATIONS" = "true" ]; then
+  # prisma.config.ts reads DIRECT_URL; fall back to DATABASE_URL so a deploy
+  # that only sets the latter does not fail with an undefined datasource URL.
+  export DIRECT_URL="${DIRECT_URL:-$DATABASE_URL}"
+
   echo "==> Applying database migrations..."
   npx prisma migrate deploy --config prisma.config.ts
 
