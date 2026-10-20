@@ -4,8 +4,8 @@
 // registration is refused, the file is discarded right away instead of
 // waiting for that sweep.
 
-import api from '@/api/axios';
-import { uploadToCloudinary, type CloudinaryUploadResult } from './upload';
+import api from './axios';
+import { uploadToCloudinary, type CloudinaryUploadResult } from '@/lib/upload';
 
 export interface UploadSignature {
   apiKey: string;
