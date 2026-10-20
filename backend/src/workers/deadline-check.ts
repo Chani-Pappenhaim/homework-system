@@ -1,6 +1,7 @@
 import { prisma } from '../config/prisma';
 import { sharedConnection } from '../infrastructure/redis/connection';
 import { emailQueue } from '../infrastructure/queues/queues';
+import { buildDeadlineReportRows, findRecentlyDueAssignments } from '../services/deadline-report.service';
 
 const REPORT_TTL_SECONDS = 30 * 24 * 60 * 60; // remember sent reports for 30 days
 const LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000; // ignore deadlines older than 7 days
@@ -16,16 +17,8 @@ const reportedAssignments = new Set<string>();
 
 export async function runDeadlineCheck(): Promise<void> {
   const now = new Date();
-  const lookbackStart = new Date(now.getTime() - LOOKBACK_MS);
-
   // Deadlines that passed recently — avoids spamming ancient deadlines on first deploy
-  const assignments = await prisma.assignment.findMany({
-    where: { deadline: { lt: now, gt: lookbackStart } },
-    include: {
-      lesson: { include: { course: true } },
-      submissions: { select: { studentId: true, submittedAt: true, isLate: true } },
-    },
-  });
+  const assignments = await findRecentlyDueAssignments(now, LOOKBACK_MS);
 
   for (const assignment of assignments) {
     if (reportedAssignments.has(assignment.id)) continue;
@@ -36,22 +29,7 @@ export async function runDeadlineCheck(): Promise<void> {
       continue;
     }
 
-    const groupStudents = await prisma.studentGroup.findMany({
-      where: { groupId: assignment.lesson.course.groupId },
-      include: { student: { select: { id: true, name: true } } },
-    });
-
-    const rows = groupStudents.map(({ student }) => {
-      const submission = assignment.submissions.find((s) => s.studentId === student.id);
-      if (!submission) {
-        return { name: student.name, status: 'missing' as const };
-      }
-      return {
-        name: student.name,
-        status: submission.isLate ? ('late' as const) : ('submitted' as const),
-        submittedAt: submission.submittedAt,
-      };
-    });
+    const rows = await buildDeadlineReportRows(assignment);
 
     await emailQueue.add('deadline-report', {
       assignmentTitle: assignment.title,
