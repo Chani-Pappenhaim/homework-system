@@ -38,7 +38,7 @@ import { prisma } from '../../src/config/prisma';
 import * as gemini from '../../src/services/gemini.service';
 import * as codeExtraction from '../../src/utils/code-extraction';
 import { registerAiReviewWorker } from '../../src/workers/ai-review.worker';
-import { AI_REVIEW_DAILY_QUOTA_ERROR, AI_REVIEW_GENERIC_ERROR } from '../../src/utils/ai-review-errors';
+import { AI_REVIEW_DAILY_QUOTA_ERROR, AI_REVIEW_GENERIC_ERROR } from '../../src/workers/ai-review-errors';
 
 // Registering the worker constructs the (mocked) BullMQ Worker, which captures
 // the processor via setProcessor. The connection is irrelevant under the mock.

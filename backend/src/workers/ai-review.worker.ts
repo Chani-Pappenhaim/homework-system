@@ -6,7 +6,7 @@ import { fetchGithubCode, extractZipCode, extractDocxText } from '../utils/code-
 import { toDeliveryUrl } from '../utils/storage';
 import type { AiReviewJobData } from '../infrastructure/queues/job-types';
 import { attachLifecycleLogging } from './worker-events';
-import { AiReviewInputError, aiReviewClientMessage } from '../utils/ai-review-errors';
+import { AiReviewInputError, aiReviewClientMessage } from './ai-review-errors';
 import { defaultWorkerOptions } from './worker-defaults';
 
 async function downloadFile(fileUrl: string): Promise<Buffer> {

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const senderNameMock = vi.hoisted(() => vi.fn());
 vi.mock('../../src/services/settings.service', () => ({ emailSenderName: senderNameMock }));
 
-import { sendMail } from '../../src/services/email.service';
+import { sendMail } from '../../src/services/mailer.service';
 
 const OLD_ENV = { ...process.env };
 const fetchMock = vi.fn();
