@@ -1,9 +1,9 @@
 import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
 import { uploadBuffer, createUploadSignature, destroyByUrl, isOwnUpload, submissionFileLink } from '../utils/storage';
-import { confirmUpload, discardPendingUpload } from '../utils/pending-uploads';
-import { releaseFileUrls } from '../utils/file-refs';
-import { assertLessonAccess } from '../utils/access';
+import { confirmUpload, discardPendingUpload } from './pending-uploads.service';
+import { releaseFileUrls } from './file-refs.service';
+import { assertLessonAccess } from './access.service';
 import { computeSubmissionScore } from '../utils/grading';
 import { aiReviewQueue } from '../infrastructure/queues/queues';
 import { enqueueEmail } from '../infrastructure/queues/enqueue-email';

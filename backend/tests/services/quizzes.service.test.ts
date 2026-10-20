@@ -17,7 +17,7 @@ vi.mock('../../src/infrastructure/queues/queues', () => ({
 }));
 
 const { assertLessonAccessMock } = vi.hoisted(() => ({ assertLessonAccessMock: vi.fn() }));
-vi.mock('../../src/utils/access', () => ({ assertLessonAccess: assertLessonAccessMock }));
+vi.mock('../../src/services/access.service', () => ({ assertLessonAccess: assertLessonAccessMock }));
 const { assertAiAvailableMock } = vi.hoisted(() => ({ assertAiAvailableMock: vi.fn() }));
 vi.mock('../../src/services/ai-availability', () => ({ assertAiAvailable: assertAiAvailableMock }));
 

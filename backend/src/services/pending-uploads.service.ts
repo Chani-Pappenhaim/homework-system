@@ -1,6 +1,6 @@
 import { cloudinary } from '../config/cloudinary';
-import { PENDING_TAG, assetRef, destroyByUrl, uploaderTag } from './storage';
-import { countFileRefs } from './file-refs';
+import { PENDING_TAG, assetRef, destroyByUrl, uploaderTag } from '../utils/storage';
+import { countFileRefs } from './file-refs.service';
 
 /**
  * Direct browser uploads land in Cloudinary before the server knows about them,

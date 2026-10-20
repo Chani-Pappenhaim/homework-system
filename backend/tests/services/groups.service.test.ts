@@ -11,7 +11,7 @@ vi.mock('../../src/config/prisma', () => ({
 }));
 
 const { releaseMock, submissionUrlsMock } = vi.hoisted(() => ({ releaseMock: vi.fn(), submissionUrlsMock: vi.fn() }));
-vi.mock('../../src/utils/file-refs', () => ({ releaseFileUrls: releaseMock, submissionFileUrls: submissionUrlsMock }));
+vi.mock('../../src/services/file-refs.service', () => ({ releaseFileUrls: releaseMock, submissionFileUrls: submissionUrlsMock }));
 
 vi.mock('bcryptjs', () => ({
   default: { hash: vi.fn(async () => 'hashed-pw'), compare: vi.fn() },

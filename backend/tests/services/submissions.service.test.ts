@@ -24,9 +24,9 @@ vi.mock('../../src/utils/storage', async (importOriginal) => ({
   createUploadSignature: signatureMock,
   destroyByUrl: destroyMock,
 }));
-vi.mock('../../src/utils/pending-uploads', () => ({ confirmUpload: confirmMock, discardPendingUpload: discardMock }));
-vi.mock('../../src/utils/file-refs', () => ({ releaseFileUrls: releaseMock }));
-vi.mock('../../src/utils/access', () => ({
+vi.mock('../../src/services/pending-uploads.service', () => ({ confirmUpload: confirmMock, discardPendingUpload: discardMock }));
+vi.mock('../../src/services/file-refs.service', () => ({ releaseFileUrls: releaseMock }));
+vi.mock('../../src/services/access.service', () => ({
   assertLessonAccess: assertAccessMock,
 }));
 const { aiQueueAdd } = vi.hoisted(() => ({ aiQueueAdd: vi.fn() }));

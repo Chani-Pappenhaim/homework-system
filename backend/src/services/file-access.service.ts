@@ -1,6 +1,6 @@
 import { prisma } from '../config/prisma';
 import type { FileTokenPayload } from '../utils/jwt';
-import { assertLessonAccess, assertCourseAccess } from '../utils/access';
+import { assertLessonAccess, assertCourseAccess } from './access.service';
 
 export type FileKind = FileTokenPayload['kind'];
 export type StoredFile = { id: string; url: string; name: string; hidden: boolean };

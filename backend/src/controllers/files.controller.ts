@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { Readable } from 'node:stream';
 import { REFRESH_COOKIE, signFileToken, verifyFileToken, verifyRefreshToken } from '../utils/jwt';
 import { fileDownloadPath, fileExtension, toDeliveryUrl } from '../utils/storage';
-import { discardPendingUpload } from '../utils/pending-uploads';
+import { discardPendingUpload } from '../services/pending-uploads.service';
 import { checkFileAccess, findFileTokenUser } from '../services/file-access.service';
 import { contentDisposition, ensureExtension, extensionOf, resolveContentType } from '../utils/mime';
 

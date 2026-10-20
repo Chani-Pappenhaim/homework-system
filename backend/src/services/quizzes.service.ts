@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
-import { assertLessonAccess } from '../utils/access';
+import { assertLessonAccess } from './access.service';
 import { quizQueue } from '../infrastructure/queues/queues';
 import { assertAiAvailable } from './ai-availability';
 import { quizExcludedFiles } from '../utils/code-extraction';

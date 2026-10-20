@@ -14,13 +14,13 @@ vi.mock('../../src/config/cloudinary', () => ({
     uploader: { remove_tag: removeTagFn, destroy: destroyFn },
   },
 }));
-vi.mock('../../src/utils/file-refs', () => ({ countFileRefs: countRefsMock }));
+vi.mock('../../src/services/file-refs.service', () => ({ countFileRefs: countRefsMock }));
 vi.mock('../../src/utils/storage', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/utils/storage')>()),
   destroyByUrl: destroyByUrlMock,
 }));
 
-import { confirmUpload, discardPendingUpload, sweepPendingUploads, PENDING_MAX_AGE_MS } from '../../src/utils/pending-uploads';
+import { confirmUpload, discardPendingUpload, sweepPendingUploads, PENDING_MAX_AGE_MS } from '../../src/services/pending-uploads.service';
 
 const VIDEO = 'https://res.cloudinary.com/c/video/upload/v1/submissions/clip.mp4';
 
