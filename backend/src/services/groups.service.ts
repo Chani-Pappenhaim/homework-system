@@ -4,7 +4,7 @@ import ExcelJS from 'exceljs';
 import { emailQueue } from '../infrastructure/queues/queues';
 import { AppError } from '../utils/errors';
 import { releaseFileUrls, submissionFileUrls } from './file-refs.service';
-import { sendEmailVerification, changeEmail } from './auth.service';
+import { sendEmailVerification, changeEmail } from './email-verification.service';
 import { cellText, isValidEmail, normalizeGithubUsername, buildTemplateWorkbook } from '../utils/excel';
 import { groupDisplayName } from '../utils/group-name';
 

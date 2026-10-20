@@ -17,10 +17,10 @@ vi.mock('bcryptjs', () => ({
   default: { hash: vi.fn(async () => 'hashed-pw'), compare: vi.fn() },
 }));
 
-// The verification email is auth.service's concern, covered by its own tests.
+// The verification email is email-verification.service's concern, covered by its own tests.
 const { sendVerificationMock } = vi.hoisted(() => ({ sendVerificationMock: vi.fn() }));
-vi.mock('../../src/services/auth.service', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../src/services/auth.service')>()),
+vi.mock('../../src/services/email-verification.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/services/email-verification.service')>()),
   sendEmailVerification: sendVerificationMock,
 }));
 
