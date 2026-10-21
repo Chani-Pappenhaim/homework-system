@@ -303,8 +303,8 @@ export default function CourseFormPage(props: Partial<CoursePageProps>) {
                 </div>
               ))}
               <div className="flex gap-2 pt-1">
-                <Input placeholder="תווית" value={newLink.label} onChange={(e) => setNewLink((p) => ({ ...p, label: e.target.value }))} className="flex-1" />
-                <Input placeholder="https://..." value={newLink.url} onChange={(e) => setNewLink((p) => ({ ...p, url: e.target.value }))} className="flex-1" />
+                <Input placeholder="תווית" value={newLink.label} onChange={(e) => setNewLink((p) => ({ ...p, label: e.target.value }))} wrapperClassName="min-w-0 flex-1" />
+                <Input placeholder="https://..." value={newLink.url} onChange={(e) => setNewLink((p) => ({ ...p, url: e.target.value }))} dir="ltr" wrapperClassName="min-w-0 flex-1" />
                 <Button size="sm" onClick={() => addLinkMutation.mutate()} disabled={!newLink.label || !newLink.url}>
                   <Plus size={13} />
                 </Button>

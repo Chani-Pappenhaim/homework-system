@@ -478,7 +478,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
                     placeholder="שם הפרויקט ב-GitHub"
                     value={repoName}
                     onChange={(e) => setRepoName(e.target.value)}
-                    className="flex-1"
+                    wrapperClassName="min-w-0 flex-1"
                   />
                   <Button
                     size="sm"

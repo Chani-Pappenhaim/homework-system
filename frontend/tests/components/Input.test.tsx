@@ -60,4 +60,11 @@ describe('Input', () => {
     render(<Input ref={ref} />);
     expect(ref.current).toBeInstanceOf(HTMLInputElement);
   });
+
+  it('puts layout classes on the whole field, so it grows inside a row', () => {
+    const { container } = render(<Input placeholder="url" wrapperClassName="flex-1" className="text-center" />);
+    expect(container.firstChild).toHaveClass('flex-1');
+    expect(screen.getByPlaceholderText('url')).toHaveClass('text-center');
+    expect(screen.getByPlaceholderText('url')).not.toHaveClass('flex-1');
+  });
 });

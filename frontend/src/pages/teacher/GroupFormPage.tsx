@@ -220,7 +220,7 @@ export default function GroupFormPage() {
                   placeholder="חיפוש לפי שם או מייל..."
                   value={studentQuery}
                   onChange={(e) => setStudentQuery(e.target.value)}
-                  className="flex-1"
+                  wrapperClassName="min-w-0 flex-1"
                 />
                 <Button
                   size="sm"

@@ -8,16 +8,18 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: string;
   /** Rendered inside the input's own wrapper (e.g. a show/hide password toggle), positioned against the input box itself. */
   endAdornment?: React.ReactNode;
+  /** Layout classes for the field as a whole (e.g. `flex-1` in a row); `className` styles the input box itself. */
+  wrapperClassName?: string;
 }
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, className, id, endAdornment, ...props }, ref) => {
+  ({ label, error, className, wrapperClassName, id, endAdornment, ...props }, ref) => {
     const generatedId = React.useId();
     const inputId = id ?? generatedId;
     const errorId = `${inputId}-error`;
 
     return (
-      <div className="flex flex-col gap-1">
+      <div className={cn('flex flex-col gap-1', wrapperClassName)}>
         {label && <Label htmlFor={inputId}>{label}</Label>}
         <div className="relative">
           <input

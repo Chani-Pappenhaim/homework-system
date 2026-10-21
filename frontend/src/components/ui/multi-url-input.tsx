@@ -36,7 +36,8 @@ export function MultiUrlInput({ label, values, onChange, placeholder }: MultiUrl
             value={v}
             onChange={(e) => update(i, e.target.value)}
             placeholder={placeholder}
-            className="flex-1"
+            dir="ltr"
+            wrapperClassName="min-w-0 flex-1"
           />
           {rows.length > 1 && (
             <button
