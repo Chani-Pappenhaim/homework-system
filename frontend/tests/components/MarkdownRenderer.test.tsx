@@ -146,3 +146,29 @@ describe('MarkdownRenderer - code blocks', () => {
     expect(container.querySelector('.markdown-body pre')).not.toBeNull();
   });
 });
+
+describe('MarkdownRenderer - content converted from Word', () => {
+  it('draws a formula written between double dollar signs', () => {
+    const { container } = render(<MarkdownRenderer content={String.raw`נוסחה: $$x=\frac{a+b}{2}$$ בתוך משפט`} />);
+    expect(container.querySelector('.katex .mfrac')).not.toBeNull();
+    expect(screen.getByText(/נוסחה:/)).toBeInTheDocument();
+  });
+
+  it('draws a formula block on its own lines', () => {
+    const { container } = render(<MarkdownRenderer content={'$$\nE=mc^2\n$$'} />);
+    expect(container.querySelector('.katex-display')).not.toBeNull();
+  });
+
+  it('leaves a single dollar sign as text', () => {
+    const { container } = render(<MarkdownRenderer content={'עולה $5 או $6'} />);
+    expect(container.querySelector('.katex')).toBeNull();
+    expect(screen.getByText('עולה $5 או $6')).toBeInTheDocument();
+  });
+
+  it('shows a table, which scrolls on its own when wide', () => {
+    const { container } = render(<MarkdownRenderer content={'| שם | ציון |\n| --- | --- |\n| א | 90 |'} />);
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: '90' })).toBeInTheDocument();
+    expect(container.querySelector('.overflow-x-auto > table')).not.toBeNull();
+  });
+});

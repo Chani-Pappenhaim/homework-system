@@ -253,6 +253,15 @@
   direction: ltr;
   unicode-bidi: isolate;
 }
+/* Formulas read left to right even inside a Hebrew paragraph; a wide one scrolls. */
+.markdown-body .katex {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.markdown-body .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
 .markdown-body pre code.hljs { color: #e6edf3; }
 .markdown-body .hljs-comment,
 .markdown-body .hljs-quote { color: #8b949e; font-style: italic; }

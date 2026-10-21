@@ -1,5 +1,8 @@
-import ReactMarkdown, { defaultUrlTransform, type UrlTransform } from 'react-markdown';
+import ReactMarkdown, { defaultUrlTransform, type Components, type Options, type UrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { rehypeHighlightCode } from '@/lib/highlightCode';
 
 interface Props {
@@ -29,6 +32,21 @@ const INLINE_IMAGE = /^data:image\/(?:png|jpe?g|gif|webp|bmp);base64,[a-z0-9+/=\
 export const urlTransform: UrlTransform = (url, key, node) =>
   key === 'src' && node.tagName === 'img' && INLINE_IMAGE.test(url) ? url : defaultUrlTransform(url);
 
+// Formulas, as Word equations are converted, are written between $$ signs.
+// A single $ is left as text: it appears in ordinary writing (prices, shell
+// prompts) far more often than as the start of a formula.
+const MARKDOWN_PLUGINS: Options['remarkPlugins'] = [remarkGfm, [remarkMath, { singleDollarTextMath: false }]];
+const REHYPE_PLUGINS: Options['rehypePlugins'] = [rehypeKatex, rehypeHighlightCode];
+
+const BLOCK_COMPONENTS: Components = {
+  // A wide table scrolls on its own instead of widening the page.
+  table: ({ node: _node, ...props }) => (
+    <div className="overflow-x-auto">
+      <table {...props} />
+    </div>
+  ),
+};
+
 /**
  * No DOMPurify here on purpose: rehype-raw is not enabled, so react-markdown
  * already escapes raw HTML instead of rendering it, making source-level
@@ -40,9 +58,10 @@ function MarkdownRenderer({ content, className, keepLineBreaks }: Props) {
   return (
     <div className={className}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlightCode]}
+        remarkPlugins={MARKDOWN_PLUGINS}
+        rehypePlugins={REHYPE_PLUGINS}
         urlTransform={urlTransform}
+        components={BLOCK_COMPONENTS}
         className="markdown-body prose prose-sm max-w-none text-ink prose-headings:text-ink prose-code:bg-cream prose-code:px-1 prose-code:rounded"
       >
         {keepLineBreaks ? withHardBreaks(content) : content}

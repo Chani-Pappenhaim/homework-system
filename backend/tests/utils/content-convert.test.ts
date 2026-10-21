@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import AdmZip from 'adm-zip';
 
-vi.mock('../../src/utils/storage', () => ({ uploadBuffer: vi.fn() }));
+vi.mock('../../src/utils/storage', () => ({ uploadBuffer: vi.fn(), destroyByUrl: vi.fn() }));
 
 import { uploadBuffer } from '../../src/utils/storage';
 import { fileToMarkdown, htmlToMarkdown } from '../../src/utils/content-convert';
