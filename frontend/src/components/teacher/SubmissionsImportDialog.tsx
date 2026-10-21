@@ -68,7 +68,7 @@ export function SubmissionsImportDialog({ open, onOpenChange }: Props) {
 
           {upload.isPending ? (
             <div className="rounded-card border border-dashed border-rule px-6 py-10 text-center text-sm text-ink/60">
-              מייבא ובודק את הריפואים מול GitHub…
+              מייבא ובודק את הריפוזיטורים מול GitHub…
             </div>
           ) : (
             <FileUpload accept=".xlsx" onFile={(file) => upload.mutate(file)} label="גרור קובץ Excel לכאן" />
