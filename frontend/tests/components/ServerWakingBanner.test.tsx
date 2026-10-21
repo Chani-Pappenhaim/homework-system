@@ -26,4 +26,11 @@ describe('ServerWakingBanner', () => {
     act(() => useServerStatus.getState().setWaking(false));
     expect(screen.queryByText(/השרת מתעורר/)).not.toBeInTheDocument();
   });
+
+  it('sits at the bottom of the page, not over the data at the top', () => {
+    render(<ServerWakingBanner />);
+    act(() => useServerStatus.getState().setWaking(true));
+    expect(screen.getByRole('status')).toHaveClass('bottom-0');
+    expect(screen.getByRole('status')).not.toHaveClass('top-0');
+  });
 });
