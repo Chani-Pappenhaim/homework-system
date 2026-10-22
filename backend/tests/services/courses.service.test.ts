@@ -27,8 +27,8 @@ vi.mock('../../src/utils/storage', async (importOriginal) => ({
   destroyByUrl: destroyMock,
 }));
 const { confirmMock, discardMock } = vi.hoisted(() => ({ confirmMock: vi.fn(), discardMock: vi.fn() }));
-vi.mock('../../src/utils/pending-uploads', () => ({ confirmUpload: confirmMock, discardPendingUpload: discardMock }));
-vi.mock('../../src/utils/access', () => ({
+vi.mock('../../src/services/pending-uploads.service', () => ({ confirmUpload: confirmMock, discardPendingUpload: discardMock }));
+vi.mock('../../src/services/access.service', () => ({
   assertCourseAccess: assertCourseAccessMock,
 }));
 

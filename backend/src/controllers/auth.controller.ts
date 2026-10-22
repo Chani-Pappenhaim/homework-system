@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import * as authService from '../services/auth.service';
+import * as emailVerification from '../services/email-verification.service';
 import { REFRESH_COOKIE, signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt';
 import { sendError } from '../utils/http';
 
@@ -125,7 +126,7 @@ export async function updateMe(req: Request, res: Response): Promise<void> {
 
 export async function verifyEmail(req: Request, res: Response): Promise<void> {
   try {
-    await authService.verifyEmail(String(req.body?.token ?? ''));
+    await emailVerification.verifyEmail(String(req.body?.token ?? ''));
     res.json({ success: true, data: null });
   } catch (err: any) {
     sendError(res, err, 400);
@@ -134,7 +135,7 @@ export async function verifyEmail(req: Request, res: Response): Promise<void> {
 
 export async function resendVerification(req: Request, res: Response): Promise<void> {
   try {
-    await authService.sendEmailVerification(req.user!.userId);
+    await emailVerification.sendEmailVerification(req.user!.userId);
     res.json({ success: true, data: null });
   } catch (err: any) {
     sendError(res, err);

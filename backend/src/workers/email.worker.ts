@@ -1,6 +1,6 @@
 import { Worker } from 'bullmq';
 import type IORedis from 'ioredis';
-import { handleEmailJob } from '../emails/email.service';
+import { handleEmailJob } from '../emails/email-dispatcher';
 import type { EmailJobData, EmailJobName } from '../infrastructure/queues/job-types';
 import { attachLifecycleLogging } from './worker-events';
 import { defaultWorkerOptions } from './worker-defaults';

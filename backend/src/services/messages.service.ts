@@ -1,15 +1,6 @@
 import { prisma } from '../config/prisma';
-import { emailQueue } from '../infrastructure/queues/queues';
-import type { EmailJobMap } from '../infrastructure/queues/job-types';
+import { enqueueEmail } from '../infrastructure/queues/enqueue-email';
 import { AppError } from '../utils/errors';
-
-async function enqueueEmail<T extends keyof EmailJobMap>(jobName: T, data: EmailJobMap[T]) {
-  try {
-    await emailQueue.add(jobName, data);
-  } catch (err) {
-    console.error(`[messages] Failed to enqueue ${jobName} email:`, err);
-  }
-}
 
 export const MAX_MESSAGE_LENGTH = 5000;
 

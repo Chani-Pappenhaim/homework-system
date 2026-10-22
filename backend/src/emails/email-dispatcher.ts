@@ -1,4 +1,4 @@
-import { sendMail } from '../services/email.service';
+import { sendMail } from '../services/mailer.service';
 import { prisma } from '../config/prisma';
 import type { EmailJobData, EmailJobMap, EmailJobName } from './email.types';
 import {
@@ -15,7 +15,7 @@ import {
 } from './email.templates';
 
 // Decides *who* receives each email and *which* template renders it, then hands
-// off to the low-level SMTP transport (services/email.service). Anything that
+// off to the low-level SMTP transport (services/mailer.service). Anything that
 // throws here propagates to the worker so BullMQ can retry; the only silent path
 // is a report that has no admin recipient configured, which is skipped by design.
 /**

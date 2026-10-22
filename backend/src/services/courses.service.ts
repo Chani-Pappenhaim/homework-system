@@ -1,9 +1,9 @@
 import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
 import { uploadBuffer, createUploadSignature, toFileDTO, destroyByUrl, isOwnUpload } from '../utils/storage';
-import { confirmUpload, discardPendingUpload } from '../utils/pending-uploads';
-import { releaseFileUrls, submissionFileUrls } from '../utils/file-refs';
-import { assertCourseAccess } from '../utils/access';
+import { confirmUpload, discardPendingUpload } from './pending-uploads.service';
+import { releaseFileUrls, submissionFileUrls } from './file-refs.service';
+import { assertCourseAccess } from './access.service';
 import { groupDisplayName, groupNameSelect } from '../utils/group-name';
 import { countPastDeadlines, upcomingDeadline } from '../utils/deadlines';
 

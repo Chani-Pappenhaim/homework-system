@@ -8,7 +8,7 @@ vi.mock('@/lib/upload', async (importOriginal) => ({
 
 import api from '@/api/axios';
 import { uploadToCloudinary } from '@/lib/upload';
-import { buildSignedForm, uploadSignedThenRegister } from '@/lib/signed-upload';
+import { buildSignedForm, uploadSignedThenRegister } from '@/api/signed-upload';
 
 const post = api.post as unknown as ReturnType<typeof vi.fn>;
 const upload = uploadToCloudinary as unknown as ReturnType<typeof vi.fn>;

@@ -24,9 +24,9 @@ vi.mock('../../src/utils/storage', async (importOriginal) => ({
   createUploadSignature: signatureMock,
   destroyByUrl: destroyMock,
 }));
-vi.mock('../../src/utils/pending-uploads', () => ({ confirmUpload: confirmMock, discardPendingUpload: discardMock }));
-vi.mock('../../src/utils/file-refs', () => ({ releaseFileUrls: releaseMock }));
-vi.mock('../../src/utils/access', () => ({
+vi.mock('../../src/services/pending-uploads.service', () => ({ confirmUpload: confirmMock, discardPendingUpload: discardMock }));
+vi.mock('../../src/services/file-refs.service', () => ({ releaseFileUrls: releaseMock }));
+vi.mock('../../src/services/access.service', () => ({
   assertLessonAccess: assertAccessMock,
 }));
 const { aiQueueAdd } = vi.hoisted(() => ({ aiQueueAdd: vi.fn() }));
@@ -42,7 +42,7 @@ vi.mock('../../src/utils/github', async (importOriginal) => ({
 const { assertAiAvailableMock } = vi.hoisted(() => ({ assertAiAvailableMock: vi.fn() }));
 vi.mock('../../src/services/ai-availability', () => ({ assertAiAvailable: assertAiAvailableMock }));
 const loadRosterMock = vi.hoisted(() => vi.fn());
-vi.mock('../../src/services/attendance.service', () => ({ loadRoster: loadRosterMock }));
+vi.mock('../../src/services/roster.service', () => ({ loadRoster: loadRosterMock }));
 
 import ExcelJS from 'exceljs';
 import { prisma } from '../../src/config/prisma';

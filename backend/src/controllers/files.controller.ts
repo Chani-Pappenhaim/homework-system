@@ -1,10 +1,9 @@
 import { Request, Response } from 'express';
 import { Readable } from 'node:stream';
-import { prisma } from '../config/prisma';
-import { REFRESH_COOKIE, signFileToken, verifyFileToken, verifyRefreshToken, type FileTokenPayload } from '../utils/jwt';
+import { REFRESH_COOKIE, signFileToken, verifyFileToken, verifyRefreshToken } from '../utils/jwt';
 import { fileDownloadPath, fileExtension, toDeliveryUrl } from '../utils/storage';
-import { discardPendingUpload } from '../utils/pending-uploads';
-import { assertLessonAccess, assertCourseAccess } from '../utils/access';
+import { discardPendingUpload } from '../services/pending-uploads.service';
+import { checkFileAccess, findFileTokenUser } from '../services/file-access.service';
 import { contentDisposition, ensureExtension, extensionOf, resolveContentType } from '../utils/mime';
 
 // Types a browser will execute as a document if it is opened directly. The
@@ -27,40 +26,6 @@ function applyEmbeddingHeaders(res: Response, name: string) {
   } else {
     res.removeHeader('Content-Security-Policy');
   }
-}
-
-type FileKind = FileTokenPayload['kind'];
-type StoredFile = { id: string; url: string; name: string; hidden: boolean };
-type FileCheck = { file: StoredFile } | { status: number; error: string };
-
-/**
- * Whether `userId` may open the file right now. Access (group membership,
- * granted lesson access, the file being hidden) is read from the live DB on
- * every call, never trusted from the time a link was issued.
- */
-async function checkFileAccess(fileId: string, kind: FileKind, userId: string, role: string): Promise<FileCheck> {
-  if (kind === 'submission') {
-    // A submission is the student's own work: only she and the teacher may open it.
-    const submission = await prisma.submission.findUnique({ where: { id: fileId } });
-    if (!submission?.fileUrl) return { status: 404, error: 'הקובץ לא נמצא' };
-    if (role !== 'ADMIN' && submission.studentId !== userId) return { status: 403, error: 'אין לך הרשאה לקובץ זה' };
-    return { file: { id: submission.id, url: submission.fileUrl, name: submission.fileName || 'הגשה', hidden: false } };
-  }
-  const file = kind === 'lesson'
-    ? await prisma.lessonFile.findUnique({ where: { id: fileId } })
-    : await prisma.courseFile.findUnique({ where: { id: fileId } });
-  if (!file) return { status: 404, error: 'הקובץ לא נמצא' };
-  if (role !== 'ADMIN' && file.hidden) return { status: 403, error: 'אין לך הרשאה לקובץ זה' };
-  try {
-    if (kind === 'lesson') {
-      await assertLessonAccess(userId, role, (file as { lessonId: string }).lessonId);
-    } else {
-      await assertCourseAccess(userId, role, (file as { courseId: string }).courseId);
-    }
-  } catch {
-    return { status: 403, error: 'אין לך הרשאה לקובץ זה' };
-  }
-  return { file };
 }
 
 /**
@@ -112,7 +77,7 @@ export async function download(req: Request, res: Response) {
     return;
   }
 
-  const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { role: true, tokenVersion: true } });
+  const user = await findFileTokenUser(payload.userId);
   if (!user) {
     res.status(401).json({ success: false, error: 'קישור לא תקין' });
     return;

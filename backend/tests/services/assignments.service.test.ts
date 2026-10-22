@@ -9,9 +9,9 @@ vi.mock('../../src/config/prisma', () => ({
 }));
 
 const { assertLessonAccessMock } = vi.hoisted(() => ({ assertLessonAccessMock: vi.fn() }));
-vi.mock('../../src/utils/access', () => ({ assertLessonAccess: assertLessonAccessMock }));
+vi.mock('../../src/services/access.service', () => ({ assertLessonAccess: assertLessonAccessMock }));
 const { releaseMock, submittedUrlsMock } = vi.hoisted(() => ({ releaseMock: vi.fn(), submittedUrlsMock: vi.fn() }));
-vi.mock('../../src/utils/file-refs', () => ({ releaseFileUrls: releaseMock, submissionFileUrls: submittedUrlsMock }));
+vi.mock('../../src/services/file-refs.service', () => ({ releaseFileUrls: releaseMock, submissionFileUrls: submittedUrlsMock }));
 
 import ExcelJS from 'exceljs';
 import { prisma } from '../../src/config/prisma';

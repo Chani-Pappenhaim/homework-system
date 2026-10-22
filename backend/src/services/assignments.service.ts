@@ -1,9 +1,9 @@
 import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
-import { assertLessonAccess } from '../utils/access';
+import { assertLessonAccess } from './access.service';
 import { cellText } from '../utils/excel';
 import { submissionFileLink } from '../utils/storage';
-import { releaseFileUrls, submissionFileUrls } from '../utils/file-refs';
+import { releaseFileUrls, submissionFileUrls } from './file-refs.service';
 import { computeSubmissionScore } from '../utils/grading';
 import ExcelJS from 'exceljs';
 

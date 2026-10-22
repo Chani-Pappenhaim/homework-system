@@ -1,6 +1,6 @@
 import { runDeadlineCheck } from './deadline-check';
 import { runStorageCheck } from './storage-check';
-import { sweepPendingUploads } from '../utils/pending-uploads';
+import { sweepPendingUploads } from '../services/pending-uploads.service';
 import { KEEP_AWAKE_INTERVAL_MS, keepAwakeUrl, pingSelf } from './keep-awake';
 
 // A deadline report summarises a deadline that has already passed, so checking

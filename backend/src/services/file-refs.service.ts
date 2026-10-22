@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
-import { destroyByUrl } from './storage';
+import { destroyByUrl } from '../utils/storage';
 
 /**
  * Number of rows (course/lesson files, submissions) that still point at a

@@ -1,5 +1,5 @@
 import { prisma } from '../config/prisma';
-import { AppError } from './errors';
+import { AppError } from '../utils/errors';
 
 function forbidden() {
   return new AppError('Forbidden', 'אין לך הרשאה לגשת לתוכן זה', 403);
