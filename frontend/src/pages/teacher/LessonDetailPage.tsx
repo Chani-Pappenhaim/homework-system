@@ -13,6 +13,7 @@ import { LinkExistingFile } from '@/components/teacher/LinkExistingFile';
 import { FileUpload } from '@/components/ui/file-upload';
 import { PreviewableTypes } from '@/components/ui/previewable-types';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
+import { PrintButton } from '@/components/ui/print-button';
 import { FileGallery } from '@/components/ui/file-gallery';
 import { useToast } from '@/components/ui/toast';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -85,6 +86,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
   // Leaving the open assignment with a grade still unsaved asks first, the
   // same as switching to another student does inside it.
   const gradeDirtyRef = useRef(false);
+  const contentRef = useRef<HTMLDivElement>(null);
   const onGradeDirtyChange = useCallback((dirty: boolean) => { gradeDirtyRef.current = dirty; }, []);
   const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
   const leaveAssignment = (leave: () => void) => {
@@ -324,7 +326,12 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
       <Card>
         <CardContent className="space-y-4">
           {lesson.contentMd
-            ? <MarkdownRenderer content={lesson.contentMd} />
+            ? (
+              <>
+                <div className="flex justify-end"><PrintButton target={contentRef} title={lesson.topic} /></div>
+                <div ref={contentRef}><MarkdownRenderer content={lesson.contentMd} /></div>
+              </>
+            )
             : <p className="text-sm text-ink/50">אין תוכן לשיעור עדיין - לחצי על "ערוך שיעור" כדי להוסיף חומר לימוד.</p>}
           {lesson.githubUrls.length > 0 && (
             <div className="flex flex-wrap gap-2">

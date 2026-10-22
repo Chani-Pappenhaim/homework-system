@@ -1,9 +1,10 @@
-import { useId, useState, type ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 import { Bot, ChevronDown, ChevronRight, ClipboardCheck, Edit, FileSpreadsheet, FileText, Link2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
+import { PrintButton } from '@/components/ui/print-button';
 import { SubmissionsWorkstation } from '@/components/lesson/SubmissionsWorkstation';
 import { AssignmentSubmissionsImportDialog } from '@/components/lesson/AssignmentSubmissionsImportDialog';
 import { cn, formatDateFull } from '@/lib/utils';
@@ -114,11 +115,17 @@ function AssignmentDetails({ assignment }: { assignment: AssignmentDTO }) {
   const methodsText = methods.length > 0 ? methods.join(' או ') : '-';
   const deadlineText = assignment.deadline ? formatDateFull(assignment.deadline) : 'ללא';
   const requirements = assignment.requirements ?? [];
+  const descriptionRef = useRef<HTMLDivElement>(null);
   return (
     <div className="divide-y divide-rule/20 px-5 py-1">
       <DetailSection title="תיאור">
         {assignment.description
-          ? <MarkdownRenderer content={assignment.description} />
+          ? (
+            <>
+              <div className="flex justify-end"><PrintButton target={descriptionRef} title={assignment.title} /></div>
+              <div ref={descriptionRef}><MarkdownRenderer content={assignment.description} /></div>
+            </>
+          )
           : <span className="text-ink/50">אין תיאור</span>}
       </DetailSection>
 

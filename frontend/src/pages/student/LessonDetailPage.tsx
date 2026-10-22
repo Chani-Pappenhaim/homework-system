@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Github, CheckCircle, Clock, Bot, Check, BookOpen, ClipboardList, Paperclip, Sparkles } from 'lucide-react';
@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
+import { PrintButton } from '@/components/ui/print-button';
 import { ContactTeacherText } from '@/components/student/ContactTeacherText';
 import { MarkdownField } from '@/components/ui/markdown-field';
 import { FileUpload } from '@/components/ui/file-upload';
@@ -50,6 +51,7 @@ export default function StudentLessonDetailPage({ lessonId, lessonNumber }: Part
   const submitted: MySubmission[] = unwrap(mineData)?.submitted ?? [];
 
   const [progressError, setProgressError] = useState('');
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const progressMutation = useMutation({
     mutationFn: (completed: boolean) => lessonsApi.setProgress(id!, completed),
@@ -162,8 +164,9 @@ export default function StudentLessonDetailPage({ lessonId, lessonNumber }: Part
         <div className="space-y-5">
           {lesson.contentMd ? (
             <Card>
-              <CardContent>
-                <MarkdownRenderer content={lesson.contentMd} />
+              <CardContent className="space-y-3">
+                <div className="flex justify-end"><PrintButton target={contentRef} title={lesson.topic} /></div>
+                <div ref={contentRef}><MarkdownRenderer content={lesson.contentMd} /></div>
               </CardContent>
             </Card>
           ) : (
@@ -285,6 +288,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
   });
 
   const githubUsername = useAuthStore((s) => s.user?.githubUsername);
+  const descriptionRef = useRef<HTMLDivElement>(null);
   // Mirrors the server's normalizeRepoName so the preview matches what gets saved.
   const cleanRepo = repoName.trim().replace(/\/+$/, '').replace(/\.git$/i, '').split('/').pop() ?? '';
   const githubPreview = cleanRepo && githubUsername ? `https://github.com/${githubUsername}/${cleanRepo}` : '';
@@ -304,7 +308,12 @@ function AssignmentCard({ assignment: a, submission: sub }: {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {a.description && <MarkdownRenderer content={a.description} className="text-ink/80" />}
+        {a.description && (
+          <>
+            <div className="flex justify-end"><PrintButton target={descriptionRef} title={a.title} /></div>
+            <div ref={descriptionRef}><MarkdownRenderer content={a.description} className="text-ink/80" /></div>
+          </>
+        )}
         {a.deadline && (
           <p className="text-xs text-ink/50">מועד אחרון: <span className="font-medium">{formatDateFull(a.deadline)}</span></p>
         )}
