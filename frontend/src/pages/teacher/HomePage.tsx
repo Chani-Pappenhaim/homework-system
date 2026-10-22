@@ -12,6 +12,7 @@ import { studentsApi } from '@/api/students.api';
 import { formatUsd } from '@/lib/currency';
 import { Tape, StatusPill, type PillVariant } from '@/components/decor';
 import { cn, formatDate } from '@/lib/utils';
+import { submissionPath } from '@/components/lesson/LessonRoute';
 import { unwrap } from '@/lib/api-utils';
 import type { ReportRow } from '@/types';
 
@@ -157,11 +158,11 @@ export default function TeacherHomePage() {
                 {search ? `אין תוצאות ל"${search}"` : 'התור ריק - כל הכבוד'}
               </div>
             ) : (
-              visible.map((r, i) => {
+              visible.map((r) => {
                 const st = rowStatus(r);
                 return (
                   <div
-                    key={i}
+                    key={r.submissionId}
                     className="flex items-center gap-3 border-b border-rule/60 px-4 py-2.5 pr-12 transition-colors hover:bg-butter/10"
                   >
                     <span className="grid size-8 shrink-0 place-items-center rounded-full bg-indigo/12 text-xs font-semibold text-indigo">
@@ -178,7 +179,7 @@ export default function TeacherHomePage() {
                       <span className="w-8 text-left font-display text-base font-bold tabular text-clay">{r.submissionScore}</span>
                     )}
                     <button
-                      onClick={() => navigate('/teacher/reports')}
+                      onClick={() => navigate(submissionPath(r.lessonId, r.assignmentId, r.submissionId))}
                       className="rounded-input border border-rule px-2.5 py-1 text-xs font-semibold text-ink transition-colors hover:bg-ground"
                     >
                       סקירה

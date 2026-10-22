@@ -22,6 +22,7 @@ import { gradesApi } from '@/api/grades.api';
 import { aiUsageApi } from '@/api/aiUsage.api';
 import { studentsApi } from '@/api/students.api';
 import useUiStore from '@/store/uiStore';
+import { submissionPath } from '@/components/lesson/LessonRoute';
 
 const groupsList = groupsApi.list as unknown as ReturnType<typeof vi.fn>;
 const coursesList = coursesApi.list as unknown as ReturnType<typeof vi.fn>;
@@ -71,6 +72,17 @@ describe('TeacherHomePage', () => {
     expect(navigate).toHaveBeenCalledWith('/teacher/groups');
     await userEvent.click(screen.getByRole('button', { name: /קורסים/ }));
     expect(navigate).toHaveBeenCalledWith('/teacher/courses');
+  });
+
+  it('opens the submission itself from a review-queue row, not the grades report', async () => {
+    report.mockResolvedValue({ data: { data: { report: [{
+      submissionId: 's9', lessonId: 'l3', assignmentId: 'a7', studentId: 'st1', studentName: 'מירי כהן',
+      studentEmail: 'miri@x.com', groupName: 'כיתה א', courseName: 'קורס', lessonTopic: 'נושא',
+      assignmentTitle: 'תרגיל', submittedAt: '2026-10-20T10:00:00Z', isLate: false,
+    }] } } });
+    renderWithProviders(<TeacherHomePage />);
+    await userEvent.click(await screen.findByRole('button', { name: 'סקירה' }));
+    expect(navigate).toHaveBeenCalledWith(submissionPath('l3', 'a7', 's9'));
   });
 
   describe('top search', () => {
