@@ -31,3 +31,20 @@ export function getApiErrorMessage(error: any, fallback: string = GENERIC_MESSAG
 
   return fallback;
 }
+
+/**
+ * The same message for a request that asked for a file: its error body then
+ * arrives as a Blob, so the server's JSON message is read out of it first.
+ */
+export async function getDownloadErrorMessage(error: any, fallback: string = GENERIC_MESSAGE): Promise<string> {
+  const body = error?.response?.data;
+  if (body instanceof Blob) {
+    try {
+      const parsed = JSON.parse(await body.text());
+      return getApiErrorMessage({ ...error, response: { ...error.response, data: parsed } }, fallback);
+    } catch {
+      return fallback;
+    }
+  }
+  return getApiErrorMessage(error, fallback);
+}

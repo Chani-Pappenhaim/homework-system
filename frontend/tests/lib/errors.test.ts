@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getApiErrorMessage } from '@/lib/errors';
+import { getApiErrorMessage, getDownloadErrorMessage } from '@/lib/errors';
 
 describe('getApiErrorMessage', () => {
   it('returns a friendly network message when the request never got a response', () => {
@@ -37,5 +37,21 @@ describe('getApiErrorMessage', () => {
 
   it('handles a non-axios thrown value via the fallback', () => {
     expect(getApiErrorMessage(new Error('kaboom'), 'גיבוי')).toBe('גיבוי');
+  });
+});
+
+describe('getDownloadErrorMessage', () => {
+  const blobError = (text: string) => ({ isAxiosError: true, response: { status: 404, data: new Blob([text]) } });
+
+  it("reads the server's message out of a file request's error body", async () => {
+    expect(await getDownloadErrorMessage(blobError(JSON.stringify({ error: 'אין מפגשים בתאריכים שנבחרו' })))).toBe('אין מפגשים בתאריכים שנבחרו');
+  });
+
+  it('falls back when the body is not a message', async () => {
+    expect(await getDownloadErrorMessage(blobError('<html>'), 'הייצוא נכשל')).toBe('הייצוא נכשל');
+  });
+
+  it('handles an error with no body like any other', async () => {
+    expect(await getDownloadErrorMessage({ isAxiosError: true, response: undefined })).toContain('להתחבר לשרת');
   });
 });

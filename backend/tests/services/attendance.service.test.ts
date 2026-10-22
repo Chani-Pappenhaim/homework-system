@@ -19,7 +19,7 @@ vi.mock('../../src/config/prisma', () => ({
 import { prisma } from '../../src/config/prisma';
 import {
   parseDay, parseStatus, loadRoster, createSession, createSessionsFromLessons, saveRecords,
-  saveHomeworkMarks, setExclusion, buildAttendanceTemplate, importAttendance, getMyAttendance,
+  saveHomeworkMarks, setExclusion, buildAttendanceTemplate, buildAttendanceExport, importAttendance, getMyAttendance,
 } from '../../src/services/attendance.service';
 
 const p = prisma as any;
@@ -341,5 +341,50 @@ describe('getMyAttendance', () => {
     // The query itself never selects the note.
     const select = p.course.findMany.mock.calls[0][0].select.attendanceSessions.select.records.select;
     expect(select).toEqual({ status: true });
+  });
+});
+
+describe('buildAttendanceExport', () => {
+  const day = (iso: string) => new Date(`${iso}T00:00:00Z`);
+
+  it("lists each student's mark per meeting and her totals, with the meeting's note on her cell", async () => {
+    p.attendanceSession.findMany.mockResolvedValue([
+      { date: day('2026-10-01'), title: null, lesson: { topic: 'מבוא' }, records: [
+        { studentId: 'rachel', status: 'PRESENT', note: null }, { studentId: 'leah', status: 'ABSENT', note: 'חולה' },
+      ] },
+      { date: day('2026-10-08'), title: 'חזרה', lesson: null, records: [{ studentId: 'rachel', status: 'PARTIAL', note: null }] },
+    ]);
+    const { buffer, courseName } = await buildAttendanceExport('c1', {});
+    expect(courseName).toBe('קורס');
+
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buffer as any);
+    const sheet = wb.getWorksheet('נוכחות')!;
+    expect(sheet.getRow(1).values).toEqual([, 'שם התלמידה', 'מייל', '1/10/2026 · מבוא', '8/10/2026 · חזרה', 'נוכחת', 'חסרה', 'חלקית', 'אחוז נוכחות']);
+    const rows = new Map([2, 3, 4].map((r) => [sheet.getRow(r).getCell(1).value, sheet.getRow(r)]));
+    expect(rows.get('רחל')!.values).toEqual([, 'רחל', 'rachel@x.com', 'נוכחת', 'חלקית', 1, 0, 1, 0.75]);
+    const leah = rows.get('לאה')!;
+    expect(leah.getCell(3).value).toBe('חסרה');
+    expect(leah.getCell(3).note).toBe('חולה');
+    expect(leah.getCell(4).value).toBeNull();
+    // Dina was let in personally and is still on the attendance
+    expect(rows.get('דינה')!.getCell(9).value).toBeNull();
+  });
+
+  it('asks only for the meetings in the chosen days, and leaves out an excluded student', async () => {
+    p.attendanceExclusion.findMany.mockResolvedValue([{ studentId: 'dina' }]);
+    p.attendanceSession.findMany.mockResolvedValue([{ date: day('2026-10-01'), title: null, lesson: null, records: [] }]);
+    const { buffer } = await buildAttendanceExport('c1', { from: '2026-10-01', to: '2026-10-31' });
+    expect(p.attendanceSession.findMany.mock.calls[0][0].where).toEqual({
+      courseId: 'c1', date: { gte: day('2026-10-01'), lt: day('2026-11-01') },
+    });
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buffer as any);
+    const names = [2, 3, 4].map((r) => wb.getWorksheet('נוכחות')!.getRow(r).getCell(1).value);
+    expect(names).not.toContain('דינה');
+  });
+
+  it('says there is nothing to export when no meeting falls in the days', async () => {
+    await expect(buildAttendanceExport('c1', { from: '2026-10-01' })).rejects.toMatchObject({ status: 404, clientMessage: 'אין מפגשים בתאריכים שנבחרו' });
   });
 });

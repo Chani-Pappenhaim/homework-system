@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarCheck, CalendarPlus, FileSpreadsheet, LayoutGrid, ListChecks, Plus, UserCog, AlertCircle } from 'lucide-react';
+import { CalendarCheck, CalendarPlus, Download, FileSpreadsheet, LayoutGrid, ListChecks, Plus, UserCog, AlertCircle } from 'lucide-react';
 import { attendanceApi, type AttendanceSessionDTO } from '@/api/attendance.api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { SessionSheet } from './SessionSheet';
 import { SessionFormDialog } from './SessionFormDialog';
 import { ImportAttendanceDialog } from './ImportAttendanceDialog';
+import { ExportAttendanceDialog } from './ExportAttendanceDialog';
 import { RosterDialog } from './RosterDialog';
 import { AttendanceGrid } from './AttendanceGrid';
 
@@ -25,6 +26,7 @@ export function AttendancePanel({ courseId }: { courseId: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<{ session?: AttendanceSessionDTO } | null>(null);
   const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [rosterOpen, setRosterOpen] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
 
@@ -96,6 +98,9 @@ export function AttendancePanel({ courseId }: { courseId: string }) {
             <UserCog size={14} /> תלמידות ({roster.length}{excludedCount ? ` · ${excludedCount} מוחרגות` : ''})
           </Button>
           <Button size="sm" variant="outline" onClick={() => setImporting(true)}><FileSpreadsheet size={14} /> ייבוא מ-Excel</Button>
+          {sessions.length > 0 && (
+            <Button size="sm" variant="outline" onClick={() => setExporting(true)}><Download size={14} /> ייצוא ל-Excel</Button>
+          )}
           <Button size="sm" onClick={() => setForm({})}><Plus size={14} /> מפגש חדש</Button>
         </div>
       </div>
@@ -188,6 +193,7 @@ export function AttendancePanel({ courseId }: { courseId: string }) {
         />
       )}
       {importing && <ImportAttendanceDialog courseId={courseId} onClose={() => setImporting(false)} />}
+      {exporting && <ExportAttendanceDialog courseId={courseId} courseName={data.course.name} onClose={() => setExporting(false)} />}
       {rosterOpen && <RosterDialog courseId={courseId} roster={data.roster} onClose={() => setRosterOpen(false)} />}
     </div>
   );

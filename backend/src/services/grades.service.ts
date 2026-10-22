@@ -2,6 +2,8 @@ import { prisma } from '../config/prisma';
 import ExcelJS from 'exceljs';
 import { groupDisplayName } from '../utils/group-name';
 import { AppError } from '../utils/errors';
+import { dayRangeWhere, type DayRange } from '../utils/date-range';
+import { addReportSheet, israelClock } from '../utils/excel';
 
 type GradeInput = {
   submissionScore?: number | null; contentScore?: number | null;
@@ -52,12 +54,15 @@ export async function gradeSubmission(submissionId: string, gradedById: string, 
   });
 }
 
-export type ReportFilters = { groupId?: string; courseId?: string; studentId?: string };
+/** The date range is of the submission day. */
+export type ReportFilters = { groupId?: string; courseId?: string; studentId?: string } & DayRange;
 
 export async function getReport(filters: ReportFilters) {
+  const submittedAt = dayRangeWhere(filters);
   const submissions = await prisma.submission.findMany({
     where: {
       ...(filters.studentId && { studentId: filters.studentId }),
+      ...(submittedAt && { submittedAt }),
       assignment: {
         lesson: {
           course: {
@@ -100,21 +105,31 @@ export async function getReport(filters: ReportFilters) {
   }));
 }
 
+const EXPORT_COLUMNS = [
+  { header: 'שם התלמידה', width: 22 }, { header: 'מייל', width: 28 }, { header: 'קבוצה', width: 18 },
+  { header: 'קורס', width: 20 }, { header: 'שיעור', width: 24 }, { header: 'מטלה', width: 26 },
+  { header: 'מועד אחרון', width: 17 }, { header: 'הוגש בתאריך', width: 17 }, { header: 'באיחור', width: 9 },
+  { header: 'ציון הגשה', width: 11 }, { header: 'ציון תוכן', width: 11 }, { header: 'משוב', width: 50 },
+];
+const DATE_TIME = 'dd/mm/yyyy hh:mm';
+
+/** The report as an Excel sheet, in Hebrew, with the same filters as on screen. */
 export async function exportReport(filters: ReportFilters): Promise<Buffer> {
   const rows = await getReport(filters);
 
   const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet('Grades');
-  sheet.addRow(['Student Name', 'Email', 'Group', 'Course', 'Lesson', 'Assignment', 'Deadline', 'Submitted', 'Late', 'Submission Score', 'Content Score', 'Feedback']);
-
+  const sheet = addReportSheet(workbook, 'ציונים', EXPORT_COLUMNS);
   for (const r of rows) {
     sheet.addRow([
       r.studentName, r.studentEmail, r.groupName, r.courseName,
       r.lessonTopic, r.assignmentTitle,
-      r.deadline?.toISOString() ?? '', r.submittedAt.toISOString(),
-      r.isLate ? 'Yes' : 'No', r.submissionScore ?? '', r.contentScore ?? '', r.feedback ?? '',
+      r.deadline ? israelClock(r.deadline) : '', israelClock(r.submittedAt),
+      r.isLate ? 'כן' : 'לא', r.submissionScore ?? '', r.contentScore ?? '', r.feedback ?? '',
     ]);
   }
+  sheet.getColumn(7).numFmt = DATE_TIME;
+  sheet.getColumn(8).numFmt = DATE_TIME;
+  sheet.getColumn(12).alignment = { wrapText: true, vertical: 'top' };
 
   return workbook.xlsx.writeBuffer() as unknown as Promise<Buffer>;
 }

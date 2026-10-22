@@ -12,7 +12,9 @@ import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SubmissionsImportDialog } from '@/components/teacher/SubmissionsImportDialog';
-import { formatDate, formatDateTime, groupDisplayName } from '@/lib/utils';
+import { downloadBlob, formatDate, formatDateTime, groupDisplayName, todayISO } from '@/lib/utils';
+import { getDownloadErrorMessage } from '@/lib/errors';
+import { dayRangeLabel, dayRangeParams } from '@/lib/date-range';
 import { unwrap } from '@/lib/api-utils';
 import type { ReportRow } from '@/types';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -43,6 +45,10 @@ export default function ReportsPage() {
   const groupId = searchParams.get('groupId') ?? '';
   const courseId = searchParams.get('courseId') ?? '';
   const studentId = searchParams.get('studentId') ?? '';
+  // The days the work was handed in on
+  const from = searchParams.get('from') ?? '';
+  const to = searchParams.get('to') ?? '';
+  const backwards = !!from && !!to && from > to;
   const [exportError, setExportError] = useState('');
   const [importOpen, setImportOpen] = useState(false);
 
@@ -65,6 +71,7 @@ export default function ReportsPage() {
     ...(groupId && { groupId }),
     ...(courseId && { courseId }),
     ...(studentId && { studentId }),
+    ...(!backwards && dayRangeParams({ from, to })),
   };
 
   const { data: reportData, isLoading } = useQuery({
@@ -93,15 +100,10 @@ export default function ReportsPage() {
   const exportMutation = useMutation({
     mutationFn: () => gradesApi.exportReport(Object.keys(filters).length ? filters : undefined),
     onSuccess: (res) => {
-      const url = URL.createObjectURL(res.data as Blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `ציונים-${new Date().toISOString().slice(0, 10)}.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadBlob(res.data as Blob, `ציונים ${dayRangeLabel(filters) || todayISO()}.xlsx`);
       setExportError('');
     },
-    onError: () => setExportError('ייצוא הקובץ נכשל, נסי שוב'),
+    onError: async (e) => setExportError(await getDownloadErrorMessage(e, 'ייצוא הקובץ נכשל, נסי שוב')),
   });
 
   return (
@@ -157,12 +159,26 @@ export default function ReportsPage() {
             {studentOptions.map((s, i) => <option key={s.id} value={s.id}>{studentLabels[i]}</option>)}
           </select>
 
-          {(groupId || courseId || studentId) && (
-            <Button size="sm" variant="outline" onClick={() => setParams({ groupId: '', courseId: '', studentId: '' })}>
+          {(['from', 'to'] as const).map((key) => (
+            <label key={key} className="flex items-center gap-1.5 text-sm text-ink-soft">
+              {key === 'from' ? 'מתאריך' : 'עד תאריך'}
+              <input
+                type="date"
+                value={key === 'from' ? from : to}
+                onChange={(e) => setParams({ [key]: e.target.value })}
+                aria-label={key === 'from' ? 'הוגש מתאריך' : 'הוגש עד תאריך'}
+                className="rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
+              />
+            </label>
+          ))}
+
+          {(groupId || courseId || studentId || from || to) && (
+            <Button size="sm" variant="outline" onClick={() => setParams({ groupId: '', courseId: '', studentId: '', from: '', to: '' })}>
               נקה פילטרים
             </Button>
           )}
         </div>
+        {backwards && <p className="px-5 pb-3 text-xs text-coral">תאריך ההתחלה מאוחר מתאריך הסיום - הסינון לפי תאריכים לא הופעל</p>}
       </Card>
 
       {/* Table */}

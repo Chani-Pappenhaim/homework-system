@@ -13,6 +13,7 @@ vi.mock('../../src/services/attendance.service', () => ({
   setExclusion: vi.fn(),
   importAttendance: vi.fn(async () => ({ saved: 1, skipped: 0, sessionsCreated: 0, errors: [] })),
   buildAttendanceTemplate: vi.fn(async () => Buffer.from('xlsx')),
+  buildAttendanceExport: vi.fn(async () => ({ buffer: Buffer.from('xlsx'), courseName: 'אנגלית' })),
   updateSession: vi.fn(),
   deleteSession: vi.fn(),
   saveRecords: vi.fn(async () => ({ saved: 1 })),
@@ -38,6 +39,7 @@ describe('attendance routes', () => {
   it.each([
     ['get', '/api/courses/c1/attendance'],
     ['get', '/api/courses/c1/attendance/template'],
+    ['get', '/api/courses/c1/attendance/export'],
     ['post', '/api/courses/c1/attendance/sessions'],
     ['put', '/api/attendance/sessions/s1/records'],
     ['put', '/api/attendance/homework/h1/marks'],
@@ -68,6 +70,14 @@ describe('attendance routes', () => {
     const res = await request(app).get('/api/courses/c1/attendance/template').set('Authorization', admin);
     expect(res.headers['content-type']).toContain('spreadsheetml');
     expect(res.headers['content-disposition']).toContain('attachment');
+  });
+
+  it("exports the chosen days' attendance under the course's name", async () => {
+    const res = await request(app).get('/api/courses/c1/attendance/export?from=2026-10-01&to=2026-10-31').set('Authorization', admin);
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('spreadsheetml');
+    expect(res.headers['content-disposition']).toContain(encodeURIComponent('נוכחות אנגלית.xlsx'));
+    expect(attendanceService.buildAttendanceExport).toHaveBeenCalledWith('c1', { from: '2026-10-01', to: '2026-10-31' });
   });
 
   it('refuses an import with no file', async () => {

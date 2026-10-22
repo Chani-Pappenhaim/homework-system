@@ -43,6 +43,34 @@ export function normalizeGithubUsername(raw: string): string {
 }
 
 /**
+ * A right-to-left sheet for an export: a bold header row that stays in view
+ * while scrolling, and the given column widths.
+ */
+export function addReportSheet(workbook: ExcelJS.Workbook, name: string, columns: { header: string; width: number }[]) {
+  const sheet = workbook.addWorksheet(name, { views: [{ rightToLeft: true, state: 'frozen', ySplit: 1 }] });
+  sheet.columns = columns;
+  sheet.getRow(1).eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4F46E5' } };
+  });
+  return sheet;
+}
+
+const israelClockFormat = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'Asia/Jerusalem', year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+});
+
+/**
+ * A moment as the clock read in Israel at the time. Excel cells have no time
+ * zone, so a stored UTC time would otherwise show two or three hours off.
+ */
+export function israelClock(date: Date): Date {
+  const p = Object.fromEntries(israelClockFormat.formatToParts(date).map((part) => [part.type, part.value]));
+  return new Date(Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second));
+}
+
+/**
  * Builds an xlsx template with a header row and one example row. Instructions,
  * when given, go on a second sheet (one line per row) so the first sheet stays
  * the one that is read back.

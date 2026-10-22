@@ -1,4 +1,5 @@
 import api from './axios';
+import type { DayRange } from '@/lib/date-range';
 
 export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'PARTIAL';
 
@@ -104,6 +105,10 @@ export const attendanceApi = {
 
   downloadTemplate: (courseId: string) =>
     api.get(`/courses/${courseId}/attendance/template`, { responseType: 'blob' }),
+
+  /** The course's attendance as a spreadsheet: a row per student, a column per meeting in the range. */
+  exportFile: (courseId: string, range: DayRange) =>
+    api.get(`/courses/${courseId}/attendance/export`, { params: range, responseType: 'blob' }),
 
   /** With dryRun the server only checks the file; the teacher then confirms the real import. */
   importFile: (courseId: string, file: File, dryRun = false) => {

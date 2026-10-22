@@ -6,6 +6,9 @@ import { ToastProvider } from '@/components/ui/toast';
 import type { CourseAttendanceDTO } from '@/api/attendance.api';
 import { renderWithProviders } from '../utils/render';
 
+vi.mock('@/lib/utils', async (importOriginal) => ({ ...(await importOriginal<object>()), downloadBlob: vi.fn() }));
+import { downloadBlob } from '@/lib/utils';
+
 vi.mock('@/api/attendance.api', () => ({
   attendanceApi: {
     getCourse: vi.fn(),
@@ -14,6 +17,7 @@ vi.mock('@/api/attendance.api', () => ({
     addHomework: vi.fn(() => Promise.resolve({ data: {} })),
     createSessionsFromLessons: vi.fn(() => Promise.resolve({ data: { data: { created: 1, undated: 0 } } })),
     downloadTemplate: vi.fn(),
+    exportFile: vi.fn(),
     importFile: vi.fn(),
     setExclusion: vi.fn(() => Promise.resolve({ data: {} })),
   },
@@ -145,5 +149,30 @@ describe('AttendancePanel', () => {
     await userEvent.click(await screen.findByRole('button', { name: /תלמידות \(2 · 1 מוחרגות\)/ }));
     await userEvent.click(screen.getByRole('checkbox'));
     expect(api.setExclusion).toHaveBeenCalledWith('c1', 's3', false);
+  });
+
+  it("exports the chosen days' attendance under the course's name", async () => {
+    api.exportFile.mockResolvedValue({ data: new Blob(['x']) });
+    renderPanel();
+    await userEvent.click(await screen.findByRole('button', { name: /ייצוא ל-Excel/ }));
+    await userEvent.type(screen.getByLabelText('מתאריך'), '2026-10-01');
+    await userEvent.click(screen.getByRole('button', { name: /^ייצוא$/ }));
+    await waitFor(() => expect(downloadBlob).toHaveBeenCalledWith(expect.any(Blob), 'נוכחות React מ-01.10.2026.xlsx'));
+    expect(api.exportFile).toHaveBeenCalledWith('c1', { from: '2026-10-01' });
+  });
+
+  it('does not export a range that ends before it starts', async () => {
+    renderPanel();
+    await userEvent.click(await screen.findByRole('button', { name: /ייצוא ל-Excel/ }));
+    await userEvent.type(screen.getByLabelText('מתאריך'), '2026-10-31');
+    await userEvent.type(screen.getByLabelText('עד תאריך'), '2026-10-01');
+    expect(screen.getByText('תאריך ההתחלה מאוחר מתאריך הסיום')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^ייצוא$/ })).toBeDisabled();
+  });
+
+  it('offers no export before any meeting was opened', async () => {
+    renderPanel(course({ sessions: [] }));
+    await screen.findByRole('button', { name: /מפגש ידני/ });
+    expect(screen.queryByRole('button', { name: /ייצוא ל-Excel/ })).not.toBeInTheDocument();
   });
 });

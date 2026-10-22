@@ -2,8 +2,9 @@ import ExcelJS, { type Cell } from 'exceljs';
 import type { AttendanceStatus } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
-import { cellText, isValidEmail } from '../utils/excel';
-import { MAX_NOTE, MAX_ROWS, MAX_TITLE, dayKey, parseDay, utcDay } from './attendance-common';
+import { addReportSheet, cellText, isValidEmail } from '../utils/excel';
+import { dayRangeWhere, type DayRange } from '../utils/date-range';
+import { MAX_NOTE, MAX_ROWS, MAX_TITLE, attendanceRate, dayKey, parseDay, utcDay } from './attendance-common';
 import { loadRoster, requireCourse } from './roster.service';
 
 const COLUMNS = [
@@ -67,6 +68,64 @@ export async function buildAttendanceTemplate(courseId: string): Promise<Buffer>
   ]) help.addRow(['', '', line]);
 
   return workbook.xlsx.writeBuffer() as unknown as Promise<Buffer>;
+}
+
+const STATUS_LABEL: Record<AttendanceStatus, string> = { PRESENT: 'נוכחת', ABSENT: 'חסרה', PARTIAL: 'חלקית' };
+const STATUS_FILL: Partial<Record<AttendanceStatus, string>> = { ABSENT: 'FFFDE2E1', PARTIAL: 'FFFEF3C7' };
+const shortDay = (d: Date) => `${d.getUTCDate()}/${d.getUTCMonth() + 1}/${d.getUTCFullYear()}`;
+
+/**
+ * The course's attendance over the chosen days, for Excel: a row per student,
+ * a column per meeting, and her totals at the end. A meeting's note for a
+ * student is attached to her cell.
+ */
+export async function buildAttendanceExport(courseId: string, range: DayRange): Promise<{ buffer: Buffer; courseName: string }> {
+  const course = await requireCourse(courseId);
+  const date = dayRangeWhere(range);
+  const [roster, sessions] = await Promise.all([
+    loadRoster(courseId, course.groupId),
+    prisma.attendanceSession.findMany({
+      where: { courseId, ...(date && { date }) },
+      orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
+      select: { date: true, title: true, lesson: { select: { topic: true } }, records: { select: { studentId: true, status: true, note: true } } },
+    }),
+  ]);
+  if (!sessions.length) {
+    throw new AppError('No sessions in range', date ? 'אין מפגשים בתאריכים שנבחרו' : 'עוד לא נפתחו מפגשים בקורס הזה', 404);
+  }
+
+  const workbook = new ExcelJS.Workbook();
+  const sheet = addReportSheet(workbook, 'נוכחות', [
+    { header: 'שם התלמידה', width: 22 }, { header: 'מייל', width: 28 },
+    ...sessions.map((s) => {
+      const title = s.title ?? s.lesson?.topic;
+      return { header: title ? `${shortDay(s.date)} · ${title}` : shortDay(s.date), width: 16 };
+    }),
+    { header: 'נוכחת', width: 9 }, { header: 'חסרה', width: 9 }, { header: 'חלקית', width: 9 }, { header: 'אחוז נוכחות', width: 12 },
+  ]);
+  sheet.getRow(1).alignment = { wrapText: true, vertical: 'top' };
+
+  for (const student of roster.filter((s) => !s.excluded)) {
+    const counts: Record<AttendanceStatus, number> = { PRESENT: 0, ABSENT: 0, PARTIAL: 0 };
+    const marks = sessions.map((s) => s.records.find((r) => r.studentId === student.id));
+    for (const m of marks) if (m) counts[m.status]++;
+    const rate = attendanceRate(counts.PRESENT, counts.ABSENT, counts.PARTIAL);
+    const row = sheet.addRow([
+      student.name, student.email,
+      ...marks.map((m) => (m ? STATUS_LABEL[m.status] : null)),
+      counts.PRESENT, counts.ABSENT, counts.PARTIAL, rate === null ? null : rate / 100,
+    ]);
+    marks.forEach((m, i) => {
+      if (!m) return;
+      const cell = row.getCell(i + 3);
+      const fill = STATUS_FILL[m.status];
+      if (fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+      if (m.note) cell.note = m.note;
+    });
+  }
+  sheet.getColumn(sessions.length + 6).numFmt = '0%';
+
+  return { buffer: (await workbook.xlsx.writeBuffer()) as unknown as Buffer, courseName: course.name };
 }
 
 type ImportRow = {

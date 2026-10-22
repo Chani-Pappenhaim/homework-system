@@ -34,3 +34,9 @@ export function parseDay(value: unknown): Date | null {
 }
 
 export const dayKey = (d: Date) => d.toISOString().slice(0, 10);
+
+/** Same rule as the frontend: a partial attendance counts as half an absence. */
+export function attendanceRate(present: number, absent: number, partial: number): number | null {
+  const counted = present + absent + partial;
+  return counted ? Math.round(((present + partial / 2) * 100) / counted) : null;
+}

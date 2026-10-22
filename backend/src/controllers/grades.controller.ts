@@ -1,6 +1,13 @@
 ﻿import { Request, Response } from 'express';
 import * as gradesService from '../services/grades.service';
 import { sendError } from '../utils/http';
+import { dayRangeQuery } from '../utils/date-range';
+
+/** The report filters from the query string — the same for the table and its export. */
+function reportFilters(req: Request): gradesService.ReportFilters {
+  const id = (name: string) => req.query[name] as string | undefined;
+  return { groupId: id('groupId'), courseId: id('courseId'), studentId: id('studentId'), ...dayRangeQuery(req.query) };
+}
 
 export async function gradeSubmission(req: Request, res: Response) {
   try {
@@ -12,21 +19,17 @@ export async function gradeSubmission(req: Request, res: Response) {
 }
 
 export async function getReport(req: Request, res: Response) {
-  const report = await gradesService.getReport({
-    groupId: req.query.groupId as string | undefined,
-    courseId: req.query.courseId as string | undefined,
-    studentId: req.query.studentId as string | undefined,
-  });
-  res.json({ success: true, data: { report } });
+  try {
+    const report = await gradesService.getReport(reportFilters(req));
+    res.json({ success: true, data: { report } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
 }
 
 export async function exportReport(req: Request, res: Response) {
   try {
-    const buffer = await gradesService.exportReport({
-      groupId: req.query.groupId as string | undefined,
-      courseId: req.query.courseId as string | undefined,
-      studentId: req.query.studentId as string | undefined,
-    });
+    const buffer = await gradesService.exportReport(reportFilters(req));
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=grades.xlsx');
     res.send(buffer);

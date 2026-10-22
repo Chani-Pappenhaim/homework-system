@@ -1,7 +1,9 @@
 import api from './axios';
 import type { ChecklistResult, ReportRow } from '@/types';
+import type { DayRange } from '@/lib/date-range';
 
-export type ReportFilters = { groupId?: string; courseId?: string; studentId?: string };
+/** Who to report on; the days are those the work was handed in on. */
+export type ReportFilters = { groupId?: string; courseId?: string; studentId?: string } & DayRange;
 
 export const gradesApi = {
   grade: (submissionId: string, data: { submissionScore?: number; contentScore?: number; feedback?: string; checklist?: ChecklistResult[] }) =>

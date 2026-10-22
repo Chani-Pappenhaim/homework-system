@@ -57,6 +57,19 @@ describe('grades.service.getReport', () => {
     expect(where.studentId).toBeUndefined();
   });
 
+  it('keeps the submissions of the chosen days, both ends included', async () => {
+    p.submission.findMany.mockResolvedValue([]);
+    await getReport({ from: '2026-10-01', to: '2026-10-20' });
+    expect(p.submission.findMany.mock.calls[0][0].where.submittedAt).toEqual({
+      gte: new Date('2026-10-01T00:00:00Z'), lt: new Date('2026-10-21T00:00:00Z'),
+    });
+  });
+
+  it('refuses a range that ends before it starts, without querying', async () => {
+    await expect(getReport({ from: '2026-10-20', to: '2026-10-01' })).rejects.toMatchObject({ status: 400 });
+    expect(p.submission.findMany).not.toHaveBeenCalled();
+  });
+
   it('filters by studentId when given', async () => {
     p.submission.findMany.mockResolvedValue([]);
     await getReport({ studentId: 's1' });
@@ -120,27 +133,30 @@ describe('grades.service.getPendingGrades', () => {
 });
 
 describe('grades.service.exportReport', () => {
-  it('produces a non-empty xlsx buffer with a header + data row', async () => {
+  it('writes the report as a Hebrew right-to-left sheet, times as read in Israel', async () => {
     p.submission.findMany.mockResolvedValue([
       {
         student: { name: 'A', email: 'a@x.com', studentGroups: [{ group: { name: 'G' } }] },
-        assignment: { title: 'T', deadline: new Date('2026-01-01'), lesson: { topic: 'Topic', course: { name: 'C' } } },
-        submittedAt: new Date('2026-01-02'), isLate: true, grade: { submissionScore: 80, contentScore: 72, feedback: 'ok', checklist: null },
+        assignment: { title: 'T', deadline: new Date('2026-01-01T21:59:00Z'), lesson: { topic: 'Topic', course: { name: 'C' } } },
+        submittedAt: new Date('2026-07-02T08:30:00Z'), isLate: true, grade: { submissionScore: 80, contentScore: 72, feedback: 'ok', checklist: null },
       },
     ]);
     const buf = await exportReport({});
-    expect(Buffer.isBuffer(buf) || buf instanceof Uint8Array || buf.byteLength > 0).toBeTruthy();
 
-    // reload the produced workbook to confirm contents
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(buf as any);
-    const sheet = wb.getWorksheet('Grades')!;
-    expect(sheet.getRow(1).getCell(1).value).toBe('Student Name');
-    expect(sheet.getRow(1).getCell(10).value).toBe('Submission Score');
-    expect(sheet.getRow(1).getCell(11).value).toBe('Content Score');
-    expect(sheet.getRow(2).getCell(1).value).toBe('A');
-    expect(sheet.getRow(2).getCell(9).value).toBe('Yes'); // Late
-    expect(sheet.getRow(2).getCell(10).value).toBe(80); // Submission Score
-    expect(sheet.getRow(2).getCell(11).value).toBe(72); // Content Score
+    const sheet = wb.getWorksheet('ציונים')!;
+    expect(sheet.views[0]).toMatchObject({ rightToLeft: true });
+    expect(sheet.getRow(1).getCell(1).value).toBe('שם התלמידה');
+    expect(sheet.getRow(1).getCell(10).value).toBe('ציון הגשה');
+    expect(sheet.getRow(1).getCell(11).value).toBe('ציון תוכן');
+    const row = sheet.getRow(2);
+    expect(row.getCell(1).value).toBe('A');
+    // 23:59 in Israel's winter, 11:30 in its summer
+    expect(row.getCell(7).value).toEqual(new Date('2026-01-01T23:59:00Z'));
+    expect(row.getCell(8).value).toEqual(new Date('2026-07-02T11:30:00Z'));
+    expect(row.getCell(9).value).toBe('כן');
+    expect(row.getCell(10).value).toBe(80);
+    expect(row.getCell(11).value).toBe(72);
   });
 });

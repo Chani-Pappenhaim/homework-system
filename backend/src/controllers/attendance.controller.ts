@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as attendanceService from '../services/attendance.service';
 import { sendError } from '../utils/http';
+import { dayRangeQuery } from '../utils/date-range';
 
 const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
@@ -32,6 +33,18 @@ export async function downloadTemplate(req: Request, res: Response) {
     const buffer = await attendanceService.buildAttendanceTemplate(param(req, 'id'));
     res.setHeader('Content-Type', XLSX_TYPE);
     res.setHeader('Content-Disposition', 'attachment; filename=attendance-template.xlsx');
+    res.send(buffer);
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+// ?from=YYYY-MM-DD&to=YYYY-MM-DD limits the export to the meetings in those days.
+export async function exportAttendance(req: Request, res: Response) {
+  try {
+    const { buffer, courseName } = await attendanceService.buildAttendanceExport(param(req, 'id'), dayRangeQuery(req.query));
+    res.setHeader('Content-Type', XLSX_TYPE);
+    res.setHeader('Content-Disposition', `attachment; filename="attendance.xlsx"; filename*=UTF-8''${encodeURIComponent(`נוכחות ${courseName}.xlsx`)}`);
     res.send(buffer);
   } catch (err: any) {
     sendError(res, err);

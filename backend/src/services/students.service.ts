@@ -2,6 +2,7 @@ import { groupDisplayName, groupNameSelect } from '../utils/group-name';
 import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
 import { getMyAttendance } from './student-attendance.service';
+import { attendanceRate } from './attendance-common';
 
 export async function findStudentByEmail(email: string) {
   return prisma.user.findFirst({
@@ -55,12 +56,6 @@ const visibleLesson = { hidden: false, course: { hidden: false } };
 
 function reaches(r: Reach, a: { lessonId: string; lesson: { courseId: string; course: { groupId: string } } }) {
   return r.groupIds.has(a.lesson.course.groupId) || r.courseIds.has(a.lesson.courseId) || r.lessonIds.has(a.lessonId);
-}
-
-/** Same rule as the frontend: a partial attendance counts as half an absence. */
-function attendanceRate(present: number, absent: number, partial: number): number | null {
-  const counted = present + absent + partial;
-  return counted ? Math.round(((present + partial / 2) * 100) / counted) : null;
 }
 
 function average(values: number[]): number | null {

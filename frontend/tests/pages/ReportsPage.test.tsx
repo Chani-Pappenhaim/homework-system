@@ -7,9 +7,10 @@ import { renderWithProviders } from '../utils/render';
 vi.mock('@/api/grades.api', () => ({
   gradesApi: {
     report: vi.fn(),
-    exportUrl: vi.fn(() => '/api/grades/report/export'),
+    exportReport: vi.fn(),
   },
 }));
+vi.mock('@/lib/utils', async (importOriginal) => ({ ...(await importOriginal<object>()), downloadBlob: vi.fn() }));
 vi.mock('@/api/groups.api', () => ({ groupsApi: { list: vi.fn(), get: vi.fn() } }));
 vi.mock('@/api/students.api', () => ({ studentsApi: { overview: vi.fn(), search: vi.fn() } }));
 vi.mock('@/api/courses.api', () => ({ coursesApi: { list: vi.fn() } }));
@@ -22,6 +23,7 @@ import { groupsApi } from '@/api/groups.api';
 import { coursesApi } from '@/api/courses.api';
 import { submissionsApi } from '@/api/submissions.api';
 import { studentsApi } from '@/api/students.api';
+import { downloadBlob } from '@/lib/utils';
 
 const report = gradesApi.report as unknown as ReturnType<typeof vi.fn>;
 const groupsList = groupsApi.list as unknown as ReturnType<typeof vi.fn>;
@@ -165,5 +167,41 @@ describe('ReportsPage', () => {
     await userEvent.click(await screen.findByRole('button', { name: /ייבוא הגשות/ }));
     await userEvent.click(await screen.findByRole('button', { name: /הורדת קובץ לדוגמא/ }));
     await waitFor(() => expect(submissionsApi.downloadImportTemplate).toHaveBeenCalled());
+  });
+});
+
+describe('ReportsPage dates', () => {
+  it('reports and exports only the work handed in on the chosen days, naming the file after them', async () => {
+    (gradesApi.exportReport as any).mockResolvedValue({ data: new Blob(['x']) });
+    renderWithProviders(<ReportsPage />, { initialEntries: ['/?courseId=c1&from=2026-10-01&to=2026-10-31'] });
+    expect(screen.getByLabelText('הוגש מתאריך')).toHaveValue('2026-10-01');
+    await waitFor(() => expect(report).toHaveBeenCalledWith({ courseId: 'c1', from: '2026-10-01', to: '2026-10-31' }));
+
+    await userEvent.click(screen.getByRole('button', { name: /ייצוא Excel/ }));
+    await waitFor(() => expect(downloadBlob).toHaveBeenCalledWith(expect.any(Blob), 'ציונים 01.10.2026 עד 31.10.2026.xlsx'));
+    expect(gradesApi.exportReport).toHaveBeenCalledWith({ courseId: 'c1', from: '2026-10-01', to: '2026-10-31' });
+  });
+
+  it('keeps a chosen day in the address and clears it with the other filters', async () => {
+    renderWithProviders(<ReportsPage />);
+    await screen.findByText('אין נתונים לפי הפילטרים הנבחרים');
+    await userEvent.type(screen.getByLabelText('הוגש עד תאריך'), '2026-10-31');
+    await waitFor(() => expect(report).toHaveBeenCalledWith({ to: '2026-10-31' }));
+    await userEvent.click(screen.getByRole('button', { name: 'נקה פילטרים' }));
+    expect(screen.getByLabelText('הוגש עד תאריך')).toHaveValue('');
+  });
+
+  it('leaves a backwards range out of the report and says why', async () => {
+    renderWithProviders(<ReportsPage />, { initialEntries: ['/?from=2026-10-31&to=2026-10-01'] });
+    expect(await screen.findByText(/הסינון לפי תאריכים לא הופעל/)).toBeInTheDocument();
+    await waitFor(() => expect(report).toHaveBeenCalledWith({}));
+  });
+
+  it("shows the server's reason when the export is refused", async () => {
+    const body = new Blob([JSON.stringify({ error: 'תאריך הסיום אינו תקין' })], { type: 'application/json' });
+    (gradesApi.exportReport as any).mockRejectedValue({ isAxiosError: true, response: { status: 400, data: body } });
+    renderWithProviders(<ReportsPage />);
+    await userEvent.click(await screen.findByRole('button', { name: /ייצוא Excel/ }));
+    expect(await screen.findByText('תאריך הסיום אינו תקין')).toBeInTheDocument();
   });
 });

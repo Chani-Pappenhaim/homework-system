@@ -33,6 +33,7 @@ router.delete('/:id/access/:studentId', requireRole('ADMIN'), coursesController.
 
 router.get('/:id/attendance', requireRole('ADMIN'), attendanceController.getCourseAttendance);
 router.get('/:id/attendance/template', requireRole('ADMIN'), attendanceController.downloadTemplate);
+router.get('/:id/attendance/export', requireRole('ADMIN'), attendanceController.exportAttendance);
 router.post('/:id/attendance/import', requireRole('ADMIN'), uploadImport.single('file'), requireFile, attendanceController.importAttendance);
 router.post('/:id/attendance/sessions', requireRole('ADMIN'), attendanceController.createSession);
 router.post('/:id/attendance/sessions/from-lessons', requireRole('ADMIN'), attendanceController.createSessionsFromLessons);
