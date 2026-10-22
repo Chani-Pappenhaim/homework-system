@@ -15,6 +15,14 @@ import type { AssignmentDTO, SubmissionDTO } from '@/types';
 const canApprove = (s: SubmissionDTO) => s.grade?.contentScore != null && !s.grade?.contentApproved;
 
 /**
+ * How often to fetch the submissions again: the AI review runs on the server,
+ * so while one is under way its result is picked up as soon as it lands.
+ */
+export function aiReviewPollInterval(submissions: Pick<SubmissionDTO, 'aiStatus'>[]): number | false {
+  return submissions.some((s) => s.aiStatus === 'pending') ? 5000 : false;
+}
+
+/**
  * The grading station of one assignment: the students who submitted down the
  * side, the chosen one's submission and grade form beside them. The chosen
  * student lives in the URL (`submissionId`), so the grades report can link
@@ -32,6 +40,7 @@ export function SubmissionsWorkstation({ assignment, selectedId, onSelect, onDir
   const { data, isLoading } = useQuery({
     queryKey: ['submissions', assignment.id],
     queryFn: () => assignmentsApi.getSubmissions(assignment.id),
+    refetchInterval: (query) => aiReviewPollInterval(unwrap(query.state.data)?.submissions ?? []),
   });
   // A roster order, so "next" means the same student every time — not the
   // server's newest-first, which shifts whenever someone resubmits.
