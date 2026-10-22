@@ -11,10 +11,10 @@ vi.mock('../../src/config/prisma', () => ({
     teacherMessage: { findMany: vi.fn() },
   },
 }));
-vi.mock('../../src/services/attendance.service', () => ({ getMyAttendance: vi.fn() }));
+vi.mock('../../src/services/student-attendance.service', () => ({ getMyAttendance: vi.fn() }));
 
 import { prisma } from '../../src/config/prisma';
-import { getMyAttendance } from '../../src/services/attendance.service';
+import { getMyAttendance } from '../../src/services/student-attendance.service';
 import { getStudentsOverview, getStudentProfile, searchStudents } from '../../src/services/students.service';
 
 const p = prisma as any;

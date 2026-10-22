@@ -1,5 +1,5 @@
 import api from './axios';
-import { uploadSignedThenRegister } from '@/lib/signed-upload';
+import { uploadSignedThenRegister } from './signed-upload';
 import type { MySubmission, PendingAssignment, SubmissionDTO } from '@/types';
 
 /** Videos are the one submission type large enough to threaten the backend's memory limit. */

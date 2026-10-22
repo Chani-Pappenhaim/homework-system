@@ -11,7 +11,7 @@ vi.mock('../../src/config/prisma', () => ({
 }));
 
 import { prisma } from '../../src/config/prisma';
-import { assertLessonAccess, assertCourseAccess } from '../../src/utils/access';
+import { assertLessonAccess, assertCourseAccess } from '../../src/services/access.service';
 
 const p = prisma as any;
 beforeEach(() => {

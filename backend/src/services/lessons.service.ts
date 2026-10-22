@@ -1,9 +1,9 @@
 import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
 import { uploadBuffer, createUploadSignature, toFileDTO, destroyByUrl, isOwnUpload } from '../utils/storage';
-import { confirmUpload, discardPendingUpload } from '../utils/pending-uploads';
-import { releaseFileUrls, submissionFileUrls } from '../utils/file-refs';
-import { assertLessonAccess, assertCourseAccess } from '../utils/access';
+import { confirmUpload, discardPendingUpload } from './pending-uploads.service';
+import { releaseFileUrls, submissionFileUrls } from './file-refs.service';
+import { assertLessonAccess, assertCourseAccess } from './access.service';
 import { countPastDeadlines, upcomingDeadline } from '../utils/deadlines';
 
 // Older lessons only have the legacy single `githubUrl` column populated;

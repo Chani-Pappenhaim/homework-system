@@ -17,13 +17,13 @@ vi.mock('../../src/utils/storage', async (importOriginal) => ({
   toDeliveryUrl: vi.fn((url: string) => `https://signed.cloudinary/${url}`),
 }));
 
-vi.mock('../../src/utils/access', () => ({
+vi.mock('../../src/services/access.service', () => ({
   assertLessonAccess: vi.fn(),
   assertCourseAccess: vi.fn(),
 }));
 
 import { prisma } from '../../src/config/prisma';
-import { assertLessonAccess, assertCourseAccess } from '../../src/utils/access';
+import { assertLessonAccess, assertCourseAccess } from '../../src/services/access.service';
 import { toDeliveryUrl, submissionFileLink } from '../../src/utils/storage';
 import { signAccessToken, signFileToken, signRefreshToken } from '../../src/utils/jwt';
 import filesRoutes from '../../src/routes/files.routes';

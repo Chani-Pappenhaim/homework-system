@@ -1,5 +1,5 @@
 import api from './axios';
-import { uploadSignedThenRegister } from '@/lib/signed-upload';
+import { uploadSignedThenRegister } from './signed-upload';
 import type { LessonDetailDTO, StudentSummary } from '@/types';
 
 export const lessonsApi = {
