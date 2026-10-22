@@ -21,7 +21,6 @@ import { coursesApi } from '@/api/courses.api';
 import { gradesApi } from '@/api/grades.api';
 import { aiUsageApi } from '@/api/aiUsage.api';
 import { studentsApi } from '@/api/students.api';
-import useUiStore from '@/store/uiStore';
 import { submissionPath } from '@/components/lesson/LessonRoute';
 
 const groupsList = groupsApi.list as unknown as ReturnType<typeof vi.fn>;
@@ -40,7 +39,6 @@ beforeEach(() => {
   report.mockResolvedValue({ data: { data: { report: [] } } });
   summary.mockResolvedValue({ data: { data: { totalCostUsd: 0 } } });
   searchStudents.mockResolvedValue({ data: { data: { students: [] } } });
-  useUiStore.setState({ search: '' });
 });
 
 describe('TeacherHomePage', () => {
@@ -90,8 +88,7 @@ describe('TeacherHomePage', () => {
       searchStudents.mockResolvedValue({ data: { data: { students: [
         { id: 'st1', name: 'מירי כהן', email: 'miri@x.com', groupNames: ['כיתה א'] },
       ] } } });
-      useUiStore.setState({ search: 'מירי' });
-      renderWithProviders(<TeacherHomePage />);
+      renderWithProviders(<TeacherHomePage />, { initialEntries: [`/teacher?q=${encodeURIComponent('מירי')}`] });
       const result = await screen.findByRole('button', { name: /מירי כהן/ });
       expect(searchStudents).toHaveBeenCalledWith('מירי');
       expect(result).toHaveTextContent('כיתה א');
@@ -100,14 +97,12 @@ describe('TeacherHomePage', () => {
     });
 
     it('says when no student matches', async () => {
-      useUiStore.setState({ search: 'אין כזו' });
-      renderWithProviders(<TeacherHomePage />);
+      renderWithProviders(<TeacherHomePage />, { initialEntries: [`/teacher?q=${encodeURIComponent('אין כזו')}`] });
       expect(await screen.findByText('לא נמצאה תלמידה בשם או במייל "אין כזו"')).toBeInTheDocument();
     });
 
     it('does not search the directory for a single letter or an empty box', async () => {
-      useUiStore.setState({ search: 'מ' });
-      renderWithProviders(<TeacherHomePage />);
+      renderWithProviders(<TeacherHomePage />, { initialEntries: [`/teacher?q=${encodeURIComponent('מ')}`] });
       expect(await screen.findByText(/שלום, שרה/)).toBeInTheDocument();
       expect(searchStudents).not.toHaveBeenCalled();
       expect(screen.queryByRole('region', { name: 'תלמידות שנמצאו' })).not.toBeInTheDocument();

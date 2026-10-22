@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Download, ClipboardCheck, Upload } from 'lucide-react';
 import { gradesApi } from '@/api/grades.api';
@@ -16,6 +16,7 @@ import { formatDate, formatDateTime, groupDisplayName } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import type { ReportRow } from '@/types';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { useQueryParams } from '@/hooks/useQueryParam';
 import { submissionPath } from '@/components/lesson/LessonRoute';
 
 /**
@@ -35,12 +36,13 @@ export function distinctLabels<T>(items: T[], name: (item: T) => string, detail:
 export default function ReportsPage() {
   usePageTitle('דוחות');
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  // Deep-linked from a course page ("בדיקה" there jumps straight to that course's reports)
-  // and from a group's student list ("הגשות" there opens one student's submissions).
-  const [groupId, setGroupId] = useState(searchParams.get('groupId') ?? '');
-  const [courseId, setCourseId] = useState(searchParams.get('courseId') ?? '');
-  const [studentId, setStudentId] = useState(searchParams.get('studentId') ?? '');
+  // The filters live in the address: deep-linked from a course page ("בדיקה" there
+  // jumps straight to that course's reports) and from a group's student list
+  // ("הגשות" there opens one student's submissions), and kept when coming back.
+  const [searchParams, setParams] = useQueryParams();
+  const groupId = searchParams.get('groupId') ?? '';
+  const courseId = searchParams.get('courseId') ?? '';
+  const studentId = searchParams.get('studentId') ?? '';
   const [exportError, setExportError] = useState('');
   const [importOpen, setImportOpen] = useState(false);
 
@@ -82,11 +84,10 @@ export default function ReportsPage() {
   const studentLabels = distinctLabels(studentOptions, (s) => s.name, (s) => s.email);
 
   const changeGroup = (next: string) => {
-    setGroupId(next);
-    setStudentId('');
     // A course of another group would leave the report empty with no visible reason
     const course = unwrap(coursesData)?.courses.find((c) => c.id === courseId);
-    if (next && course && course.groupId !== next) setCourseId('');
+    const keepCourse = !next || !course || course.groupId === next;
+    setParams({ groupId: next, studentId: '', ...(!keepCourse && { courseId: '' }) });
   };
 
   const exportMutation = useMutation({
@@ -138,7 +139,7 @@ export default function ReportsPage() {
 
           <select
             value={courseId}
-            onChange={(e) => setCourseId(e.target.value)}
+            onChange={(e) => setParams({ courseId: e.target.value })}
             aria-label="סינון לפי קורס"
             className="rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
           >
@@ -148,7 +149,7 @@ export default function ReportsPage() {
 
           <select
             value={studentId}
-            onChange={(e) => setStudentId(e.target.value)}
+            onChange={(e) => setParams({ studentId: e.target.value })}
             aria-label="סינון לפי תלמידה"
             className="rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
           >
@@ -157,7 +158,7 @@ export default function ReportsPage() {
           </select>
 
           {(groupId || courseId || studentId) && (
-            <Button size="sm" variant="outline" onClick={() => { setGroupId(''); setCourseId(''); setStudentId(''); }}>
+            <Button size="sm" variant="outline" onClick={() => setParams({ groupId: '', courseId: '', studentId: '' })}>
               נקה פילטרים
             </Button>
           )}

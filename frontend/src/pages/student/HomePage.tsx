@@ -1,8 +1,8 @@
-import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Clock, TrendingUp, ArrowLeft } from 'lucide-react';
 import { SearchField } from '@/components/ui/search-field';
+import { useQueryParam } from '@/hooks/useQueryParam';
 import useAuthStore from '@/store/authStore';
 import { coursesApi } from '@/api/courses.api';
 import { lessonsApi } from '@/api/lessons.api';
@@ -37,7 +37,7 @@ export default function StudentHomePage() {
   const courses = coursesData?.data.data.courses ?? [];
   const mine = unwrap(mineData);
   const pending: PendingAssignment[] = mine?.pending ?? [];
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useQueryParam('q');
   const q = search.trim().toLowerCase();
   const filteredCourses = q ? courses.filter((c) => c.name?.toLowerCase().includes(q)) : courses;
 

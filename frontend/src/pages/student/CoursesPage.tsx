@@ -1,7 +1,7 @@
-import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { SearchField } from '@/components/ui/search-field';
+import { useQueryParam } from '@/hooks/useQueryParam';
 import { coursesApi } from '@/api/courses.api';
 import { Tape } from '@/components/decor';
 import { PageHeader } from '@/components/ui/page-header';
@@ -32,7 +32,7 @@ export default function StudentCoursesPage() {
   }
   const { data: coursesData, isLoading } = useQuery({ queryKey: ['courses'], queryFn: () => coursesApi.list() });
   const courses = coursesData?.data.data.courses ?? [];
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useQueryParam('q');
   const q = search.trim().toLowerCase();
   const filteredCourses = q ? courses.filter((c) => c.name?.toLowerCase().includes(q)) : courses;
 

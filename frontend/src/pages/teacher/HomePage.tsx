@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Pencil, Sparkles, Users } from 'lucide-react';
 import useAuthStore from '@/store/authStore';
-import useUiStore from '@/store/uiStore';
 import { groupsApi } from '@/api/groups.api';
 import { coursesApi } from '@/api/courses.api';
 import { gradesApi } from '@/api/grades.api';
@@ -13,6 +12,7 @@ import { formatUsd } from '@/lib/currency';
 import { Tape, StatusPill, type PillVariant } from '@/components/decor';
 import { cn, formatDate } from '@/lib/utils';
 import { submissionPath } from '@/components/lesson/LessonRoute';
+import { useQueryParam } from '@/hooks/useQueryParam';
 import { unwrap } from '@/lib/api-utils';
 import type { ReportRow } from '@/types';
 
@@ -41,7 +41,7 @@ function rowStatus(r: ReportRow): { variant: PillVariant; label: string } {
 
 export default function TeacherHomePage() {
   const user = useAuthStore((s) => s.user);
-  const search = useUiStore((s) => s.search);
+  const [search] = useQueryParam('q');
   const navigate = useNavigate();
   const [showAll, setShowAll] = useState(false);
 

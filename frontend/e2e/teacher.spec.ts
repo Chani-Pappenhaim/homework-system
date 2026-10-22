@@ -58,13 +58,25 @@ test('typing a search on another page keeps going past the first letter, and the
   await page.keyboard.press('Control+KeyK');
   // Key by key, as a person types: the first letter moves to the dashboard.
   await search.pressSequentially('דנה');
-  await expect(page).toHaveURL(/\/teacher$/);
+  await expect(page).toHaveURL(/\/teacher\?q=%D7%93%D7%A0%D7%94$/);
   await expect(search).toHaveValue('דנה');
   await expect(search).toBeFocused();
 
   await page.getByRole('button', { name: /דנה כהן/ }).click();
   await expect(page).toHaveURL(/\/teacher\/students\/s1$/);
   await expect(search).toHaveValue('');
+});
+
+test('the search terms stay in the address, so coming back shows the same results', async ({ page, api }) => {
+  api.on('GET', '/students', ok({ students: [{ id: 's1', name: 'דנה כהן', email: 'dana@example.com', groupNames: ['יב 1'] }] }));
+  await page.goto('/teacher');
+  await page.getByPlaceholder('חיפוש תלמידה או מטלה').fill('דנה');
+  await page.getByRole('button', { name: /דנה כהן/ }).click();
+  await expect(page).toHaveURL(/\/teacher\/students\/s1$/);
+
+  await page.goBack();
+  await expect(page.getByPlaceholder('חיפוש תלמידה או מטלה')).toHaveValue('דנה');
+  await expect(page.getByRole('button', { name: /דנה כהן/ })).toBeVisible();
 });
 
 test('the courses list shows each course and opens it', async ({ page }) => {

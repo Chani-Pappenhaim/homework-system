@@ -1,8 +1,8 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Github, Paperclip } from 'lucide-react';
 import { SearchField } from '@/components/ui/search-field';
+import { useQueryParam } from '@/hooks/useQueryParam';
 import { submissionsApi } from '@/api/submissions.api';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
@@ -50,8 +50,10 @@ export default function AssignmentsPage() {
     return params;
   }, { replace: !next });
   usePageTitle(viewing?.item.assignmentTitle, 'המטלות שלי');
-  const [searchMode, setSearchMode] = useState<'assignment' | 'course'>('assignment');
-  const [search, setSearch] = useState('');
+  const [searchModeParam, setSearchModeParam] = useQueryParam('by');
+  const searchMode: 'assignment' | 'course' = searchModeParam === 'course' ? 'course' : 'assignment';
+  const setSearchMode = (mode: 'assignment' | 'course') => setSearchModeParam(mode === 'course' ? mode : '');
+  const [search, setSearch] = useQueryParam('q');
 
   const sortedPending = [...pending].sort((a, b) => {
     if (!a.deadline) return 1;

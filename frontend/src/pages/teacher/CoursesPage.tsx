@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { BookOpen, Plus, Lock, EyeOff } from 'lucide-react';
 import { coursesApi } from '@/api/courses.api';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import type { CourseDTO } from '@/types';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { useQueryParam } from '@/hooks/useQueryParam';
 
 // Each card gets its own accent so the grid reads like colourful tabbed sheets.
 const ACCENTS = ['clay', 'indigo', 'sage', 'butter', 'coral'] as const;
@@ -24,23 +25,12 @@ const ICON_TINT: Record<(typeof ACCENTS)[number], string> = {
   coral: 'bg-coral/15 text-coral',
 };
 
-// The filter lives in the address, so coming back to the page keeps it.
-const VISIBLE_ONLY_PARAM = 'visibleOnly';
-
 export default function CoursesPage() {
   usePageTitle('קורסים');
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const visibleOnly = searchParams.get(VISIBLE_ONLY_PARAM) === '1';
-
-  function setVisibleOnly(on: boolean) {
-    setSearchParams((params) => {
-      if (on) params.set(VISIBLE_ONLY_PARAM, '1');
-      else params.delete(VISIBLE_ONLY_PARAM);
-      return params;
-    }, { replace: true });
-  }
+  const [visibleOnlyParam, setVisibleOnlyParam] = useQueryParam('visibleOnly');
+  const visibleOnly = visibleOnlyParam === '1';
 
   const { data, isLoading } = useQuery({
     queryKey: ['courses'],
@@ -77,7 +67,7 @@ export default function CoursesPage() {
               <input
                 type="checkbox"
                 checked={visibleOnly}
-                onChange={(e) => setVisibleOnly(e.target.checked)}
+                onChange={(e) => setVisibleOnlyParam(e.target.checked ? '1' : '')}
                 className="accent-ink"
               />
               רק קורסים שאינם מוסתרים

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Users, Plus, Eye, Edit, Trash2 } from 'lucide-react';
@@ -8,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SearchField } from '@/components/ui/search-field';
+import { useQueryParam } from '@/hooks/useQueryParam';
 import { CourseSkeleton } from '@/components/ui/skeleton';
 import { Tape } from '@/components/decor';
 import { cn, groupDisplayName } from '@/lib/utils';
@@ -28,7 +28,7 @@ const ICON_TINT: Record<(typeof ACCENTS)[number], string> = {
 export default function GroupsPage() {
   usePageTitle('קבוצות');
   const navigate = useNavigate();
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useQueryParam('q');
   const { confirmDialog, deleteGroup, deletingId } = useDeleteGroup();
 
   const { data, isLoading } = useQuery({

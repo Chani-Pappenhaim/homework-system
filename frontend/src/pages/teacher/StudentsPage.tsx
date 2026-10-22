@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Search, MessageSquare, AlertCircle, Clock } from 'lucide-react';
@@ -13,6 +13,7 @@ import { getApiErrorMessage } from '@/lib/errors';
 import { cn } from '@/lib/utils';
 import { scoreTone } from '@/lib/scores';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { useQueryParam } from '@/hooks/useQueryParam';
 
 const selectClass =
   'rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none';
@@ -69,9 +70,10 @@ function StudentCard({ s }: { s: StudentOverview }) {
 
 export default function StudentsPage() {
   usePageTitle('תלמידות');
-  const [query, setQuery] = useState('');
-  const [group, setGroup] = useState('');
-  const [onlyAttention, setOnlyAttention] = useState(false);
+  const [query, setQuery] = useQueryParam('q');
+  const [group, setGroup] = useQueryParam('group');
+  const [attention, setAttention] = useQueryParam('attention');
+  const onlyAttention = attention === '1';
 
   const { data, isLoading, error } = useQuery({ queryKey: ['students', 'overview'], queryFn: () => studentsApi.overview() });
   const students = unwrap(data)?.students ?? [];
@@ -109,7 +111,7 @@ export default function StudentsPage() {
             <option value="__none">ללא קבוצה</option>
           </select>
           <label className="flex items-center gap-2 text-sm text-ink/80">
-            <input type="checkbox" checked={onlyAttention} onChange={(e) => setOnlyAttention(e.target.checked)} className="accent-clay" />
+            <input type="checkbox" checked={onlyAttention} onChange={(e) => setAttention(e.target.checked ? '1' : '')} className="accent-clay" />
             דורשות תשומת לב
           </label>
         </div>

@@ -8,10 +8,10 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import useAuthStore from '@/store/authStore';
-import useUiStore from '@/store/uiStore';
 import { authApi } from '@/api/auth.api';
 import { messagesApi } from '@/api/messages.api';
 import { unwrap } from '@/lib/api-utils';
+import { useQueryParam } from '@/hooks/useQueryParam';
 import { Brand, DevSignature } from '@/components/decor';
 
 const nav = [
@@ -30,11 +30,16 @@ const SEARCH_SHORTCUT = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.te
 
 export default function TeacherLayout() {
   const { user, clearAuth } = useAuthStore();
-  const { search, setSearch } = useUiStore();
   const searchRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  // The results show on the dashboard, so the query is the dashboard's `?q=`:
+  // coming back to it shows the same results, and any other page shows an
+  // empty box rather than a query that no longer filters anything.
+  const onDashboard = pathname === '/teacher';
+  const [query, setQuery] = useQueryParam('q');
+  const search = onDashboard ? query : '';
 
   const { data: unreadData } = useQuery({
     queryKey: ['unread-messages'],
@@ -55,15 +60,9 @@ export default function TeacherLayout() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // The results show on the dashboard only; leaving it leaves the field empty
-  // rather than showing a query that no longer filters anything.
-  useEffect(() => {
-    if (pathname !== '/teacher') setSearch('');
-  }, [pathname, setSearch]);
-
   function onSearchChange(value: string) {
-    setSearch(value);
-    if (value && pathname !== '/teacher') navigate('/teacher');
+    if (onDashboard) setQuery(value);
+    else if (value) navigate(`/teacher?q=${encodeURIComponent(value)}`);
   }
 
   async function handleLogout() {
@@ -95,7 +94,7 @@ export default function TeacherLayout() {
               placeholder="חיפוש תלמידה או מטלה"
             />
             {search ? (
-              <button onClick={() => setSearch('')} className="text-xs text-ink-soft hover:text-coral">✕</button>
+              <button onClick={() => setQuery('')} className="text-xs text-ink-soft hover:text-coral">✕</button>
             ) : (
               <kbd
                 dir="ltr"
