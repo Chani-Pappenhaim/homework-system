@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('../../src/config/prisma', () => ({
-  prisma: {
-    $transaction: vi.fn((ops: unknown[]) => Promise.all(ops)),
+vi.mock('../../src/config/prisma', () => {
+  const prisma: Record<string, any> = {
+    // Both forms: a list of queries, or a callback handed the client itself.
+    $transaction: vi.fn((arg: any) => (typeof arg === 'function' ? arg(prisma) : Promise.all(arg))),
     lesson: { findMany: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
     course: { findUnique: vi.fn() },
     lessonAccess: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), delete: vi.fn() },
@@ -11,8 +12,10 @@ vi.mock('../../src/config/prisma', () => ({
     submission: { count: vi.fn().mockResolvedValue(0), findMany: vi.fn().mockResolvedValue([]) },
     lessonProgress: { findUnique: vi.fn(), upsert: vi.fn(), deleteMany: vi.fn() },
     lessonFileView: { findMany: vi.fn().mockResolvedValue([]), upsert: vi.fn() },
-  },
-}));
+    assignment: { create: vi.fn() },
+  };
+  return { prisma };
+});
 const { uploadMock, destroyMock, assertLessonAccessMock, assertCourseAccessMock } = vi.hoisted(() => ({
   uploadMock: vi.fn(),
   destroyMock: vi.fn(),
@@ -494,6 +497,7 @@ describe('lessons.service copyLesson', () => {
     assignments: [{
       id: 'a1', title: 'T', description: 'D', deadline: null, allowedTypes: ['zip'],
       allowGithub: true, allowFile: true, requirements: null, aiInstructions: 'ai', aiReviewEnabled: false,
+      aiReferenceFiles: [],
     }],
     quiz: { id: 'q1', questions: [{ q: 1 }], published: true },
   };
@@ -502,7 +506,9 @@ describe('lessons.service copyLesson', () => {
     p.lesson.findUnique.mockResolvedValue(source);
     p.course.findUnique.mockResolvedValue({ id: 'c1' });
     p.lesson.findFirst.mockResolvedValue({ order: 7 });
-    p.lesson.create.mockImplementation(async ({ data }: any) => ({ id: 'new', ...data }));
+    p.lesson.create.mockImplementation(async ({ data }: any) => ({
+      id: 'new', ...data, files: data.files.create.map((f: any, i: number) => ({ id: `copy-${i}`, ...f })),
+    }));
   });
 
   it('duplicates within the course as a hidden lesson at the end, marked as a copy', async () => {
@@ -523,9 +529,10 @@ describe('lessons.service copyLesson', () => {
   it('copies the assignments and the quiz, the quiz as an unpublished draft', async () => {
     await copyLesson('l1');
     const data = p.lesson.create.mock.calls[0][0].data;
-    expect(data.assignments.create[0]).toMatchObject({
-      title: 'T', description: 'D', allowedTypes: ['zip'], aiInstructions: 'ai', aiReviewEnabled: false,
+    expect(p.assignment.create.mock.calls[0][0].data).toMatchObject({
+      lessonId: 'new', title: 'T', description: 'D', allowedTypes: ['zip'], aiInstructions: 'ai', aiReviewEnabled: false,
     });
+    expect(p.assignment.create.mock.calls[0][0].data).not.toHaveProperty('aiReferenceFiles');
     expect(data.quiz).toEqual({ create: { questions: [{ q: 1 }], published: false } });
   });
 
@@ -541,10 +548,23 @@ describe('lessons.service copyLesson', () => {
       ],
     });
     const r = await copyLesson('l1');
-    const created = p.lesson.create.mock.calls[0][0].data.assignments.create;
+    const created = p.assignment.create.mock.calls.map((c: any) => c[0].data);
     expect(created.map((a: any) => a.deadline)).toEqual([null, ahead, null]);
     expect(r.clearedDeadlines).toBe(1);
     expect(r.lesson).toMatchObject({ id: 'new' });
+  });
+
+  it('points each copied assignment at the copies of the files its AI review relied on', async () => {
+    p.lesson.findUnique.mockResolvedValue({
+      ...source,
+      files: [
+        source.files[0],
+        { id: 'f2', name: 'b.pdf', url: 'https://cdn/b.pdf', sizeBytes: 5n, required: false, hidden: true },
+      ],
+      assignments: [{ ...source.assignments[0], aiReferenceFiles: [{ id: 'f2' }] }],
+    });
+    await copyLesson('l1');
+    expect(p.assignment.create.mock.calls[0][0].data.aiReferenceFiles).toEqual({ connect: [{ id: 'copy-1' }] });
   });
 
   it('keeps the topic when copying to another course', async () => {

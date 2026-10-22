@@ -8,7 +8,7 @@ import { PrintButton } from '@/components/ui/print-button';
 import { SubmissionsWorkstation } from '@/components/lesson/SubmissionsWorkstation';
 import { AssignmentSubmissionsImportDialog } from '@/components/lesson/AssignmentSubmissionsImportDialog';
 import { cn, formatDateFull } from '@/lib/utils';
-import type { AssignmentDTO } from '@/types';
+import type { AssignmentDTO, LessonFile } from '@/types';
 
 export const ASSIGNMENT_SECTIONS = ['details', 'ai', 'submissions'] as const;
 export type AssignmentSection = typeof ASSIGNMENT_SECTIONS[number];
@@ -27,9 +27,11 @@ const SECTION_LABELS: Record<AssignmentSection, { label: string; icon: typeof Fi
  * each sit in their own tab instead of stacking above the students.
  */
 export function AssignmentView({
-  assignment, section, onSectionChange, selectedSubmissionId, onSelectSubmission, onDirtyChange, onBack, onEdit, onDelete,
+  assignment, lessonFiles = [], section, onSectionChange, selectedSubmissionId, onSelectSubmission, onDirtyChange, onBack, onEdit, onDelete,
 }: {
   assignment: AssignmentDTO;
+  /** The lesson's files, to name the ones the AI review relies on. */
+  lessonFiles?: LessonFile[];
   section: AssignmentSection;
   onSectionChange: (section: AssignmentSection) => void;
   selectedSubmissionId: string | undefined;
@@ -104,7 +106,7 @@ export function AssignmentView({
         />
       </div>
       {section === 'details' && <div role="tabpanel"><AssignmentDetails assignment={assignment} /></div>}
-      {section === 'ai' && <div role="tabpanel"><AiInstructions assignment={assignment} onEdit={onEdit} /></div>}
+      {section === 'ai' && <div role="tabpanel"><AiInstructions assignment={assignment} lessonFiles={lessonFiles} onEdit={onEdit} /></div>}
       <AssignmentSubmissionsImportDialog assignmentId={assignment.id} open={importOpen} onOpenChange={setImportOpen} />
     </Card>
   );
@@ -176,7 +178,9 @@ function DetailSection({ title, summary, children }: { title: string; summary?: 
   );
 }
 
-function AiInstructions({ assignment, onEdit }: { assignment: AssignmentDTO; onEdit: () => void }) {
+function AiInstructions({ assignment, lessonFiles, onEdit }: {
+  assignment: AssignmentDTO; lessonFiles: LessonFile[]; onEdit: () => void;
+}) {
   if (assignment.aiReviewEnabled === false) {
     return (
       <div className="space-y-2 px-5 py-4 text-sm">
@@ -191,19 +195,43 @@ function AiInstructions({ assignment, onEdit }: { assignment: AssignmentDTO; onE
       </div>
     );
   }
+  const referenceFiles = <AiReferenceFilesSummary assignment={assignment} lessonFiles={lessonFiles} />;
   if (assignment.aiInstructions?.trim()) {
     return (
-      <div className="px-5 py-4 text-sm text-ink/85">
+      <div className="space-y-3 px-5 py-4 text-sm text-ink/85">
         <MarkdownRenderer content={assignment.aiInstructions} />
+        {referenceFiles}
       </div>
     );
   }
   return (
     <div className="space-y-2 px-5 py-4 text-sm">
       <p className="text-ink/60">לא הוגדרו הנחיות מיוחדות. ה-AI בודק את ההגשה לפי כותרת המטלה ותיאורה.</p>
+      {referenceFiles}
       <Button size="sm" variant="outline" onClick={onEdit}>
         <Edit size={12} /> הוספת הנחיות
       </Button>
+    </div>
+  );
+}
+
+/** Names the lesson files the teacher picked for the AI review to rely on. */
+function AiReferenceFilesSummary({ assignment, lessonFiles }: { assignment: AssignmentDTO; lessonFiles: LessonFile[] }) {
+  const picked = lessonFiles.filter((f) => assignment.aiReferenceFileIds?.includes(f.id));
+  if (picked.length === 0) {
+    if (lessonFiles.length === 0) return null;
+    return <p className="text-ink/60">ה-AI לא נשען על קבצי השיעור - אפשר לסמן קבצים בעריכת המטלה.</p>;
+  }
+  return (
+    <div className="space-y-1">
+      <p className="font-semibold text-ink">קבצי השיעור שה-AI נשען עליהם:</p>
+      <ul className="space-y-0.5">
+        {picked.map((f) => (
+          <li key={f.id} className="flex items-center gap-1.5 text-ink/80">
+            <FileText size={13} className="shrink-0 text-ink-soft" /> {f.name}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

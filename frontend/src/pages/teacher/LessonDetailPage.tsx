@@ -394,6 +394,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
       {viewingAssignment && assignment && (
         <AssignmentView
           assignment={assignment}
+          lessonFiles={lesson.files}
           section={assignmentSection}
           onSectionChange={setAssignmentSection}
           selectedSubmissionId={targetSubmissionId}
@@ -441,7 +442,7 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
 
       <LessonEditModal lesson={lesson} open={lessonEditOpen} onClose={() => setLessonEditOpen(false)} />
       <LessonCopyModal lesson={lesson} open={copyOpen} onClose={() => setCopyOpen(false)} />
-      <AssignmentModal lessonId={lesson.id} lessonDate={lesson.lessonDate} value={assignmentModal} onClose={() => setAssignmentModal(null)} />
+      <AssignmentModal lessonId={lesson.id} lessonDate={lesson.lessonDate} lessonFiles={lesson.files} value={assignmentModal} onClose={() => setAssignmentModal(null)} />
       <ConfirmDialog
         open={Boolean(pendingLeave)}
         onOpenChange={(open) => { if (!open) setPendingLeave(null); }}

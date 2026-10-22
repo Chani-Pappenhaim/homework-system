@@ -335,12 +335,20 @@ async function callGemini(
 const NO_LONG_DASHES = 'אל תשתמשי במקף ארוך (\u2014 או \u2013), רק במקף רגיל (-).';
 export const plainDashes = (text: string) => text.replace(/[\u2014\u2013]/g, '-');
 
+/** Lesson material the teacher picked for a review to rely on: text read from the files, and files Gemini reads itself. */
+export interface ReviewReferences {
+  text: string;
+  attachments: InlineAttachment[];
+}
+
 export async function reviewCode(
   code: string,
   assignmentTitle: string,
   aiInstructions?: string | null,
-  assignmentDescription?: string | null
+  assignmentDescription?: string | null,
+  references?: ReviewReferences
 ): Promise<AiReviewResult> {
+  const hasReferences = Boolean(references?.text.trim() || references?.attachments.length);
   const systemPrompt = `אתה מורה מקצועית שבודקת עבודות קוד של תלמידות.
 תתני:
 1. code_review: הערות ספציפיות על הקוד (כל הערה בשורה חדשה, התחילי כל הערה ב"•")
@@ -351,6 +359,7 @@ export async function reviewCode(
 ${NO_LONG_DASHES}
 
 ${aiInstructions ? `הנחיות ספציפיות למטלה זו:\n${aiInstructions}` : ''}
+${hasReferences ? 'המורה צירפה קבצים מהשיעור שעליהם הבדיקה צריכה להתבסס - בדקי את העבודה לאורם.' : ''}
 
 החזירי JSON בלבד בפורמט:
 {"code_review": "...", "verbal_review": "...", "score": 85}`;
@@ -358,9 +367,12 @@ ${aiInstructions ? `הנחיות ספציפיות למטלה זו:\n${aiInstruct
   // The description is what the student was asked to do, and holds the
   // teacher's grading criteria.
   const descriptionBlock = assignmentDescription?.trim() ? `\n\nתיאור המטלה:\n${assignmentDescription.trim()}` : '';
-  const userMessage = `מטלה: ${assignmentTitle}${descriptionBlock}\n\nקוד:\n\`\`\`\n${code}\n\`\`\``;
+  const referencesBlock = references?.text.trim()
+    ? `\n\n--- קבצי השיעור שהמורה בחרה לבדיקה ---\n${references.text.trim()}`
+    : '';
+  const userMessage = `מטלה: ${assignmentTitle}${descriptionBlock}${referencesBlock}\n\nקוד:\n\`\`\`\n${code}\n\`\`\``;
 
-  const parsed = await callGemini(systemPrompt, userMessage, 'homework_review');
+  const parsed = await callGemini(systemPrompt, userMessage, 'homework_review', references?.attachments ?? []);
   return {
     codeReview: plainDashes(String(parsed.code_review || '')),
     verbalReview: plainDashes(String(parsed.verbal_review || '')),

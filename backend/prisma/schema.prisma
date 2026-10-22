@@ -181,7 +181,9 @@ model LessonFile {
   // Hidden from students; the teacher still sees it.
   hidden     Boolean  @default(false)
 
-  views LessonFileView[]
+  views          LessonFileView[]
+  // Assignments whose AI review reads this file.
+  aiReferenceFor Assignment[]     @relation("AssignmentAiReferenceFiles")
 }
 
 // A student's self-marked "seen/read" of a required file (presence of row = viewed)
@@ -214,6 +216,8 @@ model Assignment {
 
   submissions        Submission[]
   aiReviewCarryovers AiReviewCarryover[]
+  // The lesson files the AI review relies on, as the teacher picked them; none means none are read.
+  aiReferenceFiles   LessonFile[]        @relation("AssignmentAiReferenceFiles")
 }
 
 model Submission {

@@ -5,6 +5,7 @@ import { confirmUpload, discardPendingUpload } from './pending-uploads.service';
 import { releaseFileUrls, submissionFileUrls } from './file-refs.service';
 import { assertLessonAccess, assertCourseAccess } from './access.service';
 import { countPastDeadlines, upcomingDeadline } from '../utils/deadlines';
+import { AI_REFERENCE_FILES_INCLUDE, assignmentForViewer } from '../utils/assignment-view';
 
 // Older lessons only have the legacy single `githubUrl` column populated;
 // `githubUrls` is the source of truth, so fall back to wrapping the legacy
@@ -83,7 +84,7 @@ export async function getLessonById(id: string, userId: string, role: string) {
     where: { id },
     include: {
       files: { where: role === 'ADMIN' ? {} : { hidden: false } },
-      assignments: true,
+      assignments: { include: AI_REFERENCE_FILES_INCLUDE },
       quiz: { select: { published: true } },
     },
   });
@@ -94,10 +95,7 @@ export async function getLessonById(id: string, userId: string, role: string) {
   const progress = await prisma.lessonProgress.findUnique({
     where: { studentId_lessonId: { studentId: userId, lessonId: id } },
   });
-  // aiInstructions is the teacher's private prompt to the AI — never ship it to a student.
-  const assignments = role === 'ADMIN'
-    ? lesson.assignments
-    : lesson.assignments.map(({ aiInstructions, ...rest }) => rest);
+  const assignments = lesson.assignments.map((a) => assignmentForViewer(a, role));
 
   // A student must not learn that an unpublished quiz draft exists, so for
   // them `quiz` collapses to "is there a quiz I can take?".
@@ -194,10 +192,15 @@ export async function setLessonFileHidden(lessonId: string, fileId: string, hidd
  * utils/file-refs). The copy starts hidden so students don't see a lesson the
  * teacher hasn't finished adapting, and its quiz starts as an unpublished draft.
  */
+/** Matches a copied file to its source: the copy keeps the same name and stored asset. */
+function fileCopyKey(file: { name: string; url: string }) {
+  return `${file.name}\u0000${file.url}`;
+}
+
 export async function copyLesson(lessonId: string, targetCourseId?: string) {
   const source = await prisma.lesson.findUnique({
     where: { id: lessonId },
-    include: { files: true, assignments: true, quiz: true },
+    include: { files: true, assignments: { include: AI_REFERENCE_FILES_INCLUDE }, quiz: true },
   });
   if (!source) throw new AppError('Lesson not found', 'השיעור לא נמצא', 404);
 
@@ -209,31 +212,48 @@ export async function copyLesson(lessonId: string, targetCourseId?: string) {
   const sameCourse = courseId === source.courseId;
   const clearedDeadlines = countPastDeadlines(source.assignments);
 
-  const lesson = await prisma.lesson.create({
-    data: {
-      courseId,
-      topic: sameCourse ? `${source.topic} (עותק)` : source.topic,
-      lessonDate: source.lessonDate,
-      contentMd: source.contentMd,
-      githubUrl: source.githubUrl,
-      githubUrls: source.githubUrls,
-      hidden: true,
-      order: (last?.order ?? -1) + 1,
-      files: {
-        create: source.files.map((f) => ({
-          name: f.name, url: f.url, sizeBytes: f.sizeBytes, required: f.required, hidden: f.hidden,
-        })),
+  // The assignments are created once the copied files exist, so the files each
+  // one's AI review relies on point at the copy's files, not the source's.
+  const lesson = await prisma.$transaction(async (tx) => {
+    const created = await tx.lesson.create({
+      data: {
+        courseId,
+        topic: sameCourse ? `${source.topic} (עותק)` : source.topic,
+        lessonDate: source.lessonDate,
+        contentMd: source.contentMd,
+        githubUrl: source.githubUrl,
+        githubUrls: source.githubUrls,
+        hidden: true,
+        order: (last?.order ?? -1) + 1,
+        files: {
+          create: source.files.map((f) => ({
+            name: f.name, url: f.url, sizeBytes: f.sizeBytes, required: f.required, hidden: f.hidden,
+          })),
+        },
+        ...(source.quiz ? { quiz: { create: { questions: source.quiz.questions ?? [], published: false } } } : {}),
       },
-      assignments: {
-        create: source.assignments.map((a) => ({
+      include: { files: true },
+    });
+
+    const copiedFileId = new Map(created.files.map((f) => [fileCopyKey(f), f.id]));
+    const sourceFileKey = new Map(source.files.map((f) => [f.id, fileCopyKey(f)]));
+    for (const a of source.assignments) {
+      const referenceIds = a.aiReferenceFiles
+        .map((f) => copiedFileId.get(sourceFileKey.get(f.id) ?? ''))
+        .filter((id): id is string => Boolean(id));
+      await tx.assignment.create({
+        data: {
+          lessonId: created.id,
           title: a.title, description: a.description, deadline: upcomingDeadline(a.deadline),
           allowedTypes: a.allowedTypes, allowGithub: a.allowGithub, allowFile: a.allowFile,
           requirements: a.requirements ?? undefined, aiInstructions: a.aiInstructions,
           aiReviewEnabled: a.aiReviewEnabled,
-        })),
-      },
-      ...(source.quiz ? { quiz: { create: { questions: source.quiz.questions ?? [], published: false } } } : {}),
-    },
+          ...(referenceIds.length ? { aiReferenceFiles: { connect: referenceIds.map((id) => ({ id })) } } : {}),
+        },
+      });
+    }
+    const { files: _files, ...lessonRow } = created;
+    return lessonRow;
   });
   return { lesson, clearedDeadlines };
 }

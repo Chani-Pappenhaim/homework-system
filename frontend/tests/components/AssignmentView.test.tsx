@@ -71,3 +71,40 @@ describe('AssignmentView - importing its submissions from a sheet', () => {
     expect(importSubs).toHaveBeenCalledWith('a1', file);
   });
 });
+
+describe('AssignmentView - the AI tab names the lesson files the review relies on', () => {
+  const files = [
+    { id: 'f1', lessonId: 'l1', name: 'מצגת.pdf', url: 'u1', uploadedAt: '2026-01-01' },
+    { id: 'f2', lessonId: 'l1', name: 'דוגמה.js', url: 'u2', uploadedAt: '2026-01-02' },
+  ] as never[];
+
+  function renderAiTab(extra: object) {
+    return renderWithProviders(
+      <ToastProvider>
+        <AssignmentView
+          assignment={{ ...assignment, ...extra }}
+          lessonFiles={files}
+          section="ai"
+          onSectionChange={() => {}}
+          selectedSubmissionId={undefined}
+          onSelectSubmission={() => {}}
+          onBack={() => {}}
+          onEdit={() => {}}
+          onDelete={() => {}}
+        />
+      </ToastProvider>,
+    );
+  }
+
+  it('lists only the picked files, next to the instructions', () => {
+    renderAiTab({ aiInstructions: 'בדקי async', aiReferenceFileIds: ['f2'] });
+    expect(screen.getByText('קבצי השיעור שה-AI נשען עליהם:')).toBeInTheDocument();
+    expect(screen.getByText('דוגמה.js')).toBeInTheDocument();
+    expect(screen.queryByText('מצגת.pdf')).not.toBeInTheDocument();
+  });
+
+  it('says no lesson file is read when none is picked', () => {
+    renderAiTab({});
+    expect(screen.getByText(/ה-AI לא נשען על קבצי השיעור/)).toBeInTheDocument();
+  });
+});

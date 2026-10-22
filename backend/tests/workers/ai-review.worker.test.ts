@@ -32,6 +32,7 @@ vi.mock('../../src/utils/code-extraction', () => ({
   fetchGithubCode: vi.fn(),
   extractZipCode: vi.fn(),
   extractDocxText: vi.fn(),
+  extractLessonFiles: vi.fn(),
 }));
 
 import { prisma } from '../../src/config/prisma';
@@ -61,7 +62,7 @@ describe('ai-review worker', () => {
   it('reviews a GitHub submission and lands on aiStatus "done"', async () => {
     p.submission.findUnique.mockResolvedValue({
       id: 's1', githubUrl: 'https://github.com/u/r', fileName: null, fileUrl: null,
-      assignment: { title: 'Task', aiInstructions: 'be strict' }, student: {},
+      assignment: { aiReferenceFiles: [], title: 'Task', aiInstructions: 'be strict' }, student: {},
     });
     (codeExtraction.fetchGithubCode as any).mockResolvedValue('const x = 1;');
     (gemini.reviewCode as any).mockResolvedValue({ score: 88, codeReview: 'cr', verbalReview: 'vr' });
@@ -78,7 +79,7 @@ describe('ai-review worker', () => {
   it('routes a .zip file through the zip extractor', async () => {
     p.submission.findUnique.mockResolvedValue({
       id: 's2', githubUrl: null, fileName: 'work.zip', fileUrl: 'https://c/work.zip',
-      assignment: { title: 'T' }, student: {},
+      assignment: { aiReferenceFiles: [], title: 'T' }, student: {},
     });
     (codeExtraction.extractZipCode as any).mockReturnValue('zipped code');
     (gemini.reviewCode as any).mockResolvedValue({ score: 70, codeReview: 'c', verbalReview: 'v' });
@@ -99,7 +100,7 @@ describe('ai-review worker', () => {
   it('fails an unsupported submission at once, without retries, with a message the student can act on', async () => {
     p.submission.findUnique.mockResolvedValue({
       id: 's3', githubUrl: null, fileName: 'notes.txt', fileUrl: 'https://c/notes.txt',
-      assignment: { title: 'T' }, student: {},
+      assignment: { aiReferenceFiles: [], title: 'T' }, student: {},
     });
 
     // Not the final attempt — but retrying can't help, so it is marked failed now.
@@ -110,7 +111,7 @@ describe('ai-review worker', () => {
   it('tells the student when the GitHub repo is missing or private', async () => {
     p.submission.findUnique.mockResolvedValue({
       id: 's6', githubUrl: 'https://github.com/u/nope', fileName: null, fileUrl: null,
-      assignment: { title: 'T' }, student: {},
+      assignment: { aiReferenceFiles: [], title: 'T' }, student: {},
     });
     (codeExtraction.fetchGithubCode as any).mockRejectedValue(Object.assign(new Error('GitHub API error: 404'), { status: 404 }));
 
@@ -121,7 +122,7 @@ describe('ai-review worker', () => {
   it('ends a queued review with a message once the teacher turns AI review off for the assignment', async () => {
     p.submission.findUnique.mockResolvedValue({
       id: 's9', githubUrl: 'https://github.com/u/r', fileName: null, fileUrl: null,
-      assignment: { title: 'T', aiReviewEnabled: false }, student: {},
+      assignment: { aiReferenceFiles: [], title: 'T', aiReviewEnabled: false }, student: {},
     });
 
     await expect(run('s9', { attemptsMade: 0, attempts: 3 })).rejects.toThrow(/disabled/);
@@ -133,7 +134,7 @@ describe('ai-review worker', () => {
   it('does not send an empty submission to the AI', async () => {
     p.submission.findUnique.mockResolvedValue({
       id: 's7', githubUrl: 'https://github.com/u/r', fileName: null, fileUrl: null,
-      assignment: { title: 'T' }, student: {},
+      assignment: { aiReferenceFiles: [], title: 'T' }, student: {},
     });
     (codeExtraction.fetchGithubCode as any).mockResolvedValue('  ');
 
@@ -145,7 +146,7 @@ describe('ai-review worker', () => {
   it('leaves the status alone on a non-final attempt of a transient failure so a retry can still succeed', async () => {
     p.submission.findUnique.mockResolvedValue({
       id: 's4', githubUrl: 'https://github.com/u/r', fileName: null, fileUrl: null,
-      assignment: { title: 'T' }, student: {},
+      assignment: { aiReferenceFiles: [], title: 'T' }, student: {},
     });
     (codeExtraction.fetchGithubCode as any).mockResolvedValue('code');
     (gemini.reviewCode as any).mockRejectedValue(new Error('Gemini API error: 503'));
@@ -163,7 +164,7 @@ describe('ai-review worker', () => {
   it('tells the student at once when the AI spent its daily quota', async () => {
     p.submission.findUnique.mockResolvedValue({
       id: 's8', githubUrl: 'https://github.com/u/r', fileName: null, fileUrl: null,
-      assignment: { title: 'T' }, student: {},
+      assignment: { aiReferenceFiles: [], title: 'T' }, student: {},
     });
     (codeExtraction.fetchGithubCode as any).mockResolvedValue('code');
     (gemini.reviewCode as any).mockRejectedValue(
@@ -179,7 +180,7 @@ describe('ai-review worker', () => {
 describe('ai-review worker - attempts and the assignment description', () => {
   const githubSubmission = {
     id: 's5', githubUrl: 'https://github.com/u/r', fileName: null, fileUrl: null,
-    assignment: { title: 'Task', aiInstructions: 'strict', description: 'Build a todo list' }, student: {},
+    assignment: { aiReferenceFiles: [], title: 'Task', aiInstructions: 'strict', description: 'Build a todo list' }, student: {},
   };
 
   beforeEach(() => {
@@ -203,6 +204,55 @@ describe('ai-review worker - attempts and the assignment description', () => {
 
   it('gives the AI the assignment description', async () => {
     await run('s5');
-    expect(gemini.reviewCode).toHaveBeenCalledWith('code', 'Task', 'strict', 'Build a todo list');
+    expect(gemini.reviewCode).toHaveBeenCalledWith('code', 'Task', 'strict', 'Build a todo list', undefined);
+  });
+});
+
+describe('ai-review worker - the lesson files the teacher picked', () => {
+  const file = { name: 'rubric.pdf', url: 'https://c/rubric.pdf', sizeBytes: 10n };
+  const withReferences = {
+    id: 's6', githubUrl: 'https://github.com/u/r', fileName: null, fileUrl: null,
+    assignment: { aiReferenceFiles: [file], title: 'Task', aiInstructions: null, description: 'D' }, student: {},
+  };
+  const pdf = { name: 'rubric.pdf', mimeType: 'application/pdf', data: 'AAA' };
+
+  beforeEach(() => {
+    p.submission.findUnique.mockResolvedValue(withReferences);
+    (codeExtraction.fetchGithubCode as any).mockResolvedValue('code');
+    (codeExtraction.extractLessonFiles as any).mockResolvedValue({ text: 'notes', inline: [pdf], used: ['rubric.pdf'], skipped: [] });
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  it('reads only the picked files and hands them to the AI with the submission', async () => {
+    (gemini.reviewCode as any).mockResolvedValue({ score: 90, codeReview: 'c', verbalReview: 'v' });
+    await run('s6');
+    expect(codeExtraction.extractLessonFiles).toHaveBeenCalledWith([file]);
+    expect(gemini.reviewCode).toHaveBeenCalledWith('code', 'Task', null, 'D', { text: 'notes', attachments: [pdf] });
+    expect(p.submission.update.mock.calls.at(-1)[0].data.aiStatus).toBe('done');
+  });
+
+  it('reads no lesson file when none was picked', async () => {
+    p.submission.findUnique.mockResolvedValue({ ...withReferences, assignment: { ...withReferences.assignment, aiReferenceFiles: [] } });
+    (gemini.reviewCode as any).mockResolvedValue({ score: 90, codeReview: 'c', verbalReview: 'v' });
+    await run('s6');
+    expect(codeExtraction.extractLessonFiles).not.toHaveBeenCalled();
+  });
+
+  it('reviews once more without the attached files when Gemini refuses them', async () => {
+    (gemini.reviewCode as any)
+      .mockRejectedValueOnce(new (gemini as any).GeminiError('bad pdf', 'invalid', false, 400))
+      .mockResolvedValueOnce({ score: 80, codeReview: 'c', verbalReview: 'v' });
+    await run('s6');
+    expect(gemini.reviewCode).toHaveBeenLastCalledWith('code', 'Task', null, 'D', { text: 'notes', attachments: [] });
+    expect(p.submission.update.mock.calls.at(-1)[0].data).toMatchObject({ aiStatus: 'done', aiScore: 80 });
+  });
+
+  it('does not retry a 400 when no file was attached - it is a real failure', async () => {
+    (codeExtraction.extractLessonFiles as any).mockResolvedValue({ text: 'notes', inline: [], used: ['a.docx'], skipped: [] });
+    (gemini.reviewCode as any).mockRejectedValue(new (gemini as any).GeminiError('bad', 'invalid', false, 400));
+    await expect(run('s6')).rejects.toThrow();
+    expect(gemini.reviewCode).toHaveBeenCalledTimes(1);
+    expect(p.submission.update.mock.calls.at(-1)[0].data.aiStatus).toBe('error');
   });
 });

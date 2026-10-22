@@ -5,13 +5,15 @@ import { cellText } from '../utils/excel';
 import { submissionFileLink } from '../utils/storage';
 import { releaseFileUrls, submissionFileUrls } from './file-refs.service';
 import { computeSubmissionScore } from '../utils/grading';
+import { AI_REFERENCE_FILES_INCLUDE, assignmentForViewer } from '../utils/assignment-view';
 import ExcelJS from 'exceljs';
 
 export async function getAssignments(lessonId: string, userId: string, role: string) {
   await assertLessonAccess(userId, role, lessonId);
-  const assignments = await prisma.assignment.findMany({ where: { lessonId }, orderBy: { createdAt: 'asc' } });
-  // aiInstructions is the teacher's private prompt to the AI — never ship it to a student.
-  return role === 'ADMIN' ? assignments : assignments.map(({ aiInstructions, ...rest }) => rest);
+  const assignments = await prisma.assignment.findMany({
+    where: { lessonId }, orderBy: { createdAt: 'asc' }, include: AI_REFERENCE_FILES_INCLUDE,
+  });
+  return assignments.map((a) => assignmentForViewer(a, role));
 }
 
 /**
@@ -66,6 +68,25 @@ function editableFields(data: Record<string, unknown>) {
 }
 
 /**
+ * The lesson files the AI review should rely on, as a relation write: each must
+ * belong to the assignment's own lesson. `undefined` leaves the choice as it is.
+ */
+async function aiReferenceFilesField(lessonId: string, ids: unknown, mode: 'connect' | 'set') {
+  if (ids === undefined) return {};
+  if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string')) {
+    throw new AppError('aiReferenceFileIds must be a list of file ids', 'רשימת הקבצים לבדיקת ה-AI אינה תקינה', 400);
+  }
+  const unique = [...new Set(ids as string[])];
+  const found = unique.length
+    ? await prisma.lessonFile.count({ where: { id: { in: unique }, lessonId } })
+    : 0;
+  if (found !== unique.length) {
+    throw new AppError('AI reference file is not in the assignment lesson', 'אחד הקבצים שנבחרו לבדיקת ה-AI אינו שייך לשיעור', 400);
+  }
+  return { aiReferenceFiles: { [mode]: unique.map((id) => ({ id })) } };
+}
+
+/**
  * After the deadline moves, each submission's lateness follows the new date.
  * An automatic submission score is recalculated with it; a score the teacher
  * set herself is left alone.
@@ -94,17 +115,22 @@ export async function createAssignment(lessonId: string, data: {
   requirements?: { id: string; text: string }[];
   aiInstructions?: string | null;
   aiReviewEnabled?: boolean;
+  aiReferenceFileIds?: string[];
 }) {
   const title = requireText(data.title, 'title');
   const description = requireText(data.description, 'description');
   const deadline = data.deadline ? parseDeadline(data.deadline) : undefined;
   if (deadline) rejectPastDeadline(deadline);
-  return prisma.assignment.create({
+  const aiReferenceFiles = await aiReferenceFilesField(lessonId, data.aiReferenceFileIds, 'connect');
+  const assignment = await prisma.assignment.create({
     data: {
       lessonId, ...editableFields(data), title, description,
       ...(deadline ? { deadline } : {}),
+      ...aiReferenceFiles,
     },
+    include: AI_REFERENCE_FILES_INCLUDE,
   });
+  return assignmentForViewer(assignment, 'ADMIN');
 }
 
 export async function updateAssignment(id: string, data: Partial<{
@@ -113,23 +139,29 @@ export async function updateAssignment(id: string, data: Partial<{
   requirements: { id: string; text: string }[];
   aiInstructions: string | null;
   aiReviewEnabled: boolean;
+  aiReferenceFileIds: string[];
 }>) {
   const fields: Record<string, unknown> = { ...editableFields(data), ...deadlineField(data.deadline) };
   if (data.title !== undefined) fields.title = requireText(data.title, 'title');
   if (data.description !== undefined) fields.description = requireText(data.description, 'description');
 
-  const before = 'deadline' in fields
-    ? await prisma.assignment.findUnique({ where: { id }, select: { deadline: true } })
+  const changesFiles = data.aiReferenceFileIds !== undefined;
+  const before = 'deadline' in fields || changesFiles
+    ? await prisma.assignment.findUnique({ where: { id }, select: { deadline: true, lessonId: true } })
     : null;
+  if (changesFiles) {
+    if (!before) throw new AppError('Assignment not found', 'המטלה לא נמצאה', 404);
+    Object.assign(fields, await aiReferenceFilesField(before.lessonId, data.aiReferenceFileIds, 'set'));
+  }
   // Only a deadline that is being changed has to be in the future: editing
   // other details of an assignment whose deadline already passed stays allowed.
   const nextDeadline = fields.deadline as Date | null | undefined;
   if (nextDeadline && nextDeadline.getTime() !== before?.deadline?.getTime()) rejectPastDeadline(nextDeadline);
-  const assignment = await prisma.assignment.update({ where: { id }, data: fields });
-  if (before && before.deadline?.getTime() !== assignment.deadline?.getTime()) {
+  const assignment = await prisma.assignment.update({ where: { id }, data: fields, include: AI_REFERENCE_FILES_INCLUDE });
+  if ('deadline' in fields && before && before.deadline?.getTime() !== assignment.deadline?.getTime()) {
     await recomputeLateness(id, assignment.deadline);
   }
-  return assignment;
+  return assignmentForViewer(assignment, 'ADMIN');
 }
 
 // Submissions go with the assignment by cascade; their stored files are

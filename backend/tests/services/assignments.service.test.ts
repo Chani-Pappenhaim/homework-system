@@ -5,6 +5,7 @@ vi.mock('../../src/config/prisma', () => ({
     assignment: { findMany: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(), findUnique: vi.fn() },
     submission: { findMany: vi.fn(), update: vi.fn() },
     grade: { update: vi.fn() },
+    lessonFile: { count: vi.fn() },
   },
 }));
 
@@ -42,8 +43,15 @@ describe('assignments.service.getAssignments / deleteAssignment', () => {
   it('getAssignments queries by lessonId ordered by createdAt', async () => {
     p.assignment.findMany.mockResolvedValue([{ id: 'a1' }]);
     const r = await getAssignments('l1', 's1', 'STUDENT');
-    expect(p.assignment.findMany).toHaveBeenCalledWith({ where: { lessonId: 'l1' }, orderBy: { createdAt: 'asc' } });
+    expect(p.assignment.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { lessonId: 'l1' }, orderBy: { createdAt: 'asc' } }));
     expect(r).toEqual([{ id: 'a1' }]);
+  });
+  it('getAssignments hides the AI prompt and the files the AI relies on from a student, and shows them to the teacher', async () => {
+    const row = { id: 'a1', aiInstructions: 'strict', aiReferenceFiles: [{ id: 'f1' }] };
+    p.assignment.findMany.mockResolvedValue([row]);
+    expect(await getAssignments('l1', 's1', 'STUDENT')).toEqual([{ id: 'a1' }]);
+    p.assignment.findMany.mockResolvedValue([row]);
+    expect(await getAssignments('l1', 't1', 'ADMIN')).toEqual([{ id: 'a1', aiInstructions: 'strict', aiReferenceFileIds: ['f1'] }]);
   });
   it('deleteAssignment deletes by id, then releases the files submitted to it', async () => {
     submittedUrlsMock.mockResolvedValue(['https://cdn/sub.pdf']);
@@ -247,5 +255,60 @@ describe('assignments.service hardening', () => {
     expect(p.submission.update).toHaveBeenCalledWith({ where: { id: 's1' }, data: { isLate: false } });
     expect(p.grade.update).toHaveBeenCalledTimes(1);
     expect(p.grade.update).toHaveBeenCalledWith({ where: { submissionId: 's1' }, data: { submissionScore: 100 } });
+  });
+});
+
+describe('assignments.service - the lesson files the AI review relies on', () => {
+  const base = { title: 'T', description: 'D' };
+
+  it('links the picked files on create when they all belong to the lesson', async () => {
+    p.lessonFile.count.mockResolvedValue(2);
+    p.assignment.create.mockResolvedValue({ id: 'a1', aiInstructions: null, aiReferenceFiles: [{ id: 'f1' }, { id: 'f2' }] });
+    const r = await createAssignment('l1', { ...base, aiReferenceFileIds: ['f1', 'f2', 'f1'] });
+    expect(p.lessonFile.count).toHaveBeenCalledWith({ where: { id: { in: ['f1', 'f2'] }, lessonId: 'l1' } });
+    expect(p.assignment.create.mock.calls[0][0].data.aiReferenceFiles).toEqual({ connect: [{ id: 'f1' }, { id: 'f2' }] });
+    expect(r).toMatchObject({ aiReferenceFileIds: ['f1', 'f2'] });
+  });
+
+  it('refuses a file from another lesson', async () => {
+    p.lessonFile.count.mockResolvedValue(1);
+    await expect(createAssignment('l1', { ...base, aiReferenceFileIds: ['f1', 'other'] }))
+      .rejects.toMatchObject({ status: 400 });
+    expect(p.assignment.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses a list that is not of ids', async () => {
+    await expect(createAssignment('l1', { ...base, aiReferenceFileIds: 'f1' as any }))
+      .rejects.toMatchObject({ status: 400 });
+  });
+
+  it('replaces the choice on update, checked against the lesson the assignment belongs to', async () => {
+    p.assignment.findUnique.mockResolvedValue({ deadline: null, lessonId: 'l9' });
+    p.lessonFile.count.mockResolvedValue(1);
+    p.assignment.update.mockResolvedValue({ id: 'a1', deadline: null, aiReferenceFiles: [{ id: 'f3' }] });
+    const r = await updateAssignment('a1', { aiReferenceFileIds: ['f3'] });
+    expect(p.lessonFile.count).toHaveBeenCalledWith({ where: { id: { in: ['f3'] }, lessonId: 'l9' } });
+    expect(p.assignment.update.mock.calls[0][0].data.aiReferenceFiles).toEqual({ set: [{ id: 'f3' }] });
+    expect(r).toMatchObject({ aiReferenceFileIds: ['f3'] });
+  });
+
+  it('clears the choice with an empty list', async () => {
+    p.assignment.findUnique.mockResolvedValue({ deadline: null, lessonId: 'l9' });
+    p.assignment.update.mockResolvedValue({ id: 'a1', deadline: null, aiReferenceFiles: [] });
+    await updateAssignment('a1', { aiReferenceFileIds: [] });
+    expect(p.lessonFile.count).not.toHaveBeenCalled();
+    expect(p.assignment.update.mock.calls[0][0].data.aiReferenceFiles).toEqual({ set: [] });
+  });
+
+  it('leaves the choice alone when the request does not mention it', async () => {
+    p.assignment.update.mockResolvedValue({ id: 'a1', aiReferenceFiles: [] });
+    await updateAssignment('a1', { title: 'New' });
+    expect(p.assignment.findUnique).not.toHaveBeenCalled();
+    expect(p.assignment.update.mock.calls[0][0].data).not.toHaveProperty('aiReferenceFiles');
+  });
+
+  it('answers 404 when the assignment is gone', async () => {
+    p.assignment.findUnique.mockResolvedValue(null);
+    await expect(updateAssignment('nope', { aiReferenceFileIds: [] })).rejects.toMatchObject({ status: 404 });
   });
 });

@@ -1,8 +1,8 @@
 import { Worker, UnrecoverableError } from 'bullmq';
 import type IORedis from 'ioredis';
 import { prisma } from '../config/prisma';
-import { reviewCode, GeminiError } from '../services/gemini.service';
-import { fetchGithubCode, extractZipCode, extractDocxText } from '../utils/code-extraction';
+import { reviewCode, GeminiError, type ReviewReferences } from '../services/gemini.service';
+import { fetchGithubCode, extractZipCode, extractDocxText, extractLessonFiles } from '../utils/code-extraction';
 import { toDeliveryUrl } from '../utils/storage';
 import type { AiReviewJobData } from '../infrastructure/queues/job-types';
 import { attachLifecycleLogging } from './worker-events';
@@ -13,6 +13,22 @@ async function downloadFile(fileUrl: string): Promise<Buffer> {
   const res = await fetch(fileUrl);
   if (!res.ok) throw new Error(`Failed to download submission file: ${res.status}`);
   return Buffer.from(await res.arrayBuffer());
+}
+
+/** The lesson files the teacher picked for this assignment's review, read for Gemini; none picked, none read. */
+async function readReferences(
+  submissionId: string,
+  files: { name: string; url: string; sizeBytes: bigint | null }[]
+): Promise<ReviewReferences | undefined> {
+  if (files.length === 0) return undefined;
+  const extracted = await extractLessonFiles(files);
+  console.log(
+    `[ai-review] submission ${submissionId}: read ${extracted.used.length}/${files.length} reference files` +
+      (extracted.skipped.length
+        ? `, skipped ${extracted.skipped.map((s) => `${s.name} (${s.reason})`).join(', ')}`
+        : '')
+  );
+  return { text: extracted.text, attachments: extracted.inline };
 }
 
 export function registerAiReviewWorker(connection: IORedis): Worker<AiReviewJobData> {
@@ -27,7 +43,10 @@ export function registerAiReviewWorker(connection: IORedis): Worker<AiReviewJobD
       try {
         const submission = await prisma.submission.findUnique({
           where: { id: submissionId },
-          include: { assignment: true, student: true },
+          include: {
+            assignment: { include: { aiReferenceFiles: { orderBy: { uploadedAt: 'asc' } } } },
+            student: true,
+          },
         });
         if (!submission) throw new Error('Submission not found');
         // The teacher may turn AI review off while a review is still queued.
@@ -70,12 +89,23 @@ export function registerAiReviewWorker(connection: IORedis): Worker<AiReviewJobD
           );
         }
 
-        const result = await reviewCode(
-          code,
-          submission.assignment.title,
-          submission.assignment.aiInstructions,
-          submission.assignment.description
-        );
+        const { assignment } = submission;
+        const references = await readReferences(submissionId, assignment.aiReferenceFiles);
+        const review = (refs?: ReviewReferences) =>
+          reviewCode(code, assignment.title, assignment.aiInstructions, assignment.description, refs);
+        let result;
+        try {
+          result = await review(references);
+        } catch (err) {
+          // Google refuses the whole request over one damaged PDF or image (a 400).
+          // The submission is still worth reviewing: once more, without the files
+          // Gemini was reading itself.
+          if (!references?.attachments.length || !(err instanceof GeminiError) || err.status !== 400) throw err;
+          console.warn(
+            `[ai-review] submission ${submissionId}: Gemini refused the reference files (${err.message}) - retrying without them`
+          );
+          result = await review({ text: references.text, attachments: [] });
+        }
 
         await prisma.submission.update({
           where: { id: submissionId },

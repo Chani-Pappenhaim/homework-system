@@ -14,10 +14,17 @@ import { ToastProvider } from '@/components/ui/toast';
 const create = assignmentsApi.create as unknown as ReturnType<typeof vi.fn>;
 const update = assignmentsApi.update as unknown as ReturnType<typeof vi.fn>;
 
-function renderModal(value: Parameters<typeof AssignmentModal>[0]['value'], lessonDate = '2099-09-01T00:00:00.000Z') {
+const lessonFiles = [
+  { id: 'f1', lessonId: 'l1', name: 'מצגת.pdf', url: 'u1', uploadedAt: '2026-01-01' },
+  { id: 'f2', lessonId: 'l1', name: 'דוגמה.js', url: 'u2', uploadedAt: '2026-01-02', hidden: true },
+] as never[];
+
+function renderModal(
+  value: Parameters<typeof AssignmentModal>[0]['value'], lessonDate = '2099-09-01T00:00:00.000Z', files = lessonFiles,
+) {
   return renderWithProviders(
     <ToastProvider>
-      <AssignmentModal lessonId="l1" lessonDate={lessonDate} value={value} onClose={() => {}} />
+      <AssignmentModal lessonId="l1" lessonDate={lessonDate} lessonFiles={files} value={value} onClose={() => {}} />
     </ToastProvider>
   );
 }
@@ -97,5 +104,46 @@ describe('AssignmentModal', () => {
   it('shows an assignment saved with AI review off as off', () => {
     renderModal({ id: 'a1', title: 'T', description: 'D', deadline: null, aiReviewEnabled: false } as never);
     expect(screen.getByRole('checkbox', { name: /לאפשר בדיקת AI/ })).not.toBeChecked();
+  });
+});
+
+describe('AssignmentModal - the lesson files the AI review relies on', () => {
+  it('reads no lesson file until the teacher ticks one', async () => {
+    renderModal({ id: 'a1', title: 'T', description: 'D', deadline: null } as never);
+    expect(screen.getByRole('checkbox', { name: /מצגת.pdf/ })).not.toBeChecked();
+    expect(screen.getByText('(מוסתר מהתלמידות)')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'שמרי שינויים' }));
+    await waitFor(() => expect(update).toHaveBeenCalledWith('a1', expect.objectContaining({ aiReferenceFileIds: [] })));
+  });
+
+  it('sends the files the teacher ticked', async () => {
+    renderModal({ id: 'a1', title: 'T', description: 'D', deadline: null } as never);
+    await userEvent.click(screen.getByRole('checkbox', { name: /דוגמה.js/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'שמרי שינויים' }));
+    await waitFor(() => expect(update).toHaveBeenCalledWith('a1', expect.objectContaining({ aiReferenceFileIds: ['f2'] })));
+  });
+
+  it('shows the saved choice, and unticking a file drops it', async () => {
+    renderModal({ id: 'a1', title: 'T', description: 'D', deadline: null, aiReferenceFileIds: ['f1', 'f2'] } as never);
+    expect(screen.getByRole('checkbox', { name: /מצגת.pdf/ })).toBeChecked();
+    await userEvent.click(screen.getByRole('checkbox', { name: /מצגת.pdf/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'שמרי שינויים' }));
+    await waitFor(() => expect(update).toHaveBeenCalledWith('a1', expect.objectContaining({ aiReferenceFileIds: ['f2'] })));
+  });
+
+  it('does not send a file deleted from the lesson since it was picked', async () => {
+    renderModal({ id: 'a1', title: 'T', description: 'D', deadline: null, aiReferenceFileIds: ['gone', 'f1'] } as never);
+    await userEvent.click(screen.getByRole('button', { name: 'שמרי שינויים' }));
+    await waitFor(() => expect(update).toHaveBeenCalledWith('a1', expect.objectContaining({ aiReferenceFileIds: ['f1'] })));
+  });
+
+  it('hides the picker when AI review is off', async () => {
+    renderModal({ id: 'a1', title: 'T', description: 'D', deadline: null, aiReviewEnabled: false } as never);
+    expect(screen.queryByText('קבצי השיעור לבדיקת ה-AI (אופציונלי)')).not.toBeInTheDocument();
+  });
+
+  it('has nothing to pick in a lesson without files', () => {
+    renderModal('new', undefined, []);
+    expect(screen.queryByText('קבצי השיעור לבדיקת ה-AI (אופציונלי)')).not.toBeInTheDocument();
   });
 });

@@ -190,10 +190,10 @@ export interface LessonFilesExtraction {
 }
 
 /**
- * Content of the lesson files for quiz generation, in the order given: text
- * for documents and slides, the file itself for PDFs and images. A file that
- * cannot be used is skipped and reported rather than failing the generation —
- * the lesson text alone is still worth a quiz.
+ * Content of lesson files for Gemini (a quiz, or an assignment's AI review), in
+ * the order given: text for documents and slides, the file itself for PDFs and
+ * images. A file that cannot be used is skipped and reported rather than
+ * failing the whole request - the rest is still worth reading.
  */
 export async function extractLessonFiles(
   files: { name: string; url: string; sizeBytes?: bigint | number | null }[]

@@ -8,7 +8,8 @@ import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '@/
 import { useToast } from '@/components/ui/toast';
 import { MarkdownField } from '@/components/ui/markdown-field';
 import { SubmissionTypePicker, type SubmissionTypes } from './SubmissionTypePicker';
-import type { AssignmentDTO } from '@/types';
+import { AiReferenceFilesPicker } from './AiReferenceFilesPicker';
+import type { AssignmentDTO, LessonFile } from '@/types';
 
 /** A date as a local `datetime-local` value. */
 function formatLocal(d: Date): string {
@@ -36,9 +37,11 @@ function toLocalInput(iso: string): string {
   return formatLocal(d);
 }
 
-export function AssignmentModal({ lessonId, lessonDate, value, onClose }: {
+export function AssignmentModal({ lessonId, lessonDate, lessonFiles = [], value, onClose }: {
   lessonId: string;
   lessonDate?: string | null;
+  /** The lesson's files, for picking the ones the AI review relies on. */
+  lessonFiles?: LessonFile[];
   value: AssignmentDTO | 'new' | null;
   onClose: () => void;
 }) {
@@ -49,18 +52,21 @@ export function AssignmentModal({ lessonId, lessonDate, value, onClose }: {
   const [deadline, setDeadline] = useState('');
   const [aiInstructions, setAiInstructions] = useState('');
   const [aiReviewEnabled, setAiReviewEnabled] = useState(true);
+  const [aiReferenceFileIds, setAiReferenceFileIds] = useState<string[]>([]);
   const [types, setTypes] = useState<SubmissionTypes>({ allowGithub: true, allowFile: true, allowedTypes: [] });
 
   useEffect(() => {
     if (value === 'new') {
       setTitle(''); setDescription(''); setDeadline(defaultDeadline(lessonDate)); setAiInstructions('');
       setAiReviewEnabled(true);
+      setAiReferenceFileIds([]);
       setTypes({ allowGithub: true, allowFile: true, allowedTypes: [] });
     } else if (value) {
       setTitle(value.title); setDescription(value.description ?? '');
       setDeadline(value.deadline ? toLocalInput(value.deadline) : '');
       setAiInstructions(value.aiInstructions ?? '');
       setAiReviewEnabled(value.aiReviewEnabled ?? true);
+      setAiReferenceFileIds(value.aiReferenceFileIds ?? []);
       setTypes({ allowGithub: value.allowGithub ?? true, allowFile: value.allowFile ?? true, allowedTypes: value.allowedTypes ?? [] });
     }
   }, [value, lessonDate]);
@@ -80,6 +86,8 @@ export function AssignmentModal({ lessonId, lessonDate, value, onClose }: {
         deadline: deadline ? new Date(deadline).toISOString() : null,
         aiInstructions: aiInstructions.trim() ? aiInstructions : null,
         aiReviewEnabled,
+        // Only files still in the lesson: one deleted since is no longer a choice.
+        aiReferenceFileIds: aiReferenceFileIds.filter((id) => lessonFiles.some((f) => f.id === id)),
         ...types,
       };
       if (value === 'new') return assignmentsApi.create(lessonId, data);
@@ -170,6 +178,9 @@ export function AssignmentModal({ lessonId, lessonDate, value, onClose }: {
               />
               <p className="text-xs text-ink-soft">הנחיות אלו יישלחו ל-AI בעת בדיקת עבודות התלמידות</p>
             </div>
+          )}
+          {aiReviewEnabled && (
+            <AiReferenceFilesPicker files={lessonFiles} value={aiReferenceFileIds} onChange={setAiReferenceFileIds} />
           )}
           <Button
             className="w-full"
