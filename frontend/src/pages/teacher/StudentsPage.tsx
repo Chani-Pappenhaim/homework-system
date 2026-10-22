@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Search, MessageSquare, AlertCircle, Clock } from 'lucide-react';
+import { Search, MessageSquare, AlertCircle, Clock, Trash2 } from 'lucide-react';
 import { studentsApi, type StudentOverview } from '@/api/students.api';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { scoreTone } from '@/lib/scores';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useQueryParam } from '@/hooks/useQueryParam';
+import { useDeleteStudent } from '@/hooks/useDeleteStudent';
 
 const selectClass =
   'rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none';
@@ -27,13 +29,25 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: str
   );
 }
 
-function StudentCard({ s }: { s: StudentOverview }) {
+/** A name compared the way a teacher reads it: case, extra spaces and surrounding blanks don't make it different. */
+const nameKey = (name: string) => name.trim().replace(/\s+/g, ' ').toLowerCase();
+
+/** The students who share their name with another one, each name's students side by side. */
+function sameNameStudents(students: StudentOverview[]): StudentOverview[] {
+  const counts = new Map<string, number>();
+  for (const s of students) counts.set(nameKey(s.name), (counts.get(nameKey(s.name)) ?? 0) + 1);
+  return students
+    .filter((s) => counts.get(nameKey(s.name))! > 1)
+    .sort((a, b) => nameKey(a.name).localeCompare(nameKey(b.name), 'he'));
+}
+
+function StudentCard({ s, onDelete, deleting }: { s: StudentOverview; onDelete: () => void; deleting: boolean }) {
   const { total, submitted, late, missing } = s.assignments;
   const submittedPct = total ? Math.round((submitted * 100) / total) : null;
   return (
-    <Link to={`/teacher/students/${s.id}`} className="group block focus:outline-none">
-      <Card className="h-full p-4 transition-shadow group-hover:shadow-lift group-focus-visible:ring-2 group-focus-visible:ring-clay">
-        <div className="flex items-start justify-between gap-2">
+    <Card className="h-full transition-shadow hover:shadow-lift">
+      <Link to={`/teacher/students/${s.id}`} className="block h-full rounded-card p-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-clay">
+        <div className="flex items-start justify-between gap-2 pl-8">
           <div className="min-w-0">
             <p className="truncate font-display text-base font-bold text-ink">{s.name}</p>
             <p className="truncate text-xs text-ink/50" dir="ltr">{s.email}</p>
@@ -63,8 +77,19 @@ function StudentCard({ s }: { s: StudentOverview }) {
             {late > 0 && <Badge variant="warning"><Clock size={11} /> {late} באיחור</Badge>}
           </div>
         )}
-      </Card>
-    </Link>
+      </Link>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onDelete}
+        loading={deleting}
+        aria-label={`מחיקת החשבון של ${s.name}`}
+        title="מחיקת חשבון"
+        className="absolute left-2 top-2 size-8 hover:text-coral"
+      >
+        <Trash2 size={14} />
+      </Button>
+    </Card>
   );
 }
 
@@ -74,6 +99,9 @@ export default function StudentsPage() {
   const [group, setGroup] = useQueryParam('group');
   const [attention, setAttention] = useQueryParam('attention');
   const onlyAttention = attention === '1';
+  const [duplicates, setDuplicates] = useQueryParam('duplicates');
+  const onlyDuplicates = duplicates === '1';
+  const { confirmDialog, deleteStudent, deletingId } = useDeleteStudent();
 
   const { data, isLoading, error } = useQuery({ queryKey: ['students', 'overview'], queryFn: () => studentsApi.overview() });
   const students = unwrap(data)?.students ?? [];
@@ -84,7 +112,8 @@ export default function StudentsPage() {
   );
 
   const q = query.trim().toLowerCase();
-  const shown = students.filter((s) =>
+  const candidates = onlyDuplicates ? sameNameStudents(students) : students;
+  const shown = candidates.filter((s) =>
     (!q || s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q))
     && (!group || (group === '__none' ? s.groupNames.length === 0 : s.groupNames.includes(group)))
     && (!onlyAttention || s.assignments.missing > 0 || s.unreadMessages > 0));
@@ -114,6 +143,10 @@ export default function StudentsPage() {
             <input type="checkbox" checked={onlyAttention} onChange={(e) => setAttention(e.target.checked ? '1' : '')} className="accent-clay" />
             דורשות תשומת לב
           </label>
+          <label className="flex items-center gap-2 text-sm text-ink/80">
+            <input type="checkbox" checked={onlyDuplicates} onChange={(e) => setDuplicates(e.target.checked ? '1' : '')} className="accent-clay" />
+            רק תלמידות כפולות (לפי שם)
+          </label>
         </div>
       </Card>
 
@@ -124,12 +157,20 @@ export default function StudentsPage() {
       ) : error ? (
         <EmptyState>{getApiErrorMessage(error)}</EmptyState>
       ) : shown.length === 0 ? (
-        <EmptyState>{students.length === 0 ? 'עדיין אין תלמידות במערכת' : 'אין תלמידות שמתאימות לחיפוש'}</EmptyState>
+        <EmptyState>
+          {students.length === 0 ? 'עדיין אין תלמידות במערכת'
+            : onlyDuplicates && candidates.length === 0 ? 'אין תלמידות עם אותו שם'
+              : 'אין תלמידות שמתאימות לחיפוש'}
+        </EmptyState>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {shown.map((s) => <StudentCard key={s.id} s={s} />)}
+          {shown.map((s) => (
+            <StudentCard key={s.id} s={s} onDelete={() => deleteStudent(s)} deleting={deletingId === s.id} />
+          ))}
         </div>
       )}
+
+      {confirmDialog}
     </div>
   );
 }

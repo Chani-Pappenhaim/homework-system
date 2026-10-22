@@ -74,6 +74,42 @@ describe('StudentsPage', () => {
     expect(screen.queryByText('לאה')).not.toBeInTheDocument();
   });
 
+  it('shows only the students who share a name, side by side, and keeps that in the address', async () => {
+    overview.mockResolvedValue({ data: { data: { students: [
+      student({ id: 's1', name: 'רחל כהן', email: 'a@x.com' }),
+      student({ id: 's2', name: 'לאה', email: 'leah@x.com' }),
+      student({ id: 's3', name: ' רחל  כהן ', email: 'b@x.com' }),
+    ] } } });
+    renderWithProviders(<StudentsPage />, { initialEntries: ['/teacher/students?duplicates=1'] });
+    expect(await screen.findByText('a@x.com')).toBeInTheDocument();
+    expect(screen.getByText('b@x.com')).toBeInTheDocument();
+    expect(screen.queryByText('לאה')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('רק תלמידות כפולות (לפי שם)')).toBeChecked();
+  });
+
+  it('says so when no two students share a name', async () => {
+    renderWithProviders(<StudentsPage />);
+    await screen.findByText('רחל');
+    await userEvent.click(screen.getByLabelText('רק תלמידות כפולות (לפי שם)'));
+    expect(screen.getByText('אין תלמידות עם אותו שם')).toBeInTheDocument();
+  });
+
+  it('deletes a student from the list only after confirmation', async () => {
+    deleteStudent.mockResolvedValue({ data: {} });
+    renderWithProviders(<StudentsPage />);
+    await screen.findByText('רחל');
+
+    await userEvent.click(screen.getByRole('button', { name: 'מחיקת החשבון של לאה' }));
+    expect(screen.getByText(/למחוק לצמיתות את החשבון של לאה/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'ביטול' }));
+    expect(deleteStudent).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'מחיקת החשבון של לאה' }));
+    await userEvent.click(screen.getByRole('button', { name: 'מחיקה לצמיתות' }));
+    await waitFor(() => expect(deleteStudent).toHaveBeenCalledWith('s2'));
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
   it('says the list failed to load instead of claiming there are no students', async () => {
     overview.mockRejectedValue({ response: { data: { error: 'אין חיבור לשרת' } } });
     renderWithProviders(<StudentsPage />);

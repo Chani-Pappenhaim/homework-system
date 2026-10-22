@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BarChart2, ClipboardCheck, Github, Mail, MailWarning, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import { studentsApi, type StudentProfile } from '@/api/students.api';
 import { Card, CardHeader } from '@/components/ui/card';
@@ -9,14 +9,13 @@ import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { useToast } from '@/components/ui/toast';
 import { StudentEditDialog } from '@/components/teacher/StudentEditDialog';
 import { STATUS_META, formatDay } from '@/lib/attendance';
 import { cn, formatDate, formatDateTime } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import { getApiErrorMessage } from '@/lib/errors';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { useDeleteStudent } from '@/hooks/useDeleteStudent';
 import { submissionPath } from '@/components/lesson/LessonRoute';
 import { scoreTone } from '@/lib/scores';
 
@@ -246,21 +245,8 @@ export default function StudentDetailPage() {
   usePageTitle(profile?.student.name, 'תלמידות');
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const toast = useToast();
   const [editing, setEditing] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-
-  const deleteMutation = useMutation({
-    mutationFn: () => studentsApi.delete(id!),
-    onSuccess: () => {
-      // Her rows are gone everywhere — groups, grading queues, reports. Her own
-      // profile is left alone, so this page doesn't refetch it into a 404 on the way out.
-      qc.invalidateQueries({ predicate: (q) => !(q.queryKey[1] === 'profile' && q.queryKey[2] === id) });
-      toast.success('חשבון התלמידה נמחק');
-      navigate('/teacher/students');
-    },
-    onError: (e) => { setConfirmDelete(false); toast.error(getApiErrorMessage(e, 'שגיאה במחיקת התלמידה')); },
-  });
+  const { confirmDialog, deleteStudent, deletingId } = useDeleteStudent({ onDeleted: () => navigate('/teacher/students') });
 
   if (isLoading) {
     return (
@@ -300,7 +286,7 @@ export default function StudentDetailPage() {
               <Link to={`/teacher/reports?studentId=${student.id}`}><BarChart2 size={13} /> בדוח הציונים</Link>
             </Button>
             <Button variant="outline" size="sm" onClick={() => setEditing(true)}><Pencil size={13} /> עריכת פרטים</Button>
-            <Button variant="outline" size="sm" onClick={() => setConfirmDelete(true)} className="text-coral">
+            <Button variant="outline" size="sm" onClick={() => deleteStudent(student)} loading={deletingId === student.id} className="text-coral">
               <Trash2 size={13} /> מחיקת חשבון
             </Button>
           </>
@@ -365,15 +351,7 @@ export default function StudentDetailPage() {
         }}
       />
 
-      <ConfirmDialog
-        open={confirmDelete}
-        onOpenChange={setConfirmDelete}
-        title="מחיקת חשבון תלמידה"
-        description={`למחוק לצמיתות את החשבון של ${student.name}? יימחקו גם כל ההגשות, הציונים, הנוכחות וההודעות שלה, והיא תוסר מכל הקבוצות. אי אפשר לבטל את הפעולה.`}
-        confirmLabel="מחיקה לצמיתות"
-        loading={deleteMutation.isPending}
-        onConfirm={() => deleteMutation.mutate()}
-      />
+      {confirmDialog}
     </div>
   );
 }

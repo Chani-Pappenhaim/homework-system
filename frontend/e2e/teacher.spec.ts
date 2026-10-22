@@ -86,3 +86,28 @@ test('the courses list shows each course and opens it', async ({ page }) => {
   await page.getByRole('button', { name: /פתח קורס/ }).click();
   await expect(page).toHaveURL(/\/teacher\/courses\//);
 });
+
+test('the students page finds students entered twice and deletes one from the list', async ({ page, api }) => {
+  const overviewRow = (id: string, name: string, email: string) => ({
+    id, name, email, githubUsername: null, groupNames: ['יב 1'],
+    assignments: { total: 0, submitted: 0, late: 0, missing: 0 },
+    averageContentScore: null, attendance: { present: 0, absent: 0, partial: 0, rate: null }, unreadMessages: 0,
+  });
+  api.on('GET', '/students/overview', ok({ students: [
+    overviewRow('s1', 'דנה כהן', 'dana@example.com'),
+    overviewRow('s2', 'מירי לוי', 'miri@example.com'),
+    overviewRow('s3', 'דנה כהן', 'dana2@example.com'),
+  ] }));
+  api.on('DELETE', '/students/s3', ok({}));
+  await page.goto('/teacher/students');
+
+  await page.getByLabel('רק תלמידות כפולות (לפי שם)').check();
+  await expect(page).toHaveURL(/duplicates=1/);
+  await expect(page.getByText('מירי לוי')).toHaveCount(0);
+  await expect(page.getByText('dana2@example.com')).toBeVisible();
+
+  await page.getByRole('button', { name: 'מחיקת החשבון של דנה כהן' }).last().click();
+  await page.getByRole('button', { name: 'מחיקה לצמיתות' }).click();
+  await expect(page.getByText('חשבון התלמידה נמחק')).toBeVisible();
+  expect(api.calls).toContain('DELETE /students/s3');
+});
