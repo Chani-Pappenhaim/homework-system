@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import PageOutlet from '@/components/Layout/PageOutlet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard, BookOpen, Users, GraduationCap, BarChart2, Sparkles, MessageSquare,
@@ -33,6 +34,7 @@ export default function TeacherLayout() {
   const searchRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   const { data: unreadData } = useQuery({
     queryKey: ['unread-messages'],
@@ -53,9 +55,15 @@ export default function TeacherLayout() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // The results show on the dashboard only; leaving it leaves the field empty
+  // rather than showing a query that no longer filters anything.
+  useEffect(() => {
+    if (pathname !== '/teacher') setSearch('');
+  }, [pathname, setSearch]);
+
   function onSearchChange(value: string) {
     setSearch(value);
-    if (value && window.location.pathname !== '/teacher') navigate('/teacher');
+    if (value && pathname !== '/teacher') navigate('/teacher');
   }
 
   async function handleLogout() {
@@ -155,7 +163,7 @@ export default function TeacherLayout() {
         <main className="min-w-0 flex-1 px-4 py-8 md:px-10">
           {/* Every page shares this exact width, so the canvas lines up consistently across the app. */}
           <div className="mx-auto max-w-6xl">
-            <Outlet />
+            <PageOutlet />
           </div>
         </main>
       </div>

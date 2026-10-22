@@ -44,7 +44,7 @@ function AppRoutes() {
   const location = useLocation();
   useBackNavigationTracker();
   return (
-    <ErrorBoundary key={location.pathname}>
+    <ErrorBoundary resetKey={location.pathname}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />

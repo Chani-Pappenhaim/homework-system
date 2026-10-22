@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
+import PageOutlet from '@/components/Layout/PageOutlet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Home, BookOpen, ClipboardList, MessageSquare, LogOut, UserRound, MailWarning, X, CalendarCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -110,7 +111,7 @@ export default function StudentLayout() {
                 </button>
               </div>
             )}
-            <Outlet />
+            <PageOutlet />
           </div>
         </main>
       </div>

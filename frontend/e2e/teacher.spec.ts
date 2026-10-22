@@ -50,6 +50,23 @@ test('searching finds a student and opens her page', async ({ page, api }) => {
   await expect(page).toHaveURL(/\/teacher\/students\/s1$/);
 });
 
+test('typing a search on another page keeps going past the first letter, and the box empties on leaving the results', async ({ page, api }) => {
+  api.on('GET', '/students', ok({ students: [{ id: 's1', name: 'דנה כהן', email: 'dana@example.com', groupNames: ['יב 1'] }] }));
+  await page.goto('/teacher/courses');
+  await expect(page.getByText('React מתקדם')).toBeVisible();
+  const search = page.getByPlaceholder('חיפוש תלמידה או מטלה');
+  await page.keyboard.press('Control+KeyK');
+  // Key by key, as a person types: the first letter moves to the dashboard.
+  await search.pressSequentially('דנה');
+  await expect(page).toHaveURL(/\/teacher$/);
+  await expect(search).toHaveValue('דנה');
+  await expect(search).toBeFocused();
+
+  await page.getByRole('button', { name: /דנה כהן/ }).click();
+  await expect(page).toHaveURL(/\/teacher\/students\/s1$/);
+  await expect(search).toHaveValue('');
+});
+
 test('the courses list shows each course and opens it', async ({ page }) => {
   await page.goto('/teacher/courses');
   await expect(page.getByText('React מתקדם')).toBeVisible();

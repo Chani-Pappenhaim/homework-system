@@ -2,6 +2,8 @@ import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
+  /** When it changes (e.g. the route), a caught error is cleared and the children render again. */
+  resetKey?: string;
 }
 
 interface State {
@@ -9,13 +11,18 @@ interface State {
 }
 
 // Catches uncaught render errors so they show a recoverable error screen
-// instead of unmounting the whole React tree into a blank page. Meant to be
-// remounted per route (key={pathname}) so leaving the broken page recovers.
+// instead of unmounting the whole React tree into a blank page. Leaving the
+// broken page recovers: either through `resetKey`, or by remounting it per
+// route (see PageOutlet).
 export default class ErrorBoundary extends Component<Props, State> {
   state: State = { error: null };
 
   static getDerivedStateFromError(error: Error): State {
     return { error };
+  }
+
+  componentDidUpdate(prev: Props) {
+    if (this.state.error && prev.resetKey !== this.props.resetKey) this.setState({ error: null });
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
