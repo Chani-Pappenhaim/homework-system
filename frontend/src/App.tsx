@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { CourseByName, LessonById, LessonByNumber } from '@/components/lesson/LessonRoute';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useBackNavigationTracker } from '@/lib/backNavigation';
+import { useScrollToTopOnNavigate } from '@/lib/scrollOnNavigate';
 import AuthGuard from '@/components/guards/AuthGuard';
 import AdminGuard from '@/components/guards/AdminGuard';
 import ChangePasswordGuard from '@/components/guards/ChangePasswordGuard';
@@ -43,6 +44,7 @@ import ProfilePage from '@/pages/student/ProfilePage';
 function AppRoutes() {
   const location = useLocation();
   useBackNavigationTracker();
+  useScrollToTopOnNavigate();
   return (
     <ErrorBoundary resetKey={location.pathname}>
       <Routes>
