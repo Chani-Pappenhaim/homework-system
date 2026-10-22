@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { BookOpen, Plus, Lock, EyeOff } from 'lucide-react';
 import { coursesApi } from '@/api/courses.api';
 import { Card, CardContent } from '@/components/ui/card';
@@ -24,10 +24,23 @@ const ICON_TINT: Record<(typeof ACCENTS)[number], string> = {
   coral: 'bg-coral/15 text-coral',
 };
 
+// The filter lives in the address, so coming back to the page keeps it.
+const VISIBLE_ONLY_PARAM = 'visibleOnly';
+
 export default function CoursesPage() {
   usePageTitle('קורסים');
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const visibleOnly = searchParams.get(VISIBLE_ONLY_PARAM) === '1';
+
+  function setVisibleOnly(on: boolean) {
+    setSearchParams((params) => {
+      if (on) params.set(VISIBLE_ONLY_PARAM, '1');
+      else params.delete(VISIBLE_ONLY_PARAM);
+      return params;
+    }, { replace: true });
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ['courses'],
@@ -40,7 +53,8 @@ export default function CoursesPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['courses'] }),
   });
 
-  const courses: CourseDTO[] = unwrap(data)?.courses ?? [];
+  const allCourses: CourseDTO[] = unwrap(data)?.courses ?? [];
+  const courses = visibleOnly ? allCourses.filter((c) => !c.hidden) : allCourses;
 
   if (isLoading)
     return (
@@ -58,14 +72,27 @@ export default function CoursesPage() {
         title="קורסים"
         meta="ניהול · קורסים"
         actions={
-          <Button variant="clay" onClick={() => navigate('/teacher/courses/new')}>
-            <Plus size={15} /> קורס חדש
-          </Button>
+          <>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-ink">
+              <input
+                type="checkbox"
+                checked={visibleOnly}
+                onChange={(e) => setVisibleOnly(e.target.checked)}
+                className="accent-ink"
+              />
+              רק קורסים שאינם מוסתרים
+            </label>
+            <Button variant="clay" onClick={() => navigate('/teacher/courses/new')}>
+              <Plus size={15} /> קורס חדש
+            </Button>
+          </>
         }
       />
 
       {courses.length === 0 ? (
-        <EmptyState icon={<BookOpen size={22} />}>אין קורסים עדיין</EmptyState>
+        <EmptyState icon={<BookOpen size={22} />}>
+          {allCourses.length === 0 ? 'אין קורסים עדיין' : 'כל הקורסים מוסתרים'}
+        </EmptyState>
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {courses.map((c, i) => {
