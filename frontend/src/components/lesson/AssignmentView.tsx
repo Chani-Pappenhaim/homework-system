@@ -1,5 +1,5 @@
 import { useId, useRef, useState, type ReactNode } from 'react';
-import { Bot, ChevronDown, ChevronRight, ClipboardCheck, Edit, FileSpreadsheet, FileText, Link2, Trash2 } from 'lucide-react';
+import { Bot, ChevronDown, ChevronRight, ClipboardCheck, Edit, FileSpreadsheet, FileText, Link2, Trash2, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast';
@@ -7,6 +7,7 @@ import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { PrintButton } from '@/components/ui/print-button';
 import { SubmissionsWorkstation } from '@/components/lesson/SubmissionsWorkstation';
 import { AssignmentSubmissionsImportDialog } from '@/components/lesson/AssignmentSubmissionsImportDialog';
+import { SubmitForStudentDialog } from '@/components/lesson/SubmitForStudentDialog';
 import { cn, formatDateFull } from '@/lib/utils';
 import type { AssignmentDTO, LessonFile } from '@/types';
 
@@ -43,6 +44,7 @@ export function AssignmentView({
   onDelete: () => void;
 }) {
   const [importOpen, setImportOpen] = useState(false);
+  const [submitForOpen, setSubmitForOpen] = useState(false);
   return (
     <Card>
       <div className="space-y-3 border-b border-rule/20 px-5 pt-4">
@@ -60,8 +62,11 @@ export function AssignmentView({
               <p className="text-xs text-ink/55">מועד אחרון: {formatDateFull(assignment.deadline)}</p>
             )}
           </div>
-          <div className="flex shrink-0 gap-1">
+          <div className="flex flex-wrap gap-1">
             <CopyStudentLink assignmentId={assignment.id} />
+            <Button size="sm" variant="outline" onClick={() => setSubmitForOpen(true)} title="הגשה של תלמידה אחת שמסרה את העבודה בדרך אחרת">
+              <UserPlus size={12} /> הגשה במקום תלמידה
+            </Button>
             <Button size="sm" variant="outline" onClick={() => setImportOpen(true)} title="הגשות שהתלמידות שלחו בדרך אחרת, למשל לשיעור שנוסף לאתר מאוחר">
               <FileSpreadsheet size={12} /> ייבוא הגשות מקובץ
             </Button>
@@ -108,6 +113,12 @@ export function AssignmentView({
       {section === 'details' && <div role="tabpanel"><AssignmentDetails assignment={assignment} /></div>}
       {section === 'ai' && <div role="tabpanel"><AiInstructions assignment={assignment} lessonFiles={lessonFiles} onEdit={onEdit} /></div>}
       <AssignmentSubmissionsImportDialog assignmentId={assignment.id} open={importOpen} onOpenChange={setImportOpen} />
+      <SubmitForStudentDialog
+        assignmentId={assignment.id}
+        open={submitForOpen}
+        onOpenChange={setSubmitForOpen}
+        onSubmitted={(id) => { onSectionChange('submissions'); onSelectSubmission(id); }}
+      />
     </Card>
   );
 }

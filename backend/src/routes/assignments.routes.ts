@@ -4,7 +4,7 @@ import { requireRole } from '../middleware/role';
 import * as assignmentsController from '../controllers/assignments.controller';
 import * as submissionsController from '../controllers/submissions.controller';
 import { requireFile } from '../middleware/requireFile';
-import { uploadImport as upload } from '../middleware/upload';
+import { uploadImport as upload, uploadAttachment } from '../middleware/upload';
 
 const router = Router();
 router.use(verifyAccessTokenMiddleware);
@@ -19,5 +19,8 @@ router.get('/:id/submissions', requireRole('ADMIN'), assignmentsController.getSu
 // One assignment's submissions from a sheet listing the course's students.
 router.get('/:id/submissions/import-template', requireRole('ADMIN'), submissionsController.downloadAssignmentImportTemplate);
 router.post('/:id/submissions/import', requireRole('ADMIN'), upload.single('file'), requireFile, submissionsController.importAssignmentSubmissions);
+// The teacher submits for one student: her course's students, then the submission itself.
+router.get('/:id/students', requireRole('ADMIN'), submissionsController.assignmentStudents);
+router.post('/:id/submissions/for-student', requireRole('ADMIN'), uploadAttachment.single('file'), submissionsController.submitForStudent);
 
 export default router;

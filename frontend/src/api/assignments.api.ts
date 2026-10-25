@@ -17,6 +17,19 @@ export const assignmentsApi = {
   getSubmissions: (id: string) =>
     api.get<{ success: true; data: { submissions: SubmissionDTO[] } }>(`/assignments/${id}/submissions`),
 
+  /** The course's students, each with whether she already submitted - for the teacher to submit for one. */
+  students: (id: string) =>
+    api.get<{ success: true; data: { students: { id: string; name: string; email: string; submitted: boolean }[] } }>(`/assignments/${id}/students`),
+
+  submitForStudent: (id: string, data: { studentId: string; isLate: boolean; repo?: string; file?: File }) => {
+    const form = new FormData();
+    form.append('studentId', data.studentId);
+    form.append('isLate', String(data.isLate));
+    if (data.repo) form.append('repo', data.repo);
+    if (data.file) form.append('file', data.file);
+    return api.post<{ success: true; data: { submission: { id: string } } }>(`/assignments/${id}/submissions/for-student`, form);
+  },
+
   importFromExcel: (file: File) => {
     const form = new FormData();
     form.append('file', file);
