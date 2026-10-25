@@ -1,6 +1,8 @@
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
+const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'heic'] as const;
+
 /** File-type presets the teacher can tick; extensions are stored without the dot. */
 export const FILE_TYPE_PRESETS = [
   { label: 'Word', exts: ['doc', 'docx'] },
@@ -8,6 +10,7 @@ export const FILE_TYPE_PRESETS = [
   { label: 'PowerPoint', exts: ['ppt', 'pptx'] },
   { label: 'PDF', exts: ['pdf'] },
   { label: 'ZIP', exts: ['zip'] },
+  { label: 'תמונה', exts: IMAGE_EXTS },
 ] as const;
 
 export interface SubmissionTypes {
@@ -32,7 +35,11 @@ export function SubmissionTypePicker({ value, onChange }: {
   };
 
   const setOther = (text: string) => {
-    const typed = text.split(/[\s,]+/).map((t) => t.replace(/^\./, '').toLowerCase()).filter(Boolean);
+    // ".png", "*.png" and a browser-style "image/*" all mean what the teacher expects.
+    const typed = text.split(/[\s,;]+/)
+      .map((t) => t.toLowerCase().replace(/^\*?\./, ''))
+      .flatMap((t) => (t === 'image/*' || t === 'image' ? [...IMAGE_EXTS] : [t]))
+      .filter(Boolean);
     const presets = allowedTypes.filter((t) => presetExts.includes(t));
     onChange({ ...value, allowedTypes: [...new Set([...presets, ...typed])] });
   };
@@ -75,10 +82,11 @@ export function SubmissionTypePicker({ value, onChange }: {
             defaultValue={otherExts.join(', ')}
             key={otherExts.join(',')}
             onBlur={(e) => setOther(e.target.value)}
-            placeholder="סיומות נוספות, למשל: py, html"
+            placeholder="סיומות נוספות מופרדות בפסיק, למשל: py, html"
             className="rounded-input border border-rule bg-sheet px-3 py-1.5 text-xs text-ink focus:border-clay focus:outline-none"
           />
           {!anyType && <p className="text-[11px] text-ink/55" dir="ltr">{allowedTypes.map((t) => `.${t}`).join('  ')}</p>}
+          <p className="text-[11px] text-ink/55">כל הגשה היא קובץ אחד. כדי להגיש כמה קבצים (למשל כמה תמונות) אפשרי ZIP.</p>
         </div>
       )}
 
