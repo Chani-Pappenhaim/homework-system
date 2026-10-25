@@ -73,19 +73,32 @@ export async function sendGroupMessage(groupId: string, content: unknown) {
   return { sent: group.students.length };
 }
 
+/** When the conversation last had a message: its newest entry, or its creation. */
+function lastActivity(m: { createdAt: Date; entries: { createdAt: Date }[] }): number {
+  return (m.entries.at(-1)?.createdAt ?? m.createdAt).getTime();
+}
+
+/**
+ * Newest activity first: a conversation that just got a reply moves to the top,
+ * where its new message is seen, rather than staying where it was started.
+ */
+function latestFirst<T extends { createdAt: Date; entries: { createdAt: Date }[] }>(messages: T[]): T[] {
+  return [...messages].sort((a, b) => lastActivity(b) - lastActivity(a));
+}
+
 export async function getAllMessages() {
-  return prisma.teacherMessage.findMany({
+  return latestFirst(await prisma.teacherMessage.findMany({
     orderBy: { createdAt: 'desc' },
     include: { student: { select: { id: true, name: true, email: true } }, ...entriesInclude },
-  });
+  }));
 }
 
 export async function getMyMessages(studentId: string) {
-  return prisma.teacherMessage.findMany({
+  return latestFirst(await prisma.teacherMessage.findMany({
     where: { studentId },
     orderBy: { createdAt: 'desc' },
     include: entriesInclude,
-  });
+  }));
 }
 
 // The teacher adds another entry to a conversation — works whether it's brand
