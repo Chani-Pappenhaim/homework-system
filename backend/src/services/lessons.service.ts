@@ -5,7 +5,7 @@ import { confirmUpload, discardPendingUpload } from './pending-uploads.service';
 import { releaseFileUrls, submissionFileUrls } from './file-refs.service';
 import { assertLessonAccess, assertCourseAccess } from './access.service';
 import { countPastDeadlines, upcomingDeadline } from '../utils/deadlines';
-import { AI_REFERENCE_FILES_INCLUDE, assignmentForViewer } from '../utils/assignment-view';
+import { AI_REFERENCE_FILES_INCLUDE, ASSIGNMENT_ORDER, assignmentForViewer } from '../utils/assignment-view';
 
 // Older lessons only have the legacy single `githubUrl` column populated;
 // `githubUrls` is the source of truth, so fall back to wrapping the legacy
@@ -84,7 +84,9 @@ export async function getLessonById(id: string, userId: string, role: string) {
     where: { id },
     include: {
       files: { where: role === 'ADMIN' ? {} : { hidden: false } },
-      assignments: { include: AI_REFERENCE_FILES_INCLUDE },
+      // The order they were added in; without it the database returns them in
+      // whatever order it likes, which changes after an edit.
+      assignments: { include: AI_REFERENCE_FILES_INCLUDE, orderBy: ASSIGNMENT_ORDER },
       quiz: { select: { published: true } },
     },
   });
@@ -200,7 +202,7 @@ function fileCopyKey(file: { name: string; url: string }) {
 export async function copyLesson(lessonId: string, targetCourseId?: string) {
   const source = await prisma.lesson.findUnique({
     where: { id: lessonId },
-    include: { files: true, assignments: { include: AI_REFERENCE_FILES_INCLUDE }, quiz: true },
+    include: { files: true, assignments: { include: AI_REFERENCE_FILES_INCLUDE, orderBy: ASSIGNMENT_ORDER }, quiz: true },
   });
   if (!source) throw new AppError('Lesson not found', 'השיעור לא נמצא', 404);
 
@@ -237,7 +239,9 @@ export async function copyLesson(lessonId: string, targetCourseId?: string) {
 
     const copiedFileId = new Map(created.files.map((f) => [fileCopyKey(f), f.id]));
     const sourceFileKey = new Map(source.files.map((f) => [f.id, fileCopyKey(f)]));
-    for (const a of source.assignments) {
+    // One millisecond apart, so the copies keep the source's order however fast they are written.
+    const copiedAt = Date.now();
+    for (const [i, a] of source.assignments.entries()) {
       const referenceIds = a.aiReferenceFiles
         .map((f) => copiedFileId.get(sourceFileKey.get(f.id) ?? ''))
         .filter((id): id is string => Boolean(id));
@@ -247,7 +251,7 @@ export async function copyLesson(lessonId: string, targetCourseId?: string) {
           title: a.title, description: a.description, deadline: upcomingDeadline(a.deadline),
           allowedTypes: a.allowedTypes, allowGithub: a.allowGithub, allowFile: a.allowFile,
           requirements: a.requirements ?? undefined, aiInstructions: a.aiInstructions,
-          aiReviewEnabled: a.aiReviewEnabled,
+          aiReviewEnabled: a.aiReviewEnabled, createdAt: new Date(copiedAt + i),
           ...(referenceIds.length ? { aiReferenceFiles: { connect: referenceIds.map((id) => ({ id })) } } : {}),
         },
       });

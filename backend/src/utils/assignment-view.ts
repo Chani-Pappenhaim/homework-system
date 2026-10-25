@@ -1,7 +1,12 @@
+import type { Prisma } from '@prisma/client';
+
 /** Loads the ids of the lesson files an assignment's AI review relies on, for `assignmentForViewer`. */
 export const AI_REFERENCE_FILES_INCLUDE = {
   aiReferenceFiles: { select: { id: true }, orderBy: { uploadedAt: 'asc' } },
 } as const;
+
+/** The order a lesson's assignments are shown in: the order the teacher added them. */
+export const ASSIGNMENT_ORDER: Prisma.AssignmentOrderByWithRelationInput[] = [{ createdAt: 'asc' }, { id: 'asc' }];
 
 interface AssignmentRow {
   aiInstructions?: string | null;
