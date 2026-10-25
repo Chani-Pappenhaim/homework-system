@@ -39,31 +39,50 @@ export async function fetchGithubCode(githubUrl: string): Promise<string> {
   return contents.join('\n\n');
 }
 
-export function extractZipCode(buffer: Buffer): string {
+// Word and PowerPoint files inside a zip are read as text too: plenty of
+// homework is a written answer, not code. They are zips themselves, so their
+// size cap is a file's, not a code file's 5KB; their text gets a cap of its own.
+const ZIP_DOCUMENT_EXTENSIONS = ['.docx', '.pptx'];
+const ZIP_DOCUMENT_MAX_BYTES = 5 * 1024 * 1024;
+const ZIP_DOCUMENT_MAX_CHARS = 20_000;
+
+export async function extractZipCode(buffer: Buffer): Promise<string> {
   const zip = new AdmZip(buffer);
+  const isDocument = (name: string) => ZIP_DOCUMENT_EXTENSIONS.some((ext) => name.toLowerCase().endsWith(ext));
   const entries = zip
     .getEntries()
     .filter((entry) => {
       const name = entry.entryName;
-      return (
-        !entry.isDirectory &&
-        CODE_EXTENSIONS.some((ext) => name.endsWith(ext)) &&
-        !name.includes('node_modules/') &&
-        !name.includes('dist/') &&
-        !name.includes('.min.') &&
-        // Declared (uncompressed) size, read straight from the central
-        // directory — rejecting oversized entries here, before getData()
-        // inflates them, is what actually stops a zip bomb. Checking the
-        // decompressed text's length afterwards is too late: the inflate
-        // itself is the memory blowup.
-        entry.header.size <= MAX_FILE_CHARS
-      );
+      const baseName = name.split('/').pop() ?? '';
+      if (entry.isDirectory || name.includes('node_modules/') || name.includes('dist/') || name.includes('.min.')) return false;
+      // macOS resource forks and Word's "~$" lock files look like documents but hold none.
+      if (name.startsWith('__MACOSX/') || baseName.startsWith('~$')) return false;
+      // Declared (uncompressed) size, read straight from the central
+      // directory — rejecting oversized entries here, before getData()
+      // inflates them, is what actually stops a zip bomb. Checking the
+      // decompressed text's length afterwards is too late: the inflate
+      // itself is the memory blowup.
+      if (isDocument(name)) return entry.header.size <= ZIP_DOCUMENT_MAX_BYTES;
+      return CODE_EXTENSIONS.some((ext) => name.endsWith(ext)) && entry.header.size <= MAX_FILE_CHARS;
     })
     .slice(0, MAX_FILES);
 
   const contents: string[] = [];
   for (const entry of entries) {
-    const text = entry.getData().toString('utf8');
+    let text: string;
+    if (isDocument(entry.entryName)) {
+      const data = entry.getData();
+      // A damaged document is left out; the rest of the zip is still worth reviewing.
+      try {
+        text = entry.entryName.toLowerCase().endsWith('.docx') ? await extractDocxText(data) : extractPptxText(data);
+      } catch {
+        continue;
+      }
+      if (!text.trim()) continue;
+      if (text.length > ZIP_DOCUMENT_MAX_CHARS) text = `${text.slice(0, ZIP_DOCUMENT_MAX_CHARS)}\n[...הקובץ קוצר]`;
+    } else {
+      text = entry.getData().toString('utf8');
+    }
     contents.push(`--- ${entry.entryName} ---\n${text}`);
   }
 

@@ -71,7 +71,7 @@ export function registerAiReviewWorker(connection: IORedis): Worker<AiReviewJobD
             throw err;
           });
         } else if (submission.fileUrl && fileRef.endsWith('.zip')) {
-          code = extractZipCode(await downloadFile(toDeliveryUrl(submission.fileUrl)));
+          code = await extractZipCode(await downloadFile(toDeliveryUrl(submission.fileUrl)));
         } else if (submission.fileUrl && fileRef.endsWith('.docx')) {
           code = await extractDocxText(await downloadFile(toDeliveryUrl(submission.fileUrl)));
         } else {
@@ -85,7 +85,7 @@ export function registerAiReviewWorker(connection: IORedis): Worker<AiReviewJobD
         if (!code.trim()) {
           throw new AiReviewInputError(
             'No reviewable content found in the submission',
-            'לא נמצא בהגשה קוד לבדיקה (למשל קבצי js, ts, py, html, css, java). יש לוודא שהקבצים נמצאים בהגשה.'
+            'לא נמצא בהגשה קוד לבדיקה (למשל קבצי js, ts, py, html, css, java או קובץ Word). יש לוודא שהקבצים נמצאים בהגשה.'
           );
         }
 

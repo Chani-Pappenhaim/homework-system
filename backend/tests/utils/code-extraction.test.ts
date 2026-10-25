@@ -51,15 +51,47 @@ describe('code-extraction.fetchGithubCode', () => {
 });
 
 describe('code-extraction.extractZipCode', () => {
-  it('extracts only code files and skips node_modules/dist entries', () => {
+  it('extracts only code files and skips node_modules/dist entries', async () => {
     const zip = new AdmZip();
     zip.addFile('src/app.ts', Buffer.from('export const a = 1;'));
     zip.addFile('node_modules/x.js', Buffer.from('ignored'));
     zip.addFile('notes.md', Buffer.from('ignored too'));
-    const out = extractZipCode(zip.toBuffer());
+    const out = await extractZipCode(zip.toBuffer());
     expect(out).toContain('--- src/app.ts ---');
     expect(out).toContain('export const a = 1;');
     expect(out).not.toContain('ignored');
+  });
+
+  it('reads Word and PowerPoint files inside the zip as text', async () => {
+    extractRawText.mockResolvedValue({ value: 'תשובה לשאלה 1' });
+    const zip = new AdmZip();
+    zip.addFile('answers/hw1.docx', Buffer.from('docx bytes'));
+    zip.addFile('slides.pptx', pptx({ 'slide1.xml': slideXml(['שקף ראשון']) }));
+    const out = await extractZipCode(zip.toBuffer());
+    expect(out).toContain('--- answers/hw1.docx ---\nתשובה לשאלה 1');
+    expect(out).toContain('--- slides.pptx ---');
+    expect(out).toContain('שקף ראשון');
+  });
+
+  it('skips Word lock files, macOS copies and damaged documents, keeping the rest', async () => {
+    extractRawText.mockRejectedValueOnce(new Error('corrupt'));
+    const zip = new AdmZip();
+    zip.addFile('broken.docx', Buffer.from('x'));
+    zip.addFile('~$hw1.docx', Buffer.from('lock'));
+    zip.addFile('__MACOSX/._hw1.docx', Buffer.from('fork'));
+    zip.addFile('main.py', Buffer.from('print(1)'));
+    const out = await extractZipCode(zip.toBuffer());
+    expect(out).toBe('--- main.py ---\nprint(1)');
+    expect(extractRawText).toHaveBeenCalledTimes(1);
+  });
+
+  it('cuts a very long document short', async () => {
+    extractRawText.mockResolvedValue({ value: 'א'.repeat(25_000) });
+    const zip = new AdmZip();
+    zip.addFile('long.docx', Buffer.from('x'));
+    const out = await extractZipCode(zip.toBuffer());
+    expect(out.length).toBeLessThan(21_000);
+    expect(out).toContain('[...הקובץ קוצר]');
   });
 });
 
