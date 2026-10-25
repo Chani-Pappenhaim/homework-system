@@ -13,6 +13,7 @@ vi.mock('../../src/infrastructure/queues/queues', () => ({ emailQueue: { add: vi
 import { prisma } from '../../src/config/prisma';
 import {
   sendMessage, sendTeacherMessage, sendGroupMessage, replyMessage, studentReplyMessage, MAX_MESSAGE_LENGTH,
+  getAllMessages, getMyMessages,
 } from '../../src/services/messages.service';
 
 const p = prisma as any;
@@ -65,5 +66,18 @@ describe('sendGroupMessage', () => {
     await expect(sendGroupMessage('nope', 'שלום')).rejects.toMatchObject({ status: 404 });
     await expect(sendGroupMessage('g1', '   ')).rejects.toMatchObject({ status: 400 });
     expect(p.teacherMessage.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('conversation order', () => {
+  it('puts the conversation with the newest message first, not the newest conversation', async () => {
+    const at = (d: string) => new Date(`2026-10-${d}T10:00:00Z`);
+    p.teacherMessage.findMany = vi.fn().mockResolvedValue([
+      { id: 'new-quiet', createdAt: at('20'), entries: [{ createdAt: at('20') }] },
+      { id: 'old-replied', createdAt: at('10'), entries: [{ createdAt: at('10') }, { createdAt: at('24') }] },
+      { id: 'empty', createdAt: at('15'), entries: [] },
+    ]);
+    expect((await getAllMessages()).map((m: any) => m.id)).toEqual(['old-replied', 'new-quiet', 'empty']);
+    expect((await getMyMessages('s1')).map((m: any) => m.id)).toEqual(['old-replied', 'new-quiet', 'empty']);
   });
 });
