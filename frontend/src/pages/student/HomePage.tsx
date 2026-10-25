@@ -11,6 +11,7 @@ import { Tape } from '@/components/decor';
 import { cn, formatDate, isOverdue } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import type { PendingAssignment } from '@/types';
+import { studentAssignmentPath } from '@/components/lesson/LessonRoute';
 
 // Slight rotation per card gives the row a hand-tacked, sheet-on-a-board look.
 const CARD_ACCENTS = ['clay', 'indigo', 'sage', 'butter', 'coral'] as const;
@@ -169,7 +170,7 @@ export default function StudentHomePage() {
                 return (
                   <button
                     key={p.assignmentId}
-                    onClick={() => navigate(p.lessonId ? `/student/lessons/${p.lessonId}` : '/student/assignments')}
+                    onClick={() => navigate(p.lessonId ? studentAssignmentPath(p.lessonId, p.assignmentId) : '/student/assignments')}
                     onMouseEnter={() => p.lessonId && prefetchLesson(p.lessonId)}
                     onFocus={() => p.lessonId && prefetchLesson(p.lessonId)}
                     className="flex w-full items-center gap-3 px-4 py-3 text-right transition-colors hover:bg-butter/10"

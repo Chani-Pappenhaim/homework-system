@@ -3,6 +3,12 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AssignmentsPage from '@/pages/student/AssignmentsPage';
 import { renderWithProviders } from '../utils/render';
+import { Route, Routes, useLocation } from 'react-router-dom';
+
+function LocationProbe() {
+  const location = useLocation();
+  return <p data-testid="location">{location.pathname + location.search}</p>;
+}
 
 vi.mock('@/api/submissions.api', () => ({ submissionsApi: { mine: vi.fn() } }));
 import { submissionsApi } from '@/api/submissions.api';
@@ -95,14 +101,19 @@ describe('AssignmentsPage', () => {
   });
 
   describe('the link the teacher sends the class (?assignment=)', () => {
-    it('opens the assignment for a student who has yet to submit it', async () => {
+    it('takes a student who has yet to submit it straight to where she submits it', async () => {
       mine.mockResolvedValue({ data: { data: {
         pending: [{ assignmentId: 'a1', assignmentTitle: 'מטלה 1', courseName: 'קורס', lessonId: 'l1', lessonTopic: 'שיעור' }],
         submitted: [],
       } } });
-      renderWithProviders(<AssignmentsPage />, { initialEntries: ['/student/assignments?assignment=a1'] });
-      expect(await screen.findByText('חזרה לרשימה')).toBeInTheDocument();
-      expect(screen.queryByText('לא הוגשו (1)')).not.toBeInTheDocument();
+      renderWithProviders(
+        <Routes>
+          <Route path="/student/assignments" element={<AssignmentsPage />} />
+          <Route path="/student/lessons/:id" element={<LocationProbe />} />
+        </Routes>,
+        { initialEntries: ['/student/assignments?assignment=a1'] },
+      );
+      expect(await screen.findByTestId('location')).toHaveTextContent('/student/lessons/l1?tab=assignments&assignment=a1');
     });
 
     it('opens her submission for a student who already submitted it', async () => {

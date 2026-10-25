@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Github, Paperclip } from 'lucide-react';
@@ -14,6 +15,7 @@ import { cn, formatDate, formatDateFull, formatDateTime, isOverdue } from '@/lib
 import { unwrap } from '@/lib/api-utils';
 import { apiFileUrl } from '@/lib/config';
 import type { MySubmission, PendingAssignment } from '@/types';
+import { studentAssignmentPath } from '@/components/lesson/LessonRoute';
 import { usePageTitle } from '@/hooks/usePageTitle';
 
 type ViewingItem = { type: 'pending'; item: PendingAssignment } | { type: 'submitted'; item: MySubmission };
@@ -49,6 +51,11 @@ export default function AssignmentsPage() {
     if (next?.type === 'submitted') params.set('submission', next.item.submissionId);
     return params;
   }, { replace: !next });
+  // The class link, for an assignment she has yet to submit, goes straight to where she submits it.
+  const linkedPending = assignmentId ? pendingItem : undefined;
+  useEffect(() => {
+    if (linkedPending) navigate(studentAssignmentPath(linkedPending.lessonId, linkedPending.assignmentId), { replace: true });
+  }, [linkedPending, navigate]);
   usePageTitle(viewing?.item.assignmentTitle, 'המטלות שלי');
   const [searchModeParam, setSearchModeParam] = useQueryParam('by');
   const searchMode: 'assignment' | 'course' = searchModeParam === 'course' ? 'course' : 'assignment';
@@ -119,7 +126,7 @@ export default function AssignmentsPage() {
           </CardHeader>
           <div className="p-5 space-y-4">
             {viewing.type === 'pending' ? (
-              <PendingDetail item={viewing.item} onGoToLesson={() => navigate(`/student/lessons/${viewing.item.lessonId}`)} />
+              <PendingDetail item={viewing.item} onGoToLesson={() => navigate(studentAssignmentPath(viewing.item.lessonId, viewing.item.assignmentId))} />
             ) : (
               <SubmittedDetail item={viewing.item} onDeleted={() => setViewing(null)} />
             )}

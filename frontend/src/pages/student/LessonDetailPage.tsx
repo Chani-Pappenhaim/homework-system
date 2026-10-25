@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Github, CheckCircle, Clock, Bot, Check, BookOpen, ClipboardList, Paperclip, Sparkles } from 'lucide-react';
+import { Github, CheckCircle, Clock, Bot, Check, BookOpen, ClipboardList, Paperclip, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
 import { submissionsApi, isVideoFile } from '@/api/submissions.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -23,6 +23,7 @@ import { getApiErrorMessage } from '@/lib/errors';
 import { useTeacherRequest } from '@/hooks/useTeacherRequest';
 import { unwrap } from '@/lib/api-utils';
 import { useTabParam } from '@/hooks/useTabParam';
+import { useQueryParam } from '@/hooks/useQueryParam';
 import { AI_AVAILABILITY_QUERY_KEY, useAiAvailability } from '@/hooks/useAiAvailability';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import type { LessonPageProps } from '@/components/lesson/LessonRoute';
@@ -35,6 +36,8 @@ export default function StudentLessonDetailPage({ lessonId, lessonNumber }: Part
   const id = lessonId ?? params.id;
   const qc = useQueryClient();
   const [tab, setTab] = useTabParam(TABS, 'content');
+  // `?assignment=<id>`: the link to one assignment, scrolled to where she submits it.
+  const [focusedAssignmentId] = useQueryParam('assignment');
 
   const { data, isLoading } = useQuery({
     queryKey: ['lesson', id],
@@ -215,7 +218,7 @@ export default function StudentLessonDetailPage({ lessonId, lessonNumber }: Part
           {hasAssignments ? (
             lesson.assignments.map((a) => {
               const sub = submitted.find((s) => s.assignmentId === a.id);
-              return <AssignmentCard key={a.id} assignment={a} submission={sub} />;
+              return <AssignmentCard key={a.id} assignment={a} submission={sub} focused={a.id === focusedAssignmentId} />;
             })
           ) : (
             <p className="text-sm text-ink/50">אין מטלות לשיעור זה</p>
@@ -230,8 +233,8 @@ export default function StudentLessonDetailPage({ lessonId, lessonNumber }: Part
   );
 }
 
-function AssignmentCard({ assignment: a, submission: sub }: {
-  assignment: AssignmentDTO; submission: MySubmission | undefined;
+function AssignmentCard({ assignment: a, submission: sub, focused = false }: {
+  assignment: AssignmentDTO; submission: MySubmission | undefined; focused?: boolean;
 }) {
   const qc = useQueryClient();
   const [repoName, setRepoName] = useState('');
@@ -289,26 +292,45 @@ function AssignmentCard({ assignment: a, submission: sub }: {
 
   const githubUsername = useAuthStore((s) => s.user?.githubUsername);
   const descriptionRef = useRef<HTMLDivElement>(null);
+  const submitRef = useRef<HTMLDivElement>(null);
+  // A long brief pushes the submission to the bottom of the page; hiding it
+  // leaves the title and the submission, so it is clear which one is which.
+  const [briefHidden, setBriefHidden] = useState(false);
+
+  useEffect(() => {
+    if (focused) submitRef.current?.scrollIntoView?.({ block: 'center' });
+  }, [focused]);
   // Mirrors the server's normalizeRepoName so the preview matches what gets saved.
   const cleanRepo = repoName.trim().replace(/\/+$/, '').replace(/\.git$/i, '').split('/').pop() ?? '';
   const githubPreview = cleanRepo && githubUsername ? `https://github.com/${githubUsername}/${cleanRepo}` : '';
 
   return (
-    <Card>
+    <Card className={cn(focused && 'ring-2 ring-clay/60')}>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <h3 className="font-display text-base font-bold">{a.title}</h3>
-          {sub ? (
-            <Badge variant="success"><CheckCircle size={10} className="ml-1" /> הוגש</Badge>
-          ) : a.deadline && isOverdue(a.deadline) ? (
-            <Badge variant="default">פג תוקף</Badge>
-          ) : (
-            <Badge variant="warning"><Clock size={10} className="ml-1" /> ממתין</Badge>
-          )}
+          <div className="flex shrink-0 items-center gap-2">
+            {a.description && (
+              <button
+                type="button"
+                onClick={() => setBriefHidden(!briefHidden)}
+                className="flex items-center gap-1 text-xs text-clay hover:underline"
+              >
+                {briefHidden ? <><ChevronDown size={12} /> הצגת התיאור</> : <><ChevronUp size={12} /> הסתרת התיאור</>}
+              </button>
+            )}
+            {sub ? (
+              <Badge variant="success"><CheckCircle size={10} className="ml-1" /> הוגש</Badge>
+            ) : a.deadline && isOverdue(a.deadline) ? (
+              <Badge variant="default">פג תוקף</Badge>
+            ) : (
+              <Badge variant="warning"><Clock size={10} className="ml-1" /> ממתין</Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {a.description && (
+        {a.description && !briefHidden && (
           <>
             <div className="flex justify-end"><PrintButton target={descriptionRef} title={a.title} /></div>
             <div ref={descriptionRef}><MarkdownRenderer content={a.description} className="text-ink/80" /></div>
@@ -318,216 +340,219 @@ function AssignmentCard({ assignment: a, submission: sub }: {
           <p className="text-xs text-ink/50">מועד אחרון: <span className="font-medium">{formatDateFull(a.deadline)}</span></p>
         )}
 
-        {sub ? (
-          <div className="space-y-3">
-            <div className="bg-sage/10 border border-sage/30 rounded-input p-3 text-sm space-y-1">
-              <p className="text-sage font-medium">הגשתך התקבלה בהצלחה ✓</p>
-              <p className="text-ink/70 text-xs">הוגש: {formatDateTime(sub.submittedAt)}</p>
-              {sub.isLate && <Badge variant="warning">הוגש באיחור</Badge>}
-              {sub.notes && <div className="text-xs text-ink/70"><span>הערה:</span><MarkdownRenderer content={sub.notes} className="text-xs" /></div>}
-              {sub.grade && (
-                <div className="mt-2 space-y-1">
-                  {sub.grade.submissionScore != null && <p className="font-semibold">ציון הגשה: {sub.grade.submissionScore}</p>}
-                  {sub.grade.contentScore != null && <p className="font-semibold">ציון תוכן: {sub.grade.contentScore}</p>}
-                  {sub.grade.feedback && <MarkdownRenderer content={sub.grade.feedback} className="text-xs" />}
-                  {sub.grade.checklist?.map((c) => (
-                    <div key={c.id} className={`text-xs flex items-center gap-1 ${c.checked ? 'text-sage' : 'text-ink/50'}`}>
-                      {c.checked ? '✓' : '✗'} {c.text}
+        <div ref={submitRef} className="space-y-3 border-t border-rule pt-3">
+          <p className="text-xs font-semibold text-ink-soft">{sub ? 'ההגשה שלך' : 'הגשה'}: {a.title}</p>
+          {sub ? (
+            <div className="space-y-3">
+              <div className="bg-sage/10 border border-sage/30 rounded-input p-3 text-sm space-y-1">
+                <p className="text-sage font-medium">הגשתך התקבלה בהצלחה ✓</p>
+                <p className="text-ink/70 text-xs">הוגש: {formatDateTime(sub.submittedAt)}</p>
+                {sub.isLate && <Badge variant="warning">הוגש באיחור</Badge>}
+                {sub.notes && <div className="text-xs text-ink/70"><span>הערה:</span><MarkdownRenderer content={sub.notes} className="text-xs" /></div>}
+                {sub.grade && (
+                  <div className="mt-2 space-y-1">
+                    {sub.grade.submissionScore != null && <p className="font-semibold">ציון הגשה: {sub.grade.submissionScore}</p>}
+                    {sub.grade.contentScore != null && <p className="font-semibold">ציון תוכן: {sub.grade.contentScore}</p>}
+                    {sub.grade.feedback && <MarkdownRenderer content={sub.grade.feedback} className="text-xs" />}
+                    {sub.grade.checklist?.map((c) => (
+                      <div key={c.id} className={`text-xs flex items-center gap-1 ${c.checked ? 'text-sage' : 'text-ink/50'}`}>
+                        {c.checked ? '✓' : '✗'} {c.text}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <DeleteSubmissionButton submission={sub} />
+
+              {(sub.githubUrl || sub.fileUrl) && (!aiReviewOff || (sub.aiStatus === 'done' && sub.aiApproved)) && (
+                <div className="border border-rule/15 rounded-input p-3 text-sm space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1 font-medium text-ink"><Bot size={14} /> בדיקת AI</span>
+                    {sub.aiStatus === 'none' && !aiLimitReached && ai.available && (
+                      <Button size="sm" variant="outline" loading={aiReviewMutation.isPending}
+                        onClick={() => aiReviewMutation.mutate()}>
+                        בקשי בדיקה
+                      </Button>
+                    )}
+                    {sub.aiStatus === 'pending' && <Badge variant="warning">בודק...</Badge>}
+                    {sub.aiStatus === 'done' && !sub.aiApproved && <Badge variant="success">נבדק ✓</Badge>}
+                    {sub.aiStatus === 'error' && (aiLimitReached || !ai.available ? <Badge variant="default">הבדיקה נכשלה</Badge> : (
+                      <Button size="sm" variant="outline" loading={aiReviewMutation.isPending}
+                        onClick={() => aiReviewMutation.mutate()}>
+                        בקשי בדיקה שוב
+                      </Button>
+                    ))}
+                  </div>
+                  {sub.aiStatus === 'error' && (
+                    <ContactTeacherText
+                      className="text-xs text-coral"
+                      text={sub.aiError || 'בדיקת ה-AI לא הצליחה. אפשר לבקש בדיקה שוב.'}
+                      about={`בנוגע לבדיקת ה-AI של המטלה "${a.title}": `}
+                    />
+                  )}
+                  {aiLimitReached && (
+                    <div className="space-y-2 pt-1">
+                      <p className="text-xs text-ink/70">נוצל מספר בדיקות ה-AI המותר להגשה זו.</p>
+                      {aiExtraRequest.sent ? (
+                        <p className="text-xs text-sage font-medium">הבקשה נשלחה למורה ✓</p>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={() => aiExtraRequest.setFormOpen(!aiExtraRequest.formOpen)}>
+                          בקשי בדיקה נוספת מהמורה
+                        </Button>
+                      )}
+                      {aiExtraRequest.formOpen && !aiExtraRequest.sent && (
+                        <div className="space-y-2">
+                          <MarkdownField
+                            label="הסבר קצר לבקשה (אופציונלי)"
+                            rows={2}
+                            value={aiExtraRequest.reason}
+                            onChange={aiExtraRequest.setReason}
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              loading={aiExtraRequest.sending}
+                              onClick={() => aiExtraRequest.send()}
+                            >
+                              שלחי בקשה
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => { aiExtraRequest.setFormOpen(false); aiExtraRequest.setReason(''); }}>
+                              ביטול
+                            </Button>
+                          </div>
+                          {aiExtraRequest.error && <p className="text-coral text-xs">{aiExtraRequest.error}</p>}
+                        </div>
+                      )}
                     </div>
-                  ))}
+                  )}
+                  {sub.aiStatus === 'done' && (
+                    <div className="space-y-2 pt-1">
+                      {sub.aiApproved && sub.aiScore != null ? (
+                        <p className="font-semibold text-ink">ציון: {sub.aiScore}</p>
+                      ) : (
+                        <p className="text-xs text-ink/50">הציון יוצג אחרי שהמורה תאשר אותו</p>
+                      )}
+                      {sub.aiVerbalReview && <p className="text-ink/70 text-xs">{sub.aiVerbalReview}</p>}
+                      {sub.aiCodeReview && (
+                        <>
+                          <button className="text-xs text-clay underline" onClick={() => setShowAiReview(!showAiReview)}>
+                            {showAiReview ? 'הסתירי הערות קוד' : 'הצגי הערות קוד'}
+                          </button>
+                          {showAiReview && (
+                            <pre className="text-xs bg-ground/60 rounded p-2 whitespace-pre-wrap">{sub.aiCodeReview}</pre>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {/* While the AI is unavailable its note replaces the request buttons and their errors. */}
+                  {(sub.aiStatus === 'none' || sub.aiStatus === 'error') && !aiLimitReached && !ai.available ? (
+                    <p className="text-xs text-ink/70">{ai.message}</p>
+                  ) : error && <p className="text-coral text-xs">{error}</p>}
                 </div>
               )}
             </div>
-
-            <DeleteSubmissionButton submission={sub} />
-
-            {(sub.githubUrl || sub.fileUrl) && (!aiReviewOff || (sub.aiStatus === 'done' && sub.aiApproved)) && (
-              <div className="border border-rule/15 rounded-input p-3 text-sm space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1 font-medium text-ink"><Bot size={14} /> בדיקת AI</span>
-                  {sub.aiStatus === 'none' && !aiLimitReached && ai.available && (
-                    <Button size="sm" variant="outline" loading={aiReviewMutation.isPending}
-                      onClick={() => aiReviewMutation.mutate()}>
-                      בקשי בדיקה
+          ) : (
+            <>
+              {a.deadline && isOverdue(a.deadline) && (
+                <div className="space-y-2">
+                  {lateRequest.sent ? (
+                    <p className="text-xs text-sage font-medium">הבקשה נשלחה למורה ✓</p>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => lateRequest.setFormOpen(!lateRequest.formOpen)}
+                    >
+                      בקשי אישור הגשה מאוחרת
                     </Button>
                   )}
-                  {sub.aiStatus === 'pending' && <Badge variant="warning">בודק...</Badge>}
-                  {sub.aiStatus === 'done' && !sub.aiApproved && <Badge variant="success">נבדק ✓</Badge>}
-                  {sub.aiStatus === 'error' && (aiLimitReached || !ai.available ? <Badge variant="default">הבדיקה נכשלה</Badge> : (
-                    <Button size="sm" variant="outline" loading={aiReviewMutation.isPending}
-                      onClick={() => aiReviewMutation.mutate()}>
-                      בקשי בדיקה שוב
-                    </Button>
-                  ))}
-                </div>
-                {sub.aiStatus === 'error' && (
-                  <ContactTeacherText
-                    className="text-xs text-coral"
-                    text={sub.aiError || 'בדיקת ה-AI לא הצליחה. אפשר לבקש בדיקה שוב.'}
-                    about={`בנוגע לבדיקת ה-AI של המטלה "${a.title}": `}
-                  />
-                )}
-                {aiLimitReached && (
-                  <div className="space-y-2 pt-1">
-                    <p className="text-xs text-ink/70">נוצל מספר בדיקות ה-AI המותר להגשה זו.</p>
-                    {aiExtraRequest.sent ? (
-                      <p className="text-xs text-sage font-medium">הבקשה נשלחה למורה ✓</p>
-                    ) : (
-                      <Button size="sm" variant="outline" onClick={() => aiExtraRequest.setFormOpen(!aiExtraRequest.formOpen)}>
-                        בקשי בדיקה נוספת מהמורה
-                      </Button>
-                    )}
-                    {aiExtraRequest.formOpen && !aiExtraRequest.sent && (
-                      <div className="space-y-2">
-                        <MarkdownField
-                          label="הסבר קצר לבקשה (אופציונלי)"
-                          rows={2}
-                          value={aiExtraRequest.reason}
-                          onChange={aiExtraRequest.setReason}
-                        />
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            loading={aiExtraRequest.sending}
-                            onClick={() => aiExtraRequest.send()}
-                          >
-                            שלחי בקשה
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => { aiExtraRequest.setFormOpen(false); aiExtraRequest.setReason(''); }}>
-                            ביטול
-                          </Button>
-                        </div>
-                        {aiExtraRequest.error && <p className="text-coral text-xs">{aiExtraRequest.error}</p>}
+                  {lateRequest.formOpen && !lateRequest.sent && (
+                    <div className="space-y-2">
+                      <MarkdownField
+                        label="סיבת האיחור (אופציונלי)"
+                        rows={2}
+                        value={lateRequest.reason}
+                        onChange={lateRequest.setReason}
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          loading={lateRequest.sending}
+                          onClick={() => lateRequest.send()}
+                        >
+                          שלחי בקשה
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => { lateRequest.setFormOpen(false); lateRequest.setReason(''); }}>
+                          ביטול
+                        </Button>
                       </div>
-                    )}
-                  </div>
-                )}
-                {sub.aiStatus === 'done' && (
-                  <div className="space-y-2 pt-1">
-                    {sub.aiApproved && sub.aiScore != null ? (
-                      <p className="font-semibold text-ink">ציון: {sub.aiScore}</p>
-                    ) : (
-                      <p className="text-xs text-ink/50">הציון יוצג אחרי שהמורה תאשר אותו</p>
-                    )}
-                    {sub.aiVerbalReview && <p className="text-ink/70 text-xs">{sub.aiVerbalReview}</p>}
-                    {sub.aiCodeReview && (
-                      <>
-                        <button className="text-xs text-clay underline" onClick={() => setShowAiReview(!showAiReview)}>
-                          {showAiReview ? 'הסתירי הערות קוד' : 'הצגי הערות קוד'}
-                        </button>
-                        {showAiReview && (
-                          <pre className="text-xs bg-ground/60 rounded p-2 whitespace-pre-wrap">{sub.aiCodeReview}</pre>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-                {/* While the AI is unavailable its note replaces the request buttons and their errors. */}
-                {(sub.aiStatus === 'none' || sub.aiStatus === 'error') && !aiLimitReached && !ai.available ? (
-                  <p className="text-xs text-ink/70">{ai.message}</p>
-                ) : error && <p className="text-coral text-xs">{error}</p>}
-              </div>
-            )}
-          </div>
-        ) : (
-          <>
-            {a.deadline && isOverdue(a.deadline) && (
-              <div className="space-y-2">
-                {lateRequest.sent ? (
-                  <p className="text-xs text-sage font-medium">הבקשה נשלחה למורה ✓</p>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => lateRequest.setFormOpen(!lateRequest.formOpen)}
-                  >
-                    בקשי אישור הגשה מאוחרת
-                  </Button>
-                )}
-                {lateRequest.formOpen && !lateRequest.sent && (
-                  <div className="space-y-2">
-                    <MarkdownField
-                      label="סיבת האיחור (אופציונלי)"
-                      rows={2}
-                      value={lateRequest.reason}
-                      onChange={lateRequest.setReason}
-                    />
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        loading={lateRequest.sending}
-                        onClick={() => lateRequest.send()}
-                      >
-                        שלחי בקשה
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => { lateRequest.setFormOpen(false); lateRequest.setReason(''); }}>
-                        ביטול
-                      </Button>
+                      {lateRequest.error && <p className="text-coral text-xs">{lateRequest.error}</p>}
                     </div>
-                    {lateRequest.error && <p className="text-coral text-xs">{lateRequest.error}</p>}
-                  </div>
-                )}
-              </div>
-            )}
-            {a.allowFile && (
-              <FileUpload
-                accept={a.allowedTypes.length ? a.allowedTypes.map((t) => `.${t}`).join(',') : undefined}
-                onFile={(file) => fileMutation.mutate(file)}
-                label={
-                  fileMutation.isPending
-                    ? `מעלה... ${uploadProgress ?? 0}%`
-                    : a.allowedTypes.length ? `קבצים מורשים: ${a.allowedTypes.join(', ')}` : 'גרור קובץ לכאן'
-                }
-              />
-            )}
-            {a.allowGithub && (
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="שם הפרויקט ב-GitHub"
-                    value={repoName}
-                    onChange={(e) => setRepoName(e.target.value)}
-                    wrapperClassName="min-w-0 flex-1"
-                  />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    loading={repoMutation.isPending}
-                    onClick={() => repoMutation.mutate()}
-                    disabled={!repoName.trim()}
-                  >
-                    הגש
-                  </Button>
+                  )}
                 </div>
-                {!githubUsername ? (
-                  <p className="text-xs text-coral">
-                    לא הוגדר שם משתמש GitHub בחשבון שלך -{' '}
-                    <Link to="/student/profile" className="font-semibold underline">יש לעדכן אותו בפרופיל</Link>{' '}
-                    לפני הגשת ריפו
-                  </p>
-                ) : githubPreview && (
-                  <a
-                    href={githubPreview}
-                    target="_blank"
-                    rel="noreferrer"
-                    dir="ltr"
-                    className="flex w-fit items-center gap-1 text-xs text-clay hover:underline"
-                  >
-                    <Github size={11} /> {githubPreview}
-                  </a>
-                )}
-              </div>
-            )}
-            <MarkdownField
-              id={`submission-notes-${a.id}`}
-              label="הערה למורה (אופציונלי)"
-              rows={2}
-              value={notes}
-              onChange={setNotes}
-            />
-            {error && <p className="text-coral text-xs">{error}</p>}
-          </>
-        )}
+              )}
+              {a.allowFile && (
+                <FileUpload
+                  accept={a.allowedTypes.length ? a.allowedTypes.map((t) => `.${t}`).join(',') : undefined}
+                  onFile={(file) => fileMutation.mutate(file)}
+                  label={
+                    fileMutation.isPending
+                      ? `מעלה... ${uploadProgress ?? 0}%`
+                      : a.allowedTypes.length ? `קבצים מורשים: ${a.allowedTypes.join(', ')}` : 'גרור קובץ לכאן'
+                  }
+                />
+              )}
+              {a.allowGithub && (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="שם הפרויקט ב-GitHub"
+                      value={repoName}
+                      onChange={(e) => setRepoName(e.target.value)}
+                      wrapperClassName="min-w-0 flex-1"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      loading={repoMutation.isPending}
+                      onClick={() => repoMutation.mutate()}
+                      disabled={!repoName.trim()}
+                    >
+                      הגש
+                    </Button>
+                  </div>
+                  {!githubUsername ? (
+                    <p className="text-xs text-coral">
+                      לא הוגדר שם משתמש GitHub בחשבון שלך -{' '}
+                      <Link to="/student/profile" className="font-semibold underline">יש לעדכן אותו בפרופיל</Link>{' '}
+                      לפני הגשת ריפו
+                    </p>
+                  ) : githubPreview && (
+                    <a
+                      href={githubPreview}
+                      target="_blank"
+                      rel="noreferrer"
+                      dir="ltr"
+                      className="flex w-fit items-center gap-1 text-xs text-clay hover:underline"
+                    >
+                      <Github size={11} /> {githubPreview}
+                    </a>
+                  )}
+                </div>
+              )}
+              <MarkdownField
+                id={`submission-notes-${a.id}`}
+                label="הערה למורה (אופציונלי)"
+                rows={2}
+                value={notes}
+                onChange={setNotes}
+              />
+              {error && <p className="text-coral text-xs">{error}</p>}
+            </>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
