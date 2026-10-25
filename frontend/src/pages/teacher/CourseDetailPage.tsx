@@ -106,33 +106,36 @@ export default function CourseDetailPage(props: Partial<CoursePageProps>) {
     <div className="space-y-5" dir="rtl">
       {/* Header */}
       <Card>
-        <CardContent className="flex items-start justify-between">
-          <div>
-            <BackLink className="mb-2" />
-            <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{course.name}</h1>
-            <p className="text-ink/70 text-sm mt-0.5">{course.groupName || course.year}</p>
-            {course.description && <MarkdownRenderer content={course.description} className="mt-1 text-ink/70" />}
+        <CardContent>
+          {/* The description runs under the title row, across the whole card, not squeezed beside the buttons. */}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <BackLink className="mb-2" />
+              <h1 className="font-display text-2xl font-black text-ink md:text-3xl">{course.name}</h1>
+              <p className="text-ink/70 text-sm mt-0.5">{course.groupName || course.year}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/reports?courseId=${id}`)}>
+                <ClipboardCheck size={13} /> בדיקת הגשות
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/courses/${courseSlug}/edit`)}>
+                <Edit size={13} /> ערוך קורס
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                loading={deleteCourseMutation.isPending}
+                onClick={async () => {
+                  if (await ask({ title: `למחוק את הקורס "${course.name}"?`, description: 'כל השיעורים, המטלות, ההגשות והקבצים של הקורס יימחקו לצמיתות.' })) {
+                    deleteCourseMutation.mutate();
+                  }
+                }}
+              >
+                <Trash2 size={13} /> מחק קורס
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/reports?courseId=${id}`)}>
-              <ClipboardCheck size={13} /> בדיקת הגשות
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/courses/${courseSlug}/edit`)}>
-              <Edit size={13} /> ערוך קורס
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              loading={deleteCourseMutation.isPending}
-              onClick={async () => {
-                if (await ask({ title: `למחוק את הקורס "${course.name}"?`, description: 'כל השיעורים, המטלות, ההגשות והקבצים של הקורס יימחקו לצמיתות.' })) {
-                  deleteCourseMutation.mutate();
-                }
-              }}
-            >
-              <Trash2 size={13} /> מחק קורס
-            </Button>
-          </div>
+          {course.description && <MarkdownRenderer content={course.description} className="mt-3 text-ink/70" />}
         </CardContent>
       </Card>
 
