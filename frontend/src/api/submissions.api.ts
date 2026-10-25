@@ -65,6 +65,10 @@ export const submissionsApi = {
   deleteMine: (submissionId: string) =>
     api.delete(`/submissions/${submissionId}`),
 
+  /** The teacher deletes a student's submission, checked or not. */
+  deleteAsTeacher: (submissionId: string) =>
+    api.delete(`/submissions/${submissionId}/as-teacher`),
+
   importSubmissions: (file: File) => {
     const form = new FormData();
     form.append('file', file);

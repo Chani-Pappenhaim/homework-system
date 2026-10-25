@@ -56,7 +56,7 @@ import {
   getVideoUploadSignature,
   rerunAiReview,
   requestAiReview,
-  deleteMySubmission,
+  deleteMySubmission, deleteSubmissionAsTeacher,
   setSubmissionChangesAllowed,
   approveAiReview,
   updateAiReview,
@@ -1014,5 +1014,34 @@ describe('submissions.service - one assignment from a sheet of its course', () =
   it('refuses an assignment that does not exist', async () => {
     p.assignment.findUnique.mockResolvedValue(null);
     await expect(importAssignmentSubmissions('nope', await sheet([]))).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe('submissions.service.deleteSubmissionAsTeacher', () => {
+  const checked = {
+    id: 'sub1', assignmentId: 'a1', studentId: 's1', fileUrl: 'https://res.cloudinary.com/x/raw/upload/v1/submissions/a.zip',
+    aiStatus: 'done', aiReviewCount: 1, aiExtraAllowed: false,
+  };
+
+  it('deletes a submission she already checked, keeping the AI reviews used and releasing the file', async () => {
+    p.submission.findUnique.mockResolvedValue(checked);
+    p.submission.deleteMany.mockResolvedValue({ count: 1 });
+    await deleteSubmissionAsTeacher('sub1');
+    expect(p.submission.deleteMany).toHaveBeenCalledWith({ where: { id: 'sub1', aiStatus: { not: 'pending' } } });
+    expect(p.aiReviewCarryover.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: { assignmentId: 'a1', studentId: 's1', aiReviewCount: 1, aiExtraAllowed: false },
+    }));
+    expect(releaseMock).toHaveBeenCalledWith([checked.fileUrl]);
+  });
+
+  it('waits for a running AI review', async () => {
+    p.submission.findUnique.mockResolvedValue({ ...checked, aiStatus: 'pending' });
+    await expect(deleteSubmissionAsTeacher('sub1')).rejects.toMatchObject({ status: 409 });
+    expect(p.submission.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('answers 404 for a missing submission', async () => {
+    p.submission.findUnique.mockResolvedValue(null);
+    await expect(deleteSubmissionAsTeacher('sub1')).rejects.toMatchObject({ status: 404 });
   });
 });
