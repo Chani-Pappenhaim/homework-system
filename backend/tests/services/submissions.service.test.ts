@@ -56,7 +56,7 @@ import {
   getVideoUploadSignature,
   rerunAiReview,
   requestAiReview,
-  deleteMySubmission, deleteSubmissionAsTeacher,
+  deleteMySubmission, deleteSubmissionAsTeacher, submitForStudent,
   setSubmissionChangesAllowed,
   approveAiReview,
   updateAiReview,
@@ -1043,5 +1043,59 @@ describe('submissions.service.deleteSubmissionAsTeacher', () => {
   it('answers 404 for a missing submission', async () => {
     p.submission.findUnique.mockResolvedValue(null);
     await expect(deleteSubmissionAsTeacher('sub1')).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe('submissions.service.submitForStudent', () => {
+  beforeEach(() => {
+    p.assignment.findUnique.mockResolvedValue({ id: 'a1' });
+    p.user.findUnique.mockResolvedValue({ role: 'STUDENT', githubUsername: 'dina' });
+    p.submission.findUnique.mockResolvedValue(null);
+    p.aiReviewCarryover.findUnique.mockResolvedValue(null);
+    p.submission.create.mockImplementation(async ({ data }: any) => ({ id: 'new', ...data }));
+    p.submission.update.mockImplementation(async ({ data }: any) => ({ id: 'old', ...data }));
+  });
+
+  it("records a repo of the student's own account, on time unless marked late", async () => {
+    repoStatusMock.mockResolvedValue('exists');
+    const sub = await submitForStudent('a1', 's1', { repo: 'hw1' });
+    expect(repoStatusMock).toHaveBeenCalledWith('dina', 'hw1');
+    expect(sub).toMatchObject({ githubUrl: 'https://github.com/dina/hw1', isLate: false, fileUrl: null });
+    expect(p.grade.upsert).toHaveBeenCalledWith(expect.objectContaining({ create: { submissionId: 'new', submissionScore: 100 } }));
+    expect(assertAccessMock).not.toHaveBeenCalled();
+  });
+
+  it('takes a full link and the late mark', async () => {
+    repoStatusMock.mockResolvedValue('exists');
+    const sub = await submitForStudent('a1', 's1', { repo: 'https://github.com/other/proj', isLate: true });
+    expect(sub).toMatchObject({ githubUrl: 'https://github.com/other/proj', isLate: true });
+  });
+
+  it('uploads a file and replaces her earlier one, releasing the old file', async () => {
+    p.submission.findUnique.mockResolvedValue({ id: 'old', aiStatus: 'done', fileUrl: 'https://old', notes: 'n' });
+    uploadMock.mockResolvedValue({ url: 'https://new' });
+    const sub = await submitForStudent('a1', 's1', { file: { buffer: Buffer.from('x'), originalName: 'עבודה.docx', mimeType: 'x' } });
+    expect(sub).toMatchObject({ fileUrl: 'https://new', fileName: 'עבודה.docx', githubUrl: null, aiStatus: 'none', notes: 'n' });
+    expect(releaseMock).toHaveBeenCalledWith(['https://old']);
+  });
+
+  it('refuses a missing repo and a running AI review', async () => {
+    repoStatusMock.mockResolvedValue('missing');
+    await expect(submitForStudent('a1', 's1', { repo: 'nope' })).rejects.toMatchObject({ status: 400 });
+    p.submission.findUnique.mockResolvedValue({ id: 'old', aiStatus: 'pending' });
+    await expect(submitForStudent('a1', 's1', { repo: 'hw1' })).rejects.toMatchObject({ status: 409 });
+    expect(p.submission.create).not.toHaveBeenCalled();
+  });
+
+  it('removes the uploaded file when saving fails', async () => {
+    uploadMock.mockResolvedValue({ url: 'https://new' });
+    p.submission.create.mockRejectedValue(new Error('db down'));
+    await expect(submitForStudent('a1', 's1', { file: { buffer: Buffer.from('x'), originalName: 'a.pdf', mimeType: 'x' } })).rejects.toThrow('db down');
+    expect(destroyMock).toHaveBeenCalledWith('https://new');
+  });
+
+  it('answers 404 for someone who is not a student', async () => {
+    p.user.findUnique.mockResolvedValue({ role: 'ADMIN', githubUsername: null });
+    await expect(submitForStudent('a1', 't1', { repo: 'hw1' })).rejects.toMatchObject({ status: 404 });
   });
 });

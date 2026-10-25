@@ -5,7 +5,7 @@ import { confirmUpload, discardPendingUpload } from './pending-uploads.service';
 import { releaseFileUrls } from './file-refs.service';
 import { assertLessonAccess } from './access.service';
 import { computeSubmissionScore } from '../utils/grading';
-import { getRepoStatus, normalizeRepoName } from '../utils/github';
+import { getRepoStatus, normalizeRepoName, parseRepoRef } from '../utils/github';
 
 function urlExtension(url: string): string {
   const match = /\.([a-z0-9]+)(?:[?#].*)?$/i.exec(url);
@@ -135,6 +135,24 @@ async function saveSubmission(
   // undefined leaves the stored checklist untouched on resubmit; a real array replaces it.
   const checklist = payload.checklist === undefined ? undefined : (payload.checklist as any);
 
+  const submission = await writeSubmission(assignmentId, studentId, existing, { fileUrl, fileName, githubUrl, notes, checklist, isLate });
+  return { submission, replacedFileUrl: existing?.fileUrl ?? null };
+}
+
+/**
+ * Saves new content as the student's submission of the assignment, over her
+ * existing one if there is one, with its automatic submission score.
+ */
+async function writeSubmission(
+  assignmentId: string,
+  studentId: string,
+  existing: { id: string } | null,
+  content: {
+    fileUrl: string | null; fileName: string | null; githubUrl: string | null;
+    notes: string | null; checklist: any; isLate: boolean;
+  },
+) {
+  const { fileUrl, fileName, githubUrl, notes, checklist, isLate } = content;
   // New content makes the old AI review and the teacher's approval stale: the
   // review is cleared and the content score goes back to unpublished, so an
   // approved grade never ends up on work nobody looked at. The review count
@@ -171,7 +189,70 @@ async function saveSubmission(
     update: { submissionScore, contentApproved: false },
   });
 
-  return { submission, replacedFileUrl: existing?.fileUrl ?? null };
+  return submission;
+}
+
+type TeacherSubmitPayload = {
+  /** A repo name (of the student's own GitHub account), owner/repo, or a full GitHub link. */
+  repo?: string;
+  file?: { buffer: Buffer; originalName: string; mimeType: string };
+  isLate?: boolean;
+};
+
+/**
+ * The teacher submits an assignment for a student - work she handed in another
+ * way. Unlike the student, the teacher is not held to the assignment's ways of
+ * submitting or file types, nor to a check already given: she decides. It is
+ * on time unless she marks it late.
+ */
+export async function submitForStudent(assignmentId: string, studentId: string, payload: TeacherSubmitPayload) {
+  const uploaded: { url: string | null } = { url: null };
+  try {
+    const assignment = await prisma.assignment.findUnique({ where: { id: assignmentId }, select: { id: true } });
+    if (!assignment) throw new AppError('Assignment not found', 'המטלה לא נמצאה', 404);
+    const student = await prisma.user.findUnique({ where: { id: studentId }, select: { role: true, githubUsername: true } });
+    if (student?.role !== 'STUDENT') throw new AppError('Student not found', 'התלמידה לא נמצאה', 404);
+
+    const existing = await prisma.submission.findUnique({ where: { assignmentId_studentId: { assignmentId, studentId } } });
+    if (existing?.aiStatus === 'pending') {
+      throw new AppError('AI review in progress', 'בדיקת AI של ההגשה הקיימת עדיין רצה - אפשר להגיש במקומה כשהיא תסתיים', 409);
+    }
+
+    let fileUrl: string | null = null;
+    let fileName: string | null = null;
+    let githubUrl: string | null = null;
+    if (payload.repo?.trim()) {
+      const ref = parseRepoRef(payload.repo);
+      if (!ref) throw new AppError('Invalid repo', 'יש לכתוב שם ריפו, owner/repo או קישור מלא ל-GitHub', 400);
+      const owner = ref.owner ?? student.githubUsername;
+      if (!owner) {
+        throw new AppError('No GitHub username', 'לתלמידה לא מוגדר שם משתמש GitHub - יש לכתוב owner/repo או קישור מלא', 400);
+      }
+      const repoStatus = await getRepoStatus(owner, ref.repo);
+      if (repoStatus === 'missing') {
+        throw new AppError(`Repo ${owner}/${ref.repo} not found`, `הריפו github.com/${owner}/${ref.repo} לא נמצא (או שאינו ציבורי)`, 400);
+      }
+      if (repoStatus === 'unknown') {
+        throw new AppError('GitHub could not be reached', 'לא ניתן לאמת כרגע את הריפו מול GitHub - יש לנסות שוב בעוד כמה דקות', 503);
+      }
+      githubUrl = `https://github.com/${owner}/${ref.repo}`;
+    } else if (payload.file) {
+      fileUrl = (await uploadBuffer(payload.file.buffer, payload.file.mimeType, 'submissions', payload.file.originalName)).url;
+      uploaded.url = fileUrl;
+      fileName = payload.file.originalName;
+    } else {
+      throw new AppError('No file or repo provided', 'יש לצרף קובץ או קישור לריפו', 400);
+    }
+
+    const submission = await writeSubmission(assignmentId, studentId, existing, {
+      fileUrl, fileName, githubUrl, notes: existing?.notes ?? null, checklist: undefined, isLate: payload.isLate === true,
+    });
+    if (existing?.fileUrl && existing.fileUrl !== submission.fileUrl) await releaseFileUrls([existing.fileUrl]);
+    return submission;
+  } catch (err) {
+    if (uploaded.url) await destroyByUrl(uploaded.url).catch((e) => console.error('[storage] cleanup failed:', uploaded.url, e));
+    throw err;
+  }
 }
 
 /** The only uploads a student's browser sends to Cloudinary directly; everything else goes through the server. */

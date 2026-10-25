@@ -136,6 +136,31 @@ export async function importAssignmentSubmissions(req: Request, res: Response) {
   }
 }
 
+export async function assignmentStudents(req: Request, res: Response) {
+  try {
+    const students = await submissionsService.assignmentStudents(req.params.id as string);
+    res.json({ success: true, data: { students } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function submitForStudent(req: Request, res: Response) {
+  try {
+    const submission = await submissionsService.submitForStudent(req.params.id as string, String(req.body.studentId ?? ''), {
+      repo: typeof req.body.repo === 'string' ? req.body.repo : undefined,
+      file: req.file
+        ? { buffer: req.file.buffer, originalName: fixMulterFilename(req.file.originalname), mimeType: req.file.mimetype }
+        : undefined,
+      // A multipart form sends it as text.
+      isLate: req.body.isLate === true || req.body.isLate === 'true',
+    });
+    res.json({ success: true, data: { submission } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
 export async function requestAiReview(req: Request, res: Response) {
   try {
     await submissionsService.requestAiReview(req.params.id as string, req.user!.userId);

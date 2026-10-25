@@ -97,6 +97,17 @@ export async function buildAssignmentSubmissionsTemplate(assignmentId: string): 
   return workbook.xlsx.writeBuffer() as unknown as Promise<Buffer>;
 }
 
+/** The course's students, for the teacher to submit for one of them - each with whether she already submitted. */
+export async function assignmentStudents(assignmentId: string) {
+  const assignment = await assignmentWithCourse(assignmentId);
+  const { id: courseId, groupId } = assignment.lesson.course;
+  const roster = await loadRoster(courseId, groupId);
+  const submitted = new Set(
+    (await prisma.submission.findMany({ where: { assignmentId }, select: { studentId: true } })).map((s) => s.studentId)
+  );
+  return roster.map((s) => ({ id: s.id, name: s.name, email: s.email, submitted: submitted.has(s.id) }));
+}
+
 /** Imports one assignment's submissions from the sheet above. */
 export async function importAssignmentSubmissions(assignmentId: string, buffer: Buffer) {
   const assignment = await assignmentWithCourse(assignmentId);
