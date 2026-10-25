@@ -6,6 +6,7 @@ import { releaseFileUrls, submissionFileUrls } from './file-refs.service';
 import { assertCourseAccess } from './access.service';
 import { groupDisplayName, groupNameSelect } from '../utils/group-name';
 import { countPastDeadlines, upcomingDeadline } from '../utils/deadlines';
+import { ASSIGNMENT_ORDER } from '../utils/assignment-view';
 
 export async function getCoursesForUser(userId: string, role: string) {
   if (role === 'ADMIN') {
@@ -133,11 +134,12 @@ export async function copyCourse(courseId: string, targetGroupId: string) {
     where: { id: courseId },
     include: {
       links: true, files: true,
-      lessons: { include: { files: true, assignments: true, quiz: true } },
+      lessons: { include: { files: true, assignments: { orderBy: ASSIGNMENT_ORDER }, quiz: true } },
     },
   });
   if (!source) throw new AppError('Course not found', 'הקורס לא נמצא', 404);
   const clearedDeadlines = countPastDeadlines(source.lessons.flatMap((l) => l.assignments));
+  const copiedAt = Date.now();
 
   const newCourse = await prisma.course.create({
     data: {
@@ -153,8 +155,9 @@ export async function copyCourse(courseId: string, targetGroupId: string) {
           ...lesson,
           files: { create: files?.map(({ id: _i, lessonId: _l, uploadedAt: _a, ...f }: any) => f) ?? [] },
           assignments: {
-            create: assignments?.map(({ id: _i, lessonId: _l, createdAt: _c, ...a }: any) =>
-              ({ ...a, deadline: upcomingDeadline(a.deadline) })) ?? [],
+            // One millisecond apart, so the copies keep the source's order.
+            create: assignments?.map(({ id: _i, lessonId: _l, createdAt: _c, ...a }: any, i: number) =>
+              ({ ...a, deadline: upcomingDeadline(a.deadline), createdAt: new Date(copiedAt + i) })) ?? [],
           },
           ...(quiz ? { quiz: { create: { questions: quiz.questions ?? [], published: false } } } : {}),
         })),

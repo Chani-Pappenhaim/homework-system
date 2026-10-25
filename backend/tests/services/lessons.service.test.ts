@@ -93,6 +93,11 @@ describe('lessons.service.getLessonById', () => {
     p.lesson.findUnique.mockResolvedValue(null);
     expect(await getLessonById('l1', 'admin', 'ADMIN')).toBeNull();
   });
+  it('lists the assignments in the order they were added', async () => {
+    p.lesson.findUnique.mockResolvedValue(null);
+    await getLessonById('l1', 'admin', 'ADMIN');
+    expect(p.lesson.findUnique.mock.calls[0][0].include.assignments.orderBy).toEqual([{ createdAt: 'asc' }, { id: 'asc' }]);
+  });
   it('checks access for every student read and propagates the refusal', async () => {
     p.lesson.findUnique.mockResolvedValue({ id: 'l1', hidden: false, files: [], assignments: [] });
     assertLessonAccessMock.mockRejectedValue(Object.assign(new Error('Forbidden'), { status: 403 }));
