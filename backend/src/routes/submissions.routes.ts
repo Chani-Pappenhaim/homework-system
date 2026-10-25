@@ -30,5 +30,7 @@ router.get('/mine', submissionsController.mySubmissions);
 router.get('/:id', submissionsController.getSubmission);
 // The student deletes her own submission, so she can submit the assignment again.
 router.delete('/:id', requireRole('STUDENT'), submissionsController.deleteMine);
+// The teacher deletes a student's submission, checked or not.
+router.delete('/:id/as-teacher', requireRole('ADMIN'), submissionsController.deleteAsTeacher);
 
 export default router;

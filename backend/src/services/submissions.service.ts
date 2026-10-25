@@ -352,14 +352,7 @@ export async function deleteMySubmission(submissionId: string, studentId: string
   if (block) throw new AppError('Submission can no longer be deleted', block, 409);
 
   // No review is running (checked above), so the count cannot move before the delete.
-  if (submission.aiReviewCount > 0 || submission.aiExtraAllowed) {
-    const carried = { aiReviewCount: submission.aiReviewCount, aiExtraAllowed: submission.aiExtraAllowed };
-    await prisma.aiReviewCarryover.upsert({
-      where: { assignmentId_studentId: { assignmentId: submission.assignmentId, studentId } },
-      create: { assignmentId: submission.assignmentId, studentId, ...carried },
-      update: carried,
-    });
-  }
+  await keepAiReviewsAside(submission);
 
   // The same conditions in the delete itself: an AI review claimed or a grade
   // saved between the read and here keeps the submission.
@@ -373,6 +366,38 @@ export async function deleteMySubmission(submissionId: string, studentId: string
       ],
     },
   });
+  if (deleted.count === 0) {
+    throw new AppError('Submission changed while deleting', 'ההגשה השתנתה בינתיים ולא נמחקה - יש לרענן את הדף', 409);
+  }
+  if (submission.fileUrl) await releaseFileUrls([submission.fileUrl]);
+}
+
+/** The AI reviews used on a submission about to be deleted, kept for the student's next submission of the assignment. */
+async function keepAiReviewsAside(submission: { assignmentId: string; studentId: string; aiReviewCount: number; aiExtraAllowed: boolean }) {
+  if (submission.aiReviewCount === 0 && !submission.aiExtraAllowed) return;
+  const { assignmentId, studentId } = submission;
+  const carried = { aiReviewCount: submission.aiReviewCount, aiExtraAllowed: submission.aiExtraAllowed };
+  await prisma.aiReviewCarryover.upsert({
+    where: { assignmentId_studentId: { assignmentId, studentId } },
+    create: { assignmentId, studentId, ...carried },
+    update: carried,
+  });
+}
+
+/**
+ * The teacher deletes a student's submission - checked or not - so the
+ * assignment is open to her again. As when the student deletes it herself, the
+ * grade goes with it and the AI reviews she used are kept aside.
+ */
+export async function deleteSubmissionAsTeacher(submissionId: string) {
+  const submission = await prisma.submission.findUnique({ where: { id: submissionId } });
+  if (!submission) throw new AppError('Submission not found', 'ההגשה לא נמצאה', 404);
+  if (submission.aiStatus === 'pending') {
+    throw new AppError('AI review in progress', 'בדיקת AI של ההגשה עדיין רצה - אפשר למחוק כשהיא תסתיים', 409);
+  }
+  await keepAiReviewsAside(submission);
+  // A review claimed between the read and here keeps the submission.
+  const deleted = await prisma.submission.deleteMany({ where: { id: submissionId, aiStatus: { not: 'pending' } } });
   if (deleted.count === 0) {
     throw new AppError('Submission changed while deleting', 'ההגשה השתנתה בינתיים ולא נמחקה - יש לרענן את הדף', 409);
   }

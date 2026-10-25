@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CheckCircle, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { assignmentsApi } from '@/api/assignments.api';
 import { submissionsApi } from '@/api/submissions.api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/use-confirm';
+import { getApiErrorMessage } from '@/lib/errors';
 import { GradePanel } from '@/components/lesson/GradePanel';
 import { cn, formatDateTime } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
@@ -89,6 +91,26 @@ export function SubmissionsWorkstation({ assignment, selectedId, onSelect, onDir
       toast.success(`${approved} ציונים אושרו ונשלחו לתלמידות`);
     },
   });
+  const [confirmDialog, ask] = useConfirm();
+  const deleteMutation = useMutation({
+    mutationFn: (s: SubmissionDTO) => submissionsApi.deleteAsTeacher(s.id),
+    onSuccess: (_res, s) => {
+      dirtyRef.current = false;
+      reportDirty?.(false);
+      qc.invalidateQueries({ queryKey: ['submissions', assignment.id] });
+      toast.success(`ההגשה של ${s.studentName} נמחקה`);
+    },
+    onError: (e) => toast.error(getApiErrorMessage(e, 'מחיקת ההגשה נכשלה')),
+  });
+  const deleteSubmission = async (s: SubmissionDTO) => {
+    const ok = await ask({
+      title: `למחוק את ההגשה של ${s.studentName}?`,
+      description: 'ההגשה, הציון וההערות עליה יימחקו, והמטלה תחזור אצלה לממתינה להגשה. בדיקות ה-AI שכבר נוצלו עדיין נספרות לה.',
+      confirmLabel: 'מחיקת ההגשה',
+      destructive: true,
+    });
+    if (ok) deleteMutation.mutate(s);
+  };
   const toggleSelected = (id: string) => setSelected((prev) => {
     const nextSet = new Set(prev);
     if (nextSet.has(id)) nextSet.delete(id); else nextSet.add(id);
@@ -175,6 +197,16 @@ export function SubmissionsWorkstation({ assignment, selectedId, onSelect, onDir
               </p>
             </div>
             <nav className="flex items-center gap-1.5" aria-label="מעבר בין הגשות">
+              <Button
+                size="sm"
+                variant="ghost"
+                loading={deleteMutation.isPending}
+                onClick={() => deleteSubmission(current)}
+                title="מחיקת ההגשה"
+                aria-label="מחיקת ההגשה"
+              >
+                <Trash2 size={14} />
+              </Button>
               <Button size="sm" variant="outline" disabled={!previous} onClick={() => goTo(previous)}>
                 <ChevronRight size={14} /> הקודמת
               </Button>
@@ -195,6 +227,7 @@ export function SubmissionsWorkstation({ assignment, selectedId, onSelect, onDir
         </section>
       )}
 
+      {confirmDialog}
       <ConfirmDialog
         open={Boolean(pendingSwitch)}
         onOpenChange={(open) => { if (!open) setPendingSwitch(null); }}
