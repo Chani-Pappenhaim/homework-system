@@ -40,6 +40,14 @@ export function submissionPath(lessonId: string, assignmentId: string, submissio
   return `/teacher/lessons/${lessonId}?assignmentId=${assignmentId}&submissionId=${submissionId}&section=submissions`;
 }
 
+/**
+ * An assignment on the student's lesson page: the assignments tab, scrolled to
+ * where she submits it.
+ */
+export function studentAssignmentPath(lessonId: string, assignmentId: string): string {
+  return `/student/lessons/${lessonId}?tab=assignments&assignment=${assignmentId}`;
+}
+
 /** The pathname as written, Hebrew included — browsers hand it over percent-encoded. */
 function decodedPathname(pathname: string): string {
   try { return decodeURI(pathname); } catch { return pathname; }

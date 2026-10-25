@@ -244,3 +244,23 @@ describe('StudentLessonDetailPage', () => {
     expect(await screen.findByText('יש לסמן את הקבצים הבאים כנצפו')).toBeInTheDocument();
   });
 });
+
+describe('one assignment, linked and collapsed', () => {
+  it('opens the assignments tab marked at the linked assignment, its brief hideable', async () => {
+    getLesson.mockResolvedValue(lessonWith([
+      { id: 'a1', title: 'מטלה ראשונה', description: 'תיאור ארוך של המטלה', deadline: FUTURE, allowFile: false, allowGithub: true, allowedTypes: [] },
+    ]));
+    mine.mockResolvedValue({ data: { data: { submitted: [] } } });
+    renderWithProviders(<StudentLessonDetailPage />, {
+      path: '/student/lesson/:id',
+      initialEntries: ['/student/lesson/l1?tab=assignments&assignment=a1'],
+    });
+    expect(await screen.findByText('תיאור ארוך של המטלה')).toBeInTheDocument();
+    expect(screen.getByText('הגשה: מטלה ראשונה')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /הסתרת התיאור/ }));
+    expect(screen.queryByText('תיאור ארוך של המטלה')).not.toBeInTheDocument();
+    expect(screen.getByText('הגשה: מטלה ראשונה')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /הצגת התיאור/ }));
+    expect(screen.getByText('תיאור ארוך של המטלה')).toBeInTheDocument();
+  });
+});
