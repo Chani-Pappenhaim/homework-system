@@ -1,5 +1,6 @@
 ﻿import { Request, Response } from 'express';
 import * as gradesService from '../services/grades.service';
+import * as settingsService from '../services/settings.service';
 import { sendError } from '../utils/http';
 import { dayRangeQuery } from '../utils/date-range';
 
@@ -7,6 +8,22 @@ import { dayRangeQuery } from '../utils/date-range';
 function reportFilters(req: Request): gradesService.ReportFilters {
   const id = (name: string) => req.query[name] as string | undefined;
   return { groupId: id('groupId'), courseId: id('courseId'), studentId: id('studentId'), ...dayRangeQuery(req.query) };
+}
+
+export async function getLatePolicy(_req: Request, res: Response) {
+  try {
+    res.json({ success: true, data: await settingsService.getLatePolicy() });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function updateLatePolicy(req: Request, res: Response) {
+  try {
+    res.json({ success: true, data: await settingsService.updateLatePolicy(req.body ?? {}) });
+  } catch (err: any) {
+    sendError(res, err);
+  }
 }
 
 export async function gradeSubmission(req: Request, res: Response) {

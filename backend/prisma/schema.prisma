@@ -292,11 +292,15 @@ enum AiPaidFallback {
 // Site-wide settings the teacher changes from the dashboard. A single row,
 // created the first time she saves; until then the defaults apply.
 model AppSettings {
-  id              String         @id @default("app")
-  aiPaidFallback  AiPaidFallback @default(DAILY_QUOTA)
+  id                String         @id @default("app")
+  aiPaidFallback    AiPaidFallback @default(DAILY_QUOTA)
   // The name the students' emails come from; null = BREVO_SENDER_NAME.
-  emailSenderName String?
-  updatedAt       DateTime       @updatedAt
+  emailSenderName   String?
+  // A late submission loses latePenaltyPerDay points for each day (a started
+  // day counts), never more than latePenaltyMax in all.
+  latePenaltyPerDay Int            @default(2)
+  latePenaltyMax    Int            @default(20)
+  updatedAt         DateTime       @updatedAt
 }
 
 model AiUsageLog {

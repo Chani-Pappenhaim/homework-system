@@ -4,7 +4,8 @@ import { uploadBuffer, createUploadSignature, destroyByUrl, isOwnUpload, submiss
 import { confirmUpload, discardPendingUpload } from './pending-uploads.service';
 import { releaseFileUrls } from './file-refs.service';
 import { assertLessonAccess } from './access.service';
-import { computeSubmissionScore } from '../utils/grading';
+import { computeSubmissionScore, daysLate } from '../utils/grading';
+import { getLatePolicy } from './settings.service';
 import { getRepoStatus, normalizeRepoName, parseRepoRef } from '../utils/github';
 
 function urlExtension(url: string): string {
@@ -135,7 +136,9 @@ async function saveSubmission(
   // undefined leaves the stored checklist untouched on resubmit; a real array replaces it.
   const checklist = payload.checklist === undefined ? undefined : (payload.checklist as any);
 
-  const submission = await writeSubmission(assignmentId, studentId, existing, { fileUrl, fileName, githubUrl, notes, checklist, isLate });
+  const submission = await writeSubmission(assignmentId, studentId, existing, {
+    fileUrl, fileName, githubUrl, notes, checklist, isLate, deadline: assignment.deadline,
+  });
   return { submission, replacedFileUrl: existing?.fileUrl ?? null };
 }
 
@@ -149,10 +152,10 @@ async function writeSubmission(
   existing: { id: string } | null,
   content: {
     fileUrl: string | null; fileName: string | null; githubUrl: string | null;
-    notes: string | null; checklist: any; isLate: boolean;
+    notes: string | null; checklist: any; isLate: boolean; deadline: Date | null;
   },
 ) {
-  const { fileUrl, fileName, githubUrl, notes, checklist, isLate } = content;
+  const { fileUrl, fileName, githubUrl, notes, checklist, isLate, deadline } = content;
   // New content makes the old AI review and the teacher's approval stale: the
   // review is cleared and the content score goes back to unpublished, so an
   // approved grade never ends up on work nobody looked at. The review count
@@ -182,7 +185,8 @@ async function writeSubmission(
 
   // Automatic submission score, visible to the student right away. Any
   // contentScore/feedback already given by the teacher is left untouched.
-  const submissionScore = computeSubmissionScore(isLate, submission.checklist);
+  const lateDays = daysLate(isLate, submission.submittedAt, deadline);
+  const submissionScore = computeSubmissionScore(lateDays, submission.checklist, await getLatePolicy());
   await prisma.grade.upsert({
     where: { submissionId: submission.id },
     create: { submissionId: submission.id, submissionScore },
@@ -208,7 +212,7 @@ type TeacherSubmitPayload = {
 export async function submitForStudent(assignmentId: string, studentId: string, payload: TeacherSubmitPayload) {
   const uploaded: { url: string | null } = { url: null };
   try {
-    const assignment = await prisma.assignment.findUnique({ where: { id: assignmentId }, select: { id: true } });
+    const assignment = await prisma.assignment.findUnique({ where: { id: assignmentId }, select: { id: true, deadline: true } });
     if (!assignment) throw new AppError('Assignment not found', 'המטלה לא נמצאה', 404);
     const student = await prisma.user.findUnique({ where: { id: studentId }, select: { role: true, githubUsername: true } });
     if (student?.role !== 'STUDENT') throw new AppError('Student not found', 'התלמידה לא נמצאה', 404);
@@ -246,6 +250,7 @@ export async function submitForStudent(assignmentId: string, studentId: string, 
 
     const submission = await writeSubmission(assignmentId, studentId, existing, {
       fileUrl, fileName, githubUrl, notes: existing?.notes ?? null, checklist: undefined, isLate: payload.isLate === true,
+      deadline: assignment.deadline,
     });
     if (existing?.fileUrl && existing.fileUrl !== submission.fileUrl) await releaseFileUrls([existing.fileUrl]);
     return submission;
