@@ -4,7 +4,8 @@ import { assertLessonAccess } from './access.service';
 import { cellText } from '../utils/excel';
 import { submissionFileLink } from '../utils/storage';
 import { releaseFileUrls, submissionFileUrls } from './file-refs.service';
-import { computeSubmissionScore } from '../utils/grading';
+import { computeSubmissionScore, daysLate } from '../utils/grading';
+import { getLatePolicy } from './settings.service';
 import { AI_REFERENCE_FILES_INCLUDE, assignmentForViewer } from '../utils/assignment-view';
 import ExcelJS from 'exceljs';
 
@@ -88,23 +89,27 @@ async function aiReferenceFilesField(lessonId: string, ids: unknown, mode: 'conn
 
 /**
  * After the deadline moves, each submission's lateness follows the new date.
- * An automatic submission score is recalculated with it; a score the teacher
- * set herself is left alone.
+ * An automatic submission score is recalculated with it - also when it stays
+ * late, by a different number of days; a score the teacher set herself is
+ * left alone.
  */
 async function recomputeLateness(assignmentId: string, deadline: Date | null) {
   const submissions = await prisma.submission.findMany({
     where: { assignmentId },
-    select: { id: true, submittedAt: true, isLate: true, checklist: true, grade: { select: { gradedById: true } } },
+    select: {
+      id: true, submittedAt: true, isLate: true, checklist: true,
+      grade: { select: { gradedById: true, submissionScore: true } },
+    },
   });
+  const policy = await getLatePolicy();
   for (const sub of submissions) {
     const isLate = deadline ? sub.submittedAt > deadline : false;
-    if (isLate === sub.isLate) continue;
-    await prisma.submission.update({ where: { id: sub.id }, data: { isLate } });
+    if (isLate !== sub.isLate) await prisma.submission.update({ where: { id: sub.id }, data: { isLate } });
     if (sub.grade && !sub.grade.gradedById) {
-      await prisma.grade.update({
-        where: { submissionId: sub.id },
-        data: { submissionScore: computeSubmissionScore(isLate, sub.checklist) },
-      });
+      const submissionScore = computeSubmissionScore(daysLate(isLate, sub.submittedAt, deadline), sub.checklist, policy);
+      if (submissionScore !== sub.grade.submissionScore) {
+        await prisma.grade.update({ where: { submissionId: sub.id }, data: { submissionScore } });
+      }
     }
   }
 }

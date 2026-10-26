@@ -7,6 +7,7 @@ vi.mock('../../src/config/prisma', () => ({
 import { prisma } from '../../src/config/prisma';
 import {
   getAiSettings, updateAiSettings, getEmailSettings, updateEmailSettings, emailSenderName, MAX_SENDER_NAME,
+  getLatePolicy, updateLatePolicy,
 } from '../../src/services/settings.service';
 
 const p = prisma as any;
@@ -83,5 +84,35 @@ describe('the email sender name', () => {
     p.appSettings.findUnique.mockRejectedValue(new Error('db down'));
     expect(await emailSenderName()).toBe('Teacher Feature');
     warn.mockRestore();
+  });
+});
+
+describe('the late penalty', () => {
+  it('reads the saved penalty', async () => {
+    p.appSettings.findUnique.mockResolvedValue({ id: 'app', latePenaltyPerDay: 5, latePenaltyMax: 50 });
+    expect(await getLatePolicy()).toEqual({ perDay: 5, max: 50 });
+  });
+
+  it('is 2 points a day up to 20 until the teacher first saves, or when the database cannot be read', async () => {
+    p.appSettings.findUnique.mockResolvedValueOnce(null);
+    expect(await getLatePolicy()).toEqual({ perDay: 2, max: 20 });
+    p.appSettings.findUnique.mockRejectedValueOnce(new Error('db down'));
+    expect(await getLatePolicy()).toEqual({ perDay: 2, max: 20 });
+  });
+
+  it('saves whole numbers between 0 and 100, also sent as text', async () => {
+    expect(await updateLatePolicy({ perDay: '3', max: 0 })).toEqual({ perDay: 3, max: 0 });
+    expect(p.appSettings.upsert).toHaveBeenCalledWith({
+      where: { id: 'app' },
+      create: { id: 'app', latePenaltyPerDay: 3, latePenaltyMax: 0 },
+      update: { latePenaltyPerDay: 3, latePenaltyMax: 0 },
+    });
+  });
+
+  it('refuses a missing, fractional, negative or too large value', async () => {
+    for (const bad of [{ max: 10 }, { perDay: 1.5, max: 10 }, { perDay: -1, max: 10 }, { perDay: 2, max: 101 }, { perDay: '', max: 10 }]) {
+      await expect(updateLatePolicy(bad)).rejects.toMatchObject({ status: 400 });
+    }
+    expect(p.appSettings.upsert).not.toHaveBeenCalled();
   });
 });

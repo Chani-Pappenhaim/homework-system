@@ -1,6 +1,7 @@
 import type { AiPaidFallback } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
+import { DEFAULT_LATE_POLICY, type LatePolicy } from '../utils/grading';
 
 // The single settings row.
 const SETTINGS_ID = 'app';
@@ -74,6 +75,36 @@ export async function emailSenderName(): Promise<string> {
     console.warn('[settings] could not read the email sender name - using the default:', (err as Error)?.message ?? err);
     return defaultSenderName();
   }
+}
+
+/**
+ * The teacher's late penalty: the defaults until she first saves it. A failed
+ * read falls back to the defaults too, so a submission is never lost over it.
+ */
+export async function getLatePolicy(): Promise<LatePolicy> {
+  try {
+    const row = await prisma.appSettings.findUnique({ where: { id: SETTINGS_ID } });
+    return row ? { perDay: row.latePenaltyPerDay, max: row.latePenaltyMax } : DEFAULT_LATE_POLICY;
+  } catch (err) {
+    console.warn('[settings] could not read the late penalty - using the defaults:', (err as Error)?.message ?? err);
+    return DEFAULT_LATE_POLICY;
+  }
+}
+
+function penaltyPoints(value: unknown, field: string, hebrew: string): number {
+  const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+  if (typeof n !== 'number' || !Number.isInteger(n) || n < 0 || n > 100) {
+    throw new AppError(`Invalid ${field}: ${String(value)}`, `${hebrew} צריך להיות מספר שלם בין 0 ל-100`, 400);
+  }
+  return n;
+}
+
+export async function updateLatePolicy(input: { perDay?: unknown; max?: unknown }): Promise<LatePolicy> {
+  const perDay = penaltyPoints(input?.perDay, 'perDay', 'מספר הנקודות ליום איחור');
+  const max = penaltyPoints(input?.max, 'max', 'ההורדה המקסימלית');
+  const data = { latePenaltyPerDay: perDay, latePenaltyMax: max };
+  await prisma.appSettings.upsert({ where: { id: SETTINGS_ID }, create: { id: SETTINGS_ID, ...data }, update: data });
+  return { perDay, max };
 }
 
 export async function updateAiSettings(input: { paidFallback?: unknown }): Promise<AiSettings> {

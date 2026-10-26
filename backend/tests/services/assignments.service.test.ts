@@ -6,6 +6,7 @@ vi.mock('../../src/config/prisma', () => ({
     submission: { findMany: vi.fn(), update: vi.fn() },
     grade: { update: vi.fn() },
     lessonFile: { count: vi.fn() },
+    appSettings: { findUnique: vi.fn() },
   },
 }));
 
@@ -255,6 +256,19 @@ describe('assignments.service hardening', () => {
     expect(p.submission.update).toHaveBeenCalledWith({ where: { id: 's1' }, data: { isLate: false } });
     expect(p.grade.update).toHaveBeenCalledTimes(1);
     expect(p.grade.update).toHaveBeenCalledWith({ where: { submissionId: 's1' }, data: { submissionScore: 100 } });
+  });
+
+  it('recomputes the score of a submission that stays late, by the new number of days', async () => {
+    p.appSettings.findUnique.mockResolvedValueOnce({ latePenaltyPerDay: 3, latePenaltyMax: 100 });
+    p.assignment.findUnique.mockResolvedValue({ deadline: new Date('2099-01-10T12:00:00Z') });
+    p.assignment.update.mockResolvedValue({ id: 'a1', deadline: new Date('2099-01-05T12:00:00Z') });
+    p.submission.findMany.mockResolvedValue([
+      { id: 's1', submittedAt: new Date('2099-01-11T12:00:00Z'), isLate: true, checklist: null, grade: { gradedById: null, submissionScore: 97 } },
+    ]);
+    await updateAssignment('a1', { deadline: '2099-01-05T12:00:00Z' });
+    expect(p.submission.update).not.toHaveBeenCalled();
+    // Six days late now, 3 points each.
+    expect(p.grade.update).toHaveBeenCalledWith({ where: { submissionId: 's1' }, data: { submissionScore: 82 } });
   });
 });
 

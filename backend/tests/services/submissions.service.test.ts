@@ -7,6 +7,7 @@ vi.mock('../../src/config/prisma', () => ({
     submission: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
     grade: { findUnique: vi.fn(), upsert: vi.fn(), update: vi.fn() },
     aiReviewCarryover: { findUnique: vi.fn(), upsert: vi.fn(), deleteMany: vi.fn() },
+    appSettings: { findUnique: vi.fn() },
   },
 }));
 
@@ -301,9 +302,28 @@ describe('submissions.service.submitAssignment', () => {
     p.assignment.findUnique.mockResolvedValue(baseAssignment({ deadline: new Date('2000-01-01') }));
     p.user.findUnique.mockResolvedValue({ githubUsername: 'g' });
     p.submission.findUnique.mockResolvedValue(null);
-    p.submission.create.mockImplementation(({ data }: any) => Promise.resolve(data));
+    p.submission.create.mockImplementation(({ data }: any) => Promise.resolve({ ...data, submittedAt: new Date() }));
     const r: any = await submitAssignment('a1', 's1', { repoName: 'r' });
     expect(r.isLate).toBe(true);
+  });
+
+  it("docks the automatic score by the teacher's penalty for each day late, up to her maximum", async () => {
+    const day = 24 * 60 * 60 * 1000;
+    p.user.findUnique.mockResolvedValue({ githubUsername: 'g' });
+    p.submission.findUnique.mockResolvedValue(null);
+    p.submission.create.mockImplementation(({ data }: any) => Promise.resolve({ ...data, submittedAt: new Date() }));
+
+    // 2.5 days late: a started day counts, so three days at 4 points.
+    p.appSettings.findUnique.mockResolvedValueOnce({ latePenaltyPerDay: 4, latePenaltyMax: 30 });
+    p.assignment.findUnique.mockResolvedValueOnce(baseAssignment({ deadline: new Date(Date.now() - 2.5 * day) }));
+    await submitAssignment('a1', 's1', { repoName: 'r' });
+    expect(p.grade.upsert.mock.calls[0][0].create.submissionScore).toBe(88);
+
+    // Twenty days late: capped at 30 points.
+    p.appSettings.findUnique.mockResolvedValueOnce({ latePenaltyPerDay: 4, latePenaltyMax: 30 });
+    p.assignment.findUnique.mockResolvedValueOnce(baseAssignment({ deadline: new Date(Date.now() - 20 * day) }));
+    await submitAssignment('a1', 's1', { repoName: 'r' });
+    expect(p.grade.upsert.mock.calls[1][0].create.submissionScore).toBe(70);
   });
 
   it('computes isLate=false when deadline is in the future', async () => {
