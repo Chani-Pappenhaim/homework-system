@@ -212,6 +212,9 @@ model Assignment {
   // Off for exercises the teacher never wants an AI to check: no review can be
   // requested or rerun, and a review already queued ends with a message.
   aiReviewEnabled Boolean   @default(true)
+  // A large exercise (one that grows over several lessons): the review reads
+  // more and larger code files. See LARGE_REVIEW_LIMITS.
+  aiReviewLarge   Boolean   @default(false)
   createdAt       DateTime  @default(now())
 
   submissions        Submission[]

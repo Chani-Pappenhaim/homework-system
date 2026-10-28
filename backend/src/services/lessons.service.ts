@@ -251,7 +251,7 @@ export async function copyLesson(lessonId: string, targetCourseId?: string) {
           title: a.title, description: a.description, deadline: upcomingDeadline(a.deadline),
           allowedTypes: a.allowedTypes, allowGithub: a.allowGithub, allowFile: a.allowFile,
           requirements: a.requirements ?? undefined, aiInstructions: a.aiInstructions,
-          aiReviewEnabled: a.aiReviewEnabled, createdAt: new Date(copiedAt + i),
+          aiReviewEnabled: a.aiReviewEnabled, aiReviewLarge: a.aiReviewLarge, createdAt: new Date(copiedAt + i),
           ...(referenceIds.length ? { aiReferenceFiles: { connect: referenceIds.map((id) => ({ id })) } } : {}),
         },
       });

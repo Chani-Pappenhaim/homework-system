@@ -8,7 +8,7 @@ vi.mock('mammoth', () => ({
 import AdmZip from 'adm-zip';
 import {
   fetchGithubCode, extractZipCode, extractDocxText, extractPptxText, extractLessonFiles, quizExcludedFiles,
-  ATTACHMENT_MAX_FILES, ATTACHMENT_INLINE_MAX_TOTAL_BYTES,
+  ATTACHMENT_MAX_FILES, ATTACHMENT_INLINE_MAX_TOTAL_BYTES, LARGE_REVIEW_LIMITS,
 } from '../../src/utils/code-extraction';
 
 beforeEach(() => {
@@ -44,6 +44,36 @@ describe('code-extraction.fetchGithubCode', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps files too large to read from taking the place of ones that fit, and tells the AI what it left out', async () => {
+    const tree = [
+      { type: 'blob', path: 'a-big.js', size: 9000 },
+      ...Array.from({ length: 3 }, (_, i) => ({ type: 'blob', path: `f${i}.js`, size: 10 })),
+    ];
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ tree }) })
+      .mockResolvedValue({ ok: true, text: async () => 'x()' });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const r = await fetchGithubCode('https://github.com/dina/repo', { maxFiles: 2, maxFileChars: 5000 });
+    expect(r).toContain('--- f0.js ---');
+    expect(r).toContain('--- f1.js ---');
+    expect(r).not.toContain('--- f2.js ---');
+    // The large file was never downloaded.
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(r).toContain('[קבצי קוד שלא נכללו בבדיקה - ארוכים מ-5000 תווים: a-big.js; 1 קבצים נוספים מעבר למגבלה של 2 קבצים]');
+  });
+
+  it('reads a file of a large exercise that the default limit leaves out', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ tree: [{ type: 'blob', path: 'controller.js', size: 9000 }] }) })
+      .mockResolvedValue({ ok: true, text: async () => 'y'.repeat(9000) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const r = await fetchGithubCode('https://github.com/dina/repo', LARGE_REVIEW_LIMITS);
+    expect(r).toContain('--- controller.js ---');
+    expect(r).not.toContain('לא נכללו');
+  });
+
   it('throws when the tree request fails', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404 }));
     await expect(fetchGithubCode('https://github.com/a/b')).rejects.toThrow(/GitHub API error: 404/);
@@ -60,6 +90,15 @@ describe('code-extraction.extractZipCode', () => {
     expect(out).toContain('--- src/app.ts ---');
     expect(out).toContain('export const a = 1;');
     expect(out).not.toContain('ignored');
+  });
+
+  it('tells the AI which code files in the zip were too large to read', async () => {
+    const zip = new AdmZip();
+    zip.addFile('big.js', Buffer.from('z'.repeat(6000)));
+    zip.addFile('small.js', Buffer.from('ok()'));
+    const out = await extractZipCode(zip.toBuffer());
+    expect(out).toBe('--- small.js ---\nok()\n\n[קבצי קוד שלא נכללו בבדיקה - ארוכים מ-5000 תווים: big.js]');
+    expect(await extractZipCode(zip.toBuffer(), LARGE_REVIEW_LIMITS)).toContain('--- big.js ---');
   });
 
   it('reads Word and PowerPoint files inside the zip as text', async () => {

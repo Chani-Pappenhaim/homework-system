@@ -105,6 +105,15 @@ describe('AssignmentModal', () => {
     renderModal({ id: 'a1', title: 'T', description: 'D', deadline: null, aiReviewEnabled: false } as never);
     expect(screen.getByRole('checkbox', { name: /לאפשר בדיקת AI/ })).not.toBeChecked();
   });
+
+  it('marks an assignment as a large exercise, off until ticked', async () => {
+    renderModal({ id: 'a1', title: 'T', description: 'D', deadline: null } as never);
+    const large = screen.getByRole('checkbox', { name: /תרגיל גדול/ });
+    expect(large).not.toBeChecked();
+    await userEvent.click(large);
+    await userEvent.click(screen.getByRole('button', { name: 'שמרי שינויים' }));
+    await waitFor(() => expect(update).toHaveBeenCalledWith('a1', expect.objectContaining({ aiReviewLarge: true })));
+  });
 });
 
 describe('AssignmentModal - the lesson files the AI review relies on', () => {

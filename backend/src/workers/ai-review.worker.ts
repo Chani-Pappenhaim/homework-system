@@ -2,7 +2,9 @@ import { Worker, UnrecoverableError } from 'bullmq';
 import type IORedis from 'ioredis';
 import { prisma } from '../config/prisma';
 import { reviewCode, GeminiError, type ReviewReferences } from '../services/gemini.service';
-import { fetchGithubCode, extractZipCode, extractDocxText, extractLessonFiles } from '../utils/code-extraction';
+import {
+  fetchGithubCode, extractZipCode, extractDocxText, extractLessonFiles, DEFAULT_REVIEW_LIMITS, LARGE_REVIEW_LIMITS,
+} from '../utils/code-extraction';
 import { toDeliveryUrl } from '../utils/storage';
 import type { AiReviewJobData } from '../infrastructure/queues/job-types';
 import { attachLifecycleLogging } from './worker-events';
@@ -58,10 +60,11 @@ export function registerAiReviewWorker(connection: IORedis): Worker<AiReviewJobD
         }
 
         const fileRef = (submission.fileName || submission.fileUrl || '').toLowerCase();
+        const limits = submission.assignment.aiReviewLarge ? LARGE_REVIEW_LIMITS : DEFAULT_REVIEW_LIMITS;
 
         let code = '';
         if (submission.githubUrl) {
-          code = await fetchGithubCode(submission.githubUrl).catch((err) => {
+          code = await fetchGithubCode(submission.githubUrl, limits).catch((err) => {
             if (err?.status === 404) {
               throw new AiReviewInputError(
                 err.message,
@@ -71,7 +74,7 @@ export function registerAiReviewWorker(connection: IORedis): Worker<AiReviewJobD
             throw err;
           });
         } else if (submission.fileUrl && fileRef.endsWith('.zip')) {
-          code = await extractZipCode(await downloadFile(toDeliveryUrl(submission.fileUrl)));
+          code = await extractZipCode(await downloadFile(toDeliveryUrl(submission.fileUrl)), limits);
         } else if (submission.fileUrl && fileRef.endsWith('.docx')) {
           code = await extractDocxText(await downloadFile(toDeliveryUrl(submission.fileUrl)));
         } else {

@@ -57,7 +57,7 @@ function deadlineField(deadline: string | null | undefined) {
 // Fields a teacher may set on an assignment; anything else in the request body
 // (lessonId, id, counters) is ignored rather than written through.
 const EDITABLE_FIELDS = [
-  'allowedTypes', 'allowGithub', 'allowFile', 'requirements', 'aiInstructions', 'aiReviewEnabled',
+  'allowedTypes', 'allowGithub', 'allowFile', 'requirements', 'aiInstructions', 'aiReviewEnabled', 'aiReviewLarge',
 ] as const;
 
 function editableFields(data: Record<string, unknown>) {
@@ -120,6 +120,7 @@ export async function createAssignment(lessonId: string, data: {
   requirements?: { id: string; text: string }[];
   aiInstructions?: string | null;
   aiReviewEnabled?: boolean;
+  aiReviewLarge?: boolean;
   aiReferenceFileIds?: string[];
 }) {
   const title = requireText(data.title, 'title');
@@ -144,6 +145,7 @@ export async function updateAssignment(id: string, data: Partial<{
   requirements: { id: string; text: string }[];
   aiInstructions: string | null;
   aiReviewEnabled: boolean;
+  aiReviewLarge: boolean;
   aiReferenceFileIds: string[];
 }>) {
   const fields: Record<string, unknown> = { ...editableFields(data), ...deadlineField(data.deadline) };
