@@ -215,6 +215,11 @@ model Assignment {
   // A large exercise (one that grows over several lessons): the review reads
   // more and larger code files. See LARGE_REVIEW_LIMITS.
   aiReviewLarge   Boolean   @default(false)
+  // An exercise given in parts, one per lesson: the review reads a GitHub repo
+  // as it is at aiGitToTag (the latest commit when null), and the changes since
+  // aiGitFromTag. Students see the names, since they create the tags.
+  aiGitFromTag    String?
+  aiGitToTag      String?
   createdAt       DateTime  @default(now())
 
   submissions        Submission[]

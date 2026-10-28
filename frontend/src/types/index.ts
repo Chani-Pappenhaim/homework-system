@@ -124,6 +124,13 @@ export interface AssignmentDTO {
   aiReviewEnabled?: boolean;
   /** A large exercise: the AI review reads more and larger code files. */
   aiReviewLarge?: boolean;
+  /**
+   * An exercise given in parts: the AI review reads a GitHub repo at aiGitToTag
+   * (the latest commit when absent), with the changes since aiGitFromTag.
+   * Students see them, since they create the tags.
+   */
+  aiGitFromTag?: string | null;
+  aiGitToTag?: string | null;
   /** Teacher view only - the lesson files the AI review relies on. */
   aiReferenceFileIds?: string[];
 }

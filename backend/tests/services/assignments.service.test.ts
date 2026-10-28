@@ -237,6 +237,20 @@ describe('assignments.service hardening', () => {
     expect(p.assignment.update.mock.calls[0][0].data).toEqual({ aiReviewEnabled: false });
   });
 
+  it('saves the git tags of an exercise given in parts, trimmed, and clears an emptied one', async () => {
+    p.assignment.update.mockResolvedValue({ id: 'a1', deadline: null });
+    await updateAssignment('a1', { aiGitFromTag: ' lesson1 ', aiGitToTag: '' });
+    expect(p.assignment.update.mock.calls[0][0].data).toEqual({ aiGitFromTag: 'lesson1', aiGitToTag: null });
+  });
+
+  it('refuses a tag name that cannot travel in a GitHub URL, and two identical tags', async () => {
+    await expect(updateAssignment('a1', { aiGitToTag: 'שיעור 3' })).rejects.toMatchObject({ status: 400 });
+    await expect(updateAssignment('a1', { aiGitToTag: 'a/b' })).rejects.toMatchObject({ status: 400 });
+    await expect(updateAssignment('a1', { aiGitFromTag: 'lesson2', aiGitToTag: 'lesson2' }))
+      .rejects.toMatchObject({ status: 400 });
+    expect(p.assignment.update).not.toHaveBeenCalled();
+  });
+
   it('clears the AI instructions when the box is emptied', async () => {
     p.assignment.update.mockResolvedValue({ id: 'a1', deadline: null });
     await updateAssignment('a1', { aiInstructions: '  ' });

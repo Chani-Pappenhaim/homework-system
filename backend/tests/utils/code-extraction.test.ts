@@ -7,7 +7,7 @@ vi.mock('mammoth', () => ({
 
 import AdmZip from 'adm-zip';
 import {
-  fetchGithubCode, extractZipCode, extractDocxText, extractPptxText, extractLessonFiles, quizExcludedFiles,
+  fetchGithubCode, fetchGithubDiff, extractZipCode, extractDocxText, extractPptxText, extractLessonFiles, quizExcludedFiles,
   ATTACHMENT_MAX_FILES, ATTACHMENT_INLINE_MAX_TOTAL_BYTES, LARGE_REVIEW_LIMITS,
 } from '../../src/utils/code-extraction';
 
@@ -74,9 +74,70 @@ describe('code-extraction.fetchGithubCode', () => {
     expect(r).not.toContain('לא נכללו');
   });
 
+  it('reads the repo as it is at a tag', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ tree: [{ type: 'blob', path: 'app.js', size: 5 }] }) })
+      .mockResolvedValueOnce({ ok: true, text: async () => 'v1()' });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await fetchGithubCode('https://github.com/dina/repo', undefined, 'lesson2');
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.github.com/repos/dina/repo/git/trees/lesson2?recursive=1');
+    expect(fetchMock.mock.calls[1][0]).toBe('https://raw.githubusercontent.com/dina/repo/lesson2/app.js');
+  });
+
+  it('tells a missing tag apart from a missing repo', async () => {
+    // Tree at the tag: 404; the repo itself: found.
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 404 })
+      .mockResolvedValueOnce({ ok: true, status: 200 }));
+    await expect(fetchGithubCode('https://github.com/dina/repo', undefined, 'lesson2'))
+      .rejects.toMatchObject({ status: 404, missingTag: 'lesson2' });
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404 }));
+    const err = await fetchGithubCode('https://github.com/dina/gone', undefined, 'lesson2').catch((e) => e);
+    expect(err).toMatchObject({ status: 404 });
+    expect(err.missingTag).toBeUndefined();
+  });
+
   it('throws when the tree request fails', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404 }));
     await expect(fetchGithubCode('https://github.com/a/b')).rejects.toThrow(/GitHub API error: 404/);
+  });
+});
+
+describe('code-extraction.fetchGithubDiff', () => {
+  it('shows what changed in code files between two tags', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        files: [
+          { filename: 'routes/products.js', status: 'added', patch: '+router.get()' },
+          { filename: 'README.md', status: 'modified', patch: '+docs' },
+          { filename: 'big.js', status: 'modified' },
+        ],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const r = await fetchGithubDiff('https://github.com/dina/repo', 'lesson1', 'lesson3');
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.github.com/repos/dina/repo/compare/lesson1...lesson3');
+    expect(r).toBe('--- routes/products.js (added) ---\n+router.get()\n\n--- big.js (modified) ---\n[השינוי בקובץ גדול מכדי להציג]');
+  });
+
+  it('compares with the default branch when no end tag is given', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ default_branch: 'master' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ files: [] }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    expect(await fetchGithubDiff('https://github.com/dina/repo', 'lesson1')).toBe('');
+    expect(fetchMock.mock.calls[1][0]).toBe('https://api.github.com/repos/dina/repo/compare/lesson1...master');
+  });
+
+  it('names the start tag when the repo does not have it', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404 }));
+    await expect(fetchGithubDiff('https://github.com/dina/repo', 'lesson1', 'lesson3'))
+      .rejects.toMatchObject({ missingTag: 'lesson1' });
   });
 });
 

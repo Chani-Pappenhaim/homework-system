@@ -1,7 +1,7 @@
 import AdmZip from 'adm-zip';
 import mammoth from 'mammoth';
 import { toDeliveryUrl } from './storage';
-import { githubHeaders } from './github';
+import { githubHeaders, getRepoStatus } from './github';
 
 const CODE_EXTENSIONS = ['.js', '.ts', '.jsx', '.tsx', '.py', '.html', '.css', '.java', '.cs', '.cpp', '.c'];
 
@@ -30,14 +30,24 @@ function leftOutNote(tooLarge: string[], overLimit: number, limits: ReviewLimits
   return parts.length ? `\n\n[קבצי קוד שלא נכללו בבדיקה - ${parts.join('; ')}]` : '';
 }
 
-export async function fetchGithubCode(githubUrl: string, limits: ReviewLimits = DEFAULT_REVIEW_LIMITS): Promise<string> {
+/**
+ * The code files of a public repo, as they are at `ref`: the latest commit, or a
+ * tag the teacher named. A tag the repo does not have fails with `missingTag`.
+ */
+export async function fetchGithubCode(
+  githubUrl: string, limits: ReviewLimits = DEFAULT_REVIEW_LIMITS, ref = 'HEAD'
+): Promise<string> {
   const match = githubUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
   if (!match) throw new Error('Invalid GitHub URL');
   const [, owner, repo] = match;
 
-  const apiUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/HEAD?recursive=1`;
+  const apiUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/${ref}?recursive=1`;
   const treeRes = await fetch(apiUrl, { headers: githubHeaders() });
   if (!treeRes.ok) {
+    // Both a missing repo and a missing tag are a 404; the repo itself tells them apart.
+    if (treeRes.status === 404 && ref !== 'HEAD' && (await getRepoStatus(owner!, repo!)) === 'exists') {
+      throw Object.assign(new Error(`GitHub: repo ${owner}/${repo} has no tag ${ref}`), { status: 404, missingTag: ref });
+    }
     const detail = treeRes.status === 404 ? ` - repo ${owner}/${repo} not found or private` : '';
     throw Object.assign(new Error(`GitHub API error: ${treeRes.status}${detail}`), { status: treeRes.status });
   }
@@ -55,7 +65,7 @@ export async function fetchGithubCode(githubUrl: string, limits: ReviewLimits = 
 
   const contents: string[] = [];
   for (const file of files) {
-    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${file.path}`;
+    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${file.path}`;
     const res = await fetch(rawUrl, { headers: { 'User-Agent': 'homework-app' } });
     if (!res.ok) continue;
     const text = await res.text();
@@ -65,6 +75,46 @@ export async function fetchGithubCode(githubUrl: string, limits: ReviewLimits = 
 
   if (!contents.length) return '';
   return contents.join('\n\n') + leftOutNote(tooLarge, fitting.length - files.length, limits);
+}
+
+// The changes of one part of an exercise rarely run this long; a part that
+// does is cut, not dropped - the code itself is read in full anyway.
+const DIFF_MAX_CHARS = 40_000;
+
+/**
+ * What changed in the repo's code files from tag `base` to `head` (a tag, or the
+ * default branch when none is given), as GitHub's compare shows it. A tag the
+ * repo does not have fails with `missingTag`. Empty when no code file changed.
+ */
+export async function fetchGithubDiff(githubUrl: string, base: string, head?: string): Promise<string> {
+  const match = githubUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
+  if (!match) throw new Error('Invalid GitHub URL');
+  const [, owner, repo] = match;
+  const api = `https://api.github.com/repos/${owner}/${repo}`;
+
+  let to = head;
+  if (!to) {
+    const repoRes = await fetch(api, { headers: githubHeaders() });
+    if (!repoRes.ok) throw Object.assign(new Error(`GitHub API error: ${repoRes.status}`), { status: repoRes.status });
+    to = String(((await repoRes.json()) as any).default_branch || 'main');
+  }
+
+  const res = await fetch(`${api}/compare/${base}...${to}`, { headers: githubHeaders() });
+  if (!res.ok) {
+    // The repo and `head` were read just before, so a 404 here is the base tag.
+    if (res.status === 404) {
+      throw Object.assign(new Error(`GitHub: repo ${owner}/${repo} has no tag ${base}`), { status: 404, missingTag: base });
+    }
+    throw Object.assign(new Error(`GitHub API error: ${res.status}`), { status: res.status });
+  }
+  const compare = await res.json() as any;
+
+  const changes = (compare.files || [])
+    .filter((f: any) => CODE_EXTENSIONS.some((ext) => f.filename.endsWith(ext)) && !f.filename.includes('node_modules') && !f.filename.includes('.min.'))
+    // GitHub leaves the patch out of a file whose change is too large to show.
+    .map((f: any) => `--- ${f.filename} (${f.status}) ---\n${f.patch ?? '[השינוי בקובץ גדול מכדי להציג]'}`);
+  const text = changes.join('\n\n');
+  return text.length > DIFF_MAX_CHARS ? `${text.slice(0, DIFF_MAX_CHARS)}\n[...השינויים קוצרו]` : text;
 }
 
 // Word and PowerPoint files inside a zip are read as text too: plenty of

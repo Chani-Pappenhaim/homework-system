@@ -210,6 +210,13 @@ function AiInstructions({ assignment, lessonFiles, onEdit }: {
     <>
       <AiReferenceFilesSummary assignment={assignment} lessonFiles={lessonFiles} />
       {assignment.aiReviewLarge && <p className="text-ink/60">תרגיל גדול: ה-AI קורא עד 50 קבצי קוד, עד 12,000 תווים כל אחד.</p>}
+      {(assignment.aiGitFromTag || assignment.aiGitToTag) && (
+        <p className="text-ink/60">
+          תרגיל בהמשכים: ה-AI קורא את הריפו{' '}
+          {assignment.aiGitToTag ? <>בתגית <code dir="ltr">{assignment.aiGitToTag}</code></> : 'במצבו העדכני'}
+          {assignment.aiGitFromTag && <>, עם השינויים מאז <code dir="ltr">{assignment.aiGitFromTag}</code></>}.
+        </p>
+      )}
     </>
   );
   if (assignment.aiInstructions?.trim()) {
