@@ -349,16 +349,19 @@ export async function reviewCode(
   references?: ReviewReferences
 ): Promise<AiReviewResult> {
   const hasReferences = Boolean(references?.text.trim() || references?.attachments.length);
-  const systemPrompt = `אתה מורה מקצועית שבודקת עבודות קוד של תלמידות.
+  const systemPrompt = `אתה מורה מקצועית שבודקת עבודות של תלמידות בקורס תכנות.
+עבודה יכולה להיות קוד, או עבודה כתובה (למשל פסאודו-קוד, ניתוח אלגוריתם ותשובות לשאלות פתוחות). זהי מה הוגש ובדקי לפי הסוג:
+- בקוד: נכונות, מבנה וקריאות.
+- בעבודה כתובה: נכונות האלגוריתם או התשובה, שלמות ודיוק הנימוק. פסאודו-קוד אינו קוד להרצה - אל תעירי על תחביר של שפת תכנות כלשהי.
 תתני:
-1. code_review: הערות ספציפיות על הקוד (כל הערה בשורה חדשה, התחילי כל הערה ב"•")
+1. code_review: הערות ספציפיות על העבודה, לפי סעיף או לפי קטע (כל הערה בשורה חדשה, התחילי כל הערה ב"•")
 2. verbal_review: הערכה מילולית כללית על העבודה (2-3 משפטים)
 3. score: ציון מספרי מ-0 עד 100
 
 ההערות (code_review ו-verbal_review) מוצגות לתלמידה לפני שהמורה מאשרת את הציון, ולכן אסור שיופיע בהן ציון, מספר נקודות או ניחוש של הציון - הציון רק בשדה score.
 ${NO_LONG_DASHES}
 
-${aiInstructions ? `הנחיות ספציפיות למטלה זו:\n${aiInstructions}` : ''}
+${aiInstructions ? `הנחיות ספציפיות למטלה זו (התלמידה לא רואה אותן; כשהן מפורטות יותר מתיאור המטלה, למשל תרגיל שלם שמוגש בחלקים, בדקי לפיהן):\n${aiInstructions}` : ''}
 ${hasReferences ? 'המורה צירפה קבצים מהשיעור שעליהם הבדיקה צריכה להתבסס - בדקי את העבודה לאורם.' : ''}
 
 החזירי JSON בלבד בפורמט:
@@ -370,7 +373,7 @@ ${hasReferences ? 'המורה צירפה קבצים מהשיעור שעליהם 
   const referencesBlock = references?.text.trim()
     ? `\n\n--- קבצי השיעור שהמורה בחרה לבדיקה ---\n${references.text.trim()}`
     : '';
-  const userMessage = `מטלה: ${assignmentTitle}${descriptionBlock}${referencesBlock}\n\nקוד:\n\`\`\`\n${code}\n\`\`\``;
+  const userMessage = `מטלה: ${assignmentTitle}${descriptionBlock}${referencesBlock}\n\nהעבודה שהוגשה:\n\`\`\`\n${code}\n\`\`\``;
 
   const parsed = await callGemini(systemPrompt, userMessage, 'homework_review', references?.attachments ?? []);
   return {

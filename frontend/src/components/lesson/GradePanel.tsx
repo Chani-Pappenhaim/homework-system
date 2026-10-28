@@ -296,7 +296,7 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
                 />
               </label>
               <label className="block text-xs font-medium text-ink/70">
-                הערות קוד
+                הערות מפורטות
                 <Textarea
                   className="mt-1 font-mono" rows={5}
                   value={aiEdit.aiCodeReview}
@@ -320,7 +320,7 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
           {local.aiCodeReview && (
             <div className="pt-1">
               <button className="text-xs text-indigo underline" onClick={() => setShowAiCodeReview((v) => !v)}>
-                {showAiCodeReview ? 'הסתירי הערות קוד' : 'הצגי הערות קוד'}
+                {showAiCodeReview ? 'הסתירי הערות מפורטות' : 'הצגי הערות מפורטות'}
               </button>
               {showAiCodeReview && (
                 <pre className="mt-1 text-xs bg-ground/60 rounded p-2 whitespace-pre-wrap">{local.aiCodeReview}</pre>

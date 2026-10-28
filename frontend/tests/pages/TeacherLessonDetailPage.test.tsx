@@ -247,7 +247,7 @@ describe('TeacherLessonDetailPage', () => {
     const verbal = screen.getByLabelText('הערה מילולית');
     await userEvent.clear(verbal);
     await userEvent.type(verbal, 'מתוקן');
-    await userEvent.clear(screen.getByLabelText('הערות קוד'));
+    await userEvent.clear(screen.getByLabelText('הערות מפורטות'));
     await userEvent.click(screen.getByRole('button', { name: 'שמירת בדיקת ה-AI' }));
 
     await waitFor(() => expect(updateAiReview).toHaveBeenCalledWith('s5', { aiScore: 70, aiVerbalReview: 'מתוקן', aiCodeReview: null }));

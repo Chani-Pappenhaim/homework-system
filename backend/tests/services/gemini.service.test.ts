@@ -81,6 +81,20 @@ describe('gemini.service.reviewCode', () => {
     expect(r).toMatchObject({ codeReview: '• a - b', verbalReview: 'pages 1-3' });
     expect(fetchMock.mock.calls[0][1].body).toContain('מקף רגיל');
   });
+
+  it('asks for written work (pseudo-code, open questions) to be checked as such, not as code', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(geminiOk('{"score":80}'));
+    vi.stubGlobal('fetch', fetchMock);
+    p.aiUsageLog.create.mockResolvedValue({});
+
+    await reviewCode('אלגוריתם: עבור כל איבר...', 'T', 'סעיפים 1-5 של התרגיל המלא');
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const prompt = body.system_instruction.parts[0].text;
+    expect(prompt).toContain('פסאודו-קוד אינו קוד להרצה');
+    // The teacher's instructions may hold the whole exercise; they decide over a shorter description.
+    expect(prompt).toMatch(/מפורטות יותר מתיאור המטלה[^\n]*\nסעיפים 1-5 של התרגיל המלא/);
+    expect(body.contents[0].parts[0].text).toContain('העבודה שהוגשה:');
+  });
 });
 
 describe('gemini.service - failure reporting', () => {
