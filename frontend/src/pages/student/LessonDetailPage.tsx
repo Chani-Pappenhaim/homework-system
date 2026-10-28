@@ -437,7 +437,7 @@ function AssignmentCard({ assignment: a, submission: sub, focused = false }: {
                       {sub.aiCodeReview && (
                         <>
                           <button className="text-xs text-clay underline" onClick={() => setShowAiReview(!showAiReview)}>
-                            {showAiReview ? 'הסתירי הערות קוד' : 'הצגי הערות קוד'}
+                            {showAiReview ? 'הסתירי הערות מפורטות' : 'הצגי הערות מפורטות'}
                           </button>
                           {showAiReview && (
                             <pre className="text-xs bg-ground/60 rounded p-2 whitespace-pre-wrap">{sub.aiCodeReview}</pre>
