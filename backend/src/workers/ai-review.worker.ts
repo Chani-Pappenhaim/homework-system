@@ -3,7 +3,8 @@ import type IORedis from 'ioredis';
 import { prisma } from '../config/prisma';
 import { reviewCode, GeminiError, type ReviewReferences } from '../services/gemini.service';
 import {
-  fetchGithubCode, extractZipCode, extractDocxText, extractLessonFiles, DEFAULT_REVIEW_LIMITS, LARGE_REVIEW_LIMITS,
+  fetchGithubCode, fetchGithubDiff, extractZipCode, extractDocxText, extractLessonFiles,
+  DEFAULT_REVIEW_LIMITS, LARGE_REVIEW_LIMITS,
 } from '../utils/code-extraction';
 import { toDeliveryUrl } from '../utils/storage';
 import type { AiReviewJobData } from '../infrastructure/queues/job-types';
@@ -15,6 +16,24 @@ async function downloadFile(fileUrl: string): Promise<Buffer> {
   const res = await fetch(fileUrl);
   if (!res.ok) throw new Error(`Failed to download submission file: ${res.status}`);
   return Buffer.from(await res.arrayBuffer());
+}
+
+/** A GitHub failure the student can fix herself, told to her in her words; anything else as it was. */
+function githubInputError(err: any): never {
+  if (err?.missingTag) {
+    throw new AiReviewInputError(
+      err.message,
+      `בריפו אין תגית בשם "${err.missingTag}". יש ליצור אותה על הקומיט של החלק הזה ולדחוף אותה ל-GitHub ` +
+        `(git tag ${err.missingTag} ואז git push origin ${err.missingTag}), ואז לבקש בדיקה שוב.`
+    );
+  }
+  if (err?.status === 404) {
+    throw new AiReviewInputError(
+      err.message,
+      'הריפו לא נמצא ב-GitHub או שהוא פרטי. יש לוודא שהריפו ציבורי ושם המשתמש ב-GitHub בפרופיל נכון, ולהגיש שוב.'
+    );
+  }
+  throw err;
 }
 
 /** The lesson files the teacher picked for this assignment's review, read for Gemini; none picked, none read. */
@@ -64,15 +83,14 @@ export function registerAiReviewWorker(connection: IORedis): Worker<AiReviewJobD
 
         let code = '';
         if (submission.githubUrl) {
-          code = await fetchGithubCode(submission.githubUrl, limits).catch((err) => {
-            if (err?.status === 404) {
-              throw new AiReviewInputError(
-                err.message,
-                'הריפו לא נמצא ב-GitHub או שהוא פרטי. יש לוודא שהריפו ציבורי ושם המשתמש ב-GitHub בפרופיל נכון, ולהגיש שוב.'
-              );
-            }
-            throw err;
-          });
+          // An exercise given in parts: the code as it is at the part's tag, and
+          // what changed since the previous part's tag.
+          const { aiGitFromTag: fromTag, aiGitToTag: toTag } = submission.assignment;
+          code = await fetchGithubCode(submission.githubUrl, limits, toTag ?? 'HEAD').catch(githubInputError);
+          if (fromTag && code.trim()) {
+            const diff = await fetchGithubDiff(submission.githubUrl, fromTag, toTag ?? undefined).catch(githubInputError);
+            code += `\n\n--- השינויים מתגית ${fromTag} עד ${toTag ?? 'הקוד העדכני'} ---\n${diff || '[לא השתנה אף קובץ קוד]'}`;
+          }
         } else if (submission.fileUrl && fileRef.endsWith('.zip')) {
           code = await extractZipCode(await downloadFile(toDeliveryUrl(submission.fileUrl)), limits);
         } else if (submission.fileUrl && fileRef.endsWith('.docx')) {

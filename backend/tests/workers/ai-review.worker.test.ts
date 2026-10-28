@@ -30,6 +30,7 @@ vi.mock('../../src/services/gemini.service', () => ({
 }));
 vi.mock('../../src/utils/code-extraction', () => ({
   fetchGithubCode: vi.fn(),
+  fetchGithubDiff: vi.fn(),
   extractZipCode: vi.fn(),
   extractDocxText: vi.fn(),
   extractLessonFiles: vi.fn(),
@@ -71,7 +72,7 @@ describe('ai-review worker', () => {
 
     await run('s1');
 
-    expect(codeExtraction.fetchGithubCode).toHaveBeenCalledWith('https://github.com/u/r', codeExtraction.DEFAULT_REVIEW_LIMITS);
+    expect(codeExtraction.fetchGithubCode).toHaveBeenCalledWith('https://github.com/u/r', codeExtraction.DEFAULT_REVIEW_LIMITS, 'HEAD');
     expect(p.submission.update).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: 's1' },
       data: expect.objectContaining({ aiStatus: 'done', aiScore: 88, aiCodeReview: 'cr' }),
@@ -88,7 +89,7 @@ describe('ai-review worker', () => {
 
     await run('s1');
 
-    expect(codeExtraction.fetchGithubCode).toHaveBeenCalledWith('https://github.com/u/r', codeExtraction.LARGE_REVIEW_LIMITS);
+    expect(codeExtraction.fetchGithubCode).toHaveBeenCalledWith('https://github.com/u/r', codeExtraction.LARGE_REVIEW_LIMITS, 'HEAD');
   });
 
   it('routes a .zip file through the zip extractor', async () => {
@@ -132,6 +133,52 @@ describe('ai-review worker', () => {
 
     await expect(run('s6', { attempts: 3 })).rejects.toThrow(/404/);
     expect(errorData()).toEqual({ aiStatus: 'error', aiError: expect.stringContaining('הריפו לא נמצא') });
+  });
+
+  it('reads an exercise given in parts at its tag, with the changes since the previous part', async () => {
+    p.submission.findUnique.mockResolvedValue({
+      id: 's1', githubUrl: 'https://github.com/u/r', fileName: null, fileUrl: null,
+      assignment: { aiReferenceFiles: [], title: 'Task', aiGitFromTag: 'lesson1', aiGitToTag: 'lesson3' }, student: {},
+    });
+    (codeExtraction.fetchGithubCode as any).mockResolvedValue('all code');
+    (codeExtraction.fetchGithubDiff as any).mockResolvedValue('+new part');
+    (gemini.reviewCode as any).mockResolvedValue({ score: 88, codeReview: 'cr', verbalReview: 'vr' });
+
+    await run('s1');
+
+    expect(codeExtraction.fetchGithubCode).toHaveBeenCalledWith('https://github.com/u/r', codeExtraction.DEFAULT_REVIEW_LIMITS, 'lesson3');
+    expect(codeExtraction.fetchGithubDiff).toHaveBeenCalledWith('https://github.com/u/r', 'lesson1', 'lesson3');
+    expect((gemini.reviewCode as any).mock.calls[0][0]).toBe('all code\n\n--- השינויים מתגית lesson1 עד lesson3 ---\n+new part');
+  });
+
+  it('compares with the latest code when only a start tag is set', async () => {
+    p.submission.findUnique.mockResolvedValue({
+      id: 's1', githubUrl: 'https://github.com/u/r', fileName: null, fileUrl: null,
+      assignment: { aiReferenceFiles: [], title: 'Task', aiGitFromTag: 'lesson1', aiGitToTag: null }, student: {},
+    });
+    (codeExtraction.fetchGithubCode as any).mockResolvedValue('all code');
+    (codeExtraction.fetchGithubDiff as any).mockResolvedValue('');
+    (gemini.reviewCode as any).mockResolvedValue({ score: 88, codeReview: 'cr', verbalReview: 'vr' });
+
+    await run('s1');
+
+    expect(codeExtraction.fetchGithubCode).toHaveBeenCalledWith('https://github.com/u/r', codeExtraction.DEFAULT_REVIEW_LIMITS, 'HEAD');
+    expect(codeExtraction.fetchGithubDiff).toHaveBeenCalledWith('https://github.com/u/r', 'lesson1', undefined);
+    expect((gemini.reviewCode as any).mock.calls[0][0]).toContain('עד הקוד העדכני ---\n[לא השתנה אף קובץ קוד]');
+  });
+
+  it('tells the student how to create a tag her repo is missing, without using up her review', async () => {
+    p.submission.findUnique.mockResolvedValue({
+      id: 's6', githubUrl: 'https://github.com/u/r', fileName: null, fileUrl: null,
+      assignment: { aiReferenceFiles: [], title: 'T', aiGitToTag: 'lesson3' }, student: {},
+    });
+    (codeExtraction.fetchGithubCode as any).mockRejectedValue(
+      Object.assign(new Error('no tag'), { status: 404, missingTag: 'lesson3' })
+    );
+
+    await expect(run('s6', { attempts: 3 })).rejects.toThrow(/no tag/);
+    expect(errorData()).toEqual({ aiStatus: 'error', aiError: expect.stringContaining('git push origin lesson3') });
+    expect(gemini.reviewCode).not.toHaveBeenCalled();
   });
 
   it('ends a queued review with a message once the teacher turns AI review off for the assignment', async () => {

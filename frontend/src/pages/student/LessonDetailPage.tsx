@@ -233,6 +233,24 @@ export default function StudentLessonDetailPage({ lessonId, lessonNumber }: Part
   );
 }
 
+/** What the AI review of an exercise given in parts reads, and the tags she has to push for it. */
+function GitTagsHint({ fromTag, toTag }: { fromTag?: string | null; toTag?: string | null }) {
+  const tags = [fromTag, toTag].filter((t): t is string => Boolean(t));
+  return (
+    <div className="text-xs text-ink/70 space-y-1">
+      <p>
+        בדיקת ה-AI קוראת את הריפו{' '}
+        {toTag ? <>בתגית <code dir="ltr">{toTag}</code></> : 'במצבו העדכני'}
+        {fromTag && <>, ואת השינויים מאז התגית <code dir="ltr">{fromTag}</code></>}.
+        {' '}לפני שמבקשים בדיקה, צריך ליצור כל תגית על הקומיט של החלק שלה ולדחוף אותה ל-GitHub:
+      </p>
+      <pre dir="ltr" className="bg-ground/60 rounded p-2 text-left whitespace-pre-wrap">
+        {tags.map((t) => `git tag ${t}\ngit push origin ${t}`).join('\n')}
+      </pre>
+    </div>
+  );
+}
+
 function AssignmentCard({ assignment: a, submission: sub, focused = false }: {
   assignment: AssignmentDTO; submission: MySubmission | undefined; focused?: boolean;
 }) {
@@ -384,6 +402,9 @@ function AssignmentCard({ assignment: a, submission: sub, focused = false }: {
                       </Button>
                     ))}
                   </div>
+                  {sub.githubUrl && !aiReviewOff && (a.aiGitToTag || a.aiGitFromTag) && sub.aiStatus !== 'done' && (
+                    <GitTagsHint fromTag={a.aiGitFromTag} toTag={a.aiGitToTag} />
+                  )}
                   {sub.aiStatus === 'error' && (
                     <ContactTeacherText
                       className="text-xs text-coral"

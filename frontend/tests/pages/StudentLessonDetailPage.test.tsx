@@ -88,6 +88,16 @@ describe('StudentLessonDetailPage', () => {
     expect(screen.queryByRole('button', { name: 'בקשי בדיקה' })).not.toBeInTheDocument();
   });
 
+  it('tells her which tags to push when the review of an exercise given in parts reads them', async () => {
+    submittedForAi({ aiGitFromTag: 'lesson1', aiGitToTag: 'lesson3' });
+    renderPage();
+    await openAssignmentsTab('שיעור מבוא');
+    expect(await screen.findByText(/בדיקת ה-AI קוראת את הריפו/)).toHaveTextContent('בתגית lesson3, ואת השינויים מאז התגית lesson1');
+    expect(screen.getByText(/git push origin lesson3/)).toHaveTextContent(
+      'git tag lesson1 git push origin lesson1 git tag lesson3 git push origin lesson3'
+    );
+  });
+
   it('replaces the AI review button with the reset time once the daily quota is spent', async () => {
     aiAvailability.mockResolvedValue({
       data: { success: true, data: { available: false, reason: 'daily-quota', resumesAt: new Date(Date.now() + 3_600_000).toISOString() } },

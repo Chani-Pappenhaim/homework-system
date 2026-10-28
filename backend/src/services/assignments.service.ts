@@ -58,13 +58,36 @@ function deadlineField(deadline: string | null | undefined) {
 // (lessonId, id, counters) is ignored rather than written through.
 const EDITABLE_FIELDS = [
   'allowedTypes', 'allowGithub', 'allowFile', 'requirements', 'aiInstructions', 'aiReviewEnabled', 'aiReviewLarge',
+  'aiGitFromTag', 'aiGitToTag',
 ] as const;
+
+// What a git tag may be called here: it travels in GitHub URLs as is, so no
+// slashes or spaces. Students type the same name in `git tag`.
+const GIT_TAG = /^[A-Za-z0-9._-]{1,100}$/;
+
+function gitTagField(value: unknown): string | null {
+  if (value === null) return null;
+  const tag = typeof value === 'string' ? value.trim() : '';
+  if (!tag && typeof value === 'string') return null;
+  if (!GIT_TAG.test(tag)) {
+    throw new AppError(
+      'Invalid git tag name',
+      'שם תגית יכול להכיל רק אותיות באנגלית, ספרות, נקודה, מקף וקו תחתון (למשל lesson3)',
+      400
+    );
+  }
+  return tag;
+}
 
 function editableFields(data: Record<string, unknown>) {
   const out: Record<string, unknown> = {};
   for (const key of EDITABLE_FIELDS) if (data[key] !== undefined) out[key] = data[key];
   // An emptied instructions box clears the stored prompt.
   if (typeof out.aiInstructions === 'string' && !out.aiInstructions.trim()) out.aiInstructions = null;
+  for (const key of ['aiGitFromTag', 'aiGitToTag'] as const) if (key in out) out[key] = gitTagField(out[key]);
+  if (out.aiGitFromTag && out.aiGitFromTag === out.aiGitToTag) {
+    throw new AppError('Git tags are the same', 'תגית ההתחלה ותגית הסיום זהות - אין ביניהן שינויים לבדוק', 400);
+  }
   return out;
 }
 
@@ -121,6 +144,8 @@ export async function createAssignment(lessonId: string, data: {
   aiInstructions?: string | null;
   aiReviewEnabled?: boolean;
   aiReviewLarge?: boolean;
+  aiGitFromTag?: string | null;
+  aiGitToTag?: string | null;
   aiReferenceFileIds?: string[];
 }) {
   const title = requireText(data.title, 'title');
@@ -146,6 +171,8 @@ export async function updateAssignment(id: string, data: Partial<{
   aiInstructions: string | null;
   aiReviewEnabled: boolean;
   aiReviewLarge: boolean;
+  aiGitFromTag: string | null;
+  aiGitToTag: string | null;
   aiReferenceFileIds: string[];
 }>) {
   const fields: Record<string, unknown> = { ...editableFields(data), ...deadlineField(data.deadline) };

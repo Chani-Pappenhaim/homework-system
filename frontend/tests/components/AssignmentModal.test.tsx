@@ -106,6 +106,29 @@ describe('AssignmentModal', () => {
     expect(screen.getByRole('checkbox', { name: /לאפשר בדיקת AI/ })).not.toBeChecked();
   });
 
+  it('saves the git tags of an exercise given in parts, and an emptied tag as none', async () => {
+    renderModal({ id: 'a1', title: 'T', description: 'D', deadline: null, aiGitFromTag: 'lesson1', aiGitToTag: 'lesson2' } as never);
+    expect(screen.getByLabelText('תגית התחלה')).toHaveValue('lesson1');
+    await userEvent.clear(screen.getByLabelText('תגית סיום'));
+    await userEvent.click(screen.getByRole('button', { name: 'שמרי שינויים' }));
+    await waitFor(() => expect(update).toHaveBeenCalledWith('a1', expect.objectContaining({
+      aiGitFromTag: 'lesson1', aiGitToTag: null,
+    })));
+  });
+
+  it('will not save a tag name GitHub cannot take, or the same tag twice', async () => {
+    renderModal({ id: 'a1', title: 'T', description: 'D', deadline: null } as never);
+    const save = screen.getByRole('button', { name: 'שמרי שינויים' });
+    await userEvent.type(screen.getByLabelText('תגית סיום'), 'שיעור 3');
+    expect(save).toBeDisabled();
+    await userEvent.clear(screen.getByLabelText('תגית סיום'));
+    await userEvent.type(screen.getByLabelText('תגית סיום'), 'lesson3');
+    expect(save).toBeEnabled();
+    await userEvent.type(screen.getByLabelText('תגית התחלה'), 'lesson3');
+    expect(screen.getByText('תגית הסיום זהה לתגית ההתחלה')).toBeInTheDocument();
+    expect(save).toBeDisabled();
+  });
+
   it('marks an assignment as a large exercise, off until ticked', async () => {
     renderModal({ id: 'a1', title: 'T', description: 'D', deadline: null } as never);
     const large = screen.getByRole('checkbox', { name: /תרגיל גדול/ });

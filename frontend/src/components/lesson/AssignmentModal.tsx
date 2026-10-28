@@ -30,6 +30,15 @@ export function defaultDeadline(lessonDate?: string | null, now = new Date()): s
   return formatLocal(d < now ? weekAfter(now) : d);
 }
 
+// The names the server accepts: they travel in GitHub URLs as is.
+const GIT_TAG = /^[A-Za-z0-9._-]{1,100}$/;
+
+function gitTagError(tag: string): string | undefined {
+  const trimmed = tag.trim();
+  if (!trimmed || GIT_TAG.test(trimmed)) return undefined;
+  return 'רק אותיות באנגלית, ספרות, נקודה, מקף וקו תחתון (למשל lesson3)';
+}
+
 /** An ISO timestamp from the API as a local `datetime-local` value. */
 function toLocalInput(iso: string): string {
   const d = new Date(iso);
@@ -53,6 +62,8 @@ export function AssignmentModal({ lessonId, lessonDate, lessonFiles = [], value,
   const [aiInstructions, setAiInstructions] = useState('');
   const [aiReviewEnabled, setAiReviewEnabled] = useState(true);
   const [aiReviewLarge, setAiReviewLarge] = useState(false);
+  const [aiGitFromTag, setAiGitFromTag] = useState('');
+  const [aiGitToTag, setAiGitToTag] = useState('');
   const [aiReferenceFileIds, setAiReferenceFileIds] = useState<string[]>([]);
   const [types, setTypes] = useState<SubmissionTypes>({ allowGithub: true, allowFile: true, allowedTypes: [] });
 
@@ -61,6 +72,7 @@ export function AssignmentModal({ lessonId, lessonDate, lessonFiles = [], value,
       setTitle(''); setDescription(''); setDeadline(defaultDeadline(lessonDate)); setAiInstructions('');
       setAiReviewEnabled(true);
       setAiReviewLarge(false);
+      setAiGitFromTag(''); setAiGitToTag('');
       setAiReferenceFileIds([]);
       setTypes({ allowGithub: true, allowFile: true, allowedTypes: [] });
     } else if (value) {
@@ -69,6 +81,7 @@ export function AssignmentModal({ lessonId, lessonDate, lessonFiles = [], value,
       setAiInstructions(value.aiInstructions ?? '');
       setAiReviewEnabled(value.aiReviewEnabled ?? true);
       setAiReviewLarge(value.aiReviewLarge ?? false);
+      setAiGitFromTag(value.aiGitFromTag ?? ''); setAiGitToTag(value.aiGitToTag ?? '');
       setAiReferenceFileIds(value.aiReferenceFileIds ?? []);
       setTypes({ allowGithub: value.allowGithub ?? true, allowFile: value.allowFile ?? true, allowedTypes: value.allowedTypes ?? [] });
     }
@@ -78,6 +91,9 @@ export function AssignmentModal({ lessonId, lessonDate, lessonFiles = [], value,
   // existing assignment already had is kept as it is, even after it passed.
   const savedDeadline = value && value !== 'new' && value.deadline ? toLocalInput(value.deadline) : '';
   const deadlineInPast = Boolean(deadline) && deadline !== savedDeadline && new Date(deadline) < new Date();
+  const fromTagError = gitTagError(aiGitFromTag);
+  const toTagError = gitTagError(aiGitToTag)
+    ?? (aiGitToTag.trim() && aiGitToTag.trim() === aiGitFromTag.trim() ? 'תגית הסיום זהה לתגית ההתחלה' : undefined);
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -90,6 +106,8 @@ export function AssignmentModal({ lessonId, lessonDate, lessonFiles = [], value,
         aiInstructions: aiInstructions.trim() ? aiInstructions : null,
         aiReviewEnabled,
         aiReviewLarge,
+        aiGitFromTag: aiGitFromTag.trim() || null,
+        aiGitToTag: aiGitToTag.trim() || null,
         // Only files still in the lesson: one deleted since is no longer a choice.
         aiReferenceFileIds: aiReferenceFileIds.filter((id) => lessonFiles.some((f) => f.id === id)),
         ...types,
@@ -199,6 +217,33 @@ export function AssignmentModal({ lessonId, lessonDate, lessonFiles = [], value,
               </span>
             </label>
           )}
+          {aiReviewEnabled && types.allowGithub && (
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-medium text-ink">תרגיל בהמשכים - תגיות git (אופציונלי)</legend>
+              <p className="text-xs text-ink-soft">
+                להגשות GitHub בלבד. ה-AI יקרא את הקוד כפי שהוא בתגית הסיום (בלי תגית - את הקוד העדכני), ויקבל גם את
+                השינויים מאז תגית ההתחלה. התלמידות רואות את שמות התגיות, וצריכות ליצור אותן בריפו ולדחוף ל-GitHub.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  label="תגית התחלה"
+                  dir="ltr"
+                  value={aiGitFromTag}
+                  onChange={(e) => setAiGitFromTag(e.target.value)}
+                  placeholder="lesson1"
+                  error={fromTagError}
+                />
+                <Input
+                  label="תגית סיום"
+                  dir="ltr"
+                  value={aiGitToTag}
+                  onChange={(e) => setAiGitToTag(e.target.value)}
+                  placeholder="lesson3"
+                  error={toTagError}
+                />
+              </div>
+            </fieldset>
+          )}
           {aiReviewEnabled && (
             <AiReferenceFilesPicker files={lessonFiles} value={aiReferenceFileIds} onChange={setAiReferenceFileIds} />
           )}
@@ -206,7 +251,10 @@ export function AssignmentModal({ lessonId, lessonDate, lessonFiles = [], value,
             className="w-full"
             loading={saveMutation.isPending}
             onClick={() => saveMutation.mutate()}
-            disabled={!title.trim() || !description.trim() || (!types.allowGithub && !types.allowFile) || deadlineInPast}
+            disabled={
+              !title.trim() || !description.trim() || (!types.allowGithub && !types.allowFile) || deadlineInPast
+              || Boolean(fromTagError || toTagError)
+            }
           >
             {value === 'new' ? 'צרי מטלה' : 'שמרי שינויים'}
           </Button>
