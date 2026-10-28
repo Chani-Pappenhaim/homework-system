@@ -52,6 +52,7 @@ export function AssignmentModal({ lessonId, lessonDate, lessonFiles = [], value,
   const [deadline, setDeadline] = useState('');
   const [aiInstructions, setAiInstructions] = useState('');
   const [aiReviewEnabled, setAiReviewEnabled] = useState(true);
+  const [aiReviewLarge, setAiReviewLarge] = useState(false);
   const [aiReferenceFileIds, setAiReferenceFileIds] = useState<string[]>([]);
   const [types, setTypes] = useState<SubmissionTypes>({ allowGithub: true, allowFile: true, allowedTypes: [] });
 
@@ -59,6 +60,7 @@ export function AssignmentModal({ lessonId, lessonDate, lessonFiles = [], value,
     if (value === 'new') {
       setTitle(''); setDescription(''); setDeadline(defaultDeadline(lessonDate)); setAiInstructions('');
       setAiReviewEnabled(true);
+      setAiReviewLarge(false);
       setAiReferenceFileIds([]);
       setTypes({ allowGithub: true, allowFile: true, allowedTypes: [] });
     } else if (value) {
@@ -66,6 +68,7 @@ export function AssignmentModal({ lessonId, lessonDate, lessonFiles = [], value,
       setDeadline(value.deadline ? toLocalInput(value.deadline) : '');
       setAiInstructions(value.aiInstructions ?? '');
       setAiReviewEnabled(value.aiReviewEnabled ?? true);
+      setAiReviewLarge(value.aiReviewLarge ?? false);
       setAiReferenceFileIds(value.aiReferenceFileIds ?? []);
       setTypes({ allowGithub: value.allowGithub ?? true, allowFile: value.allowFile ?? true, allowedTypes: value.allowedTypes ?? [] });
     }
@@ -86,6 +89,7 @@ export function AssignmentModal({ lessonId, lessonDate, lessonFiles = [], value,
         deadline: deadline ? new Date(deadline).toISOString() : null,
         aiInstructions: aiInstructions.trim() ? aiInstructions : null,
         aiReviewEnabled,
+        aiReviewLarge,
         // Only files still in the lesson: one deleted since is no longer a choice.
         aiReferenceFileIds: aiReferenceFileIds.filter((id) => lessonFiles.some((f) => f.id === id)),
         ...types,
@@ -178,6 +182,22 @@ export function AssignmentModal({ lessonId, lessonDate, lessonFiles = [], value,
               />
               <p className="text-xs text-ink-soft">הנחיות אלו יישלחו ל-AI בעת בדיקת עבודות התלמידות</p>
             </div>
+          )}
+          {aiReviewEnabled && (
+            <label className="flex items-start gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={aiReviewLarge}
+                onChange={(e) => setAiReviewLarge(e.target.checked)}
+                className="mt-1 accent-ink"
+              />
+              <span>
+                תרגיל גדול
+                <span className="block text-xs text-ink-soft">
+                  ה-AI יקרא עד 50 קבצי קוד באורך עד 12,000 תווים כל אחד (במקום 20 קבצים עד 5,000 תווים). כל בדיקה צורכת יותר מהמכסה.
+                </span>
+              </span>
+            </label>
           )}
           {aiReviewEnabled && (
             <AiReferenceFilesPicker files={lessonFiles} value={aiReferenceFileIds} onChange={setAiReferenceFileIds} />

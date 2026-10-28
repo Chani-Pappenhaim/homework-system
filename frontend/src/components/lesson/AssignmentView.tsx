@@ -206,7 +206,12 @@ function AiInstructions({ assignment, lessonFiles, onEdit }: {
       </div>
     );
   }
-  const referenceFiles = <AiReferenceFilesSummary assignment={assignment} lessonFiles={lessonFiles} />;
+  const referenceFiles = (
+    <>
+      <AiReferenceFilesSummary assignment={assignment} lessonFiles={lessonFiles} />
+      {assignment.aiReviewLarge && <p className="text-ink/60">תרגיל גדול: ה-AI קורא עד 50 קבצי קוד, עד 12,000 תווים כל אחד.</p>}
+    </>
+  );
   if (assignment.aiInstructions?.trim()) {
     return (
       <div className="space-y-3 px-5 py-4 text-sm text-ink/85">

@@ -33,6 +33,8 @@ vi.mock('../../src/utils/code-extraction', () => ({
   extractZipCode: vi.fn(),
   extractDocxText: vi.fn(),
   extractLessonFiles: vi.fn(),
+  DEFAULT_REVIEW_LIMITS: { maxFiles: 20, maxFileChars: 5000 },
+  LARGE_REVIEW_LIMITS: { maxFiles: 50, maxFileChars: 12_000 },
 }));
 
 import { prisma } from '../../src/config/prisma';
@@ -69,11 +71,24 @@ describe('ai-review worker', () => {
 
     await run('s1');
 
-    expect(codeExtraction.fetchGithubCode).toHaveBeenCalledWith('https://github.com/u/r');
+    expect(codeExtraction.fetchGithubCode).toHaveBeenCalledWith('https://github.com/u/r', codeExtraction.DEFAULT_REVIEW_LIMITS);
     expect(p.submission.update).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: 's1' },
       data: expect.objectContaining({ aiStatus: 'done', aiScore: 88, aiCodeReview: 'cr' }),
     }));
+  });
+
+  it('reads more and larger files for an assignment marked as a large exercise', async () => {
+    p.submission.findUnique.mockResolvedValue({
+      id: 's1', githubUrl: 'https://github.com/u/r', fileName: null, fileUrl: null,
+      assignment: { aiReferenceFiles: [], title: 'Task', aiReviewLarge: true }, student: {},
+    });
+    (codeExtraction.fetchGithubCode as any).mockResolvedValue('const x = 1;');
+    (gemini.reviewCode as any).mockResolvedValue({ score: 88, codeReview: 'cr', verbalReview: 'vr' });
+
+    await run('s1');
+
+    expect(codeExtraction.fetchGithubCode).toHaveBeenCalledWith('https://github.com/u/r', codeExtraction.LARGE_REVIEW_LIMITS);
   });
 
   it('routes a .zip file through the zip extractor', async () => {

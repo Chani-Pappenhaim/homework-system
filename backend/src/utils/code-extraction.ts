@@ -3,12 +3,34 @@ import mammoth from 'mammoth';
 import { toDeliveryUrl } from './storage';
 import { githubHeaders } from './github';
 
-// Same caps across every extraction path: max 20 files, max 5KB per file
 const CODE_EXTENSIONS = ['.js', '.ts', '.jsx', '.tsx', '.py', '.html', '.css', '.java', '.cs', '.cpp', '.c'];
-const MAX_FILES = 20;
-const MAX_FILE_CHARS = 5000;
 
-export async function fetchGithubCode(githubUrl: string): Promise<string> {
+/** How much of a submission the AI review reads: how many code files, and how large each may be. */
+export interface ReviewLimits {
+  maxFiles: number;
+  /** Bytes, as GitHub and the zip directory report a file's size. */
+  maxFileChars: number;
+}
+
+// Same caps across every extraction path.
+export const DEFAULT_REVIEW_LIMITS: ReviewLimits = { maxFiles: 20, maxFileChars: 5000 };
+// For an assignment the teacher marked as a large exercise (one that grows over
+// several lessons). About three times the reading, so about three times the
+// tokens of a review.
+export const LARGE_REVIEW_LIMITS: ReviewLimits = { maxFiles: 50, maxFileChars: 12_000 };
+
+/**
+ * Told to the AI after the submission: the code files it was not given. Without
+ * it a controller left out for its size reads as a controller never written.
+ */
+function leftOutNote(tooLarge: string[], overLimit: number, limits: ReviewLimits): string {
+  const parts: string[] = [];
+  if (tooLarge.length) parts.push(`ארוכים מ-${limits.maxFileChars} תווים: ${tooLarge.join(', ')}`);
+  if (overLimit) parts.push(`${overLimit} קבצים נוספים מעבר למגבלה של ${limits.maxFiles} קבצים`);
+  return parts.length ? `\n\n[קבצי קוד שלא נכללו בבדיקה - ${parts.join('; ')}]` : '';
+}
+
+export async function fetchGithubCode(githubUrl: string, limits: ReviewLimits = DEFAULT_REVIEW_LIMITS): Promise<string> {
   const match = githubUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
   if (!match) throw new Error('Invalid GitHub URL');
   const [, owner, repo] = match;
@@ -21,10 +43,15 @@ export async function fetchGithubCode(githubUrl: string): Promise<string> {
   }
   const tree = await treeRes.json() as any;
 
-  const files = (tree.tree || []).filter((f: any) =>
+  const codeFiles = (tree.tree || []).filter((f: any) =>
     f.type === 'blob' && CODE_EXTENSIONS.some((ext) => f.path.endsWith(ext)) &&
     !f.path.includes('node_modules') && !f.path.includes('.min.')
-  ).slice(0, MAX_FILES);
+  );
+  // Sorted out by the size the tree reports, before the file limit: a file too
+  // large to read must not take the place of one that fits.
+  const tooLarge: string[] = codeFiles.filter((f: any) => f.size > limits.maxFileChars).map((f: any) => f.path);
+  const fitting = codeFiles.filter((f: any) => !(f.size > limits.maxFileChars));
+  const files = fitting.slice(0, limits.maxFiles);
 
   const contents: string[] = [];
   for (const file of files) {
@@ -32,11 +59,12 @@ export async function fetchGithubCode(githubUrl: string): Promise<string> {
     const res = await fetch(rawUrl, { headers: { 'User-Agent': 'homework-app' } });
     if (!res.ok) continue;
     const text = await res.text();
-    if (text.length > MAX_FILE_CHARS) continue;
+    if (text.length > limits.maxFileChars) { tooLarge.push(file.path); continue; }
     contents.push(`--- ${file.path} ---\n${text}`);
   }
 
-  return contents.join('\n\n');
+  if (!contents.length) return '';
+  return contents.join('\n\n') + leftOutNote(tooLarge, fitting.length - files.length, limits);
 }
 
 // Word and PowerPoint files inside a zip are read as text too: plenty of
@@ -46,10 +74,11 @@ const ZIP_DOCUMENT_EXTENSIONS = ['.docx', '.pptx'];
 const ZIP_DOCUMENT_MAX_BYTES = 5 * 1024 * 1024;
 const ZIP_DOCUMENT_MAX_CHARS = 20_000;
 
-export async function extractZipCode(buffer: Buffer): Promise<string> {
+export async function extractZipCode(buffer: Buffer, limits: ReviewLimits = DEFAULT_REVIEW_LIMITS): Promise<string> {
   const zip = new AdmZip(buffer);
   const isDocument = (name: string) => ZIP_DOCUMENT_EXTENSIONS.some((ext) => name.toLowerCase().endsWith(ext));
-  const entries = zip
+  const tooLarge: string[] = [];
+  const readable = zip
     .getEntries()
     .filter((entry) => {
       const name = entry.entryName;
@@ -63,9 +92,11 @@ export async function extractZipCode(buffer: Buffer): Promise<string> {
       // decompressed text's length afterwards is too late: the inflate
       // itself is the memory blowup.
       if (isDocument(name)) return entry.header.size <= ZIP_DOCUMENT_MAX_BYTES;
-      return CODE_EXTENSIONS.some((ext) => name.endsWith(ext)) && entry.header.size <= MAX_FILE_CHARS;
-    })
-    .slice(0, MAX_FILES);
+      if (!CODE_EXTENSIONS.some((ext) => name.endsWith(ext))) return false;
+      if (entry.header.size > limits.maxFileChars) { tooLarge.push(name); return false; }
+      return true;
+    });
+  const entries = readable.slice(0, limits.maxFiles);
 
   const contents: string[] = [];
   for (const entry of entries) {
@@ -86,7 +117,8 @@ export async function extractZipCode(buffer: Buffer): Promise<string> {
     contents.push(`--- ${entry.entryName} ---\n${text}`);
   }
 
-  return contents.join('\n\n');
+  if (!contents.length) return '';
+  return contents.join('\n\n') + leftOutNote(tooLarge, readable.length - entries.length, limits);
 }
 
 export async function extractDocxText(buffer: Buffer): Promise<string> {

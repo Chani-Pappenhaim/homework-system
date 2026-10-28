@@ -122,6 +122,8 @@ export interface AssignmentDTO {
   aiInstructions?: string | null;
   /** Off for exercises the teacher never wants an AI to check. Absent means on. */
   aiReviewEnabled?: boolean;
+  /** A large exercise: the AI review reads more and larger code files. */
+  aiReviewLarge?: boolean;
   /** Teacher view only - the lesson files the AI review relies on. */
   aiReferenceFileIds?: string[];
 }
