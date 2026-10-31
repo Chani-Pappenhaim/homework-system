@@ -1,5 +1,6 @@
 import type { AttendanceStatus } from '@prisma/client';
 import { prisma } from '../config/prisma';
+import { VISIBLE_ASSIGNMENT } from '../utils/assignment-view';
 
 /**
  * The student's own attendance and homework, per course. Teacher notes are
@@ -25,6 +26,7 @@ export async function getMyAttendance(studentId: string) {
             select: {
               topic: true, hidden: true,
               assignments: {
+                where: VISIBLE_ASSIGNMENT,
                 orderBy: { createdAt: 'asc' },
                 select: { id: true, title: true, submissions: { where: { studentId }, select: { id: true } } },
               },

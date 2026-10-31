@@ -3,6 +3,7 @@ import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
 import { getMyAttendance } from './student-attendance.service';
 import { attendanceRate } from './attendance-common';
+import { VISIBLE_ASSIGNMENT } from '../utils/assignment-view';
 
 export async function findStudentByEmail(email: string) {
   return prisma.user.findFirst({
@@ -79,8 +80,8 @@ export async function getStudentsOverview() {
       },
     }),
     prisma.assignment.findMany({
-      where: { lesson: visibleLesson },
-      select: { id: true, deadline: true, lessonId: true, lesson: { select: { courseId: true, course: { select: { groupId: true } } } } },
+      where: { ...VISIBLE_ASSIGNMENT, lesson: visibleLesson },
+      select: { id: true, deadline: true, optional: true, lessonId: true, lesson: { select: { courseId: true, course: { select: { groupId: true } } } } },
     }),
     prisma.submission.findMany({
       select: { studentId: true, assignmentId: true, isLate: true, grade: { select: { contentScore: true } } },
@@ -112,10 +113,11 @@ export async function getStudentsOverview() {
       courseIds: new Set(st.courseAccess.map((c) => c.courseId)),
       lessonIds: new Set(st.lessonAccess.map((l) => l.lessonId)),
     };
-    const assigned = assignments.filter((a) => reaches(reach, a));
-    const assignedIds = new Set(assigned.map((a) => a.id));
-    const subs = (subsByStudent.get(st.id) ?? []).filter((s) => assignedIds.has(s.assignmentId));
+    const reached = new Map(assignments.filter((a) => reaches(reach, a)).map((a) => [a.id, a]));
+    const subs = (subsByStudent.get(st.id) ?? []).filter((s) => reached.has(s.assignmentId));
     const submittedIds = new Set(subs.map((s) => s.assignmentId));
+    // An optional assignment counts only once she chose to hand it in, and never as late.
+    const assigned = [...reached.values()].filter((a) => !a.optional || submittedIds.has(a.id));
     const att = attendanceByStudent.get(st.id) ?? { present: 0, absent: 0, partial: 0 };
     return {
       id: st.id,
@@ -126,7 +128,7 @@ export async function getStudentsOverview() {
       assignments: {
         total: assigned.length,
         submitted: subs.length,
-        late: subs.filter((s) => s.isLate).length,
+        late: subs.filter((s) => s.isLate && !reached.get(s.assignmentId)?.optional).length,
         missing: assigned.filter((a) => !submittedIds.has(a.id) && a.deadline && a.deadline < now).length,
       },
       averageContentScore: average(subs.flatMap((s) => (s.grade?.contentScore != null ? [s.grade.contentScore] : []))),
@@ -163,7 +165,7 @@ export async function getStudentProfile(studentId: string) {
       },
       orderBy: [{ deadline: 'asc' }, { createdAt: 'asc' }],
       select: {
-        id: true, title: true, deadline: true,
+        id: true, title: true, deadline: true, hidden: true, optional: true,
         lesson: { select: { id: true, topic: true, course: { select: { name: true } } } },
         submissions: {
           where: { studentId },
@@ -240,7 +242,10 @@ export async function getStudentProfile(studentId: string) {
       lessonTopic: a.lesson.topic,
       courseName: a.lesson.course.name,
       deadline: a.deadline,
-      overdue: !sub && !!a.deadline && a.deadline < now,
+      hidden: a.hidden,
+      optional: a.optional,
+      // Nothing is overdue that she cannot see or does not have to hand in.
+      overdue: !sub && !a.hidden && !a.optional && !!a.deadline && a.deadline < now,
       submission: sub
         ? {
             id: sub.id, submittedAt: sub.submittedAt, isLate: sub.isLate, githubUrl: sub.githubUrl, fileName: sub.fileName,

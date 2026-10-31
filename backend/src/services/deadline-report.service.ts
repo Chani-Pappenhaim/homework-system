@@ -1,9 +1,14 @@
 import { prisma } from '../config/prisma';
+import { MANDATORY_ASSIGNMENT } from '../utils/assignment-view';
 
-/** Assignments whose deadline passed within the last `lookbackMs`, with what is needed to report on them. */
+/**
+ * Assignments whose deadline passed within the last `lookbackMs`, with what is
+ * needed to report on them. A hidden or optional one has no one missing, so it
+ * gets no report.
+ */
 export async function findRecentlyDueAssignments(now: Date, lookbackMs: number) {
   return prisma.assignment.findMany({
-    where: { deadline: { lt: now, gt: new Date(now.getTime() - lookbackMs) } },
+    where: { ...MANDATORY_ASSIGNMENT, deadline: { lt: now, gt: new Date(now.getTime() - lookbackMs) } },
     include: {
       lesson: { include: { course: true } },
       submissions: { select: { studentId: true, submittedAt: true, isLate: true } },

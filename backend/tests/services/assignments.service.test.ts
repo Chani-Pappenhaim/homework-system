@@ -44,7 +44,7 @@ describe('assignments.service.getAssignments / deleteAssignment', () => {
   it('getAssignments queries by lessonId ordered by createdAt', async () => {
     p.assignment.findMany.mockResolvedValue([{ id: 'a1' }]);
     const r = await getAssignments('l1', 's1', 'STUDENT');
-    expect(p.assignment.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { lessonId: 'l1' }, orderBy: { createdAt: 'asc' } }));
+    expect(p.assignment.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { lessonId: 'l1', hidden: false }, orderBy: { createdAt: 'asc' } }));
     expect(r).toEqual([{ id: 'a1' }]);
   });
   it('getAssignments hides the AI prompt and the files the AI relies on from a student, and shows them to the teacher', async () => {
@@ -338,5 +338,43 @@ describe('assignments.service - the lesson files the AI review relies on', () =>
   it('answers 404 when the assignment is gone', async () => {
     p.assignment.findUnique.mockResolvedValue(null);
     await expect(updateAssignment('nope', { aiReferenceFileIds: [] })).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe('assignments.service - hidden and optional assignments', () => {
+  it('lists a hidden assignment to the teacher only', async () => {
+    p.assignment.findMany.mockResolvedValue([]);
+    await getAssignments('l1', 't1', 'ADMIN');
+    expect(p.assignment.findMany.mock.calls[0][0].where).toEqual({ lessonId: 'l1' });
+    await getAssignments('l1', 's1', 'STUDENT');
+    expect(p.assignment.findMany.mock.calls[1][0].where).toEqual({ lessonId: 'l1', hidden: false });
+  });
+
+  it('creates an assignment hidden and optional when asked', async () => {
+    p.assignment.create.mockImplementation(({ data }: any) => Promise.resolve(data));
+    await createAssignment('l1', { title: 'T', description: 'D', hidden: true, optional: true });
+    expect(p.assignment.create.mock.calls[0][0].data).toMatchObject({ hidden: true, optional: true });
+  });
+
+  it('leaves both flags to their defaults when not given', async () => {
+    p.assignment.create.mockImplementation(({ data }: any) => Promise.resolve(data));
+    await createAssignment('l1', { title: 'T', description: 'D' });
+    const data = p.assignment.create.mock.calls[0][0].data;
+    expect(data).not.toHaveProperty('hidden');
+    expect(data).not.toHaveProperty('optional');
+  });
+
+  it('shows a hidden assignment again and makes an optional one mandatory', async () => {
+    p.assignment.update.mockResolvedValue({ id: 'a1' });
+    await updateAssignment('a1', { hidden: false, optional: false });
+    expect(p.assignment.update.mock.calls[0][0].data).toEqual({ hidden: false, optional: false });
+  });
+
+  it('rejects a flag that is not true or false, without writing', async () => {
+    await expect(updateAssignment('a1', { hidden: 'yes' as any })).rejects.toMatchObject({ status: 400, clientMessage: 'ההגדרה "מוסתרת" אינה תקינה' });
+    await expect(createAssignment('l1', { title: 'T', description: 'D', optional: 1 as any }))
+      .rejects.toMatchObject({ status: 400, clientMessage: 'ההגדרה "רשות" אינה תקינה' });
+    expect(p.assignment.update).not.toHaveBeenCalled();
+    expect(p.assignment.create).not.toHaveBeenCalled();
   });
 });

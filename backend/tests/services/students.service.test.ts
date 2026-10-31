@@ -66,6 +66,20 @@ describe('getStudentsOverview', () => {
     expect(dina!.averageContentScore).toBeNull();
   });
 
+  it('leaves hidden assignments out, and counts an optional one only once she handed it in, never as late', async () => {
+    p.assignment.findMany.mockResolvedValue([
+      assignment('a1', 'g1', past),
+      { ...assignment('opt-skipped', 'g1', past), optional: true },
+      { ...assignment('opt-late', 'g1', past), optional: true },
+    ]);
+    p.submission.findMany.mockResolvedValue([
+      { studentId: 'rachel', assignmentId: 'opt-late', isLate: true, grade: null },
+    ]);
+    const [rachel] = await getStudentsOverview();
+    expect(rachel!.assignments).toEqual({ total: 2, submitted: 1, late: 0, missing: 1 });
+    expect(p.assignment.findMany.mock.calls[0][0].where).toMatchObject({ hidden: false });
+  });
+
   it('sums attendance and counts a partial attendance as half an absence', async () => {
     p.attendanceRecord.findMany.mockResolvedValue([
       { studentId: 'rachel', status: 'PRESENT' }, { studentId: 'rachel', status: 'PRESENT' },
@@ -107,6 +121,15 @@ describe('getStudentProfile', () => {
       { id: 'a2', title: 'תרגיל 2', deadline: past, lesson: { topic: 'לולאות', course: { name: 'JS' } }, submissions: [] },
       { id: 'a3', title: 'תרגיל 3', deadline: future, lesson: { topic: 'מערכים', course: { name: 'JS' } }, submissions: [] },
     ]);
+  });
+
+  it('marks hidden and optional work, and never counts it as overdue', async () => {
+    p.assignment.findMany.mockResolvedValue([
+      { id: 'h', title: 'מוסתרת', deadline: past, hidden: true, optional: false, lesson: { topic: 'x', course: { name: 'JS' } }, submissions: [] },
+      { id: 'o', title: 'רשות', deadline: past, hidden: false, optional: true, lesson: { topic: 'x', course: { name: 'JS' } }, submissions: [] },
+    ]);
+    const { work } = await getStudentProfile('rachel');
+    expect(work.map((w) => [w.assignmentId, w.hidden, w.optional, w.overdue])).toEqual([['h', true, false, false], ['o', false, true, false]]);
   });
 
   it('refuses an unknown id or a non-student', async () => {

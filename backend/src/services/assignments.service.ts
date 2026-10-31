@@ -6,13 +6,13 @@ import { submissionFileLink } from '../utils/storage';
 import { releaseFileUrls, submissionFileUrls } from './file-refs.service';
 import { computeSubmissionScore, daysLate } from '../utils/grading';
 import { getLatePolicy } from './settings.service';
-import { AI_REFERENCE_FILES_INCLUDE, assignmentForViewer } from '../utils/assignment-view';
+import { AI_REFERENCE_FILES_INCLUDE, assignmentForViewer, assignmentsVisibleTo } from '../utils/assignment-view';
 import ExcelJS from 'exceljs';
 
 export async function getAssignments(lessonId: string, userId: string, role: string) {
   await assertLessonAccess(userId, role, lessonId);
   const assignments = await prisma.assignment.findMany({
-    where: { lessonId }, orderBy: { createdAt: 'asc' }, include: AI_REFERENCE_FILES_INCLUDE,
+    where: { lessonId, ...assignmentsVisibleTo(role) }, orderBy: { createdAt: 'asc' }, include: AI_REFERENCE_FILES_INCLUDE,
   });
   return assignments.map((a) => assignmentForViewer(a, role));
 }
@@ -58,8 +58,18 @@ function deadlineField(deadline: string | null | undefined) {
 // (lessonId, id, counters) is ignored rather than written through.
 const EDITABLE_FIELDS = [
   'allowedTypes', 'allowGithub', 'allowFile', 'requirements', 'aiInstructions', 'aiReviewEnabled', 'aiReviewLarge',
-  'aiGitFromTag', 'aiGitToTag',
+  'aiGitFromTag', 'aiGitToTag', 'hidden', 'optional',
 ] as const;
+
+// Visibility flags the teacher switches on and off; written only as true/false.
+const FLAG_FIELDS = { hidden: 'מוסתרת', optional: 'רשות' } as const;
+
+function flagField(key: keyof typeof FLAG_FIELDS, value: unknown): boolean {
+  if (typeof value !== 'boolean') {
+    throw new AppError(`${key} must be true or false`, `ההגדרה "${FLAG_FIELDS[key]}" אינה תקינה`, 400);
+  }
+  return value;
+}
 
 // What a git tag may be called here: it travels in GitHub URLs as is, so no
 // slashes or spaces. Students type the same name in `git tag`.
@@ -85,6 +95,7 @@ function editableFields(data: Record<string, unknown>) {
   // An emptied instructions box clears the stored prompt.
   if (typeof out.aiInstructions === 'string' && !out.aiInstructions.trim()) out.aiInstructions = null;
   for (const key of ['aiGitFromTag', 'aiGitToTag'] as const) if (key in out) out[key] = gitTagField(out[key]);
+  for (const key of ['hidden', 'optional'] as const) if (key in out) out[key] = flagField(key, out[key]);
   if (out.aiGitFromTag && out.aiGitFromTag === out.aiGitToTag) {
     throw new AppError('Git tags are the same', 'תגית ההתחלה ותגית הסיום זהות - אין ביניהן שינויים לבדוק', 400);
   }
@@ -146,6 +157,8 @@ export async function createAssignment(lessonId: string, data: {
   aiReviewLarge?: boolean;
   aiGitFromTag?: string | null;
   aiGitToTag?: string | null;
+  hidden?: boolean;
+  optional?: boolean;
   aiReferenceFileIds?: string[];
 }) {
   const title = requireText(data.title, 'title');
@@ -173,6 +186,8 @@ export async function updateAssignment(id: string, data: Partial<{
   aiReviewLarge: boolean;
   aiGitFromTag: string | null;
   aiGitToTag: string | null;
+  hidden: boolean;
+  optional: boolean;
   aiReferenceFileIds: string[];
 }>) {
   const fields: Record<string, unknown> = { ...editableFields(data), ...deadlineField(data.deadline) };
