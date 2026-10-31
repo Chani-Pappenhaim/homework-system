@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { MailCheck, MailWarning } from 'lucide-react';
 import { authApi } from '@/api/auth.api';
 import useAuthStore from '@/store/authStore';
+import { AvatarEditor } from '@/components/profile/AvatarEditor';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -56,6 +57,8 @@ export default function ProfilePage() {
             className="flex max-w-md flex-col gap-4"
             onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }}
           >
+            <AvatarEditor />
+
             <Input label="שם מלא" value={name} onChange={(e) => setName(e.target.value)} required />
 
             <div className="flex flex-col gap-1.5">
