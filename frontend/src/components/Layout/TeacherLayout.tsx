@@ -13,6 +13,7 @@ import { messagesApi } from '@/api/messages.api';
 import { unwrap } from '@/lib/api-utils';
 import { useQueryParam } from '@/hooks/useQueryParam';
 import { Brand, DevSignature } from '@/components/decor';
+import { useNoIndex } from '@/hooks/useNoIndex';
 
 const nav = [
   { to: '/teacher', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
@@ -29,6 +30,7 @@ const nav = [
 const SEARCH_SHORTCUT = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl+K';
 
 export default function TeacherLayout() {
+  useNoIndex();
   const { user, clearAuth } = useAuthStore();
   const searchRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();

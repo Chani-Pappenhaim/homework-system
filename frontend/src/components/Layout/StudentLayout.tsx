@@ -9,6 +9,7 @@ import { authApi } from '@/api/auth.api';
 import { messagesApi } from '@/api/messages.api';
 import { unwrap } from '@/lib/api-utils';
 import { Brand, DevSignature } from '@/components/decor';
+import { useNoIndex } from '@/hooks/useNoIndex';
 
 const nav = [
   { to: '/student', label: 'בית', icon: Home, end: true },
@@ -20,6 +21,7 @@ const nav = [
 ];
 
 export default function StudentLayout() {
+  useNoIndex();
   const { user, clearAuth } = useAuthStore();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
