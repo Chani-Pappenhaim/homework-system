@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import PageOutlet from '@/components/Layout/PageOutlet';
+import { BottomBars, BOTTOM_BARS_SPACE, type NavItem } from '@/components/Layout/BottomBars';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard, BookOpen, Users, GraduationCap, BarChart2, Sparkles, MessageSquare,
@@ -12,9 +13,9 @@ import { authApi } from '@/api/auth.api';
 import { messagesApi } from '@/api/messages.api';
 import { unwrap } from '@/lib/api-utils';
 import { useQueryParam } from '@/hooks/useQueryParam';
-import { Brand, DevSignature } from '@/components/decor';
+import { Brand } from '@/components/decor';
 
-const nav = [
+const nav: NavItem[] = [
   { to: '/teacher', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
   { to: '/teacher/courses', label: 'קורסים', icon: BookOpen },
   { to: '/teacher/groups', label: 'קבוצות', icon: Users },
@@ -77,7 +78,7 @@ export default function TeacherLayout() {
   const initials = (user?.name ?? 'עדי שלום').split(' ').map((w) => w[0]).slice(0, 2).join('');
 
   return (
-    <div className="flex min-h-screen flex-col bg-graph" dir="rtl">
+    <div className={cn('flex min-h-screen flex-col bg-graph', BOTTOM_BARS_SPACE)} dir="rtl">
       <header className="sticky top-0 z-30 border-b border-rule bg-sheet/80 backdrop-blur-sm">
         <div className="flex h-16 items-center gap-4 px-5 md:px-6">
           <button onClick={() => navigate('/teacher')}>
@@ -167,25 +168,7 @@ export default function TeacherLayout() {
         </main>
       </div>
 
-      <nav className="sticky bottom-0 z-30 flex items-center justify-around border-t border-rule bg-sheet/90 px-2 py-1.5 backdrop-blur-sm md:hidden">
-        {nav.map(({ to, label, icon: Icon, end }) => (
-          <NavLink key={to} to={to} end={end}>
-            {({ isActive }) => (
-              <span className={cn('flex flex-col items-center gap-0.5 px-2 py-1 text-[10px]', isActive ? 'text-ink' : 'text-ink-soft')}>
-                <Icon size={18} />
-                {label}
-              </span>
-            )}
-          </NavLink>
-        ))}
-      </nav>
-
-      <footer className="sticky bottom-0 z-30 hidden border-t border-rule bg-sheet/90 backdrop-blur-sm md:block">
-        <div className="flex items-center justify-between gap-4 px-6 py-3 text-[11px] text-ink-soft">
-          <span>Teacher Feature · המורה עדי שלום</span>
-          <DevSignature />
-        </div>
-      </footer>
+      <BottomBars nav={nav} />
     </div>
   );
 }

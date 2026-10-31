@@ -3,6 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import TeacherLayout from '@/components/Layout/TeacherLayout';
 import StudentLayout from '@/components/Layout/StudentLayout';
+import { BOTTOM_BARS_SPACE } from '@/components/Layout/BottomBars';
 import { renderWithProviders, setAuthUser } from '../utils/render';
 
 const navigate = vi.fn();
@@ -84,6 +85,25 @@ describe('TeacherLayout', () => {
     const search = screen.getByPlaceholderText('חיפוש תלמידה או מטלה');
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ל', code: 'KeyK', ctrlKey: true }));
     expect(search).toHaveFocus();
+  });
+});
+
+// A sticky bar stops at the end of the layout box, so a dropdown reaching past
+// a short page used to scroll it up into the middle of the screen.
+describe.each([
+  ['TeacherLayout', TeacherLayout],
+  ['StudentLayout', StudentLayout],
+])('%s bottom bars', (_name, Layout) => {
+  it('pins the footer and the phone nav to the screen and leaves room for them under the page', () => {
+    getUnreadCount.mockResolvedValue({ data: { data: { count: 0 } } });
+    const { container } = renderWithProviders(<Layout />);
+    const footer = container.querySelector('footer')!;
+    const phoneNav = container.querySelector('nav.md\\:hidden')!;
+    for (const bar of [footer, phoneNav]) {
+      expect(bar).toHaveClass('fixed', 'bottom-0');
+      expect(bar).not.toHaveClass('sticky');
+    }
+    expect(container.firstElementChild).toHaveClass(...BOTTOM_BARS_SPACE.split(' '));
   });
 });
 
