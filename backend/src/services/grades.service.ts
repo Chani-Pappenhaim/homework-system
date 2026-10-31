@@ -98,6 +98,9 @@ export async function getReport(filters: ReportFilters) {
     deadline: s.assignment.deadline,
     submittedAt: s.submittedAt,
     isLate: s.isLate,
+    // Whether an AI review of this submission finished; the submission score is
+    // set automatically on every submission, so it says nothing about AI.
+    aiReviewed: s.aiStatus === 'done',
     submissionScore: s.grade?.submissionScore ?? null,
     contentScore: s.grade?.contentScore ?? null,
     feedback: s.grade?.feedback ?? null,

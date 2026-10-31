@@ -35,7 +35,7 @@ function greeting(): string {
 
 function rowStatus(r: ReportRow): { variant: PillVariant; label: string } {
   if (r.contentScore != null) return { variant: 'approved', label: 'אושר' };
-  if (r.submissionScore != null) return { variant: 'ai', label: 'נבדק AI' };
+  if (r.aiReviewed) return { variant: 'ai', label: 'נבדק AI' };
   return { variant: 'pending', label: 'ממתין' };
 }
 

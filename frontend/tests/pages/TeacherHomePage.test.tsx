@@ -83,6 +83,34 @@ describe('TeacherHomePage', () => {
     expect(navigate).toHaveBeenCalledWith(submissionPath('l3', 'a7', 's9'));
   });
 
+  describe('review-queue status', () => {
+    const row = (id: string, name: string, extra: object) => ({
+      submissionId: id, lessonId: 'l1', assignmentId: 'a1', studentId: id, studentName: name,
+      studentEmail: `${id}@x.com`, groupName: 'כיתה א', courseName: 'קורס', lessonTopic: 'נושא',
+      assignmentTitle: 'תרגיל', submittedAt: '2026-10-20T10:00:00Z', isLate: false,
+      submissionScore: 100, contentScore: null, ...extra,
+    });
+
+    it('says "נבדק AI" only for a submission an AI review actually checked', async () => {
+      report.mockResolvedValue({ data: { data: { report: [
+        row('s1', 'מירי כהן', { aiReviewed: true }),
+        row('s2', 'דינה לוי', { aiReviewed: false }),
+      ] } } });
+      renderWithProviders(<TeacherHomePage />);
+      await screen.findByText('מירי כהן');
+      expect(screen.getAllByText('נבדק AI')).toHaveLength(1);
+      expect(screen.getAllByText('ממתין')).toHaveLength(1);
+    });
+
+    it('shows a submission with an automatic submission score but no AI review as waiting', async () => {
+      report.mockResolvedValue({ data: { data: { report: [row('s1', 'מירי כהן', {})] } } });
+      renderWithProviders(<TeacherHomePage />);
+      await screen.findByText('מירי כהן');
+      expect(screen.queryByText('נבדק AI')).not.toBeInTheDocument();
+      expect(screen.getByText('ממתין')).toBeInTheDocument();
+    });
+  });
+
   describe('top search', () => {
     it('finds a student who has nothing waiting for a grade, and opens her page', async () => {
       searchStudents.mockResolvedValue({ data: { data: { students: [

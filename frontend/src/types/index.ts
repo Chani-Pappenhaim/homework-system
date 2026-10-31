@@ -342,6 +342,8 @@ export interface ReportRow {
   deadline?: string;
   submittedAt: string;
   isLate: boolean;
+  /** An AI review of the submission finished. */
+  aiReviewed?: boolean;
   submissionScore?: number | null;
   contentScore?: number | null;
   feedback?: string;
