@@ -66,6 +66,8 @@ export function AssignmentModal({ lessonId, lessonDate, lessonFiles = [], value,
   const [aiGitToTag, setAiGitToTag] = useState('');
   const [aiReferenceFileIds, setAiReferenceFileIds] = useState<string[]>([]);
   const [types, setTypes] = useState<SubmissionTypes>({ allowGithub: true, allowFile: true, allowedTypes: [] });
+  const [hidden, setHidden] = useState(false);
+  const [optional, setOptional] = useState(false);
 
   useEffect(() => {
     if (value === 'new') {
@@ -75,6 +77,7 @@ export function AssignmentModal({ lessonId, lessonDate, lessonFiles = [], value,
       setAiGitFromTag(''); setAiGitToTag('');
       setAiReferenceFileIds([]);
       setTypes({ allowGithub: true, allowFile: true, allowedTypes: [] });
+      setHidden(false); setOptional(false);
     } else if (value) {
       setTitle(value.title); setDescription(value.description ?? '');
       setDeadline(value.deadline ? toLocalInput(value.deadline) : '');
@@ -84,6 +87,7 @@ export function AssignmentModal({ lessonId, lessonDate, lessonFiles = [], value,
       setAiGitFromTag(value.aiGitFromTag ?? ''); setAiGitToTag(value.aiGitToTag ?? '');
       setAiReferenceFileIds(value.aiReferenceFileIds ?? []);
       setTypes({ allowGithub: value.allowGithub ?? true, allowFile: value.allowFile ?? true, allowedTypes: value.allowedTypes ?? [] });
+      setHidden(value.hidden ?? false); setOptional(value.optional ?? false);
     }
   }, [value, lessonDate]);
 
@@ -96,7 +100,7 @@ export function AssignmentModal({ lessonId, lessonDate, lessonFiles = [], value,
     ?? (aiGitToTag.trim() && aiGitToTag.trim() === aiGitFromTag.trim() ? 'תגית הסיום זהה לתגית ההתחלה' : undefined);
 
   const saveMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const data = {
         title: title.trim(),
         description: description.trim(),
@@ -110,10 +114,12 @@ export function AssignmentModal({ lessonId, lessonDate, lessonFiles = [], value,
         aiGitToTag: aiGitToTag.trim() || null,
         // Only files still in the lesson: one deleted since is no longer a choice.
         aiReferenceFileIds: aiReferenceFileIds.filter((id) => lessonFiles.some((f) => f.id === id)),
+        hidden,
+        optional,
         ...types,
       };
-      if (value === 'new') return assignmentsApi.create(lessonId, data);
-      return assignmentsApi.update((value as AssignmentDTO).id, data);
+      if (value === 'new') await assignmentsApi.create(lessonId, data);
+      else await assignmentsApi.update((value as AssignmentDTO).id, data);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['lesson', lessonId] });
@@ -170,6 +176,36 @@ export function AssignmentModal({ lessonId, lessonDate, lessonFiles = [], value,
               </>
             )}
           </div>
+          <label className="flex items-start gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={optional}
+              onChange={(e) => setOptional(e.target.checked)}
+              className="mt-1 accent-ink"
+            />
+            <span>
+              מטלת רשות
+              <span className="block text-xs text-ink-soft">
+                לא חובה: מי שלא הגישה לא תיחשב כחסרה או מאחרת
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={hidden}
+              onChange={(e) => setHidden(e.target.checked)}
+              className="mt-1 accent-ink"
+            />
+            <span>
+              הסתרה מהתלמידות
+              <span className="block text-xs text-ink-soft">
+                {hidden
+                  ? 'המטלה לא תופיע לתלמידות ואי אפשר להגיש אותה, עד שתבטלי את ההסתרה'
+                  : 'המטלה מוצגת לתלמידות'}
+              </span>
+            </span>
+          </label>
           <SubmissionTypePicker value={types} onChange={setTypes} />
           <label className="flex items-start gap-2 text-sm cursor-pointer">
             <input

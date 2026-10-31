@@ -137,6 +137,32 @@ describe('AssignmentModal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'שמרי שינויים' }));
     await waitFor(() => expect(update).toHaveBeenCalledWith('a1', expect.objectContaining({ aiReviewLarge: true })));
   });
+
+  it('starts a new assignment shown and mandatory, and saves the two choices once ticked', async () => {
+    renderModal('new');
+    const hidden = screen.getByRole('checkbox', { name: /הסתרה מהתלמידות/ });
+    const optional = screen.getByRole('checkbox', { name: /מטלת רשות/ });
+    expect(hidden).not.toBeChecked();
+    expect(optional).not.toBeChecked();
+    await userEvent.type(screen.getByLabelText('כותרת המטלה'), 'פרויקט');
+    await userEvent.type(screen.getByLabelText('תיאור המטלה *'), 'הוראות');
+    await userEvent.click(hidden);
+    await userEvent.click(optional);
+    await userEvent.click(screen.getByRole('button', { name: 'צרי מטלה' }));
+    await waitFor(() => expect(create).toHaveBeenCalledWith('l1', expect.objectContaining({ hidden: true, optional: true })));
+  });
+
+  it('shows the saved choices of an assignment, and saves them switched off', async () => {
+    renderModal({ id: 'a1', title: 'T', description: 'D', deadline: null, hidden: true, optional: true } as never);
+    const hidden = screen.getByRole('checkbox', { name: /הסתרה מהתלמידות/ });
+    const optional = screen.getByRole('checkbox', { name: /מטלת רשות/ });
+    expect(hidden).toBeChecked();
+    expect(optional).toBeChecked();
+    await userEvent.click(hidden);
+    await userEvent.click(optional);
+    await userEvent.click(screen.getByRole('button', { name: 'שמרי שינויים' }));
+    await waitFor(() => expect(update).toHaveBeenCalledWith('a1', expect.objectContaining({ hidden: false, optional: false })));
+  });
 });
 
 describe('AssignmentModal - the lesson files the AI review relies on', () => {

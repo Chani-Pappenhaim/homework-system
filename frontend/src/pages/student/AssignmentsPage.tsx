@@ -17,6 +17,7 @@ import { apiFileUrl } from '@/lib/config';
 import type { MySubmission, PendingAssignment } from '@/types';
 import { studentAssignmentPath } from '@/components/lesson/LessonRoute';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { AssignmentFlags } from '@/components/lesson/AssignmentFlags';
 
 type ViewingItem = { type: 'pending'; item: PendingAssignment } | { type: 'submitted'; item: MySubmission };
 
@@ -152,7 +153,10 @@ export default function AssignmentsPage() {
                   className="w-full px-5 py-3 flex items-center justify-between hover:bg-ground/60 transition text-right"
                 >
                   <div>
-                    <p className="text-sm font-medium">{p.assignmentTitle}</p>
+                    <p className="flex items-center gap-1.5 text-sm font-medium">
+                      {p.assignmentTitle}
+                      <AssignmentFlags optional={p.optional} />
+                    </p>
                     <p className="text-xs text-ink/50">{p.courseName} · {p.lessonTopic}</p>
                   </div>
                   {p.deadline && (
@@ -182,7 +186,10 @@ export default function AssignmentsPage() {
                   className="w-full px-5 py-3 flex items-center justify-between hover:bg-ground/60 transition text-right"
                 >
                   <div>
-                    <p className="text-sm font-medium">{s.assignmentTitle}</p>
+                    <p className="flex items-center gap-1.5 text-sm font-medium">
+                      {s.assignmentTitle}
+                      <AssignmentFlags optional={s.optional} />
+                    </p>
                     <p className="text-xs text-ink/50">{s.courseName} · {formatDateTime(s.submittedAt)}</p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">

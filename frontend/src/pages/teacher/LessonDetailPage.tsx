@@ -32,6 +32,7 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import type { LessonPageProps } from '@/components/lesson/LessonRoute';
 import type { AssignmentDTO, QuizResultsDTO } from '@/types';
 import { useConfirm } from '@/components/ui/use-confirm';
+import { AssignmentFlags } from '@/components/lesson/AssignmentFlags';
 
 const TABS = ['content', 'files', 'assignments', 'access', 'quiz'] as const;
 
@@ -374,7 +375,10 @@ export default function LessonDetailPage({ lessonId, lessonNumber }: Partial<Les
                   onClick={() => openAssignment(a.id)}
                   className="flex flex-1 items-center justify-between gap-2 px-4 py-2.5 text-right"
                 >
-                  <span className="text-sm font-bold text-ink">{a.title}</span>
+                  <span className="flex items-center gap-2 text-sm font-bold text-ink">
+                    {a.title}
+                    <AssignmentFlags hidden={a.hidden} optional={a.optional} />
+                  </span>
                   <ChevronLeft size={16} className="shrink-0 text-ink/40" />
                 </button>
                 <div className="flex gap-1 shrink-0">

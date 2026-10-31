@@ -131,6 +131,10 @@ export interface AssignmentDTO {
    */
   aiGitFromTag?: string | null;
   aiGitToTag?: string | null;
+  /** Kept from students: only the teacher ever receives a hidden assignment. */
+  hidden?: boolean;
+  /** Not mandatory: never counted as missing or late. */
+  optional?: boolean;
   /** Teacher view only - the lesson files the AI review relies on. */
   aiReferenceFileIds?: string[];
 }
@@ -298,6 +302,7 @@ export interface SubmissionDTO {
 export interface MySubmission {
   submissionId: string;
   id: string;
+  optional?: boolean;
   /** Why she can no longer delete it (the teacher checked it, a review is running); null when she can. */
   deleteBlockedReason?: string | null;
   assignmentId: string;
@@ -326,6 +331,8 @@ export interface PendingAssignment {
   lessonTopic: string;
   courseName: string;
   deadline?: string;
+  /** Not mandatory: handing it in is up to her. */
+  optional?: boolean;
 }
 
 export interface ReportRow {
