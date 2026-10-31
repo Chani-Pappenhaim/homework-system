@@ -8,7 +8,7 @@ vi.mock('../../src/config/prisma', () => ({
       updateMany: vi.fn(), delete: vi.fn(),
     },
     threadParticipant: { findMany: vi.fn(), updateMany: vi.fn() },
-    entryReaction: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), delete: vi.fn() },
+    entryReaction: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), delete: vi.fn(), updateMany: vi.fn(), count: vi.fn() },
     group: { findUnique: vi.fn() },
   },
 }));
@@ -24,7 +24,7 @@ import { enqueueEmail } from '../../src/infrastructure/queues/enqueue-email';
 import {
   sendMessage, sendTeacherMessage, sendGroupMessage, replyMessage, studentReplyMessage, startThread,
   MAX_MESSAGE_LENGTH, MAX_SUBJECT_LENGTH, threadSubject, getAllMessages, getMyMessages, getThread,
-  markMineUnread, markUnread, markRead, markMineRead, getUnreadReplyCount, deleteMyMessage, deleteMessage,
+  markMineUnread, markUnread, markRead, getUnreadCount, markMineRead, getUnreadReplyCount, deleteMyMessage, deleteMessage,
   deleteLastTeacherEntry, toggleReaction,
 } from '../../src/services/messages.service';
 
@@ -48,6 +48,8 @@ beforeEach(() => {
   vi.resetAllMocks();
   p.messageThread.create.mockImplementation(async ({ data }: any) =>
     threadOf(data.audience, data.participants.create.map((x: any) => x.studentId)));
+  p.entryReaction.findMany.mockResolvedValue([]);
+  p.entryReaction.count.mockResolvedValue(0);
 });
 
 describe('content and subject limits', () => {
@@ -304,6 +306,46 @@ describe('getThread', () => {
   });
 });
 
+describe('unread reactions', () => {
+  it('marks reactions on the teacher entries seen when the teacher opens the thread', async () => {
+    await markRead('th1');
+    expect(p.entryReaction.updateMany).toHaveBeenCalledWith({
+      where: { seenByAuthor: false, entry: { threadId: 'th1', authorId: null } }, data: { seenByAuthor: true },
+    });
+  });
+
+  it('marks reactions on her own entries seen when a student opens the thread', async () => {
+    await markMineRead('th1', 's1');
+    expect(p.entryReaction.updateMany).toHaveBeenCalledWith({
+      where: { seenByAuthor: false, entry: { threadId: 'th1', authorId: 's1' } }, data: { seenByAuthor: true },
+    });
+  });
+
+  it('adds unseen reactions to the teacher badge', async () => {
+    p.messageEntry.count.mockResolvedValue(2);
+    p.entryReaction.count.mockResolvedValue(3);
+    expect(await getUnreadCount()).toBe(5);
+  });
+
+  it('adds unseen reactions to a student badge', async () => {
+    p.threadParticipant.findMany.mockResolvedValue([{ threadId: 'th1', lastReadAt: null, hiddenAt: null }]);
+    p.messageEntry.count.mockResolvedValue(1);
+    p.entryReaction.count.mockResolvedValue(2);
+    expect(await getUnreadReplyCount('s1')).toBe(3);
+  });
+
+  it('shows a thread as unread for a student whose entry got a reaction', async () => {
+    p.messageThread.findMany.mockResolvedValue([{
+      id: 'th1', audience: 'DIRECT', createdAt: at(1), entries: [], participants: [{ studentId: 's1', lastReadAt: at(9), hiddenAt: null }],
+      _count: { participants: 1 }, group: null,
+    }]);
+    p.messageEntry.groupBy.mockResolvedValue([]);
+    p.entryReaction.findMany.mockResolvedValue([{ entry: { threadId: 'th1' } }]);
+    const rows: any[] = await getMyMessages('s1');
+    expect(rows[0].unreadCount).toBe(1);
+  });
+});
+
 describe('read state', () => {
   it('marks the teacher side read and unread (newest student entry only)', async () => {
     await markRead('th1');
@@ -408,8 +450,8 @@ describe('deleting', () => {
 });
 
 describe('toggleReaction', () => {
-  const thread = (privateTo: string | null = null, audience = 'GROUP_VISIBLE') => ({
-    audience, participants: [{ studentId: 's1' }, { studentId: 's2' }], entries: [{ privateToStudentId: privateTo }],
+  const thread = (privateTo: string | null = null, audience = 'GROUP_VISIBLE', authorId: string | null = 's2') => ({
+    audience, participants: [{ studentId: 's1' }, { studentId: 's2' }], entries: [{ privateToStudentId: privateTo, authorId }],
   });
 
   it('adds the reaction when absent and removes it when present', async () => {
@@ -417,7 +459,7 @@ describe('toggleReaction', () => {
     p.entryReaction.findUnique.mockResolvedValueOnce(null);
     p.entryReaction.findMany.mockResolvedValue([{ emoji: '👍', reactor: { id: 's1', name: 'x', role: 'STUDENT' } }]);
     const added = await toggleReaction(S1, 'th1', 'e1', '👍');
-    expect(p.entryReaction.create).toHaveBeenCalledWith({ data: { entryId: 'e1', reactorId: 's1', emoji: '👍' } });
+    expect(p.entryReaction.create).toHaveBeenCalledWith({ data: { entryId: 'e1', reactorId: 's1', emoji: '👍', seenByAuthor: false } });
     expect(added).toEqual([{ emoji: '👍', count: 1, mine: true, names: ['אני'] }]);
 
     p.entryReaction.findUnique.mockResolvedValueOnce({ id: 'r1' });
@@ -447,7 +489,17 @@ describe('toggleReaction', () => {
     p.entryReaction.findUnique.mockResolvedValue(null);
     p.entryReaction.findMany.mockResolvedValue([]);
     await toggleReaction(T, 'th1', 'e1', '❤️');
-    expect(p.entryReaction.create).toHaveBeenCalledWith({ data: { entryId: 'e1', reactorId: 't1', emoji: '❤️' } });
+    expect(p.entryReaction.create).toHaveBeenCalledWith({ data: { entryId: 'e1', reactorId: 't1', emoji: '❤️', seenByAuthor: false } });
+  });
+
+  it('counts a reaction on your own entry as already seen', async () => {
+    p.entryReaction.findUnique.mockResolvedValue(null);
+    p.messageThread.findUnique.mockResolvedValue(thread(null, 'GROUP_VISIBLE', 's1'));
+    await toggleReaction(S1, 'th1', 'e1', '👍');
+    p.messageThread.findUnique.mockResolvedValue(thread(null, 'GROUP_VISIBLE', null));
+    await toggleReaction(T, 'th1', 'e2', '👍');
+    expect(p.entryReaction.create).toHaveBeenNthCalledWith(1, { data: { entryId: 'e1', reactorId: 's1', emoji: '👍' } });
+    expect(p.entryReaction.create).toHaveBeenNthCalledWith(2, { data: { entryId: 'e2', reactorId: 't1', emoji: '👍' } });
   });
 
   it('shows a student in a hidden-copy thread only her own and the teacher reactions afterwards', async () => {

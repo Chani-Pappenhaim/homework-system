@@ -26,6 +26,7 @@ vi.mock('../../src/config/prisma', () => ({
       count: vi.fn(),
       groupBy: vi.fn(),
     },
+    entryReaction: { findMany: vi.fn(), count: vi.fn() },
     appSettings: { findUnique: vi.fn(), upsert: vi.fn() },
   },
 }));
@@ -121,7 +122,11 @@ const student = signAccessToken({ userId: 'stud1', role: 'STUDENT' });
 const admin = signAccessToken({ userId: 'admin1', role: 'ADMIN' });
 const bearer = (t: string) => ['Authorization', `Bearer ${t}`] as const;
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  p.entryReaction.findMany.mockResolvedValue([]);
+  p.entryReaction.count.mockResolvedValue(0);
+});
 
 describe('auth guard', () => {
   it('rejects a request with no token', async () => {

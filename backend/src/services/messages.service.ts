@@ -175,6 +175,20 @@ async function entryStatsByThread(threadIds: string[], ...where: Prisma.MessageE
   return new Map(rows.map((r) => [r.threadId, { count: r._count._all, latest: r._max.createdAt }]));
 }
 
+/**
+ * Reactions other people put on the entries `authorId` wrote (null = the
+ * teacher) that the author has not seen yet, counted per thread.
+ */
+async function unseenReactionCounts(threadIds: string[], authorId: string | null) {
+  const rows = await prisma.entryReaction.findMany({
+    where: { seenByAuthor: false, entry: { threadId: { in: threadIds }, authorId } },
+    select: { entry: { select: { threadId: true } } },
+  });
+  const counts = new Map<string, number>();
+  for (const r of rows) counts.set(r.entry.threadId, (counts.get(r.entry.threadId) ?? 0) + 1);
+  return counts;
+}
+
 const summaryInclude = (viewer: Viewer) => ({
   group: { select: groupNameSelect },
   _count: { select: { participants: true } },
@@ -192,13 +206,14 @@ export async function getAllMessages(teacherId = '') {
     },
   });
   const ids = threads.map((t) => t.id);
-  const [totals, unread] = await Promise.all([
+  const [totals, unread, reactionsUnread] = await Promise.all([
     entryStatsByThread(ids),
     entryStatsByThread(ids, { authorId: { not: null }, readByTeacher: false }),
+    unseenReactionCounts(ids, null),
   ]);
   return latestFirst(threads.map((t) => toThreadSummary(
     viewer, t, t.participants, t._count.participants, t.entries[0],
-    { total: totals.get(t.id)?.count ?? 0, unreadCount: unread.get(t.id)?.count ?? 0 },
+    { total: totals.get(t.id)?.count ?? 0, unreadCount: (unread.get(t.id)?.count ?? 0) + (reactionsUnread.get(t.id) ?? 0) },
   )));
 }
 
@@ -217,14 +232,15 @@ export async function getMyMessages(studentId: string) {
   });
   const ids = shown.map((t) => t.id);
   const visible = visibleEntriesWhere(viewer);
-  const [totals, fromOthers] = await Promise.all([
+  const [totals, fromOthers, reactionsUnread] = await Promise.all([
     entryStatsByThread(ids, visible),
     entryStatsByThread(ids, visible, othersEntriesWhere(viewer)),
+    unseenReactionCounts(ids, studentId),
   ]);
   return latestFirst(shown.map((t) => {
     const readAt = t.participants[0]?.lastReadAt ?? null;
     const latestOther = fromOthers.get(t.id)?.latest ?? null;
-    const unread = latestOther !== null && (readAt === null || latestOther > readAt);
+    const unread = (latestOther !== null && (readAt === null || latestOther > readAt)) || (reactionsUnread.get(t.id) ?? 0) > 0;
     return toThreadSummary(
       viewer, t, t.participants, t._count.participants, t.entries[0],
       { total: totals.get(t.id)?.count ?? 0, unreadCount: unread ? 1 : 0 },
@@ -318,6 +334,10 @@ export async function markRead(threadId: string) {
     where: { threadId, authorId: { not: null } },
     data: { readByTeacher: true },
   });
+  await prisma.entryReaction.updateMany({
+    where: { seenByAuthor: false, entry: { threadId, authorId: null } },
+    data: { seenByAuthor: true },
+  });
 }
 
 /** Sets the teacher's read state back so the newest student entry is unread again. */
@@ -332,7 +352,11 @@ export async function markUnread(threadId: string) {
 
 // The teacher's inbox badge: every entry a student wrote that the teacher hasn't seen yet.
 export async function getUnreadCount() {
-  return prisma.messageEntry.count({ where: { authorId: { not: null }, readByTeacher: false } });
+  const [entries, reactions] = await Promise.all([
+    prisma.messageEntry.count({ where: { authorId: { not: null }, readByTeacher: false } }),
+    prisma.entryReaction.count({ where: { seenByAuthor: false, entry: { authorId: null } } }),
+  ]);
+  return entries + reactions;
 }
 
 // Marks everything in the thread as seen by this student only.
@@ -340,6 +364,10 @@ export async function markMineRead(threadId: string, studentId: string) {
   await prisma.threadParticipant.updateMany({
     where: { threadId, studentId },
     data: { lastReadAt: new Date() },
+  });
+  await prisma.entryReaction.updateMany({
+    where: { seenByAuthor: false, entry: { threadId, authorId: studentId } },
+    data: { seenByAuthor: true },
   });
 }
 
@@ -366,13 +394,17 @@ export async function getUnreadReplyCount(studentId: string) {
     select: { threadId: true, lastReadAt: true, hiddenAt: true },
   });
   if (participations.length === 0) return 0;
+  const unseenReactions = await prisma.entryReaction.count({
+    where: { seenByAuthor: false, entry: { authorId: studentId, threadId: { in: participations.map((p) => p.threadId) } } },
+  });
   const perThread = participations.map(({ threadId, lastReadAt, hiddenAt }) => {
     const since = [lastReadAt, hiddenAt].filter((d): d is Date => d !== null).sort((a, b) => b.getTime() - a.getTime())[0];
     return since ? { threadId, createdAt: { gt: since } } : { threadId };
   });
-  return prisma.messageEntry.count({
+  const unseenEntries = await prisma.messageEntry.count({
     where: { AND: [visibleEntriesWhere(viewer), othersEntriesWhere(viewer), { OR: perThread }] },
   });
+  return unseenEntries + unseenReactions;
 }
 
 // ---------------------------------------------------------------------------
@@ -424,7 +456,7 @@ export async function toggleReaction(viewer: Viewer, threadId: string, entryId: 
     select: {
       audience: true,
       participants: { select: { studentId: true } },
-      entries: { where: { id: entryId }, select: { privateToStudentId: true } },
+      entries: { where: { id: entryId }, select: { privateToStudentId: true, authorId: true } },
     },
   });
   const entry = thread?.entries[0];
@@ -439,7 +471,11 @@ export async function toggleReaction(viewer: Viewer, threadId: string, entryId: 
   const key = { entryId, reactorId: viewer.userId, emoji };
   const existing = await prisma.entryReaction.findUnique({ where: { entryId_reactorId_emoji: key } });
   if (existing) await prisma.entryReaction.delete({ where: { id: existing.id } });
-  else await prisma.entryReaction.create({ data: key });
+  else {
+    // Reacting to your own entry is seen by definition; anyone else's reaction is news to its author.
+    const ownEntry = viewer.role === 'STUDENT' ? entry.authorId === viewer.userId : entry.authorId === null;
+    await prisma.entryReaction.create({ data: ownEntry ? key : { ...key, seenByAuthor: false } });
+  }
 
   const rows = await prisma.entryReaction.findMany({ where: { entryId }, ...reactionsInclude });
   return aggregateReactions(viewer, thread.audience, rows);

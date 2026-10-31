@@ -42,7 +42,7 @@ model User {
 
   // Profile picture: the stored square thumbnail's storage URL. Never sent to
   // clients as is; they get a short-lived link through the file download route.
-  avatarUrl            String?
+  avatarUrl String?
 
   studentGroups        StudentGroup[]
   submissions          Submission[]
@@ -402,13 +402,16 @@ model MessageEntry {
 
 // An emoji someone (the teacher or a student) put on an entry.
 model EntryReaction {
-  id        String       @id @default(uuid())
-  entryId   String
-  entry     MessageEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  reactorId String
-  reactor   User         @relation(fields: [reactorId], references: [id], onDelete: Cascade)
-  emoji     String
-  createdAt DateTime     @default(now())
+  id           String       @id @default(uuid())
+  entryId      String
+  entry        MessageEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  reactorId    String
+  reactor      User         @relation(fields: [reactorId], references: [id], onDelete: Cascade)
+  emoji        String
+  // Has the entry's author seen this reaction? A reaction on your own entry is
+  // born seen; one from someone else counts as unread (without any email).
+  seenByAuthor Boolean      @default(true)
+  createdAt    DateTime     @default(now())
 
   @@unique([entryId, reactorId, emoji])
 }
