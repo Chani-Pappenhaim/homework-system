@@ -13,12 +13,8 @@ import { authApi } from '@/api/auth.api';
 import { messagesApi } from '@/api/messages.api';
 import { unwrap } from '@/lib/api-utils';
 import { useQueryParam } from '@/hooks/useQueryParam';
-<<<<<<< HEAD
 import { Brand } from '@/components/decor';
-=======
-import { Brand, DevSignature } from '@/components/decor';
 import { Avatar } from '@/components/ui/avatar';
->>>>>>> worktree-agent-a4af289557b20bd3e
 
 const nav: NavItem[] = [
   { to: '/teacher', label: 'לוח בקרה', icon: LayoutDashboard, end: true },

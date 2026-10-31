@@ -9,12 +9,8 @@ import useAuthStore from '@/store/authStore';
 import { authApi } from '@/api/auth.api';
 import { messagesApi } from '@/api/messages.api';
 import { unwrap } from '@/lib/api-utils';
-<<<<<<< HEAD
 import { Brand } from '@/components/decor';
-=======
-import { Brand, DevSignature } from '@/components/decor';
 import { Avatar } from '@/components/ui/avatar';
->>>>>>> worktree-agent-a4af289557b20bd3e
 
 const nav: NavItem[] = [
   { to: '/student', label: 'בית', icon: Home, end: true },
