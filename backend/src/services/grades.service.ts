@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import ExcelJS from 'exceljs';
 import { groupDisplayName } from '../utils/group-name';
@@ -5,7 +6,7 @@ import { AppError } from '../utils/errors';
 import { dayRangeWhere, type DayRange } from '../utils/date-range';
 import { addReportSheet, israelClock } from '../utils/excel';
 
-type GradeInput = {
+export type GradeInput = {
   submissionScore?: number | null; contentScore?: number | null;
   feedback?: string | null; checklist?: { id: string; text: string; checked: boolean }[] | null;
 };
@@ -43,11 +44,17 @@ function gradeData(data: GradeInput) {
   return out;
 }
 
-export async function gradeSubmission(submissionId: string, gradedById: string, data: GradeInput) {
+/**
+ * Grades one submission. Pass a transaction client as `db` to make the grade
+ * part of a larger transaction.
+ */
+export async function gradeSubmission(
+  submissionId: string, gradedById: string, data: GradeInput, db: Prisma.TransactionClient = prisma,
+) {
   const fields = gradeData(data);
-  const submission = await prisma.submission.findUnique({ where: { id: submissionId }, select: { id: true } });
+  const submission = await db.submission.findUnique({ where: { id: submissionId }, select: { id: true } });
   if (!submission) throw new AppError('Submission not found', 'ההגשה לא נמצאה', 404);
-  return prisma.grade.upsert({
+  return db.grade.upsert({
     where: { submissionId },
     create: { submissionId, gradedById, ...fields },
     update: { ...fields, gradedAt: new Date(), gradedById },

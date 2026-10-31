@@ -27,6 +27,14 @@ describe('grades.service.gradeSubmission', () => {
     expect(arg.update.gradedAt).toBeInstanceOf(Date);
   });
 
+  it('writes through the transaction client it is given, not the shared one', async () => {
+    const tx = { submission: { findUnique: vi.fn().mockResolvedValue({ id: 'sub1' }) }, grade: { upsert: vi.fn().mockResolvedValue({ id: 'gr1' }) } };
+    await gradeSubmission('sub1', 'teacher1', { contentScore: 70 }, tx as any);
+    expect(tx.grade.upsert).toHaveBeenCalledTimes(1);
+    expect(p.grade.upsert).not.toHaveBeenCalled();
+    expect(p.submission.findUnique).not.toHaveBeenCalled();
+  });
+
   it('rejects a score outside 0-100 or not a number', async () => {
     await expect(gradeSubmission('sub1', 't1', { contentScore: 150 })).rejects.toMatchObject({ status: 400 });
     await expect(gradeSubmission('sub1', 't1', { submissionScore: 'abc' as any })).rejects.toMatchObject({ status: 400 });

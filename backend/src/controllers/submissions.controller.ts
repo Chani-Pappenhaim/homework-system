@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import * as submissionsService from '../services/submissions.service';
+import * as archiveService from '../services/submission-archive.service';
+import { contentDisposition } from '../utils/mime';
 import { sendError } from '../utils/http';
 import { fixMulterFilename } from '../utils/storage';
 
@@ -132,6 +134,20 @@ export async function importAssignmentSubmissions(req: Request, res: Response) {
     const result = await submissionsService.importAssignmentSubmissions(req.params.id as string, req.file!.buffer);
     res.json({ success: true, data: result });
   } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+/** All the assignment's submitted files as one zip, streamed as it is built. */
+export async function downloadSubmissionsArchive(req: Request, res: Response) {
+  try {
+    const plan = await archiveService.planAssignmentArchive(req.params.id as string);
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', contentDisposition(plan.fileName, 'attachment'));
+    // Headers are sent with the first bytes, so a failure from here on can only cut the connection.
+    await archiveService.writeArchive(plan.entries, res);
+  } catch (err: any) {
+    if (res.headersSent) { res.destroy(); return; }
     sendError(res, err);
   }
 }

@@ -30,6 +30,7 @@
     "@types/pg": "^8.20.0",
     "@xmldom/xmldom": "^0.8.13",
     "adm-zip": "^0.5.18",
+    "archiver": "^5.3.2",
     "bcryptjs": "^3.0.3",
     "bullmq": "^5.79.1",
     "cloudinary": "^2.10.0",
@@ -56,6 +57,7 @@
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.8",
+    "@types/archiver": "^5.3.4",
     "@types/bcryptjs": "^2.4.6",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
