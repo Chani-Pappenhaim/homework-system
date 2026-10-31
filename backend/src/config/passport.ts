@@ -5,6 +5,7 @@ import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import bcrypt from 'bcryptjs';
 import { prisma } from './prisma';
 import { findUserByEmail } from '../services/auth.service';
+import { adoptProviderAvatar } from '../services/provider-avatar.service';
 
 export function configurePassport(passport: PassportStatic) {
   passport.use(
@@ -90,6 +91,7 @@ export function configurePassport(passport: PassportStatic) {
                 },
               });
             }
+            await adoptProviderAvatar(user, profile.photos?.[0]?.value);
             return done(null, user);
           } catch (err) {
             return done(err);
