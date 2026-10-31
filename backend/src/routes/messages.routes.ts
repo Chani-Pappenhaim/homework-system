@@ -13,6 +13,9 @@ router.get('/', requireRole('ADMIN'), messagesController.getMessages);
 // The name the students' emails come from.
 router.get('/email-settings', requireRole('ADMIN'), messagesController.getEmailSettings);
 router.put('/email-settings', requireRole('ADMIN'), messagesController.updateEmailSettings);
+// The hours in which students' notification emails wait until the morning.
+router.get('/quiet-hours', requireRole('ADMIN'), messagesController.getQuietHours);
+router.put('/quiet-hours', requireRole('ADMIN'), messagesController.updateQuietHours);
 router.get('/mine', requireRole('STUDENT'), messagesController.getMyMessages);
 router.get('/unread-count', requireRole('ADMIN'), messagesController.getUnreadCount);
 router.get('/unread-replies-count', requireRole('STUDENT'), messagesController.getUnreadReplyCount);

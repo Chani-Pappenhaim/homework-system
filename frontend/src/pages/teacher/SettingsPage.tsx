@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Clock, LogOut, Mail, Save } from 'lucide-react';
+import { Clock, LogOut, Mail, Moon, Save } from 'lucide-react';
 import { messagesApi } from '@/api/messages.api';
 import { gradesApi } from '@/api/grades.api';
 import { authApi } from '@/api/auth.api';
@@ -24,6 +24,7 @@ export default function SettingsPage() {
       <PageHeader title="הגדרות" meta="לוח בקרה · הגדרות" />
       <EmailSenderCard />
       <LatePenaltyCard />
+      <QuietHoursCard />
       <SessionsCard />
     </div>
   );
@@ -150,6 +151,79 @@ function LatePenaltyCard() {
             : 'יש לכתוב מספרים שלמים בין 0 ל-100'}
         </p>
         <Button onClick={() => save.mutate()} loading={save.isPending} disabled={isLoading || !valid || unchanged}>
+          <Save size={14} /> שמירה
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** "HH:MM" for minutes past midnight. */
+function toClock(minutes: number): string {
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+}
+
+/** Minutes past midnight for "HH:MM", or null while the field is empty. */
+function fromClock(text: string): number | null {
+  const match = /^(\d{2}):(\d{2})$/.exec(text);
+  return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+}
+
+function QuietHoursCard() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const { data, isLoading } = useQuery({ queryKey: ['quiet-hours'], queryFn: () => messagesApi.getQuietHours() });
+  const hours = data?.data.data;
+  const [start, setStart] = useState('');
+  const [release, setRelease] = useState('');
+
+  useEffect(() => {
+    if (hours) {
+      setStart(toClock(hours.startMinute));
+      setRelease(toClock(hours.releaseMinute));
+    }
+  }, [hours]);
+
+  const startMinute = fromClock(start);
+  const releaseMinute = fromClock(release);
+  const valid = startMinute !== null && releaseMinute !== null;
+  const off = valid && startMinute === releaseMinute;
+
+  const save = useMutation({
+    mutationFn: () => messagesApi.updateQuietHours({ startMinute: startMinute!, releaseMinute: releaseMinute! }),
+    onSuccess: (res) => {
+      qc.setQueryData(['quiet-hours'], res);
+      toast.success('שעות השקט נשמרו');
+    },
+    onError: (e) => toast.error(getApiErrorMessage(e, 'השמירה נכשלה')),
+  });
+
+  return (
+    <Card accent="indigo">
+      <CardHeader>
+        <h2 className="flex items-center gap-1.5 font-display text-base font-bold"><Moon size={15} /> שעות שקט למיילים לתלמידות</h2>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-ink-soft">
+          מייל לתלמידה (תשובה להודעה, הודעה ממך, פרסום ציון) שנוצר בשעות השקט לא נשלח מיד אלא בשעת השחרור.
+          ההודעות והציונים עצמם מופיעים באתר מיד. השעות לפי שעון ישראל, והן חלות על כל התלמידות.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Input label="תחילת שעות השקט" type="time" value={start} onChange={(e) => setStart(e.target.value)} disabled={isLoading} />
+          <Input label="שעת שחרור המיילים" type="time" value={release} onChange={(e) => setRelease(e.target.value)} disabled={isLoading} />
+        </div>
+        <p className="text-xs text-ink-soft">
+          {!valid
+            ? 'יש לבחור שעות'
+            : off
+              ? 'שתי השעות זהות, ולכן אין שעות שקט והמיילים נשלחים מיד'
+              : <>מיילים שנוצרים בין <span className="font-semibold text-ink">{start}</span> ל-<span className="font-semibold text-ink">{release}</span> יישלחו ב-<span className="font-semibold text-ink">{release}</span></>}
+        </p>
+        <Button
+          onClick={() => save.mutate()}
+          loading={save.isPending}
+          disabled={isLoading || !valid || (hours?.startMinute === startMinute && hours?.releaseMinute === releaseMinute)}
+        >
           <Save size={14} /> שמירה
         </Button>
       </CardContent>

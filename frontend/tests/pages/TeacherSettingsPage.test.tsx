@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SettingsPage from '@/pages/teacher/SettingsPage';
 import { ToastProvider } from '@/components/ui/toast';
 import { renderWithProviders } from '../utils/render';
 
 vi.mock('@/api/messages.api', () => ({
-  messagesApi: { getEmailSettings: vi.fn(), updateEmailSettings: vi.fn() },
+  messagesApi: { getEmailSettings: vi.fn(), updateEmailSettings: vi.fn(), getQuietHours: vi.fn(), updateQuietHours: vi.fn() },
 }));
 import { messagesApi } from '@/api/messages.api';
 const getSettings = messagesApi.getEmailSettings as unknown as ReturnType<typeof vi.fn>;
@@ -25,12 +25,17 @@ import { authApi } from '@/api/auth.api';
 import useAuthStore from '@/store/authStore';
 const logoutOthers = authApi.logoutOthers as unknown as ReturnType<typeof vi.fn>;
 
+const getQuietHours = messagesApi.getQuietHours as unknown as ReturnType<typeof vi.fn>;
+const updateQuietHours = messagesApi.updateQuietHours as unknown as ReturnType<typeof vi.fn>;
+const quietReply = (startMinute: number, releaseMinute: number) => ({ data: { success: true, data: { startMinute, releaseMinute } } });
+
 const reply = (senderName: string | null) => ({ data: { success: true, data: { senderName, defaultSenderName: 'Teacher Feature' } } });
 
 beforeEach(() => {
   vi.clearAllMocks();
   getSettings.mockResolvedValue(reply(null));
   getLatePolicy.mockResolvedValue(latePolicyReply(2, 20));
+  getQuietHours.mockResolvedValue(quietReply(0, 600));
 });
 
 // One save button per card: the sender name's first, the late penalty's second.
@@ -135,5 +140,37 @@ describe('Teacher settings - signing out other devices', () => {
     await userEvent.click(button());
     await userEvent.click(await screen.findByRole('button', { name: 'ניתוק' }));
     expect(await screen.findByText('הניתוק נכשל')).toBeInTheDocument();
+  });
+});
+
+describe('Teacher settings - quiet hours', () => {
+  const startField = () => screen.getByLabelText('תחילת שעות השקט') as HTMLInputElement;
+  const releaseField = () => screen.getByLabelText('שעת שחרור המיילים') as HTMLInputElement;
+  // Third save button: sender name, late penalty, then quiet hours.
+  const save = () => screen.getAllByRole('button', { name: /שמירה/ })[2];
+
+  it('shows the saved hours', async () => {
+    getQuietHours.mockResolvedValue(quietReply(1320, 450));
+    renderPage();
+    await waitFor(() => expect(startField().value).toBe('22:00'));
+    expect(releaseField().value).toBe('07:30');
+  });
+
+  it('saves the release time she picks as minutes past midnight', async () => {
+    updateQuietHours.mockResolvedValue(quietReply(0, 660));
+    renderPage();
+    await waitFor(() => expect(releaseField().value).toBe('10:00'));
+    expect(save()).toBeDisabled();
+    fireEvent.change(releaseField(), { target: { value: '11:00' } });
+    await userEvent.click(save());
+    await waitFor(() => expect(updateQuietHours).toHaveBeenCalledWith({ startMinute: 0, releaseMinute: 660 }));
+    expect(await screen.findByText('שעות השקט נשמרו')).toBeInTheDocument();
+  });
+
+  it('says there are no quiet hours when both times are equal', async () => {
+    renderPage();
+    await waitFor(() => expect(releaseField().value).toBe('10:00'));
+    fireEvent.change(startField(), { target: { value: '10:00' } });
+    expect(await screen.findByText(/אין שעות שקט/)).toBeInTheDocument();
   });
 });

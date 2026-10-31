@@ -14,6 +14,13 @@ export const messagesApi = {
   updateEmailSettings: (senderName: string) =>
     api.put<{ success: true; data: EmailSettings }>('/messages/email-settings', { senderName }),
 
+  /** The hours (Israel time) in which students' notification emails wait until the release time. */
+  getQuietHours: () =>
+    api.get<{ success: true; data: QuietHours }>('/messages/quiet-hours'),
+
+  updateQuietHours: (hours: QuietHours) =>
+    api.put<{ success: true; data: QuietHours }>('/messages/quiet-hours', hours),
+
   /** The same message to every student of the group, each in her own conversation. */
   sendToGroup: (groupId: string, content: string) =>
     api.post<{ success: true; data: { sent: number } }>('/messages/teacher/group', { groupId, content }),
@@ -29,6 +36,12 @@ export const messagesApi = {
   deleteMine: (id: string) => api.delete(`/messages/${id}/mine`),
   delete: (id: string) => api.delete(`/messages/${id}`),
 };
+
+/** Minutes past midnight, Israel time. Equal values mean no quiet hours. */
+export interface QuietHours {
+  startMinute: number;
+  releaseMinute: number;
+}
 
 export interface EmailSettings {
   senderName: string | null;
