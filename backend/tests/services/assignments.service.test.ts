@@ -72,7 +72,7 @@ describe('assignments.service.importAssignments', () => {
     ]);
     const r = await importAssignments(buf);
     expect(r.imported).toBe(1);
-    expect(r.errors.some((e) => e.includes('missing lessonId or title'))).toBe(true);
+    expect(r.errors.some((e) => e.includes('חסר מזהה שיעור או כותרת'))).toBe(true);
     expect(p.assignment.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ lessonId: 'l1', title: 'Task A', allowedTypes: ['js', 'ts'] }),
     }));
@@ -83,7 +83,7 @@ describe('assignments.service.importAssignments', () => {
     const buf = await xlsxBuffer([['l1', 'Task A', 'desc', '', '']]);
     const r = await importAssignments(buf);
     expect(r.imported).toBe(0);
-    expect(r.errors.some((e) => e.includes('failed to create assignment'))).toBe(true);
+    expect(r.errors.some((e) => e.includes('יצירת המטלה נכשלה'))).toBe(true);
   });
 
   it('refuses a row whose deadline already passed or is not a date, and keeps a future one', async () => {
@@ -96,7 +96,7 @@ describe('assignments.service.importAssignments', () => {
     ]);
     const r = await importAssignments(buf);
     expect(r.imported).toBe(1);
-    expect(r.errors).toEqual(['Row 2: deadline is in the past', 'Row 3: invalid deadline']);
+    expect(r.errors).toEqual(['שורה 2: מועד ההגשה כבר עבר', 'שורה 3: מועד ההגשה אינו תקין']);
     expect(p.assignment.create).toHaveBeenCalledTimes(1);
     expect(p.assignment.create.mock.calls[0][0].data).toMatchObject({ title: 'Ahead', deadline: new Date(ahead) });
   });
@@ -105,7 +105,7 @@ describe('assignments.service.importAssignments', () => {
     const buf = await xlsxBuffer([['l1', 'Task A', '', '', '']]);
     const r = await importAssignments(buf);
     expect(r.imported).toBe(0);
-    expect(r.errors.some((e) => e.includes('missing description'))).toBe(true);
+    expect(r.errors.some((e) => e.includes('חסר תיאור'))).toBe(true);
     expect(p.assignment.create).not.toHaveBeenCalled();
   });
 });

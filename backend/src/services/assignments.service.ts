@@ -189,19 +189,20 @@ export async function importAssignments(buffer: Buffer) {
     const allowedTypesRaw = cellText(row.getCell(5)).trim();
     const allowedTypes = allowedTypesRaw ? allowedTypesRaw.split(',').map((s) => s.trim()) : [];
 
-    if (!lessonId || !title) { errors.push(`Row ${i}: missing lessonId or title`); continue; }
-    if (!description) { errors.push(`Row ${i}: missing description`); continue; }
+    if (!lessonId || !title) { errors.push(`שורה ${i}: חסר מזהה שיעור או כותרת`); continue; }
+    if (!description) { errors.push(`שורה ${i}: חסר תיאור`); continue; }
     const deadlineDate = deadline ? new Date(deadline) : undefined;
-    if (deadlineDate && Number.isNaN(deadlineDate.getTime())) { errors.push(`Row ${i}: invalid deadline`); continue; }
+    if (deadlineDate && Number.isNaN(deadlineDate.getTime())) { errors.push(`שורה ${i}: מועד ההגשה אינו תקין`); continue; }
     if (deadlineDate && deadlineDate.getTime() < Date.now() - PAST_DEADLINE_GRACE_MS) {
-      errors.push(`Row ${i}: deadline is in the past`); continue;
+      errors.push(`שורה ${i}: מועד ההגשה כבר עבר`); continue;
     }
 
     try {
       await prisma.assignment.create({ data: { lessonId, title, description, deadline: deadlineDate, allowedTypes } });
       imported++;
-    } catch {
-      errors.push(`Row ${i}: failed to create assignment`);
+    } catch (err) {
+      console.error('[assignments import] row failed', i, err);
+      errors.push(`שורה ${i}: יצירת המטלה נכשלה (בדקו שמזהה השיעור נכון)`);
     }
   }
   return { imported, errors };
