@@ -28,6 +28,7 @@ async function mockApi(page: Page): Promise<ApiMock> {
   const handlers = new Map<string, Handler>();
   const calls: string[] = [];
   handlers.set('POST /auth/refresh', fail(401, 'No session'));
+  handlers.set('GET /students/online', ok({ count: 0, windowMinutes: 5, students: [] }));
   // Only the app's own /api calls - vite also serves modules under /src/api/.
   await page.route((url) => url.pathname.startsWith('/api/'), (route) => {
     const url = new URL(route.request().url());
