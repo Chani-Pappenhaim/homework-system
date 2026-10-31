@@ -9,6 +9,12 @@ import { originGuard } from './middleware/originGuard';
 import { configurePassport } from './config/passport';
 import { GENERIC_SERVER_ERROR } from './utils/http';
 
+const MULTER_MESSAGES: Record<string, string> = {
+  LIMIT_FILE_SIZE: 'הקובץ גדול מדי',
+  LIMIT_FILE_COUNT: 'נבחרו יותר מדי קבצים',
+  LIMIT_UNEXPECTED_FILE: 'הקובץ לא נקלט. אנא נסו שוב עם קובץ אחר.',
+};
+
 import authRoutes from './routes/auth.routes';
 import groupRoutes from './routes/groups.routes';
 import courseRoutes from './routes/courses.routes';
@@ -84,8 +90,18 @@ export function createApp() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     if (res.headersSent) return;
-    if (err instanceof MulterError && err.code === 'LIMIT_FILE_SIZE') {
-      res.status(413).json({ success: false, error: 'הקובץ גדול מדי' });
+    if (err instanceof MulterError) {
+      const message = MULTER_MESSAGES[err.code] ?? 'ההעלאה נכשלה. אנא בדקו את הקובץ ונסו שוב.';
+      res.status(err.code === 'LIMIT_FILE_SIZE' ? 413 : 400).json({ success: false, error: message });
+      return;
+    }
+    // body-parser failures: a body over the size limit, or JSON that does not parse.
+    if (err?.type === 'entity.too.large') {
+      res.status(413).json({ success: false, error: 'התוכן שנשלח גדול מדי' });
+      return;
+    }
+    if (err?.type === 'entity.parse.failed') {
+      res.status(400).json({ success: false, error: 'הבקשה לא תקינה' });
       return;
     }
     console.error('[unhandled]', err);
