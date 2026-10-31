@@ -375,6 +375,7 @@ export interface MessageEntryDTO {
   mine: boolean;
   /** The writing student's name, when the viewer may know it. */
   authorName: string | null;
+  authorAvatarUrl: string | null;
   /** Seen only by the teacher and one student. */
   isPrivate: boolean;
   /** Which student a private entry is for; told to the teacher only. */

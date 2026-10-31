@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../src/infrastructure/queues/enqueue-email', () => ({ enqueueEmail: vi.fn() }));
+// Student emails go through the quiet-hours wrapper; here it just forwards to the mocked queue.
+vi.mock('../../src/services/student-notifications.service', async () => {
+  const { enqueueEmail } = await import('../../src/infrastructure/queues/enqueue-email');
+  return { enqueueStudentEmail: (name: string, data: unknown) => (enqueueEmail as any)(name, data) };
+});
 
 import { enqueueEmail } from '../../src/infrastructure/queues/enqueue-email';
 import { notifyNewEntry } from '../../src/services/message-notifications';

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Lock } from 'lucide-react';
+import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { ReactionBar } from '@/components/messages/ReactionBar';
@@ -23,6 +24,7 @@ export function EntryCard({ entry, label, privateNote, onReact, action }: EntryC
     <div className={cn(entry.fromTeacher && 'rounded-input border-r-2 border-indigo bg-ground/60 px-3 py-2')}>
       <div className="flex items-center justify-between gap-2">
         <div className="label mb-0.5 flex flex-wrap items-center gap-1.5">
+          {entry.authorName && <Avatar name={entry.authorName} src={entry.authorAvatarUrl} size="sm" />}
           <span>{label} · {formatDateTime(entry.createdAt)}</span>
           {entry.isPrivate && privateNote && (
             <Badge variant="muted"><Lock size={9} className="ml-1" /> {privateNote}</Badge>

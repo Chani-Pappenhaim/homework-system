@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// Every token signed here belongs to a live session.
+vi.mock('../../src/services/session.service', () => ({
+  isSessionCurrent: vi.fn(async () => true),
+  touchLastSeen: vi.fn(),
+}));
 vi.mock('bullmq', () => {
   class Queue { add = vi.fn(async () => ({})); }
   class Worker { on = vi.fn(); }

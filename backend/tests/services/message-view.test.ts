@@ -48,6 +48,13 @@ describe('toEntryDTO', () => {
     expect(toEntryDTO(dina, thread('GROUP_VISIBLE'), null, { ...e, privateToStudentId: null }).authorName).toBe('רחל');
     expect(toEntryDTO(dina, thread('GROUP_BCC'), null, { ...e, privateToStudentId: null }).authorName).toBeNull();
   });
+  it('gives the author picture link only where the author may be named', () => {
+    const e = entry({ authorId: 's2', author: { id: 's2', name: 'רחל', avatarUrl: 'https://cdn/a.png' }, privateToStudentId: null });
+    expect(toEntryDTO(dina, thread('GROUP_VISIBLE'), null, e).authorAvatarUrl).toMatch(/^\/api\/files\/|token=/);
+    expect(toEntryDTO(dina, thread('GROUP_BCC'), null, e).authorAvatarUrl).toBeNull();
+    expect(toEntryDTO(teacher, thread('GROUP_BCC'), null, { ...e, author: { id: 's2', name: 'רחל', avatarUrl: null } }).authorAvatarUrl).toBeNull();
+  });
+
 
   it('tells only the teacher which student an entry is private to', () => {
     const e = entry({ privateToStudentId: 's1' });

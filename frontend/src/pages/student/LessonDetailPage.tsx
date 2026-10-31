@@ -294,7 +294,7 @@ function AssignmentCard({ assignment: a, submission: sub, focused = false }: {
   });
 
   const fileMutation = useMutation({
-    mutationFn: (file: File) => {
+    mutationFn: async (file: File) => {
       setUploadProgress(0);
       return isVideoFile(file)
         ? submissionsApi.submitVideo(a.id, file, notes || undefined, setUploadProgress)

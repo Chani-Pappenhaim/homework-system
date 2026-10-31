@@ -44,7 +44,7 @@ export function threadSubject(subject: unknown): string | null {
 }
 
 const personSelect = { id: true, name: true, email: true } as const;
-const authorSelect = { select: { id: true, name: true } } as const;
+const authorSelect = { select: { id: true, name: true, avatarUrl: true } } as const;
 const reactionsInclude = { include: { reactor: { select: { id: true, name: true, role: true } } } } as const;
 const teacherViewer = (userId: string): Viewer => ({ role: 'TEACHER', userId });
 const studentViewer = (userId: string): Viewer => ({ role: 'STUDENT', userId });

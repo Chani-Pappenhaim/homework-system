@@ -2,6 +2,7 @@ import type { ThreadAudience } from '@prisma/client';
 import { groupDisplayName } from '../utils/group-name';
 import { REACTION_EMOJIS } from '../utils/message-reactions';
 import { canSeeParticipantEmails, canSeeParticipants, canSeeReaction, type Viewer } from './messaging-policy';
+import { avatarLink } from '../utils/storage';
 
 /**
  * Turns stored threads into what one particular viewer may see of them. All
@@ -19,7 +20,7 @@ export interface ReactionRow {
 export interface EntryRow {
   id: string;
   authorId: string | null;
-  author: { id: string; name: string } | null;
+  author: { id: string; name: string; avatarUrl?: string | null } | null;
   privateToStudentId: string | null;
   content: string;
   readByTeacher: boolean;
@@ -55,6 +56,7 @@ export interface EntryDTO {
   fromTeacher: boolean;
   mine: boolean;
   authorName: string | null;
+  authorAvatarUrl: string | null; // only for an author the viewer may see named
   isPrivate: boolean;
   privateToStudentId: string | null; // only the teacher is told which student
   content: string;
@@ -104,6 +106,8 @@ export function toEntryDTO(
     fromTeacher,
     mine,
     authorName: !fromTeacher && namesAuthor ? entry.author?.name ?? null : null,
+    authorAvatarUrl:
+      !fromTeacher && namesAuthor && entry.author?.avatarUrl ? avatarLink({ id: entry.author.id, avatarUrl: entry.author.avatarUrl }, viewer.userId) : null,
     isPrivate: entry.privateToStudentId !== null,
     privateToStudentId: isTeacher(viewer) ? entry.privateToStudentId : null,
     content: entry.content,
