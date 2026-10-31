@@ -112,4 +112,14 @@ describe('content conversion', () => {
   it('rejects other file types with a 400', async () => {
     await expect(fileToMarkdown('slides.pptx', Buffer.from(''))).rejects.toMatchObject({ status: 400 });
   });
+
+  it('stores a picture embedded in an HTML file as its own file', async () => {
+    vi.stubEnv('CLOUDINARY_CLOUD_NAME', 'demo');
+    upload.mockResolvedValue({ url: 'https://cdn.example/pic.png', resourceType: 'image' });
+    const html = `<p>hi</p><img src="data:image/png;base64,${PNG.toString('base64')}" alt="x">`;
+    const md = await fileToMarkdown('page.html', Buffer.from(html));
+    expect(md).toContain('https://cdn.example/pic.png');
+    expect(md).not.toContain('base64');
+    vi.unstubAllEnvs();
+  });
 });
