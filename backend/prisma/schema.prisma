@@ -72,6 +72,7 @@ model StudentGroup {
   group     Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@id([studentId, groupId])
+  @@index([groupId])
 }
 
 model Course {
@@ -92,6 +93,7 @@ model Course {
 
   attendanceSessions   AttendanceSession[]
   attendanceExclusions AttendanceExclusion[]
+  @@index([groupId])
 }
 
 model CourseLink {
@@ -101,6 +103,7 @@ model CourseLink {
   label    String
   url      String
   order    Int    @default(0)
+  @@index([courseId])
 }
 
 model CourseFile {
@@ -113,6 +116,7 @@ model CourseFile {
   uploadedAt DateTime @default(now())
   // Hidden from students; the teacher still sees it.
   hidden     Boolean  @default(false)
+  @@index([courseId])
 }
 
 model Lesson {
@@ -135,6 +139,7 @@ model Lesson {
   progress     LessonProgress[]
 
   attendanceSessions AttendanceSession[]
+  @@index([courseId])
 }
 
 // A student's self-marked completion of a lesson (presence of row = completed)
@@ -146,6 +151,7 @@ model LessonProgress {
   lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
   @@id([studentId, lessonId])
+  @@index([lessonId])
 }
 
 // Grants a specific student access to a single lesson outside her group
@@ -156,6 +162,7 @@ model LessonAccess {
   lesson    Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
   @@id([studentId, lessonId])
+  @@index([lessonId])
 }
 
 // A student let into a whole course outside its group — a private student, or
@@ -167,6 +174,7 @@ model CourseAccess {
   course    Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@id([studentId, courseId])
+  @@index([courseId])
 }
 
 model LessonFile {
@@ -184,6 +192,7 @@ model LessonFile {
   views          LessonFileView[]
   // Assignments whose AI review reads this file.
   aiReferenceFor Assignment[]     @relation("AssignmentAiReferenceFiles")
+  @@index([lessonId])
 }
 
 // A student's self-marked "seen/read" of a required file (presence of row = viewed)
@@ -195,6 +204,7 @@ model LessonFileView {
   file      LessonFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
 
   @@id([studentId, fileId])
+  @@index([fileId])
 }
 
 model Assignment {
@@ -218,6 +228,7 @@ model Assignment {
   aiReviewCarryovers AiReviewCarryover[]
   // The lesson files the AI review relies on, as the teacher picked them; none means none are read.
   aiReferenceFiles   LessonFile[]        @relation("AssignmentAiReferenceFiles")
+  @@index([lessonId])
 }
 
 model Submission {
@@ -246,6 +257,7 @@ model Submission {
   grade Grade?
 
   @@unique([assignmentId, studentId])
+  @@index([studentId])
 }
 
 /// The AI reviews a student already used on an assignment, kept when she deletes
@@ -259,6 +271,7 @@ model AiReviewCarryover {
   aiExtraAllowed Boolean
 
   @@id([assignmentId, studentId])
+  @@index([studentId])
 }
 
 model Grade {
@@ -319,6 +332,7 @@ model TeacherMessage {
   assignmentId String? // אם קיים → בקשת הגשה מאוחרת למטלה ספציפית
   createdAt    DateTime       @default(now())
   entries      MessageEntry[]
+  @@index([studentId])
 }
 
 model MessageEntry {
@@ -365,6 +379,7 @@ model QuizAttempt {
   isOfficial Boolean  @default(true)
 
   @@index([quizId, studentId])
+  @@index([studentId])
 }
 
 enum AttendanceStatus {
@@ -389,6 +404,7 @@ model AttendanceSession {
   homework ExtraHomework[]
 
   @@index([courseId, date])
+  @@index([lessonId])
 }
 
 model AttendanceRecord {
@@ -402,6 +418,7 @@ model AttendanceRecord {
   updatedAt DateTime          @updatedAt
 
   @@id([sessionId, studentId])
+  @@index([studentId])
 }
 
 // Homework given at a meeting outside the site's assignments, checked off by hand.
@@ -413,6 +430,7 @@ model ExtraHomework {
   createdAt DateTime          @default(now())
 
   marks HomeworkMark[]
+  @@index([sessionId])
 }
 
 model HomeworkMark {
@@ -423,6 +441,7 @@ model HomeworkMark {
   done       Boolean
 
   @@id([homeworkId, studentId])
+  @@index([studentId])
 }
 
 // A student with personal access to a course (not through its group) whom the
@@ -434,4 +453,5 @@ model AttendanceExclusion {
   student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@id([courseId, studentId])
+  @@index([studentId])
 }
