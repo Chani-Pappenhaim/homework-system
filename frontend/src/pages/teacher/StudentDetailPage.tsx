@@ -18,6 +18,7 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { useDeleteStudent } from '@/hooks/useDeleteStudent';
 import { submissionPath } from '@/components/lesson/LessonRoute';
 import { scoreTone } from '@/lib/scores';
+import { AssignmentFlags } from '@/components/lesson/AssignmentFlags';
 
 type Work = StudentProfile['work'][number];
 type WorkFilter = 'all' | 'missing' | 'submitted';
@@ -89,7 +90,10 @@ function WorkList({ work }: { work: Work[] }) {
           {shown.map((w) => (
             <li key={w.assignmentId} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-3">
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-ink">{w.title}</p>
+                <p className="flex items-center gap-1.5 font-medium text-ink">
+                  <span className="truncate">{w.title}</span>
+                  <AssignmentFlags hidden={w.hidden} optional={w.optional} />
+                </p>
                 <p className="truncate text-xs text-ink/50">
                   {w.courseName} · {w.lessonTopic}
                   {w.submission

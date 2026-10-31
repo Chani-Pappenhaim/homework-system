@@ -8,6 +8,17 @@ export const AI_REFERENCE_FILES_INCLUDE = {
 /** The order a lesson's assignments are shown in: the order the teacher added them. */
 export const ASSIGNMENT_ORDER: Prisma.AssignmentOrderByWithRelationInput[] = [{ createdAt: 'asc' }, { id: 'asc' }];
 
+/** The assignments a student may see: the ones the teacher has not hidden. */
+export const VISIBLE_ASSIGNMENT = { hidden: false } as const;
+
+/** Narrows an assignment query to what the given role may see; the teacher sees them all. */
+export function assignmentsVisibleTo(role: string): Prisma.AssignmentWhereInput {
+  return role === 'ADMIN' ? {} : VISIBLE_ASSIGNMENT;
+}
+
+/** Assignments a student is expected to hand in: shown to her and not optional. */
+export const MANDATORY_ASSIGNMENT = { hidden: false, optional: false } as const;
+
 interface AssignmentRow {
   aiInstructions?: string | null;
   aiReferenceFiles?: { id: string }[];

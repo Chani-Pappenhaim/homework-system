@@ -342,6 +342,13 @@ describe('getMyAttendance', () => {
     const select = p.course.findMany.mock.calls[0][0].select.attendanceSessions.select.records.select;
     expect(select).toEqual({ status: true });
   });
+
+  it("never lists a hidden assignment among a meeting's homework", async () => {
+    p.course.findMany.mockResolvedValue([]);
+    await getMyAttendance('rachel');
+    const lesson = p.course.findMany.mock.calls[0][0].select.attendanceSessions.select.lesson.select;
+    expect(lesson.assignments.where).toEqual({ hidden: false });
+  });
 });
 
 describe('buildAttendanceExport', () => {

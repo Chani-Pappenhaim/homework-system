@@ -5,7 +5,7 @@ import { confirmUpload, discardPendingUpload } from './pending-uploads.service';
 import { releaseFileUrls, submissionFileUrls } from './file-refs.service';
 import { assertLessonAccess, assertCourseAccess } from './access.service';
 import { countPastDeadlines, upcomingDeadline } from '../utils/deadlines';
-import { AI_REFERENCE_FILES_INCLUDE, ASSIGNMENT_ORDER, assignmentForViewer } from '../utils/assignment-view';
+import { AI_REFERENCE_FILES_INCLUDE, ASSIGNMENT_ORDER, assignmentForViewer, assignmentsVisibleTo } from '../utils/assignment-view';
 
 // Older lessons only have the legacy single `githubUrl` column populated;
 // `githubUrls` is the source of truth, so fall back to wrapping the legacy
@@ -24,7 +24,7 @@ export async function getLessons(courseId: string, userId: string, role: string)
   await assertCourseAccess(userId, role, courseId);
   const lessons = await prisma.lesson.findMany({
     where: { courseId, ...(role !== 'ADMIN' && { hidden: false }) },
-    include: { _count: { select: { assignments: true } } },
+    include: { _count: { select: { assignments: { where: assignmentsVisibleTo(role) } } } },
     orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
   });
   return lessons.map((l) => ({
@@ -86,7 +86,7 @@ export async function getLessonById(id: string, userId: string, role: string) {
       files: { where: role === 'ADMIN' ? {} : { hidden: false } },
       // The order they were added in; without it the database returns them in
       // whatever order it likes, which changes after an edit.
-      assignments: { include: AI_REFERENCE_FILES_INCLUDE, orderBy: ASSIGNMENT_ORDER },
+      assignments: { where: assignmentsVisibleTo(role), include: AI_REFERENCE_FILES_INCLUDE, orderBy: ASSIGNMENT_ORDER },
       quiz: { select: { published: true } },
     },
   });
@@ -252,7 +252,8 @@ export async function copyLesson(lessonId: string, targetCourseId?: string) {
           allowedTypes: a.allowedTypes, allowGithub: a.allowGithub, allowFile: a.allowFile,
           requirements: a.requirements ?? undefined, aiInstructions: a.aiInstructions,
           aiReviewEnabled: a.aiReviewEnabled, aiReviewLarge: a.aiReviewLarge,
-          aiGitFromTag: a.aiGitFromTag, aiGitToTag: a.aiGitToTag, createdAt: new Date(copiedAt + i),
+          aiGitFromTag: a.aiGitFromTag, aiGitToTag: a.aiGitToTag,
+          hidden: a.hidden, optional: a.optional, createdAt: new Date(copiedAt + i),
           ...(referenceIds.length ? { aiReferenceFiles: { connect: referenceIds.map((id) => ({ id })) } } : {}),
         },
       });

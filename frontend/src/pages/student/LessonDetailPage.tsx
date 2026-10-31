@@ -28,6 +28,7 @@ import { AI_AVAILABILITY_QUERY_KEY, useAiAvailability } from '@/hooks/useAiAvail
 import { usePageTitle } from '@/hooks/usePageTitle';
 import type { LessonPageProps } from '@/components/lesson/LessonRoute';
 import type { AssignmentDTO, MySubmission } from '@/types';
+import { AssignmentFlags } from '@/components/lesson/AssignmentFlags';
 
 const TABS = ['content', 'files', 'quiz', 'assignments'] as const;
 
@@ -326,7 +327,10 @@ function AssignmentCard({ assignment: a, submission: sub, focused = false }: {
     <Card className={cn(focused && 'ring-2 ring-clay/60')}>
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
-          <h3 className="font-display text-base font-bold">{a.title}</h3>
+          <h3 className="flex items-center gap-2 font-display text-base font-bold">
+            {a.title}
+            <AssignmentFlags optional={a.optional} />
+          </h3>
           <div className="flex shrink-0 items-center gap-2">
             {a.description && (
               <button

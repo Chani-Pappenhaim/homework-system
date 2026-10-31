@@ -106,6 +106,13 @@ describe('submissions.service.submitAssignment', () => {
     await expect(submitAssignment('a1', 's1', { repoName: 'r' })).rejects.toMatchObject({ status: 403 });
   });
 
+  it('treats a hidden assignment as not there, without saving anything', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment({ hidden: true }));
+    await expect(submitAssignment('a1', 's1', { repoName: 'r' })).rejects.toMatchObject({ status: 404 });
+    expect(p.submission.create).not.toHaveBeenCalled();
+    expect(p.submission.update).not.toHaveBeenCalled();
+  });
+
   it('builds githubUrl from githubUsername + repoName', async () => {
     p.assignment.findUnique.mockResolvedValue(baseAssignment());
     p.user.findUnique.mockResolvedValue({ id: 's1', githubUsername: 'dina' });
@@ -400,6 +407,12 @@ describe('submissions.service.getVideoUploadSignature', () => {
     await expect(getVideoUploadSignature('a1', 's1')).rejects.toMatchObject({ status: 403 });
   });
 
+  it('signs no upload for a hidden assignment', async () => {
+    p.assignment.findUnique.mockResolvedValue(baseAssignment({ hidden: true }));
+    await expect(getVideoUploadSignature('a1', 's1')).rejects.toMatchObject({ status: 404 });
+    expect(signatureMock).not.toHaveBeenCalled();
+  });
+
   it('throws 400 when allowFile is false', async () => {
     p.assignment.findUnique.mockResolvedValue(baseAssignment({ allowFile: false }));
     await expect(getVideoUploadSignature('a1', 's1')).rejects.toMatchObject({ status: 400 });
@@ -423,6 +436,16 @@ describe('submissions.service.getVideoUploadSignature', () => {
 });
 
 describe('submissions.service.getMySubmissions', () => {
+  it('never lists a hidden assignment, and says which ones are optional', async () => {
+    p.user.findUnique.mockResolvedValue({ studentGroups: [], courseAccess: [], lessonAccess: [] });
+    p.assignment.findMany.mockResolvedValue([
+      { id: 'a1', title: 'Optional', deadline: null, optional: true, lesson: { topic: 'T', course: { name: 'C' } }, submissions: [] },
+    ]);
+    const r = await getMySubmissions('s1');
+    expect(p.assignment.findMany.mock.calls[0][0].where).toMatchObject({ hidden: false });
+    expect(r.pending[0]).toMatchObject({ assignmentId: 'a1', optional: true });
+  });
+
   it('splits assignments into pending (no submission) and submitted (with grade)', async () => {
     p.user.findUnique.mockResolvedValue({
       studentGroups: [{ groupId: 'g1' }],

@@ -79,6 +79,13 @@ describe('lessons.service.getLessons', () => {
       where: { courseId: 'c1' },
     }));
   });
+  it("counts only the assignments a student may see, and all of them for the teacher", async () => {
+    p.lesson.findMany.mockResolvedValue([]);
+    await getLessons('c1', 's1', 'STUDENT');
+    expect(p.lesson.findMany.mock.calls[0][0].include._count.select.assignments).toEqual({ where: { hidden: false } });
+    await getLessons('c1', 'admin', 'ADMIN');
+    expect(p.lesson.findMany.mock.calls[1][0].include._count.select.assignments).toEqual({ where: {} });
+  });
   it('maps assignmentCount from _count', async () => {
     p.lesson.findMany.mockResolvedValue([
       { id: 'l1', topic: 'T', lessonDate: null, hidden: false, order: 1, githubUrl: null, githubUrls: [], _count: { assignments: 2 } },
@@ -480,6 +487,14 @@ describe('lessons.service hidden files', () => {
     expect(p.lesson.findUnique.mock.calls[0][0].include.files).toEqual({ where: { hidden: false } });
   });
 
+  it('a student is never sent a hidden assignment, the teacher sees them all', async () => {
+    p.lesson.findUnique.mockResolvedValue(null);
+    await getLessonById('l1', 's1', 'STUDENT').catch(() => {});
+    expect(p.lesson.findUnique.mock.calls[0][0].include.assignments.where).toEqual({ hidden: false });
+    await getLessonById('l1', 'admin', 'ADMIN');
+    expect(p.lesson.findUnique.mock.calls[1][0].include.assignments.where).toEqual({});
+  });
+
   it('setLessonFileHidden flips the flag on a file of that lesson', async () => {
     p.lessonFile.findUnique.mockResolvedValue({ id: 'f1', lessonId: 'l1' });
     p.lessonFile.update.mockResolvedValue({ id: 'f1', name: 'a.pdf', url: 'https://x/a.pdf', sizeBytes: null, hidden: true });
@@ -529,6 +544,12 @@ describe('lessons.service copyLesson', () => {
       { name: 'a.pdf', url: 'https://cdn/a.pdf', sizeBytes: 10n, required: true, hidden: false },
     ]);
     expect(uploadMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps an assignment hidden and optional in the copy', async () => {
+    p.lesson.findUnique.mockResolvedValue({ ...source, assignments: [{ ...source.assignments[0], hidden: true, optional: true }] });
+    await copyLesson('l1');
+    expect(p.assignment.create.mock.calls[0][0].data).toMatchObject({ hidden: true, optional: true });
   });
 
   it('copies the assignments and the quiz, the quiz as an unpublished draft', async () => {

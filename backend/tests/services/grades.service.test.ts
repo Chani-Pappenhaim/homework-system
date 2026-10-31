@@ -103,6 +103,18 @@ describe('grades.service.getReport', () => {
     });
   });
 
+  it('marks a row as AI-reviewed only when an AI review finished, not because it has a submission score', async () => {
+    const row = (aiStatus: string) => ({
+      student: { name: 'A', email: 'a@x.com', studentGroups: [] },
+      assignment: { title: 'T', deadline: null, lesson: { topic: 'Topic', course: { name: 'C' } } },
+      submittedAt: new Date(), isLate: false, aiStatus,
+      grade: { submissionScore: 100, contentScore: null, feedback: null, checklist: null },
+    });
+    p.submission.findMany.mockResolvedValue(['none', 'pending', 'error', 'done'].map(row));
+    const rows = await getReport({});
+    expect(rows.map((r) => r.aiReviewed)).toEqual([false, false, false, true]);
+  });
+
   it('uses empty group name when the student has no groups', async () => {
     p.submission.findMany.mockResolvedValue([
       {

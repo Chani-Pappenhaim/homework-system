@@ -7,6 +7,7 @@ import { assertLessonAccess } from './access.service';
 import { computeSubmissionScore, daysLate } from '../utils/grading';
 import { getLatePolicy } from './settings.service';
 import { getRepoStatus, normalizeRepoName, parseRepoRef } from '../utils/github';
+import { VISIBLE_ASSIGNMENT } from '../utils/assignment-view';
 
 function urlExtension(url: string): string {
   const match = /\.([a-z0-9]+)(?:[?#].*)?$/i.exec(url);
@@ -49,7 +50,8 @@ async function saveSubmission(
     where: { id: assignmentId },
     include: { lesson: { include: { course: true } } },
   });
-  if (!assignment) throw new AppError('Assignment not found', 'המטלה לא נמצאה', 404);
+  // A hidden assignment is not there as far as the student knows.
+  if (!assignment || assignment.hidden) throw new AppError('Assignment not found', 'המטלה לא נמצאה', 404);
 
   await assertLessonAccess(studentId, 'STUDENT', assignment.lessonId);
 
@@ -266,7 +268,7 @@ const VIDEO_FORMATS = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'wmv', 'm4v', '3gp', 
 /** Signed params so a student's browser can upload a video straight to Cloudinary. */
 export async function getVideoUploadSignature(assignmentId: string, studentId: string, tagged = false) {
   const assignment = await prisma.assignment.findUnique({ where: { id: assignmentId } });
-  if (!assignment) throw new AppError('Assignment not found', 'המטלה לא נמצאה', 404);
+  if (!assignment || assignment.hidden) throw new AppError('Assignment not found', 'המטלה לא נמצאה', 404);
 
   await assertLessonAccess(studentId, 'STUDENT', assignment.lessonId);
   if (!assignment.allowFile) throw new AppError('File upload not allowed for this assignment', 'העלאת קובץ אינה מותרת במטלה זו', 400);
@@ -317,9 +319,10 @@ export async function getMySubmissions(studentId: string) {
   const accessLessonIds = student?.lessonAccess.map((la) => la.lessonId) ?? [];
 
   // The same reach as assertLessonAccess: her group's courses, courses and
-  // lessons opened to her personally — never a hidden lesson or course.
+  // lessons opened to her personally — never a hidden assignment, lesson or course.
   const allAssignments = await prisma.assignment.findMany({
     where: {
+      ...VISIBLE_ASSIGNMENT,
       lesson: {
         hidden: false,
         course: { hidden: false },
@@ -345,14 +348,14 @@ export async function getMySubmissions(studentId: string) {
       pending.push({
         assignmentId: assignment.id, assignmentTitle: assignment.title,
         lessonId: assignment.lessonId, lessonTopic: assignment.lesson.topic, courseName: assignment.lesson.course.name,
-        deadline: assignment.deadline,
+        deadline: assignment.deadline, optional: assignment.optional,
       });
     } else {
       const grade = await prisma.grade.findUnique({ where: { submissionId: sub.id } });
       submitted.push({
         submissionId: sub.id, id: sub.id,
         deleteBlockedReason: submissionDeleteBlock({ ...sub, grade }),
-        assignmentId: assignment.id, assignmentTitle: assignment.title,
+        assignmentId: assignment.id, assignmentTitle: assignment.title, optional: assignment.optional,
         lessonTopic: assignment.lesson.topic, courseName: assignment.lesson.course.name,
         submittedAt: sub.submittedAt, isLate: sub.isLate, notes: sub.notes,
         checklist: sub.checklist,

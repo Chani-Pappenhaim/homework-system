@@ -42,6 +42,8 @@ export interface StudentProfile {
     courseName: string;
     deadline: string | null;
     overdue: boolean;
+    hidden: boolean;
+    optional: boolean;
     submission: {
       id: string;
       submittedAt: string;

@@ -10,6 +10,7 @@ import { AssignmentSubmissionsImportDialog } from '@/components/lesson/Assignmen
 import { SubmitForStudentDialog } from '@/components/lesson/SubmitForStudentDialog';
 import { cn, formatDateFull } from '@/lib/utils';
 import type { AssignmentDTO, LessonFile } from '@/types';
+import { AssignmentFlags } from '@/components/lesson/AssignmentFlags';
 
 export const ASSIGNMENT_SECTIONS = ['details', 'ai', 'submissions'] as const;
 export type AssignmentSection = typeof ASSIGNMENT_SECTIONS[number];
@@ -57,7 +58,10 @@ export function AssignmentView({
 
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <h2 className="font-display text-lg font-bold text-ink">{assignment.title}</h2>
+            <h2 className="flex items-center gap-2 font-display text-lg font-bold text-ink">
+              {assignment.title}
+              <AssignmentFlags hidden={assignment.hidden} optional={assignment.optional} />
+            </h2>
             {assignment.deadline && (
               <p className="text-xs text-ink/55">מועד אחרון: {formatDateFull(assignment.deadline)}</p>
             )}

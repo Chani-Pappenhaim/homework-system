@@ -41,7 +41,7 @@ export function StudentAutocomplete({ onSelect, onNoMatch, placeholder = 'חפש
         onFocus={() => setOpen(true)}
       />
       {open && query.trim().length >= 2 && results.length > 0 && (
-        <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-input border border-rule bg-sheet shadow-soft">
+        <div className="absolute z-40 mt-1 max-h-56 w-full overflow-y-auto rounded-input border border-rule bg-sheet shadow-soft">
           {results.map((s) => (
             <button
               key={s.id}
@@ -59,7 +59,7 @@ export function StudentAutocomplete({ onSelect, onNoMatch, placeholder = 'חפש
         </div>
       )}
       {open && onNoMatch && query.trim().length >= 2 && data && !isFetching && results.length === 0 && (
-        <div className="absolute z-20 mt-1 w-full rounded-input border border-rule bg-sheet shadow-soft">
+        <div className="absolute z-40 mt-1 w-full rounded-input border border-rule bg-sheet shadow-soft">
           <button
             type="button"
             onClick={() => { onNoMatch(query); setQuery(''); setOpen(false); }}
