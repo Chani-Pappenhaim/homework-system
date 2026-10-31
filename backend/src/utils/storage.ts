@@ -31,14 +31,38 @@ export async function uploadBuffer(
   // stored asset has no extension and downloads lose both their name and type.
   // filename_override tells Cloudinary the real name even though the data URI
   // itself is anonymous.
-  const result = await cloudinary.uploader.upload(
-    `data:${mimeType};base64,${buffer.toString('base64')}`,
-    {
-      resource_type: 'auto',
-      folder,
-      ...(originalName ? { use_filename: true, unique_filename: true, filename_override: originalName } : {}),
-    }
-  );
+  const result = await cloudinary.uploader.upload(dataUri(buffer, mimeType), {
+    resource_type: 'auto',
+    folder,
+    ...(originalName ? { use_filename: true, unique_filename: true, filename_override: originalName } : {}),
+  });
+  return toUploadedFile(result);
+}
+
+/**
+ * Stores an image as a `size`×`size` square, cropped from its center. The
+ * resize happens in storage on the way in, so only the thumbnail is kept —
+ * without the original's size or its embedded metadata (camera, location).
+ */
+export async function uploadSquareImage(
+  buffer: Buffer,
+  mimeType: string,
+  folder: string,
+  size: number
+): Promise<UploadedFile> {
+  const result = await cloudinary.uploader.upload(dataUri(buffer, mimeType), {
+    resource_type: 'image',
+    folder,
+    transformation: [{ width: size, height: size, crop: 'fill' }],
+  });
+  return toUploadedFile(result);
+}
+
+function dataUri(buffer: Buffer, mimeType: string): string {
+  return `data:${mimeType};base64,${buffer.toString('base64')}`;
+}
+
+function toUploadedFile(result: { secure_url: string; bytes: number; resource_type: string; public_id: string }): UploadedFile {
   return {
     url: result.secure_url,
     bytes: result.bytes,
@@ -139,6 +163,16 @@ export function submissionFileLink(
   if (!submission.fileUrl) return submission.fileUrl;
   const extension = fileExtension({ url: submission.fileUrl, name: submission.fileName ?? undefined });
   return fileDownloadPath(submission.id, extension, signFileToken({ fileId: submission.id, kind: 'submission', userId }));
+}
+
+/**
+ * The link `viewerId` opens `user`'s profile picture by, through the same
+ * session-bound download route as every other stored file; null without one.
+ */
+export function avatarLink(user: { id: string; avatarUrl: string | null }, viewerId: string): string | null {
+  if (!user.avatarUrl) return null;
+  const token = signFileToken({ fileId: user.id, kind: 'avatar', userId: viewerId });
+  return fileDownloadPath(user.id, fileExtension({ url: user.avatarUrl }), token);
 }
 
 // Files uploaded before names were passed to Cloudinary have none in their

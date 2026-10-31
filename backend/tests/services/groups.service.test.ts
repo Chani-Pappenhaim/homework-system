@@ -446,6 +446,13 @@ describe('groups.service editing / deleting a student account', () => {
     expect(order).toEqual(['delete', 'release']);
   });
 
+  it('deleteStudentAccount also releases her profile picture', async () => {
+    p.user.findFirst.mockResolvedValue({ id: 's1', avatarUrl: 'avatar-url' });
+    submissionUrlsMock.mockResolvedValue(['u1']);
+    await deleteStudentAccount('s1');
+    expect(releaseMock).toHaveBeenCalledWith(['u1', 'avatar-url']);
+  });
+
   it('deleteStudentAccount refuses a teacher or a missing account with 404', async () => {
     p.user.findFirst.mockResolvedValue(null);
     await expect(deleteStudentAccount('t1')).rejects.toMatchObject({ status: 404 });

@@ -202,13 +202,14 @@ export async function updateStudentAccount(
 /**
  * Removes a student's account entirely — her group memberships, submissions,
  * grades, attendance and messages cascade in the DB. Her stored submission
- * files are released afterwards, best-effort, like a group delete.
+ * files and profile picture are released afterwards, best-effort, like a group delete.
  */
 export async function deleteStudentAccount(studentId: string) {
-  const existing = await prisma.user.findFirst({ where: { id: studentId, role: 'STUDENT' }, select: { id: true } });
+  const existing = await prisma.user.findFirst({ where: { id: studentId, role: 'STUDENT' }, select: { id: true, avatarUrl: true } });
   if (!existing) throw new AppError('Student not found', 'התלמידה לא נמצאה', 404);
 
   const urls = await submissionFileUrls({ studentId });
+  if (existing.avatarUrl) urls.push(existing.avatarUrl);
   await prisma.user.delete({ where: { id: studentId } });
   await releaseFileUrls(urls);
 }

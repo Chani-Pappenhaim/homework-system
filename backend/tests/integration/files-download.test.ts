@@ -397,3 +397,39 @@ describe('a submission file', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('a profile picture link', () => {
+  const owner = { id: 'owner', avatarUrl: 'https://res.cloudinary.com/demo/image/upload/v1/avatars/a.jpg' };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(toDeliveryUrl).mockImplementation((url: string) => `https://signed.cloudinary/${url}`);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(fakeUpstream(200, { 'content-type': 'image/jpeg' })));
+  });
+
+  // The first user lookup is the viewer's session check, the second the picture's owner.
+  const viewerThen = (picture: { id: string; avatarUrl: string | null }) =>
+    p.user.findUnique.mockResolvedValueOnce({ role: 'STUDENT', tokenVersion: 0 }).mockResolvedValueOnce(picture);
+  const linkFor = (viewerId: string) =>
+    `/api/files/download/owner?token=${signFileToken({ fileId: 'owner', kind: 'avatar', userId: viewerId })}`;
+
+  it('is shown to any other signed-in user', async () => {
+    viewerThen(owner);
+    const res = await request(app).get(linkFor('u2')).set('Cookie', sessionOf('u2'));
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('image/jpeg');
+  });
+
+  it('is refused without signing in', async () => {
+    viewerThen(owner);
+    const res = await request(app).get(linkFor('u2'));
+    expect(res.status).toBe(401);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('is not found once the picture was removed', async () => {
+    viewerThen({ id: 'owner', avatarUrl: null });
+    const res = await request(app).get(linkFor('u2')).set('Cookie', sessionOf('u2'));
+    expect(res.status).toBe(404);
+  });
+});

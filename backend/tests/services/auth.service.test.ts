@@ -44,11 +44,20 @@ describe('auth.service', () => {
       } as any);
       expect(dto).toEqual({
         id: 'u1', name: 'Dina', email: 'd@x.com', role: 'STUDENT', mustChangePassword: true,
-        githubUsername: 'gh', emailVerified: true, emailNotifications: false,
+        githubUsername: 'gh', emailVerified: true, emailNotifications: false, avatarUrl: null,
         groups: [{ id: 'g1', name: 'קבוצה א' }],
       });
       expect(dto).not.toHaveProperty('password');
       expect(dto).not.toHaveProperty('emailVerifyTokenHash');
+    });
+
+    it('gives the profile picture as a download link, never the storage URL', () => {
+      const dto = toUserDTO({
+        id: 'u1', name: 'Dina', email: 'd@x.com', role: 'STUDENT', mustChangePassword: false,
+        emailNotifications: true, avatarUrl: 'https://res.cloudinary.com/c/image/upload/v1/avatars/a.jpg',
+      } as any);
+      expect(dto.avatarUrl).toMatch(/^\/files\/download\/u1\/file\.jpg\?token=/);
+      expect(dto.avatarUrl).not.toContain('cloudinary');
     });
   });
 

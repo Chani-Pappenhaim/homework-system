@@ -7,6 +7,7 @@ import { AppError } from '../utils/errors';
 import { normalizeGithubUsername } from '../utils/excel';
 import { groupDisplayName, groupNameSelect } from '../utils/group-name';
 import { hashToken } from '../utils/token-hash';
+import { avatarLink } from '../utils/storage';
 import { changeEmail, sendEmailVerification } from './email-verification.service';
 
 export type UserDTO = {
@@ -18,6 +19,8 @@ export type UserDTO = {
   githubUsername: string | null;
   emailVerified: boolean;
   emailNotifications: boolean;
+  // A link to her profile picture, or null when she has none.
+  avatarUrl: string | null;
   groups: { id: string; name: string }[];
 };
 
@@ -41,6 +44,7 @@ export function toUserDTO(user: UserWithGroups): UserDTO {
     githubUsername: user.githubUsername ?? null,
     emailVerified: Boolean(user.emailVerifiedAt),
     emailNotifications: user.emailNotifications,
+    avatarUrl: avatarLink(user, user.id),
     groups: user.studentGroups?.map((sg) => ({ id: sg.group.id, name: groupDisplayName(sg.group) })) ?? [],
   };
 }

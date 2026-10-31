@@ -2,6 +2,8 @@ import { Router, Request, Response, NextFunction } from 'express';
 import passport from 'passport';
 import { authRateLimit } from '../middleware/rateLimit';
 import { verifyAccessTokenMiddleware } from '../middleware/auth';
+import { uploadAvatar } from '../middleware/upload';
+import { requireFile } from '../middleware/requireFile';
 import * as authController from '../controllers/auth.controller';
 
 const router = Router();
@@ -14,6 +16,9 @@ router.post('/reset-password', authRateLimit, authController.resetPasswordWithTo
 router.post('/change-password', verifyAccessTokenMiddleware, authController.changePassword);
 router.get('/me', verifyAccessTokenMiddleware, authController.me);
 router.patch('/me', verifyAccessTokenMiddleware, authController.updateMe);
+// Always the caller's own picture: the user comes from the access token, never the request.
+router.put('/me/avatar', verifyAccessTokenMiddleware, uploadAvatar.single('avatar'), requireFile, authController.updateAvatar);
+router.delete('/me/avatar', verifyAccessTokenMiddleware, authController.removeAvatar);
 router.post('/verify-email', authRateLimit, authController.verifyEmail);
 router.post('/verify-email/resend', authRateLimit, verifyAccessTokenMiddleware, authController.resendVerification);
 

@@ -46,7 +46,8 @@ export const REFRESH_COOKIE = 'refreshToken';
 
 export interface FileTokenPayload {
   fileId: string;
-  kind: 'lesson' | 'course' | 'submission';
+  // An 'avatar' link's fileId is the id of the user whose picture it is.
+  kind: 'lesson' | 'course' | 'submission' | 'avatar';
   userId: string;
   // A link handed to an online document viewer, which fetches from its own
   // servers and so never carries the reader's session cookie.
@@ -58,9 +59,13 @@ export interface FileTokenPayload {
  * Authorization header (an <a>/<img>/<iframe> navigation can't send one), so it
  * has to be its own short-lived, single-file credential rather than a signed
  * Cloudinary URL that — once handed out — stays valid forever.
+ *
+ * A profile picture stays on screen (the page header) for a whole visit, so its
+ * link lives longer; it still opens only together with the session cookie.
  */
 export function signFileToken(payload: FileTokenPayload): string {
-  return jwt.sign(payload, ACCESS_SECRET, { expiresIn: payload.external ? '5m' : '15m' });
+  const expiresIn = payload.external ? '5m' : payload.kind === 'avatar' ? '12h' : '15m';
+  return jwt.sign(payload, ACCESS_SECRET, { expiresIn });
 }
 
 export function verifyFileToken(token: string): FileTokenPayload {
