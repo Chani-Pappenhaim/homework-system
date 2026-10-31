@@ -35,6 +35,9 @@ model User {
   // The student's own choice whether to get notification emails (replies,
   // grades). Starts from her first group's default.
   emailNotifications   Boolean   @default(true)
+  // When the user last made a signed-in request (updated at most every few
+  // minutes); the dashboard counts the students seen recently as online.
+  lastSeenAt           DateTime?
   createdAt            DateTime  @default(now())
 
   // Profile picture: the stored square thumbnail's storage URL. Never sent to
@@ -317,6 +320,11 @@ model AppSettings {
   // day counts), never more than latePenaltyMax in all.
   latePenaltyPerDay Int            @default(2)
   latePenaltyMax    Int            @default(20)
+  // Quiet hours, as minutes past midnight Israel time: a notification email
+  // to a student that falls from quietStartMinute until releaseMinute is held
+  // back and sent at releaseMinute. Equal values turn quiet hours off.
+  quietStartMinute  Int            @default(0)
+  releaseMinute     Int            @default(600)
   updatedAt         DateTime       @updatedAt
 }
 

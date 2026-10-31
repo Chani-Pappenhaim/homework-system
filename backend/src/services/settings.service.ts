@@ -2,6 +2,7 @@ import type { AiPaidFallback } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
 import { DEFAULT_LATE_POLICY, type LatePolicy } from '../utils/grading';
+import { DEFAULT_QUIET_HOURS, isValidMinuteOfDay, type QuietHours } from '../utils/quiet-hours';
 
 // The single settings row.
 const SETTINGS_ID = 'app';
@@ -105,6 +106,30 @@ export async function updateLatePolicy(input: { perDay?: unknown; max?: unknown 
   const data = { latePenaltyPerDay: perDay, latePenaltyMax: max };
   await prisma.appSettings.upsert({ where: { id: SETTINGS_ID }, create: { id: SETTINGS_ID, ...data }, update: data });
   return { perDay, max };
+}
+
+/**
+ * The hours in which students' notification emails are held back: the defaults
+ * until the teacher first saves them. A failed read falls back to the defaults.
+ */
+export async function getQuietHours(): Promise<QuietHours> {
+  try {
+    const row = await prisma.appSettings.findUnique({ where: { id: SETTINGS_ID } });
+    return row ? { startMinute: row.quietStartMinute, releaseMinute: row.releaseMinute } : DEFAULT_QUIET_HOURS;
+  } catch (err) {
+    console.warn('[settings] could not read the quiet hours - using the defaults:', (err as Error)?.message ?? err);
+    return DEFAULT_QUIET_HOURS;
+  }
+}
+
+export async function updateQuietHours(input: { startMinute?: unknown; releaseMinute?: unknown }): Promise<QuietHours> {
+  const { startMinute, releaseMinute } = input ?? {};
+  if (!isValidMinuteOfDay(startMinute) || !isValidMinuteOfDay(releaseMinute)) {
+    throw new AppError('Invalid quiet hours', 'שעות השקט צריכות להיות שעות ביממה', 400);
+  }
+  const data = { quietStartMinute: startMinute, releaseMinute };
+  await prisma.appSettings.upsert({ where: { id: SETTINGS_ID }, create: { id: SETTINGS_ID, ...data }, update: data });
+  return { startMinute, releaseMinute };
 }
 
 export async function updateAiSettings(input: { paidFallback?: unknown }): Promise<AiSettings> {

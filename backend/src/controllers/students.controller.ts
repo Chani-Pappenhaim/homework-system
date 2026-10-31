@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import * as studentsService from '../services/students.service';
+import { getOnlineStudents } from '../services/session.service';
 import { createStudentAccount, deleteStudentAccount, updateStudentAccount } from '../services/groups.service';
 import { sendError } from '../utils/http';
 
@@ -41,6 +42,14 @@ export async function overview(_req: Request, res: Response) {
   try {
     const students = await studentsService.getStudentsOverview();
     res.json({ success: true, data: { students } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function online(_req: Request, res: Response) {
+  try {
+    res.json({ success: true, data: await getOnlineStudents() });
   } catch (err: any) {
     sendError(res, err);
   }

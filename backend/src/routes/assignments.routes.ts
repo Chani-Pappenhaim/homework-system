@@ -3,6 +3,7 @@ import { verifyAccessTokenMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/role';
 import * as assignmentsController from '../controllers/assignments.controller';
 import * as submissionsController from '../controllers/submissions.controller';
+import * as gradesController from '../controllers/grades.controller';
 import { requireFile } from '../middleware/requireFile';
 import { uploadImport as upload, uploadAttachment } from '../middleware/upload';
 
@@ -19,6 +20,12 @@ router.get('/:id/submissions', requireRole('ADMIN'), assignmentsController.getSu
 // One assignment's submissions from a sheet listing the course's students.
 router.get('/:id/submissions/import-template', requireRole('ADMIN'), submissionsController.downloadAssignmentImportTemplate);
 router.post('/:id/submissions/import', requireRole('ADMIN'), upload.single('file'), requireFile, submissionsController.importAssignmentSubmissions);
+// Every submitted file of the assignment as one zip.
+router.get('/:id/submissions/archive', requireRole('ADMIN'), submissionsController.downloadSubmissionsArchive);
+// The assignment's grades in a sheet: download it, fill it in, preview what it changes, then apply.
+router.get('/:id/grades/import-template', requireRole('ADMIN'), gradesController.downloadGradesTemplate);
+router.post('/:id/grades/import/preview', requireRole('ADMIN'), upload.single('file'), requireFile, gradesController.previewGradesImport);
+router.post('/:id/grades/import', requireRole('ADMIN'), upload.single('file'), requireFile, gradesController.importGrades);
 // The teacher submits for one student: her course's students, then the submission itself.
 router.get('/:id/students', requireRole('ADMIN'), submissionsController.assignmentStudents);
 router.post('/:id/submissions/for-student', requireRole('ADMIN'), uploadAttachment.single('file'), submissionsController.submitForStudent);

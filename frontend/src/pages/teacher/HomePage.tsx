@@ -16,6 +16,9 @@ import { useQueryParam } from '@/hooks/useQueryParam';
 import { unwrap } from '@/lib/api-utils';
 import type { ReportRow } from '@/types';
 
+// How often the dashboard refreshes the count of students online.
+const ONLINE_REFRESH_MS = 60_000;
+
 function relTime(iso?: string): string {
   if (!iso) return '-';
   const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -50,12 +53,18 @@ export default function TeacherHomePage() {
   const { data: pendingData } = useQuery({ queryKey: ['pending'], queryFn: () => gradesApi.pending() });
   const { data: aiUsageData } = useQuery({ queryKey: ['ai-usage-summary'], queryFn: () => aiUsageApi.summary() });
   const { data: reportData, isLoading: reportLoading } = useQuery({ queryKey: ['report', {}], queryFn: () => gradesApi.report() });
+  const { data: onlineData } = useQuery({
+    queryKey: ['students-online'],
+    queryFn: () => studentsApi.online(),
+    refetchInterval: ONLINE_REFRESH_MS,
+  });
 
   const groups = unwrap(groupsData)?.groups ?? [];
   const courses = unwrap(coursesData)?.courses ?? [];
   const pending = unwrap(pendingData)?.count ?? 0;
   const aiCost = unwrap(aiUsageData)?.totalCostUsd;
   const report: ReportRow[] = unwrap(reportData)?.report ?? [];
+  const online = unwrap(onlineData);
 
   const q = search.trim().toLowerCase();
   // The review queue only holds submissions waiting for a grade, so a student
@@ -86,6 +95,13 @@ export default function TeacherHomePage() {
     { value: groups.length, label: 'קבוצות', accent: 'indigo' as const, to: '/teacher/groups' },
     { value: courses.length, label: 'קורסים', accent: 'clay' as const, to: '/teacher/courses' },
     { value: pending, label: 'ממתינות לבדיקה', accent: 'coral' as const, to: '/teacher/reports' },
+    {
+      value: online?.count ?? '-',
+      label: 'מחוברות עכשיו',
+      accent: 'sage' as const,
+      to: '/teacher/students',
+      title: online ? `תלמידות שהיו פעילות ב-${online.windowMinutes} הדקות האחרונות${online.students.length ? `: ${online.students.map((s) => s.name).join(', ')}` : ''}` : undefined,
+    },
     { value: aiCost != null ? <span dir="ltr">{formatUsd(aiCost)}</span> : '-', label: 'עלות AI', accent: 'sage' as const, to: '/teacher/ai-usage' },
   ];
 
@@ -96,9 +112,9 @@ export default function TeacherHomePage() {
         <Tape color="indigo" rotate={2.5} className="-top-2.5 left-8 w-20" />
         <div className="label mb-1">{greeting()} · {dateMeta} · {pending > 0 ? `${pending} הגשות ממתינות` : 'אין ממתינות'}</div>
         <h1 className="font-display text-2xl font-bold text-ink">שלום, {firstName}!</h1>
-        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-5">
           {kpis.map((k) => (
-            <button key={k.label} onClick={() => navigate(k.to)} className="text-right">
+            <button key={k.label} onClick={() => navigate(k.to)} title={'title' in k ? k.title : undefined} className="text-right">
               <div className="label mb-1">{k.label}</div>
               <div className={cn('font-display text-2xl font-bold tabular', `text-${k.accent}`)}>{k.value}</div>
             </button>

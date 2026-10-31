@@ -7,7 +7,7 @@ vi.mock('../../src/config/prisma', () => ({
 import { prisma } from '../../src/config/prisma';
 import {
   getAiSettings, updateAiSettings, getEmailSettings, updateEmailSettings, emailSenderName, MAX_SENDER_NAME,
-  getLatePolicy, updateLatePolicy,
+  getLatePolicy, updateLatePolicy, getQuietHours, updateQuietHours,
 } from '../../src/services/settings.service';
 
 const p = prisma as any;
@@ -112,6 +112,37 @@ describe('the late penalty', () => {
   it('refuses a missing, fractional, negative or too large value', async () => {
     for (const bad of [{ max: 10 }, { perDay: 1.5, max: 10 }, { perDay: -1, max: 10 }, { perDay: 2, max: 101 }, { perDay: '', max: 10 }]) {
       await expect(updateLatePolicy(bad)).rejects.toMatchObject({ status: 400 });
+    }
+    expect(p.appSettings.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe('the quiet hours', () => {
+  it('reads the saved hours', async () => {
+    p.appSettings.findUnique.mockResolvedValue({ quietStartMinute: 1320, releaseMinute: 420 });
+    expect(await getQuietHours()).toEqual({ startMinute: 1320, releaseMinute: 420 });
+  });
+
+  it('are midnight until 10:00 until the teacher first saves, or when the database cannot be read', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    p.appSettings.findUnique.mockResolvedValueOnce(null);
+    expect(await getQuietHours()).toEqual({ startMinute: 0, releaseMinute: 600 });
+    p.appSettings.findUnique.mockRejectedValueOnce(new Error('db down'));
+    expect(await getQuietHours()).toEqual({ startMinute: 0, releaseMinute: 600 });
+  });
+
+  it('saves minutes of the day', async () => {
+    expect(await updateQuietHours({ startMinute: 0, releaseMinute: 1439 })).toEqual({ startMinute: 0, releaseMinute: 1439 });
+    expect(p.appSettings.upsert).toHaveBeenCalledWith({
+      where: { id: 'app' },
+      create: { id: 'app', quietStartMinute: 0, releaseMinute: 1439 },
+      update: { quietStartMinute: 0, releaseMinute: 1439 },
+    });
+  });
+
+  it('refuses a missing, fractional, negative or out-of-day value', async () => {
+    for (const bad of [{ releaseMinute: 600 }, { startMinute: 0.5, releaseMinute: 600 }, { startMinute: -1, releaseMinute: 600 }, { startMinute: 0, releaseMinute: 1440 }, { startMinute: '0', releaseMinute: 600 }]) {
+      await expect(updateQuietHours(bad)).rejects.toMatchObject({ status: 400 });
     }
     expect(p.appSettings.upsert).not.toHaveBeenCalled();
   });

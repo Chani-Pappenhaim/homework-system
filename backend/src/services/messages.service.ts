@@ -1,5 +1,6 @@
 import { prisma } from '../config/prisma';
 import { enqueueEmail } from '../infrastructure/queues/enqueue-email';
+import { enqueueStudentEmail } from './student-notifications.service';
 import { AppError } from '../utils/errors';
 
 export const MAX_MESSAGE_LENGTH = 5000;
@@ -47,7 +48,7 @@ export async function sendTeacherMessage(studentId: string, content: string, ass
     },
     include: { student: { select: { id: true, name: true, email: true } }, ...entriesInclude },
   });
-  await enqueueEmail('teacher-message', {
+  await enqueueStudentEmail('teacher-message', {
     messageId: message.id,
     studentName: message.student.name,
     studentEmail: message.student.email,
@@ -114,7 +115,7 @@ export async function replyMessage(messageId: string, content: string) {
   await prisma.messageEntry.create({ data: { messageId, fromTeacher: true, content: trimmed } });
   const updated = await prisma.teacherMessage.findUnique({ where: { id: messageId }, include: entriesInclude });
 
-  await enqueueEmail('teacher-reply', {
+  await enqueueStudentEmail('teacher-reply', {
     messageId,
     studentEmail: conversation.student.email,
     studentName: conversation.student.name,

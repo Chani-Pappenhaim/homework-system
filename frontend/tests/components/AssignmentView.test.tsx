@@ -7,7 +7,7 @@ import { renderWithProviders } from '../utils/render';
 
 vi.mock('@/components/lesson/SubmissionsWorkstation', () => ({ SubmissionsWorkstation: () => null }));
 vi.mock('@/api/submissions.api', () => ({
-  submissionsApi: { downloadAssignmentImportTemplate: vi.fn(), importAssignmentSubmissions: vi.fn() },
+  submissionsApi: { downloadAssignmentImportTemplate: vi.fn(), importAssignmentSubmissions: vi.fn(), downloadArchive: vi.fn() },
 }));
 import { submissionsApi } from '@/api/submissions.api';
 const importSubs = submissionsApi.importAssignmentSubmissions as unknown as ReturnType<typeof vi.fn>;

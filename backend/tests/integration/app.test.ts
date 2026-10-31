@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // --- Prevent BullMQ/Redis from being touched when the worker graph is imported ---
+// Every token signed here belongs to a live session.
+vi.mock('../../src/services/session.service', () => ({
+  isSessionCurrent: vi.fn(async () => true),
+  touchLastSeen: vi.fn(),
+  revokeAllSessions: vi.fn(async () => 1),
+  getOnlineStudents: vi.fn(async () => ({ count: 0, windowMinutes: 5, students: [] })),
+}));
 vi.mock('bullmq', () => {
   class Queue { add = vi.fn(async () => ({})); }
   class Worker { on = vi.fn(); }
@@ -36,11 +43,12 @@ vi.mock('../../src/services/grades.service', () => ({
 
 import request from 'supertest';
 import { createApp } from '../../src/app';
-import { signAccessToken, signRefreshToken } from '../../src/utils/jwt';
+import { signAccessToken, signRefreshToken, verifyAccessToken, verifyRefreshToken } from '../../src/utils/jwt';
 import * as authService from '../../src/services/auth.service';
 import { AppError } from '../../src/utils/errors';
 import * as submissionsService from '../../src/services/submissions.service';
 import * as gradesService from '../../src/services/grades.service';
+import * as sessionService from '../../src/services/session.service';
 
 const app = createApp();
 const studentToken = signAccessToken({ userId: 'stud1', role: 'STUDENT' });
@@ -85,6 +93,47 @@ describe('temporary password and revoked sessions', () => {
     const current = signRefreshToken({ userId: 'stud1', role: 'STUDENT', tokenVersion: 2 });
     const ok = await request(app).post('/api/auth/refresh').set('Cookie', `refreshToken=${current}`);
     expect(ok.status).toBe(200);
+  });
+});
+
+describe('signing out other devices', () => {
+  it('revokes every session and hands this device a new one at the new version', async () => {
+    (sessionService.revokeAllSessions as any).mockResolvedValue(5);
+    (authService.getUserById as any).mockResolvedValue({ id: 'stud1', role: 'STUDENT', mustChangePassword: false, tokenVersion: 5 });
+    const res = await request(app).post('/api/auth/logout-others').set('Authorization', `Bearer ${studentToken}`);
+
+    expect(res.status).toBe(200);
+    expect(sessionService.revokeAllSessions).toHaveBeenCalledWith('stud1');
+    expect(verifyAccessToken(res.body.data.accessToken).tokenVersion).toBe(5);
+    const cookie = String(res.headers['set-cookie']?.[0]);
+    const refresh = /refreshToken=([^;]+)/.exec(cookie)![1];
+    expect(verifyRefreshToken(refresh).tokenVersion).toBe(5);
+  });
+
+  it('needs a signed-in user', async () => {
+    const res = await request(app).post('/api/auth/logout-others');
+    expect(res.status).toBe(401);
+    expect(sessionService.revokeAllSessions).not.toHaveBeenCalled();
+  });
+
+  it('turns away an access token of a signed-out session', async () => {
+    (sessionService.isSessionCurrent as any).mockResolvedValueOnce(false);
+    const res = await request(app).get('/api/submissions/mine').set('Authorization', `Bearer ${studentToken}`);
+    expect(res.status).toBe(401);
+    expect(submissionsService.getMySubmissions).not.toHaveBeenCalled();
+  });
+});
+
+describe('online students', () => {
+  it('is for the teacher only', async () => {
+    const res = await request(app).get('/api/students/online').set('Authorization', `Bearer ${studentToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('returns the online count to the teacher', async () => {
+    const res = await request(app).get('/api/students/online').set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ count: 0, windowMinutes: 5 });
   });
 });
 

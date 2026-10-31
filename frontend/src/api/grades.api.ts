@@ -11,6 +11,45 @@ export interface LatePolicy {
   max: number;
 }
 
+/** A grade the uploaded sheet would change; only the changed fields are set. */
+export interface PlannedGrade {
+  rowNumber: number;
+  submissionId: string;
+  studentName: string;
+  email: string;
+  submissionScore?: number;
+  contentScore?: number;
+  feedback?: string;
+  /** The content score would reach the student once published. */
+  publishable: boolean;
+}
+
+/** What importing a grades sheet would do. */
+export interface GradesImportPreview {
+  updates: PlannedGrade[];
+  /** Filled-in rows that match the grades already saved. */
+  unchanged: number;
+  /** Rows with nothing filled in. */
+  empty: number;
+  /** Hebrew, each naming its sheet row. */
+  errors: string[];
+}
+
+export interface GradesImportResult {
+  updated: number;
+  unchanged: number;
+  empty: number;
+  /** Content scores made visible to students (and emailed). */
+  published: number;
+}
+
+function sheetForm(file: File, publish?: boolean): FormData {
+  const form = new FormData();
+  form.append('file', file);
+  if (publish !== undefined) form.append('publish', String(publish));
+  return form;
+}
+
 export const gradesApi = {
   latePolicy: () =>
     api.get<{ success: true; data: LatePolicy }>('/grades/late-penalty'),
@@ -32,6 +71,18 @@ export const gradesApi = {
    * cookies but not the Authorization header, and the route requires a Bearer
    * token with no cookie fallback — so the "download" was always a 401 JSON body.
    */
+  /** One assignment's sheet: the course's students listed, with the grades each already has. */
+  downloadImportTemplate: (assignmentId: string) =>
+    api.get(`/assignments/${assignmentId}/grades/import-template`, { responseType: 'blob' }),
+
+  /** What the filled-in sheet would change; nothing is saved. */
+  previewImport: (assignmentId: string, file: File) =>
+    api.post<{ success: true; data: GradesImportPreview }>(`/assignments/${assignmentId}/grades/import/preview`, sheetForm(file)),
+
+  /** Saves the sheet's grades, all or none. `publish` also shows the content scores to the students. */
+  importGrades: (assignmentId: string, file: File, publish: boolean) =>
+    api.post<{ success: true; data: GradesImportResult }>(`/assignments/${assignmentId}/grades/import`, sheetForm(file, publish)),
+
   exportReport: (filters?: ReportFilters) =>
     api.get('/grades/report/export', { params: filters, responseType: 'blob' }),
 };

@@ -2,6 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Keep the Redis/BullMQ queues out of the import chain — the messages and
 // submissions controllers enqueue jobs through this module.
+// Every token signed here belongs to a live session.
+vi.mock('../../src/services/session.service', () => ({
+  isSessionCurrent: vi.fn(async () => true),
+  touchLastSeen: vi.fn(),
+  revokeAllSessions: vi.fn(async () => 1),
+  getOnlineStudents: vi.fn(async () => ({ count: 0, windowMinutes: 5, students: [] })),
+}));
 vi.mock('../../src/infrastructure/queues/queues', () => ({
   emailQueue: { add: vi.fn() },
   aiReviewQueue: { add: vi.fn() },

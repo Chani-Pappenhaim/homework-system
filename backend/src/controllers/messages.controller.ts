@@ -53,6 +53,22 @@ export async function updateEmailSettings(req: Request, res: Response) {
   }
 }
 
+export async function getQuietHours(_req: Request, res: Response) {
+  try {
+    res.json({ success: true, data: await settingsService.getQuietHours() });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function updateQuietHours(req: Request, res: Response) {
+  try {
+    res.json({ success: true, data: await settingsService.updateQuietHours(req.body ?? {}) });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
 export async function getMessages(req: Request, res: Response) {
   try {
     const messages = await messagesService.getAllMessages();

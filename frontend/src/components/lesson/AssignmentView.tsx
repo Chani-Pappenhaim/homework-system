@@ -1,5 +1,5 @@
 import { useId, useRef, useState, type ReactNode } from 'react';
-import { Bot, ChevronDown, ChevronRight, ClipboardCheck, Edit, FileSpreadsheet, FileText, Link2, Trash2, UserPlus } from 'lucide-react';
+import { Bot, ChevronDown, ChevronRight, ClipboardCheck, Edit, FileSpreadsheet, FileText, Link2, Sheet, Trash2, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast';
@@ -7,6 +7,8 @@ import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { PrintButton } from '@/components/ui/print-button';
 import { SubmissionsWorkstation } from '@/components/lesson/SubmissionsWorkstation';
 import { AssignmentSubmissionsImportDialog } from '@/components/lesson/AssignmentSubmissionsImportDialog';
+import { DownloadSubmissionsButton } from '@/components/lesson/DownloadSubmissionsButton';
+import { GradesImportDialog } from '@/components/lesson/GradesImportDialog';
 import { SubmitForStudentDialog } from '@/components/lesson/SubmitForStudentDialog';
 import { cn, formatDateFull } from '@/lib/utils';
 import type { AssignmentDTO, LessonFile } from '@/types';
@@ -45,6 +47,7 @@ export function AssignmentView({
   onDelete: () => void;
 }) {
   const [importOpen, setImportOpen] = useState(false);
+  const [gradesImportOpen, setGradesImportOpen] = useState(false);
   const [submitForOpen, setSubmitForOpen] = useState(false);
   return (
     <Card>
@@ -73,6 +76,10 @@ export function AssignmentView({
             </Button>
             <Button size="sm" variant="outline" onClick={() => setImportOpen(true)} title="הגשות שהתלמידות שלחו בדרך אחרת, למשל לשיעור שנוסף לאתר מאוחר">
               <FileSpreadsheet size={12} /> ייבוא הגשות מקובץ
+            </Button>
+            <DownloadSubmissionsButton assignmentId={assignment.id} title={assignment.title} />
+            <Button size="sm" variant="outline" onClick={() => setGradesImportOpen(true)} title="מילוי ציונים ומשוב לכל התלמידות בקובץ Excel אחד">
+              <Sheet size={12} /> ייבוא ציונים מקובץ
             </Button>
             <Button size="sm" variant="outline" onClick={onEdit}>
               <Edit size={12} /> עריכה
@@ -117,6 +124,7 @@ export function AssignmentView({
       {section === 'details' && <div role="tabpanel"><AssignmentDetails assignment={assignment} /></div>}
       {section === 'ai' && <div role="tabpanel"><AiInstructions assignment={assignment} lessonFiles={lessonFiles} onEdit={onEdit} /></div>}
       <AssignmentSubmissionsImportDialog assignmentId={assignment.id} open={importOpen} onOpenChange={setImportOpen} />
+      <GradesImportDialog assignmentId={assignment.id} open={gradesImportOpen} onOpenChange={setGradesImportOpen} />
       <SubmitForStudentDialog
         assignmentId={assignment.id}
         open={submitForOpen}

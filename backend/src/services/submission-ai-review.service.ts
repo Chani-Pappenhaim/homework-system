@@ -1,7 +1,7 @@
 import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
 import { aiReviewQueue } from '../infrastructure/queues/queues';
-import { enqueueEmail } from '../infrastructure/queues/enqueue-email';
+import { enqueueStudentEmail } from './student-notifications.service';
 import { assertAiAvailable } from './ai-availability';
 
 // The teacher turned AI review off for the assignment.
@@ -130,7 +130,7 @@ export async function approveContentScore(submissionId: string) {
     data: { contentApproved: true },
   });
 
-  await enqueueEmail('grade-approved', {
+  await enqueueStudentEmail('grade-approved', {
     submissionId,
     studentEmail: submission.student.email,
     studentName: submission.student.name,

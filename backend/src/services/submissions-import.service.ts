@@ -52,7 +52,7 @@ async function recordImportedRepo(
 
 const ASSIGNMENT_IMPORT_HEADERS = ['שם (רשות)', 'מייל התלמידה', 'ריפו (שם, owner/repo או קישור)'];
 
-async function assignmentWithCourse(assignmentId: string) {
+export async function assignmentWithCourse(assignmentId: string) {
   const assignment = await prisma.assignment.findUnique({
     where: { id: assignmentId },
     select: { id: true, title: true, lesson: { select: { course: { select: { id: true, groupId: true } } } } },

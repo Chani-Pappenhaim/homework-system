@@ -1,6 +1,7 @@
 ﻿import { Request, Response } from 'express';
 import * as gradesService from '../services/grades.service';
 import * as settingsService from '../services/settings.service';
+import * as gradesImportService from '../services/grades-import.service';
 import { sendError } from '../utils/http';
 import { dayRangeQuery } from '../utils/date-range';
 
@@ -21,6 +22,36 @@ export async function getLatePolicy(_req: Request, res: Response) {
 export async function updateLatePolicy(req: Request, res: Response) {
   try {
     res.json({ success: true, data: await settingsService.updateLatePolicy(req.body ?? {}) });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function downloadGradesTemplate(req: Request, res: Response) {
+  try {
+    const buffer = await gradesImportService.buildGradesTemplate(req.params.id as string);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=assignment-grades.xlsx');
+    res.send(buffer);
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function previewGradesImport(req: Request, res: Response) {
+  try {
+    res.json({ success: true, data: await gradesImportService.previewGradesImport(req.params.id as string, req.file!.buffer) });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function importGrades(req: Request, res: Response) {
+  try {
+    // Multipart fields arrive as text.
+    const publish = req.body?.publish === 'true';
+    const result = await gradesImportService.applyGradesImport(req.params.id as string, req.file!.buffer, req.user!.userId, publish);
+    res.json({ success: true, data: result });
   } catch (err: any) {
     sendError(res, err);
   }
