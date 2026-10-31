@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { AxiosResponse } from 'axios';
 import { assignmentsApi } from '@/api/assignments.api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -77,7 +78,7 @@ export function AssignmentModal({ lessonId, lessonDate, lessonFiles = [], value,
   const deadlineInPast = Boolean(deadline) && deadline !== savedDeadline && new Date(deadline) < new Date();
 
   const saveMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: (): Promise<AxiosResponse> => {
       const data = {
         title: title.trim(),
         description: description.trim(),

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { AxiosResponse } from 'axios';
 import { Github, CheckCircle, Clock, Bot, Check, BookOpen, ClipboardList, Paperclip, Sparkles } from 'lucide-react';
 import { lessonsApi } from '@/api/lessons.api';
 import { submissionsApi, isVideoFile } from '@/api/submissions.api';
@@ -270,7 +271,7 @@ function AssignmentCard({ assignment: a, submission: sub }: {
   });
 
   const fileMutation = useMutation({
-    mutationFn: (file: File) => {
+    mutationFn: (file: File): Promise<AxiosResponse> => {
       setUploadProgress(0);
       return isVideoFile(file)
         ? submissionsApi.submitVideo(a.id, file, notes || undefined, setUploadProgress)
