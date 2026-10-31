@@ -246,6 +246,30 @@ describe('studentsApi', () => {
   });
 });
 
+describe('grades sheet and submissions archive', () => {
+  it('downloads the archive as a blob with no timeout, since building it takes a while', () => {
+    submissionsApi.downloadArchive('a1');
+    expect(get).toHaveBeenCalledWith('/assignments/a1/submissions/archive', { responseType: 'blob', timeout: 0 });
+  });
+  it('downloads the grades template as a blob', () => {
+    gradesApi.downloadImportTemplate('a1');
+    expect(get).toHaveBeenCalledWith('/assignments/a1/grades/import-template', { responseType: 'blob' });
+  });
+  it('previews a sheet by posting the file alone', () => {
+    gradesApi.previewImport('a1', new File(['x'], 'g.xlsx'));
+    const form = post.mock.calls.at(-1)![1] as FormData;
+    expect(post.mock.calls.at(-1)![0]).toBe('/assignments/a1/grades/import/preview');
+    expect(form.get('file')).toBeInstanceOf(File);
+    expect(form.has('publish')).toBe(false);
+  });
+  it('imports a sheet with the publish choice as text', () => {
+    gradesApi.importGrades('a1', new File(['x'], 'g.xlsx'), true);
+    const form = post.mock.calls.at(-1)![1] as FormData;
+    expect(post.mock.calls.at(-1)![0]).toBe('/assignments/a1/grades/import');
+    expect(form.get('publish')).toBe('true');
+  });
+});
+
 describe('gradesApi', () => {
   it('grade posts', () => {
     gradesApi.grade('s1', { score: 90 });

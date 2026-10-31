@@ -88,6 +88,13 @@ export const submissionsApi = {
     return api.post<{ success: true; data: AssignmentSubmissionsImportResult }>(`/assignments/${assignmentId}/submissions/import`, form);
   },
 
+  /**
+   * Every submitted file of the assignment as one zip. Building it fetches each
+   * file in turn, so it can outlast the usual request timeout.
+   */
+  downloadArchive: (assignmentId: string) =>
+    api.get(`/assignments/${assignmentId}/submissions/archive`, { responseType: 'blob', timeout: 0 }),
+
   requestAiReview: (submissionId: string) =>
     api.post(`/submissions/${submissionId}/request-ai-review`),
 
