@@ -38,8 +38,14 @@ beforeEach(() => {
   getQuietHours.mockResolvedValue(quietReply(0, 600));
 });
 
-// One save button per card: the sender name's first, the late penalty's second.
-const saveButton = (card: 0 | 1) => screen.getAllByRole('button', { name: /שמירה/ })[card];
+// Settings show a summary until "עריכה" is pressed; the cards, top to bottom: sender name, late penalty, quiet hours.
+const CARD = { sender: 0, late: 1, quiet: 2 } as const;
+async function startEditing(card: number) {
+  const buttons = await screen.findAllByRole('button', { name: /עריכה/ });
+  await userEvent.click(buttons[card]);
+}
+// Cards already being edited have no edit button; their save button is the n-th save button on the page.
+const saveButton = () => screen.getByRole('button', { name: /שמירה/ });
 
 function renderPage() {
   return renderWithProviders(<ToastProvider><SettingsPage /></ToastProvider>);
@@ -50,7 +56,9 @@ describe('Teacher settings - the email sender name', () => {
     getSettings.mockResolvedValue(reply(null));
     renderPage();
     expect(await screen.findByText('Teacher Feature')).toBeInTheDocument();
-    expect(saveButton(0)).toBeDisabled();
+    expect(screen.queryByLabelText('שם השולח')).not.toBeInTheDocument();
+    await startEditing(CARD.sender);
+    expect(saveButton()).toBeDisabled();
   });
 
   it('saves the name she writes', async () => {
@@ -58,17 +66,21 @@ describe('Teacher settings - the email sender name', () => {
     updateSettings.mockResolvedValue(reply('TeacherFeature - המורה עדי שלום'));
     const user = userEvent.setup();
     renderPage();
+    await startEditing(CARD.sender);
     const input = await screen.findByLabelText('שם השולח');
     await waitFor(() => expect(input).toBeEnabled());
     await user.type(input, 'TeacherFeature - המורה עדי שלום');
-    await user.click(saveButton(0));
+    await user.click(saveButton());
     await waitFor(() => expect(updateSettings).toHaveBeenCalledWith('TeacherFeature - המורה עדי שלום'));
     expect(await screen.findByText('שם השולח נשמר')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByLabelText('שם השולח')).not.toBeInTheDocument());
   });
 
   it('loads the name she saved before', async () => {
     getSettings.mockResolvedValue(reply('המורה עדי'));
     renderPage();
+    expect(await screen.findByText('המורה עדי')).toBeInTheDocument();
+    await startEditing(CARD.sender);
     await waitFor(() => expect(screen.getByLabelText('שם השולח')).toHaveValue('המורה עדי'));
   });
 });
@@ -76,19 +88,22 @@ describe('Teacher settings - the email sender name', () => {
 describe('Teacher settings - the late penalty', () => {
   it('loads the penalty and shows what it does to a full score', async () => {
     renderPage();
+    expect(await screen.findByText(/נקודות לכל יום איחור, עד הורדה של/)).toBeInTheDocument();
+    await startEditing(CARD.late);
     await waitFor(() => expect(screen.getByLabelText('נקודות לכל יום איחור')).toHaveValue(2));
     expect(screen.getByLabelText('הורדה מקסימלית')).toHaveValue(20);
     // 1 day: 98, 3 days: 94, 10 days: capped at 20 -> 80.
     expect(screen.getByText('98')).toBeInTheDocument();
     expect(screen.getByText('94')).toBeInTheDocument();
     expect(screen.getByText('80')).toBeInTheDocument();
-    expect(saveButton(1)).toBeDisabled();
+    expect(saveButton()).toBeDisabled();
   });
 
   it('saves the penalty she sets', async () => {
     updateLatePolicy.mockResolvedValue(latePolicyReply(5, 30));
     const user = userEvent.setup();
     renderPage();
+    await startEditing(CARD.late);
     const perDay = await screen.findByLabelText('נקודות לכל יום איחור');
     await waitFor(() => expect(perDay).toHaveValue(2));
     await user.clear(perDay);
@@ -96,7 +111,7 @@ describe('Teacher settings - the late penalty', () => {
     const max = screen.getByLabelText('הורדה מקסימלית');
     await user.clear(max);
     await user.type(max, '30');
-    await user.click(saveButton(1));
+    await user.click(saveButton());
     await waitFor(() => expect(updateLatePolicy).toHaveBeenCalledWith({ perDay: 5, max: 30 }));
     expect(await screen.findByText('הקנס על איחור נשמר')).toBeInTheDocument();
   });
@@ -104,12 +119,27 @@ describe('Teacher settings - the late penalty', () => {
   it('will not save a value outside 0-100', async () => {
     const user = userEvent.setup();
     renderPage();
+    await startEditing(CARD.late);
     const max = await screen.findByLabelText('הורדה מקסימלית');
     await waitFor(() => expect(max).toHaveValue(20));
     await user.clear(max);
     await user.type(max, '150');
     expect(screen.getByText('יש לכתוב מספרים שלמים בין 0 ל-100')).toBeInTheDocument();
-    expect(saveButton(1)).toBeDisabled();
+    expect(saveButton()).toBeDisabled();
+  });
+
+  it('drops an unsaved edit when she cancels', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await startEditing(CARD.late);
+    const perDay = await screen.findByLabelText('נקודות לכל יום איחור');
+    await waitFor(() => expect(perDay).toHaveValue(2));
+    await user.clear(perDay);
+    await user.type(perDay, '9');
+    await user.click(screen.getByRole('button', { name: 'ביטול' }));
+    expect(screen.queryByLabelText('נקודות לכל יום איחור')).not.toBeInTheDocument();
+    await startEditing(CARD.late);
+    expect(await screen.findByLabelText('נקודות לכל יום איחור')).toHaveValue(2);
   });
 });
 
@@ -146,12 +176,14 @@ describe('Teacher settings - signing out other devices', () => {
 describe('Teacher settings - quiet hours', () => {
   const startField = () => screen.getByLabelText('תחילת שעות השקט') as HTMLInputElement;
   const releaseField = () => screen.getByLabelText('שעת שחרור המיילים') as HTMLInputElement;
-  // Third save button: sender name, late penalty, then quiet hours.
-  const save = () => screen.getAllByRole('button', { name: /שמירה/ })[2];
+  const save = () => saveButton();
+  const edit = () => startEditing(CARD.quiet);
 
   it('shows the saved hours', async () => {
     getQuietHours.mockResolvedValue(quietReply(1320, 450));
     renderPage();
+    expect(await screen.findByText('22:00')).toBeInTheDocument();
+    await edit();
     await waitFor(() => expect(startField().value).toBe('22:00'));
     expect(releaseField().value).toBe('07:30');
   });
@@ -159,6 +191,7 @@ describe('Teacher settings - quiet hours', () => {
   it('saves the release time she picks as minutes past midnight', async () => {
     updateQuietHours.mockResolvedValue(quietReply(0, 660));
     renderPage();
+    await edit();
     await waitFor(() => expect(releaseField().value).toBe('10:00'));
     expect(save()).toBeDisabled();
     fireEvent.change(releaseField(), { target: { value: '11:00' } });
@@ -169,6 +202,7 @@ describe('Teacher settings - quiet hours', () => {
 
   it('says there are no quiet hours when both times are equal', async () => {
     renderPage();
+    await edit();
     await waitFor(() => expect(releaseField().value).toBe('10:00'));
     fireEvent.change(startField(), { target: { value: '10:00' } });
     expect(await screen.findByText(/אין שעות שקט/)).toBeInTheDocument();

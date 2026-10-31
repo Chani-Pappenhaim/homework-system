@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Camera, Clock, LogOut, Mail, Moon, Save } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { Camera, Clock, LogOut, Mail, Moon, Pencil, Save } from 'lucide-react';
 import { AvatarEditor } from '@/components/profile/AvatarEditor';
 import { messagesApi } from '@/api/messages.api';
 import { gradesApi } from '@/api/grades.api';
@@ -32,6 +33,38 @@ export default function SettingsPage() {
   );
 }
 
+/**
+ * A settings card that shows a one-line summary until "עריכה" is pressed, so
+ * nothing looks changeable by accident. The form (`children`) appears only
+ * while editing.
+ */
+function SettingCard({ icon, title, summary, editing, onEdit, children }: {
+  icon: ReactNode;
+  title: string;
+  summary: ReactNode;
+  editing: boolean;
+  onEdit: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Card accent="indigo">
+      <CardHeader>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="flex items-center gap-1.5 font-display text-base font-bold">{icon} {title}</h2>
+          {!editing && (
+            <Button variant="outline" onClick={onEdit}>
+              <Pencil size={14} /> עריכה
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {editing ? children : <p className="text-sm text-ink">{summary}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
 function ProfilePictureCard() {
   return (
     <Card accent="indigo">
@@ -51,6 +84,7 @@ function EmailSenderCard() {
   const { data, isLoading } = useQuery({ queryKey: ['email-settings'], queryFn: () => messagesApi.getEmailSettings() });
   const settings = data?.data.data;
   const [name, setName] = useState('');
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     if (settings) setName(settings.senderName ?? '');
@@ -61,6 +95,7 @@ function EmailSenderCard() {
     onSuccess: (res) => {
       qc.setQueryData(['email-settings'], res);
       toast.success('שם השולח נשמר');
+      setEditing(false);
     },
     onError: (e) => toast.error(getApiErrorMessage(e, 'השמירה נכשלה')),
   });
@@ -69,11 +104,13 @@ function EmailSenderCard() {
   const shown = name.trim() || settings?.defaultSenderName || '';
 
   return (
-    <Card accent="indigo">
-      <CardHeader>
-        <h2 className="flex items-center gap-1.5 font-display text-base font-bold"><Mail size={15} /> שם השולח במיילים לתלמידות</h2>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <SettingCard
+      icon={<Mail size={15} />}
+      title="שם השולח במיילים לתלמידות"
+      summary={<>התלמידות רואות: <span className="font-semibold">{saved || settings?.defaultSenderName || '-'}</span></>}
+      editing={editing}
+      onEdit={() => setEditing(true)}
+    >
         <p className="text-sm text-ink-soft">
           כך יופיע השולח בתיבת הדואר של התלמידות (תשובות להודעות, ציונים, תזכורות). כתובת השליחה עצמה לא משתנה.
         </p>
@@ -89,11 +126,13 @@ function EmailSenderCard() {
           {name.trim() ? 'התלמידות יראו: ' : 'ריק = שם ברירת המחדל של האתר: '}
           <span className="font-semibold text-ink">{shown || '-'}</span>
         </p>
-        <Button onClick={() => save.mutate()} loading={save.isPending} disabled={isLoading || name.trim() === saved}>
-          <Save size={14} /> שמירה
-        </Button>
-      </CardContent>
-    </Card>
+        <div className="flex gap-2">
+          <Button onClick={() => save.mutate()} loading={save.isPending} disabled={isLoading || name.trim() === saved}>
+            <Save size={14} /> שמירה
+          </Button>
+          <Button variant="outline" onClick={() => { setName(saved); setEditing(false); }}>ביטול</Button>
+        </div>
+    </SettingCard>
   );
 }
 
@@ -110,6 +149,7 @@ function LatePenaltyCard() {
   const policy = data?.data.data;
   const [perDay, setPerDay] = useState('');
   const [max, setMax] = useState('');
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     if (policy) {
@@ -126,6 +166,7 @@ function LatePenaltyCard() {
     onSuccess: (res) => {
       qc.setQueryData(['late-penalty'], res);
       toast.success('הקנס על איחור נשמר');
+      setEditing(false);
     },
     onError: (e) => toast.error(getApiErrorMessage(e, 'השמירה נכשלה')),
   });
@@ -135,11 +176,15 @@ function LatePenaltyCard() {
   const example = (days: number) => (valid ? 100 - Math.min(maxN!, days * perDayN!) : null);
 
   return (
-    <Card accent="indigo">
-      <CardHeader>
-        <h2 className="flex items-center gap-1.5 font-display text-base font-bold"><Clock size={15} /> הורדת נקודות על איחור</h2>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <SettingCard
+      icon={<Clock size={15} />}
+      title="הורדת נקודות על איחור"
+      summary={policy
+        ? <><span className="font-semibold">{policy.perDay}</span> נקודות לכל יום איחור, עד הורדה של <span className="font-semibold">{policy.max}</span></>
+        : '...'}
+      editing={editing}
+      onEdit={() => setEditing(true)}
+    >
         <p className="text-sm text-ink-soft">
           הגשה אחרי המועד מאבדת מציון ההגשה את מספר הנקודות שנקבע לכל יום איחור (יום שהתחיל נחשב יום שלם), עד ההורדה המקסימלית.
           השינוי חל על הגשות מעכשיו ועל ציונים שמחושבים מחדש כשמזיזים מועד הגשה. ציון שקבעת ידנית לא משתנה.
@@ -165,11 +210,18 @@ function LatePenaltyCard() {
             ? <>לדוגמה, ציון הגשה מלא: יום איחור אחד - <span className="font-semibold text-ink">{example(1)}</span>, שלושה ימים - <span className="font-semibold text-ink">{example(3)}</span>, עשרה ימים - <span className="font-semibold text-ink">{example(10)}</span></>
             : 'יש לכתוב מספרים שלמים בין 0 ל-100'}
         </p>
-        <Button onClick={() => save.mutate()} loading={save.isPending} disabled={isLoading || !valid || unchanged}>
-          <Save size={14} /> שמירה
-        </Button>
-      </CardContent>
-    </Card>
+        <div className="flex gap-2">
+          <Button onClick={() => save.mutate()} loading={save.isPending} disabled={isLoading || !valid || unchanged}>
+            <Save size={14} /> שמירה
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => { setPerDay(String(policy?.perDay ?? '')); setMax(String(policy?.max ?? '')); setEditing(false); }}
+          >
+            ביטול
+          </Button>
+        </div>
+    </SettingCard>
   );
 }
 
@@ -191,6 +243,7 @@ function QuietHoursCard() {
   const hours = data?.data.data;
   const [start, setStart] = useState('');
   const [release, setRelease] = useState('');
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     if (hours) {
@@ -209,16 +262,25 @@ function QuietHoursCard() {
     onSuccess: (res) => {
       qc.setQueryData(['quiet-hours'], res);
       toast.success('שעות השקט נשמרו');
+      setEditing(false);
     },
     onError: (e) => toast.error(getApiErrorMessage(e, 'השמירה נכשלה')),
   });
 
+  const savedSummary = !hours
+    ? '...'
+    : hours.startMinute === hours.releaseMinute
+      ? 'אין שעות שקט, המיילים נשלחים מיד'
+      : <>מיילים שנוצרים בין <span className="font-semibold">{toClock(hours.startMinute)}</span> ל-<span className="font-semibold">{toClock(hours.releaseMinute)}</span> יישלחו ב-<span className="font-semibold">{toClock(hours.releaseMinute)}</span></>;
+
   return (
-    <Card accent="indigo">
-      <CardHeader>
-        <h2 className="flex items-center gap-1.5 font-display text-base font-bold"><Moon size={15} /> שעות שקט למיילים לתלמידות</h2>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <SettingCard
+      icon={<Moon size={15} />}
+      title="שעות שקט למיילים לתלמידות"
+      summary={savedSummary}
+      editing={editing}
+      onEdit={() => setEditing(true)}
+    >
         <p className="text-sm text-ink-soft">
           מייל לתלמידה (תשובה להודעה, הודעה ממך, פרסום ציון) שנוצר בשעות השקט לא נשלח מיד אלא בשעת השחרור.
           ההודעות והציונים עצמם מופיעים באתר מיד. השעות לפי שעון ישראל, והן חלות על כל התלמידות.
@@ -234,15 +296,25 @@ function QuietHoursCard() {
               ? 'שתי השעות זהות, ולכן אין שעות שקט והמיילים נשלחים מיד'
               : <>מיילים שנוצרים בין <span className="font-semibold text-ink">{start}</span> ל-<span className="font-semibold text-ink">{release}</span> יישלחו ב-<span className="font-semibold text-ink">{release}</span></>}
         </p>
-        <Button
-          onClick={() => save.mutate()}
-          loading={save.isPending}
-          disabled={isLoading || !valid || (hours?.startMinute === startMinute && hours?.releaseMinute === releaseMinute)}
-        >
-          <Save size={14} /> שמירה
-        </Button>
-      </CardContent>
-    </Card>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => save.mutate()}
+            loading={save.isPending}
+            disabled={isLoading || !valid || (hours?.startMinute === startMinute && hours?.releaseMinute === releaseMinute)}
+          >
+            <Save size={14} /> שמירה
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (hours) { setStart(toClock(hours.startMinute)); setRelease(toClock(hours.releaseMinute)); }
+              setEditing(false);
+            }}
+          >
+            ביטול
+          </Button>
+        </div>
+    </SettingCard>
   );
 }
 
