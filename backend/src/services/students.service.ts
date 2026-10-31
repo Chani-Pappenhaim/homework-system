@@ -87,15 +87,15 @@ export async function getStudentsOverview() {
     }),
     prisma.attendanceRecord.findMany({ select: { studentId: true, status: true } }),
     prisma.messageEntry.findMany({
-      where: { fromTeacher: false, isRead: false },
-      select: { message: { select: { studentId: true } } },
+      where: { authorId: { not: null }, readByTeacher: false },
+      select: { authorId: true },
     }),
   ]);
 
   const subsByStudent = new Map<string, typeof submissions>();
   for (const s of submissions) subsByStudent.set(s.studentId, [...(subsByStudent.get(s.studentId) ?? []), s]);
   const unreadByStudent = new Map<string, number>();
-  for (const e of unread) unreadByStudent.set(e.message.studentId, (unreadByStudent.get(e.message.studentId) ?? 0) + 1);
+  for (const e of unread) unreadByStudent.set(e.authorId!, (unreadByStudent.get(e.authorId!) ?? 0) + 1);
   const attendanceByStudent = new Map<string, { present: number; absent: number; partial: number }>();
   for (const r of records) {
     const a = attendanceByStudent.get(r.studentId) ?? { present: 0, absent: 0, partial: 0 };
@@ -184,11 +184,16 @@ export async function getStudentProfile(studentId: string) {
         quiz: { select: { lesson: { select: { topic: true, course: { select: { name: true } } } } } },
       },
     }),
-    prisma.teacherMessage.findMany({
-      where: { studentId },
+    prisma.messageThread.findMany({
+      where: { participants: { some: { studentId } } },
       select: {
-        id: true, createdAt: true, assignmentId: true,
-        entries: { orderBy: { createdAt: 'desc' }, select: { fromTeacher: true, content: true, isRead: true, createdAt: true } },
+        id: true, createdAt: true, assignmentId: true, subject: true,
+        // Entries she can see: the shared ones and those private to her.
+        entries: {
+          where: { OR: [{ privateToStudentId: null }, { privateToStudentId: studentId }] },
+          orderBy: { createdAt: 'desc' },
+          select: { authorId: true, content: true, readByTeacher: true, createdAt: true },
+        },
       },
     }),
   ]);
@@ -221,11 +226,12 @@ export async function getStudentProfile(studentId: string) {
       const last = t.entries[0];
       return {
         id: t.id,
+        subject: t.subject,
         assignmentTitle: t.assignmentId ? titles.get(t.assignmentId) ?? null : null,
         lastAt: last?.createdAt ?? t.createdAt,
-        lastFromTeacher: last?.fromTeacher ?? true,
+        lastFromTeacher: last ? last.authorId === null : true,
         preview: last ? last.content.slice(0, 120) : '',
-        unread: t.entries.filter((e) => !e.fromTeacher && !e.isRead).length,
+        unread: t.entries.filter((e) => e.authorId === studentId && !e.readByTeacher).length,
         entries: t.entries.length,
       };
     })

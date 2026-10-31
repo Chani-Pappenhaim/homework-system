@@ -37,19 +37,22 @@ model User {
   emailNotifications   Boolean   @default(true)
   createdAt            DateTime  @default(now())
 
-  studentGroups      StudentGroup[]
-  submissions        Submission[]
-  aiReviewCarryovers AiReviewCarryover[]
-  quizAttempts       QuizAttempt[]
-  gradesGiven        Grade[]
-  lessonAccess       LessonAccess[]
-  courseAccess       CourseAccess[]
-  lessonProgress     LessonProgress[]
-  lessonFileViews    LessonFileView[]
-  teacherMessages    TeacherMessage[]
-  attendance         AttendanceRecord[]
-  homeworkMarks      HomeworkMark[]
-  attendanceOptOuts  AttendanceExclusion[]
+  studentGroups        StudentGroup[]
+  submissions          Submission[]
+  aiReviewCarryovers   AiReviewCarryover[]
+  quizAttempts         QuizAttempt[]
+  gradesGiven          Grade[]
+  lessonAccess         LessonAccess[]
+  courseAccess         CourseAccess[]
+  lessonProgress       LessonProgress[]
+  lessonFileViews      LessonFileView[]
+  threadParticipations ThreadParticipant[]
+  messageEntries       MessageEntry[]        @relation("MessageEntryAuthor")
+  privateEntries       MessageEntry[]        @relation("MessageEntryPrivateTo")
+  entryReactions       EntryReaction[]
+  attendance           AttendanceRecord[]
+  homeworkMarks        HomeworkMark[]
+  attendanceOptOuts    AttendanceExclusion[]
 }
 
 model Group {
@@ -61,8 +64,9 @@ model Group {
   emailNotificationsDefault Boolean  @default(true)
   createdAt                 DateTime @default(now())
 
-  students StudentGroup[]
-  courses  Course[]
+  students       StudentGroup[]
+  courses        Course[]
+  messageThreads MessageThread[]
 }
 
 model StudentGroup {
@@ -321,28 +325,75 @@ model AiUsageLog {
   createdAt    DateTime @default(now())
 }
 
-// A conversation between one student and the teacher. The actual messages
-// live in `entries`, so either side can keep replying indefinitely instead
-// of being limited to a single message + a single reply.
-model TeacherMessage {
-  id           String         @id @default(uuid())
-  studentId    String
-  student      User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+/// Who a thread is addressed to, and so what its participants see of each other.
+enum ThreadAudience {
+  DIRECT // one student and the teacher
+  GROUP_VISIBLE // a whole group; every participant sees who else got it and may reply to all
+  GROUP_BCC // a whole group as hidden copies; each participant sees only her own exchange with the teacher
+}
+
+// A conversation between the teacher and one student or a group of students.
+// The actual messages live in `entries`, so every side can keep replying
+// indefinitely. Kept on its original table so existing conversations keep
+// their ids, and the links in emails already sent keep working.
+model MessageThread {
+  id           String              @id @default(uuid())
+  audience     ThreadAudience      @default(DIRECT)
+  subject      String?
+  // The group a group thread was sent to, for display; its participants are
+  // the group's students at the time it was sent.
+  groupId      String?
+  group        Group?              @relation(fields: [groupId], references: [id], onDelete: SetNull)
   assignmentId String? // אם קיים → בקשת הגשה מאוחרת למטלה ספציפית
-  createdAt    DateTime       @default(now())
+  createdAt    DateTime            @default(now())
+  participants ThreadParticipant[]
   entries      MessageEntry[]
+
+  @@map("TeacherMessage")
+}
+
+// A student taking part in a thread, with her own read state.
+model ThreadParticipant {
+  threadId   String
+  thread     MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  studentId  String
+  student    User          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lastReadAt DateTime? // entries she can see that are newer than this are unread for her
+  hiddenAt   DateTime? // she removed the thread from her inbox; a newer entry brings it back
+  createdAt  DateTime      @default(now())
+
+  @@id([threadId, studentId])
+  @@index([studentId])
 }
 
 model MessageEntry {
-  id          String         @id @default(uuid())
-  messageId   String
-  message     TeacherMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  fromTeacher Boolean // true = the teacher wrote this entry, false = the student did
-  content     String
-  isRead      Boolean        @default(false) // has the other side seen this entry?
-  createdAt   DateTime       @default(now())
+  id                 String          @id @default(uuid())
+  threadId           String          @map("messageId")
+  thread             MessageThread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  authorId           String? // the student who wrote it; null = the teacher
+  author             User?           @relation("MessageEntryAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  // null = every participant sees it; otherwise only the teacher and this student do.
+  privateToStudentId String?
+  privateTo          User?           @relation("MessageEntryPrivateTo", fields: [privateToStudentId], references: [id], onDelete: Cascade)
+  content            String
+  readByTeacher      Boolean         @default(false) // has the teacher seen this student-written entry?
+  createdAt          DateTime        @default(now())
+  reactions          EntryReaction[]
 
-  @@index([messageId])
+  @@index([threadId])
+}
+
+// An emoji someone (the teacher or a student) put on an entry.
+model EntryReaction {
+  id        String       @id @default(uuid())
+  entryId   String
+  entry     MessageEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  reactorId String
+  reactor   User         @relation(fields: [reactorId], references: [id], onDelete: Cascade)
+  emoji     String
+  createdAt DateTime     @default(now())
+
+  @@unique([entryId, reactorId, emoji])
 }
 
 model Quiz {

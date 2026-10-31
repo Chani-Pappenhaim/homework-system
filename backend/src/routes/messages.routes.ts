@@ -16,10 +16,15 @@ router.put('/email-settings', requireRole('ADMIN'), messagesController.updateEma
 router.get('/mine', requireRole('STUDENT'), messagesController.getMyMessages);
 router.get('/unread-count', requireRole('ADMIN'), messagesController.getUnreadCount);
 router.get('/unread-replies-count', requireRole('STUDENT'), messagesController.getUnreadReplyCount);
+// Either side opens a thread; the messaging policy decides whether it is hers to see.
+router.get('/:id', messagesController.getThread);
 router.patch('/:id/read', requireRole('ADMIN'), messagesController.markRead);
+router.patch('/:id/unread', requireRole('ADMIN'), messagesController.markUnread);
 router.patch('/:id/mine-read', requireRole('STUDENT'), messagesController.markMineRead);
+router.patch('/:id/mine-unread', requireRole('STUDENT'), messagesController.markMineUnread);
 router.post('/:id/reply', requireRole('ADMIN'), messagesController.replyMessage);
 router.post('/:id/student-reply', requireRole('STUDENT'), messagesController.studentReply);
+router.post('/:id/entries/:entryId/reactions', messagesController.toggleReaction);
 router.delete('/:id/reply', requireRole('ADMIN'), messagesController.deleteReply);
 router.delete('/:id/mine', requireRole('STUDENT'), messagesController.deleteMyMessage);
 router.delete('/:id', requireRole('ADMIN'), messagesController.deleteMessage);
