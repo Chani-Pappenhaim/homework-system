@@ -2,16 +2,17 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { messagesApi } from '@/api/messages.api';
 import { getApiErrorMessage } from '@/lib/errors';
+import { MAX_SUBJECT_LENGTH } from '@/lib/limits';
 
 /** A student's one-line request to the teacher (late submission, extra AI review, ...), sent as a message. */
-export function useTeacherRequest(buildMessage: (reason: string) => string, assignmentId: string) {
+export function useTeacherRequest(buildMessage: (reason: string) => string, assignmentId: string, subject?: string) {
   const [formOpen, setFormOpen] = useState(false);
   const [reason, setReason] = useState('');
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
 
   const mutation = useMutation({
-    mutationFn: () => messagesApi.send(buildMessage(reason.trim()), assignmentId),
+    mutationFn: () => messagesApi.send(buildMessage(reason.trim()), assignmentId, subject?.slice(0, MAX_SUBJECT_LENGTH)),
     onSuccess: () => {
       setSent(true);
       setFormOpen(false);

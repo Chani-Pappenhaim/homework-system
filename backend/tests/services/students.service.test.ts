@@ -8,7 +8,7 @@ vi.mock('../../src/config/prisma', () => ({
     attendanceRecord: { findMany: vi.fn() },
     messageEntry: { findMany: vi.fn() },
     quizAttempt: { findMany: vi.fn() },
-    teacherMessage: { findMany: vi.fn() },
+    messageThread: { findMany: vi.fn() },
   },
 }));
 vi.mock('../../src/services/student-attendance.service', () => ({ getMyAttendance: vi.fn() }));
@@ -29,7 +29,7 @@ beforeEach(() => {
   p.attendanceRecord.findMany.mockResolvedValue([]);
   p.messageEntry.findMany.mockResolvedValue([]);
   p.quizAttempt.findMany.mockResolvedValue([]);
-  p.teacherMessage.findMany.mockResolvedValue([]);
+  p.messageThread.findMany.mockResolvedValue([]);
   (getMyAttendance as any).mockResolvedValue([]);
 });
 
@@ -93,12 +93,12 @@ describe('getStudentsOverview', () => {
 
   it('counts unread messages from each student', async () => {
     p.messageEntry.findMany.mockResolvedValue([
-      { message: { studentId: 'dina' } }, { message: { studentId: 'dina' } },
+      { authorId: 'dina' }, { authorId: 'dina' },
     ]);
     const [rachel, dina] = await getStudentsOverview();
     expect(rachel!.unreadMessages).toBe(0);
     expect(dina!.unreadMessages).toBe(2);
-    expect(p.messageEntry.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { fromTeacher: false, isRead: false } }));
+    expect(p.messageEntry.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { authorId: { not: null }, readByTeacher: false } }));
   });
 });
 
@@ -175,13 +175,13 @@ describe('getStudentProfile', () => {
   });
 
   it('summarizes message threads, newest first', async () => {
-    p.teacherMessage.findMany.mockResolvedValue([
-      { id: 'm1', createdAt: past, assignmentId: null, entries: [{ fromTeacher: true, content: 'שלום', isRead: true, createdAt: past }] },
+    p.messageThread.findMany.mockResolvedValue([
+      { id: 'm1', createdAt: past, assignmentId: null, entries: [{ authorId: null, content: 'שלום', readByTeacher: true, createdAt: past }] },
       {
         id: 'm2', createdAt: past, assignmentId: 'a2',
         entries: [
-          { fromTeacher: false, content: 'אפשר הארכה?', isRead: false, createdAt: future },
-          { fromTeacher: false, content: 'שלום', isRead: false, createdAt: past },
+          { authorId: 'rachel', content: 'אפשר הארכה?', readByTeacher: false, createdAt: future },
+          { authorId: 'rachel', content: 'שלום', readByTeacher: false, createdAt: past },
         ],
       },
     ]);

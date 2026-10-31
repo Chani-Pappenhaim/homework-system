@@ -222,7 +222,7 @@ function MessageList({ messages }: { messages: StudentProfile['messages'] }) {
             <li key={m.id}>
               <Link to={`/teacher/messages?highlight=${m.id}`} className="block px-5 py-2.5 transition-colors hover:bg-butter/15">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="truncate text-sm font-medium text-ink">{m.assignmentTitle ? `בקשה: ${m.assignmentTitle}` : 'שיחה'}</p>
+                  <p className="truncate text-sm font-medium text-ink">{m.subject ?? (m.assignmentTitle ? `בקשה: ${m.assignmentTitle}` : 'שיחה')}</p>
                   {m.unread > 0 && <Badge variant="destructive">{m.unread} חדשות</Badge>}
                 </div>
                 <p className="truncate text-xs text-ink/55">

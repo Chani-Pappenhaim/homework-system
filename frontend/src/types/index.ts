@@ -359,21 +359,60 @@ export interface ReportRow {
   checklist?: ChecklistResult[];
 }
 
+export type ThreadAudience = 'DIRECT' | 'GROUP_VISIBLE' | 'GROUP_BCC';
+
+export interface ReactionDTO {
+  emoji: string;
+  count: number;
+  mine: boolean;
+  names: string[];
+}
+
 export interface MessageEntryDTO {
   id: string;
   fromTeacher: boolean;
+  /** Written by the viewer herself. */
+  mine: boolean;
+  /** The writing student's name, when the viewer may know it. */
+  authorName: string | null;
+  /** Seen only by the teacher and one student. */
+  isPrivate: boolean;
+  /** Which student a private entry is for; told to the teacher only. */
+  privateToStudentId: string | null;
   content: string;
   isRead: boolean;
   createdAt: string;
+  reactions: ReactionDTO[];
 }
 
-export interface MessageDTO {
+interface ThreadHeaderDTO {
   id: string;
-  studentId: string;
-  assignmentId?: string | null;
+  audience: ThreadAudience;
+  subject: string | null;
+  groupId: string | null;
+  groupName: string | null;
+  assignmentId: string | null;
   createdAt: string;
-  entries: MessageEntryDTO[];
+  participantCount: number;
+  /** The one student of a direct thread, for the teacher. */
   student?: { id: string; name: string; email: string };
+}
+
+/** A row of the inbox list. */
+export interface MessageDTO extends ThreadHeaderDTO {
+  replyCount: number;
+  unreadCount: number;
+  unread: boolean;
+  lastEntry: MessageEntryDTO | null;
+}
+
+/** An opened thread, with every entry the viewer may see. */
+export interface MessageDetailDTO extends ThreadHeaderDTO {
+  /** Null when the viewer may not know who else got the message. */
+  participants: { id: string; name: string; email?: string }[] | null;
+  replyCount: number;
+  unread: boolean;
+  entries: MessageEntryDTO[];
 }
 
 export interface StudentSummary {

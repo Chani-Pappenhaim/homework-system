@@ -16,7 +16,7 @@ vi.mock('../../src/infrastructure/queues/queues', () => ({
 
 vi.mock('../../src/config/prisma', () => ({
   prisma: {
-    teacherMessage: {
+    messageThread: {
       create: vi.fn(),
       findMany: vi.fn(),
       findUnique: vi.fn(),
@@ -24,6 +24,7 @@ vi.mock('../../src/config/prisma', () => ({
     messageEntry: {
       create: vi.fn(),
       count: vi.fn(),
+      groupBy: vi.fn(),
     },
     appSettings: { findUnique: vi.fn(), upsert: vi.fn() },
   },
@@ -349,34 +350,41 @@ describe('ai-usage controller', () => {
 });
 
 describe('messages controller', () => {
+  const listedThread = {
+    id: 'm1', audience: 'DIRECT', subject: null, groupId: null, group: null, assignmentId: null,
+    createdAt: new Date('2026-10-01T10:00:00Z'), _count: { participants: 1 }, participants: [], entries: [],
+  };
+
   it('POST /api/messages rejects an empty body with 400', async () => {
     const res = await request(app).post('/api/messages').set(...bearer(student)).send({ content: '   ' });
     expect(res.status).toBe(400);
-    expect(p.teacherMessage.create).not.toHaveBeenCalled();
+    expect(p.messageThread.create).not.toHaveBeenCalled();
   });
 
   it('POST /api/messages stores the message and enqueues the teacher email', async () => {
-    p.teacherMessage.create.mockResolvedValue({ id: 'm1', content: 'hi', student: { id: 'stud1', name: 'Dina', email: 'd@x' } });
+    p.messageThread.create.mockResolvedValue({ id: 'm1', participants: [{ student: { id: 'stud1', name: 'Dina', email: 'd@x' } }] });
     const res = await request(app).post('/api/messages').set(...bearer(student)).send({ content: 'hi' });
     expect(res.status).toBe(201);
-    expect(p.teacherMessage.create).toHaveBeenCalled();
+    expect(p.messageThread.create).toHaveBeenCalled();
   });
 
   it('GET /api/messages is admin-only and lists all messages', async () => {
-    p.teacherMessage.findMany.mockResolvedValue([{ id: 'm1' }]);
+    p.messageEntry.groupBy.mockResolvedValue([]);
+    p.messageThread.findMany.mockResolvedValue([listedThread]);
     const forbidden = await request(app).get('/api/messages').set(...bearer(student));
     expect(forbidden.status).toBe(403);
     const ok = await request(app).get('/api/messages').set(...bearer(admin));
     expect(ok.status).toBe(200);
-    expect(ok.body.data.messages).toEqual([{ id: 'm1' }]);
+    expect(ok.body.data.messages).toEqual([expect.objectContaining({ id: 'm1', replyCount: 0 })]);
   });
 
   it('GET /api/messages/mine returns only the student’s own messages', async () => {
-    p.teacherMessage.findMany.mockResolvedValue([{ id: 'm1' }]);
+    p.messageEntry.groupBy.mockResolvedValue([]);
+    p.messageThread.findMany.mockResolvedValue([listedThread]);
     const res = await request(app).get('/api/messages/mine').set(...bearer(student));
     expect(res.status).toBe(200);
-    expect(p.teacherMessage.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { studentId: 'stud1' } })
+    expect(p.messageThread.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { participants: { some: { studentId: 'stud1' } } } })
     );
   });
 
@@ -386,9 +394,12 @@ describe('messages controller', () => {
   });
 
   it('POST /api/messages/:id/reply saves the reply for an admin', async () => {
-    p.teacherMessage.findUnique
-      .mockResolvedValueOnce({ id: 'm1', student: { name: 'Dina', email: 'd@x' }, entries: [{ content: 'q' }] })
-      .mockResolvedValueOnce({ id: 'm1', entries: [{ content: 'q' }, { content: 'here you go' }] });
+    p.messageThread.findUnique
+      .mockResolvedValueOnce({
+        id: 'm1', audience: 'DIRECT', entries: [{ content: 'q' }],
+        participants: [{ studentId: 'stud1', student: { id: 'stud1', name: 'Dina', email: 'd@x' } }],
+      })
+      .mockResolvedValueOnce({ ...listedThread, participants: [], entries: [] });
     p.messageEntry.create.mockResolvedValue({});
     const res = await request(app).post('/api/messages/m1/reply').set(...bearer(admin)).send({ reply: 'here you go' });
     expect(res.status).toBe(200);

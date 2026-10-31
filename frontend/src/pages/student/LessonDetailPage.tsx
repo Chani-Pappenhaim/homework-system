@@ -266,10 +266,12 @@ function AssignmentCard({ assignment: a, submission: sub, focused = false }: {
   const lateRequest = useTeacherRequest(
     (reason) => `בקשת הגשה מאוחרת עבור "${a.title}"${reason ? `: ${reason}` : ''}`,
     a.id,
+    `בקשת הגשה מאוחרת: ${a.title}`,
   );
   const aiExtraRequest = useTeacherRequest(
     (reason) => `בקשה לבדיקת AI נוספת עבור "${a.title}"${reason ? `: ${reason}` : ''}`,
     a.id,
+    `בקשה לבדיקת AI נוספת: ${a.title}`,
   );
 
   const ai = useAiAvailability();

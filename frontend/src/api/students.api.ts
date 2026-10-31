@@ -73,6 +73,7 @@ export interface StudentProfile {
   }>;
   messages: Array<{
     id: string;
+    subject: string | null;
     assignmentTitle: string | null;
     lastAt: string;
     lastFromTeacher: boolean;
