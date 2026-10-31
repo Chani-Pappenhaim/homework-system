@@ -220,6 +220,11 @@ model Assignment {
   // aiGitFromTag. Students see the names, since they create the tags.
   aiGitFromTag    String?
   aiGitToTag      String?
+  // Kept from students until the teacher shows it: not listed, not counted, and
+  // not open to submissions.
+  hidden          Boolean   @default(false)
+  // Not mandatory: never counted as missing or late, never reminded about.
+  optional        Boolean   @default(false)
   createdAt       DateTime  @default(now())
 
   submissions        Submission[]
