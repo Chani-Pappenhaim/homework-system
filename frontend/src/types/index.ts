@@ -10,6 +10,8 @@ export interface UserDTO {
   /** Has she confirmed her address? Notification emails go only to verified ones. */
   emailVerified: boolean;
   emailNotifications: boolean;
+  /** Link to her profile picture (see apiFileUrl), or null when she has none. */
+  avatarUrl: string | null;
   groups: { id: string; name: string }[];
 }
 
