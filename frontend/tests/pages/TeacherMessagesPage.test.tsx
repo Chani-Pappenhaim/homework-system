@@ -221,6 +221,25 @@ describe('TeacherMessagesPage', () => {
       await waitFor(() => expect(reply).toHaveBeenCalledWith('g', 'תודה', { toStudentId: 's1' }));
     }, 15000);
 
+    it('searches the recipients of a large group when choosing who to reply to', async () => {
+      const names = ['דנה', 'רבקה', 'שרה', 'לאה', 'חנה', 'מירי'];
+      const thread = detail(
+        {
+          id: 'g', audience: 'GROUP_BCC', groupName: 'כיתה יד', student: undefined,
+          participants: names.map((name, i) => ({ id: `s${i}`, name })),
+          participantCount: names.length,
+        },
+        [entry({ id: 'eg', fromTeacher: true, mine: true, content: 'הודעה לכולן' })],
+      );
+      serve([listRow({ id: 'g', audience: 'GROUP_BCC', groupName: 'כיתה יד', student: undefined, lastEntry: thread.entries[0] })], thread);
+      renderWithProviders(<TeacherMessagesPage />, { initialEntries: ['/?highlight=g'] });
+
+      const select = await screen.findByLabelText('למי התגובה');
+      expect(within(select).getAllByRole('option')).toHaveLength(7);
+      await userEvent.type(screen.getByLabelText('חיפוש נמענת'), 'רב');
+      expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(['לכל הקבוצה', 'רק לרבקה']);
+    }, 15000);
+
     it('lists who got a visible group message', async () => {
       const thread = detail(
         { id: 'g', audience: 'GROUP_VISIBLE', groupName: 'כיתה יד', student: undefined, participants: [{ id: 's1', name: 'דנה' }, { id: 's2', name: 'רבקה' }], participantCount: 2 },

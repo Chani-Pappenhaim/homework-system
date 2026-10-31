@@ -12,6 +12,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MessageSkeleton } from '@/components/ui/skeleton';
 import { StudentAutocomplete } from '@/components/ui/student-autocomplete';
+import { Input } from '@/components/ui/input';
 import { EntryCard } from '@/components/messages/EntryCard';
 import { SubjectField } from '@/components/messages/SubjectField';
 import { ThreadTitleLine } from '@/components/messages/ThreadTitleLine';
@@ -67,6 +68,7 @@ export default function TeacherMessagesPage() {
   const [replyText, setReplyText] = useState('');
   // Whom the reply in a group thread is for: everyone ('') or one student.
   const [replyTo, setReplyTo] = useState('');
+  const [replySearch, setReplySearch] = useState('');
   const toast = useToast();
   const [composeStudent, setComposeStudent] = useState<StudentSearchResult | null>(null);
   // A new message goes to one student, or to every student of a group.
@@ -180,7 +182,7 @@ export default function TeacherMessagesPage() {
     if (openId && notFound) closeConversation();
   }, [openId, notFound, closeConversation]);
 
-  useEffect(() => { setReplyText(''); setReplyTo(''); }, [openId]);
+  useEffect(() => { setReplyText(''); setReplyTo(''); setReplySearch(''); }, [openId]);
 
   useEffect(() => {
     if (openId) bottomRef.current?.scrollIntoView({ block: 'end' });
@@ -294,6 +296,15 @@ export default function TeacherMessagesPage() {
                   {openMsg.participants && openMsg.audience !== 'DIRECT' && (
                     <div>
                       <label htmlFor="reply-to" className="label mb-1 block">למי התגובה</label>
+                      {openMsg.participants.length > 5 && (
+                        <Input
+                          aria-label="חיפוש נמענת"
+                          placeholder="חיפוש לפי שם"
+                          value={replySearch}
+                          onChange={(e) => setReplySearch(e.target.value)}
+                          className="mb-2"
+                        />
+                      )}
                       <select
                         id="reply-to"
                         value={replyTo}
@@ -301,9 +312,11 @@ export default function TeacherMessagesPage() {
                         className="w-full rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft focus:border-clay focus:outline-none"
                       >
                         <option value="">לכל הקבוצה</option>
-                        {openMsg.participants.map((p) => (
-                          <option key={p.id} value={p.id}>רק ל{p.name}</option>
-                        ))}
+                        {openMsg.participants
+                          .filter((p) => p.id === replyTo || p.name.includes(replySearch.trim()))
+                          .map((p) => (
+                            <option key={p.id} value={p.id}>רק ל{p.name}</option>
+                          ))}
                       </select>
                     </div>
                   )}
