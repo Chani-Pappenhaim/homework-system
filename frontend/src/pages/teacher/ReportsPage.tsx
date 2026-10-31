@@ -133,7 +133,7 @@ export default function ReportsPage() {
             value={groupId}
             onChange={(e) => changeGroup(e.target.value)}
             aria-label="סינון לפי קבוצה"
-            className="rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
+            className="w-44 truncate rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
           >
             <option value="">כל הקבוצות</option>
             {groups.map((g) => <option key={g.id} value={g.id}>{groupDisplayName(g)}</option>)}
@@ -143,7 +143,7 @@ export default function ReportsPage() {
             value={courseId}
             onChange={(e) => setParams({ courseId: e.target.value })}
             aria-label="סינון לפי קורס"
-            className="rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
+            className="w-44 truncate rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
           >
             <option value="">כל הקורסים</option>
             {courses.map((c, i) => <option key={c.id} value={c.id}>{courseLabels[i]}</option>)}
@@ -153,12 +153,14 @@ export default function ReportsPage() {
             value={studentId}
             onChange={(e) => setParams({ studentId: e.target.value })}
             aria-label="סינון לפי תלמידה"
-            className="rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
+            className="w-44 truncate rounded-input border border-rule bg-sheet px-3 py-2 text-sm text-ink shadow-soft transition-colors focus:border-clay focus:outline-none"
           >
             <option value="">כל התלמידות</option>
             {studentOptions.map((s, i) => <option key={s.id} value={s.id}>{studentLabels[i]}</option>)}
           </select>
 
+          {/* Both dates stay together on one line; they only wrap as a pair on a narrow screen. */}
+          <div className="flex items-center gap-3 whitespace-nowrap">
           {(['from', 'to'] as const).map((key) => (
             <label key={key} className="flex items-center gap-1.5 text-sm text-ink-soft">
               {key === 'from' ? 'מתאריך' : 'עד תאריך'}
@@ -171,6 +173,7 @@ export default function ReportsPage() {
               />
             </label>
           ))}
+          </div>
 
           {(groupId || courseId || studentId || from || to) && (
             <Button size="sm" variant="outline" onClick={() => setParams({ groupId: '', courseId: '', studentId: '', from: '', to: '' })}>

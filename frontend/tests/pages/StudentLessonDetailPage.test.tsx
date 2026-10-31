@@ -273,4 +273,19 @@ describe('one assignment, linked and collapsed', () => {
     await userEvent.click(screen.getByRole('button', { name: /הצגת התיאור/ }));
     expect(screen.getByText('תיאור ארוך של המטלה')).toBeInTheDocument();
   });
+
+  it('offers a jump to the submission that scrolls there, only while nothing is submitted', async () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    getLesson.mockResolvedValue(lessonWith([
+      { id: 'a1', title: 'מטלה ראשונה', description: 'תיאור ארוך של המטלה', deadline: FUTURE, allowFile: false, allowGithub: true, allowedTypes: [] },
+    ]));
+    mine.mockResolvedValue({ data: { data: { submitted: [] } } });
+    renderWithProviders(<StudentLessonDetailPage />, {
+      path: '/student/lesson/:id',
+      initialEntries: ['/student/lesson/l1?tab=assignments'],
+    });
+    await userEvent.click(await screen.findByRole('button', { name: /מעבר להגשה/ }));
+    expect(scroll).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+  });
 });

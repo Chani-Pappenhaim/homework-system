@@ -334,6 +334,15 @@ function AssignmentCard({ assignment: a, submission: sub, focused = false }: {
             <AssignmentFlags optional={a.optional} />
           </h3>
           <div className="flex shrink-0 items-center gap-2">
+            {!sub && (
+              <button
+                type="button"
+                onClick={() => submitRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })}
+                className="flex items-center gap-1 text-xs text-clay hover:underline"
+              >
+                <ChevronDown size={12} /> מעבר להגשה
+              </button>
+            )}
             {a.description && (
               <button
                 type="button"
