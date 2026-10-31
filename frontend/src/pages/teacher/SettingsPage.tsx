@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Clock, Mail, Save } from 'lucide-react';
+import { Camera, Clock, Mail, Save } from 'lucide-react';
+import { AvatarEditor } from '@/components/profile/AvatarEditor';
 import { messagesApi } from '@/api/messages.api';
 import { gradesApi } from '@/api/grades.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -19,9 +20,23 @@ export default function SettingsPage() {
   return (
     <div className="space-y-5" dir="rtl">
       <PageHeader title="הגדרות" meta="לוח בקרה · הגדרות" />
+      <ProfilePictureCard />
       <EmailSenderCard />
       <LatePenaltyCard />
     </div>
+  );
+}
+
+function ProfilePictureCard() {
+  return (
+    <Card accent="indigo">
+      <CardHeader>
+        <h2 className="flex items-center gap-1.5 font-display text-base font-bold"><Camera size={15} /> תמונת פרופיל</h2>
+      </CardHeader>
+      <CardContent>
+        <AvatarEditor />
+      </CardContent>
+    </Card>
   );
 }
 

@@ -37,6 +37,10 @@ model User {
   emailNotifications   Boolean   @default(true)
   createdAt            DateTime  @default(now())
 
+  // Profile picture: the stored square thumbnail's storage URL. Never sent to
+  // clients as is; they get a short-lived link through the file download route.
+  avatarUrl            String?
+
   studentGroups      StudentGroup[]
   submissions        Submission[]
   aiReviewCarryovers AiReviewCarryover[]

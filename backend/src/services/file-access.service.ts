@@ -12,6 +12,13 @@ export type FileCheck = { file: StoredFile } | { status: number; error: string }
  * every call, never trusted from the time a link was issued.
  */
 export async function checkFileAccess(fileId: string, kind: FileKind, userId: string, role: string): Promise<FileCheck> {
+  if (kind === 'avatar') {
+    // Profile pictures are shown wherever people appear in the site, so any
+    // signed-in user may see anyone's; the session itself is checked by the caller.
+    const owner = await prisma.user.findUnique({ where: { id: fileId }, select: { id: true, avatarUrl: true } });
+    if (!owner?.avatarUrl) return { status: 404, error: 'הקובץ לא נמצא' };
+    return { file: { id: owner.id, url: owner.avatarUrl, name: 'avatar', hidden: false } };
+  }
   if (kind === 'submission') {
     // A submission is the student's own work: only she and the teacher may open it.
     const submission = await prisma.submission.findUnique({ where: { id: fileId } });

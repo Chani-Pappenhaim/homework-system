@@ -6,6 +6,7 @@ import multer from 'multer';
 // route actually expects:
 export const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024; // lesson/course/submission file attachments
 export const MAX_IMPORT_BYTES = 5 * 1024 * 1024; // excel/markdown imports
+export const MAX_AVATAR_BYTES = 2 * 1024 * 1024; // profile pictures
 
 export const uploadAttachment = multer({
   storage: multer.memoryStorage(),
@@ -15,4 +16,9 @@ export const uploadAttachment = multer({
 export const uploadImport = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_IMPORT_BYTES },
+});
+
+export const uploadAvatar = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_AVATAR_BYTES },
 });

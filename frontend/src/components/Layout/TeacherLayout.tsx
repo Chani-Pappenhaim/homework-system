@@ -13,7 +13,12 @@ import { authApi } from '@/api/auth.api';
 import { messagesApi } from '@/api/messages.api';
 import { unwrap } from '@/lib/api-utils';
 import { useQueryParam } from '@/hooks/useQueryParam';
+<<<<<<< HEAD
 import { Brand } from '@/components/decor';
+=======
+import { Brand, DevSignature } from '@/components/decor';
+import { Avatar } from '@/components/ui/avatar';
+>>>>>>> worktree-agent-a4af289557b20bd3e
 
 const nav: NavItem[] = [
   { to: '/teacher', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
@@ -75,7 +80,7 @@ export default function TeacherLayout() {
     queryClient.clear();
   }
 
-  const initials = (user?.name ?? 'עדי שלום').split(' ').map((w) => w[0]).slice(0, 2).join('');
+  const name = user?.name ?? 'עדי שלום';
 
   return (
     <div className={cn('flex min-h-screen flex-col bg-graph', BOTTOM_BARS_SPACE)} dir="rtl">
@@ -121,11 +126,9 @@ export default function TeacherLayout() {
               )}
             </button>
             <div className="flex items-center gap-2 border-r border-rule pr-3">
-              <span className="grid size-8 place-items-center rounded-full bg-clay text-xs font-semibold text-sheet">
-                {initials}
-              </span>
+              <Avatar name={name} src={user?.avatarUrl} />
               <div className="hidden text-right leading-tight sm:block">
-                <div className="text-xs font-semibold text-ink">{user?.name ?? 'עדי שלום'}</div>
+                <div className="text-xs font-semibold text-ink">{name}</div>
                 <div className="text-[10px] text-ink-soft">מורה</div>
               </div>
               <button onClick={handleLogout} title="יציאה" className="text-ink-soft hover:text-coral">

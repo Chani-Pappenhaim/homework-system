@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as authService from '../services/auth.service';
 import * as emailVerification from '../services/email-verification.service';
+import * as avatarService from '../services/avatar.service';
 import { REFRESH_COOKIE, signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt';
 import { sendError } from '../utils/http';
 
@@ -124,6 +125,25 @@ export async function updateMe(req: Request, res: Response): Promise<void> {
   }
 }
 
+/** Replaces the signed-in user's own profile picture; there is no way to name another user. */
+export async function updateAvatar(req: Request, res: Response): Promise<void> {
+  try {
+    await avatarService.setAvatar(req.user!.userId, req.file!.buffer);
+    await sendCurrentUser(req, res);
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function removeAvatar(req: Request, res: Response): Promise<void> {
+  try {
+    await avatarService.removeAvatar(req.user!.userId);
+    await sendCurrentUser(req, res);
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
 export async function verifyEmail(req: Request, res: Response): Promise<void> {
   try {
     await emailVerification.verifyEmail(String(req.body?.token ?? ''));
@@ -144,12 +164,17 @@ export async function resendVerification(req: Request, res: Response): Promise<v
 
 export async function me(req: Request, res: Response): Promise<void> {
   try {
-    const user = await authService.getUserById(req.user!.userId);
-    if (!user) { res.status(404).json({ success: false, error: 'המשתמש לא נמצא' }); return; }
-    res.json({ success: true, data: { user: authService.toUserDTO(user) } });
+    await sendCurrentUser(req, res);
   } catch (err: any) {
     sendError(res, err);
   }
+}
+
+/** Responds with the signed-in user as the client keeps her, or 404 if the account is gone. */
+async function sendCurrentUser(req: Request, res: Response): Promise<void> {
+  const user = await authService.getUserById(req.user!.userId);
+  if (!user) { res.status(404).json({ success: false, error: 'המשתמש לא נמצא' }); return; }
+  res.json({ success: true, data: { user: authService.toUserDTO(user) } });
 }
 
 export async function oauthCallback(req: Request, res: Response): Promise<void> {

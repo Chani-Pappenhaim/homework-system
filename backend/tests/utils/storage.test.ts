@@ -10,7 +10,7 @@ vi.mock('../../src/config/cloudinary', () => ({
   cloudinary: { uploader: { upload: uploadFn, destroy: destroyFn }, utils: { api_sign_request: signFn } },
 }));
 
-import { uploadBuffer, destroyByUrl, toFileDTO, extractPublicId, createUploadSignature, isOwnUpload, assetRef } from '../../src/utils/storage';
+import { uploadBuffer, uploadSquareImage, avatarLink, destroyByUrl, toFileDTO, extractPublicId, createUploadSignature, isOwnUpload, assetRef } from '../../src/utils/storage';
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -46,6 +46,29 @@ describe('extractPublicId', () => {
 
   it('returns null for a url that is not a cloudinary upload', () => {
     expect(extractPublicId('https://example.com/file.pdf')).toBeNull();
+  });
+});
+
+describe('uploadSquareImage', () => {
+  it('asks storage for a centered square crop of the given size, as an image', async () => {
+    uploadFn.mockResolvedValue({ secure_url: 'https://res.cloudinary.com/x/image/upload/v1/avatars/a.jpg', bytes: 9, resource_type: 'image', public_id: 'avatars/a' });
+    const out = await uploadSquareImage(Buffer.from('hi'), 'image/png', 'avatars', 256);
+    expect(uploadFn).toHaveBeenCalledWith(
+      expect.stringMatching(/^data:image\/png;base64,/),
+      { resource_type: 'image', folder: 'avatars', transformation: [{ width: 256, height: 256, crop: 'fill' }] },
+    );
+    expect(out).toEqual({ url: 'https://res.cloudinary.com/x/image/upload/v1/avatars/a.jpg', bytes: 9, resourceType: 'image', publicId: 'avatars/a' });
+  });
+});
+
+describe('avatarLink', () => {
+  it('is null without a picture', () => {
+    expect(avatarLink({ id: 'u1', avatarUrl: null }, 'u1')).toBeNull();
+  });
+
+  it('is a session-bound download path carrying the extension, not the storage URL', () => {
+    const link = avatarLink({ id: 'u1', avatarUrl: 'https://res.cloudinary.com/x/image/upload/v1/avatars/a.png' }, 'viewer');
+    expect(link).toMatch(/^\/files\/download\/u1\/file\.png\?token=/);
   });
 });
 

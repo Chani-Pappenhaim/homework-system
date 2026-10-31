@@ -25,6 +25,16 @@ export const authApi = {
   updateMe: (data: Partial<{ name: string; email: string; githubUsername: string; emailNotifications: boolean }>) =>
     api.patch<{ success: true; data: { user: UserDTO; emailChanged: boolean } }>('/auth/me', data),
 
+  /** Replaces the signed-in user's own profile picture. */
+  updateAvatar: (file: File) => {
+    const form = new FormData();
+    form.append('avatar', file);
+    return api.put<{ success: true; data: { user: UserDTO } }>('/auth/me/avatar', form);
+  },
+
+  removeAvatar: () =>
+    api.delete<{ success: true; data: { user: UserDTO } }>('/auth/me/avatar'),
+
   verifyEmail: (token: string) =>
     api.post('/auth/verify-email', { token }),
 

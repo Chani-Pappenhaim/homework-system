@@ -9,7 +9,12 @@ import useAuthStore from '@/store/authStore';
 import { authApi } from '@/api/auth.api';
 import { messagesApi } from '@/api/messages.api';
 import { unwrap } from '@/lib/api-utils';
+<<<<<<< HEAD
 import { Brand } from '@/components/decor';
+=======
+import { Brand, DevSignature } from '@/components/decor';
+import { Avatar } from '@/components/ui/avatar';
+>>>>>>> worktree-agent-a4af289557b20bd3e
 
 const nav: NavItem[] = [
   { to: '/student', label: 'בית', icon: Home, end: true },
@@ -44,7 +49,7 @@ export default function StudentLayout() {
   const [bannerClosed, setBannerClosed] = useState(false);
   const showVerifyBanner = Boolean(user && user.emailVerified === false && !bannerClosed);
 
-  const initials = (user?.name ?? 'תלמידה').split(' ').map((w) => w[0]).slice(0, 2).join('');
+  const name = user?.name ?? 'תלמידה';
 
   return (
     <div className={cn('flex min-h-screen flex-col bg-graph', BOTTOM_BARS_SPACE)} dir="rtl">
@@ -57,11 +62,9 @@ export default function StudentLayout() {
           <div className="mr-auto flex items-center gap-3">
             <div className="flex items-center gap-2 border-r border-rule pr-3">
               <button onClick={() => navigate('/student/profile')} title="הפרופיל שלי" className="flex items-center gap-2">
-              <span className="grid size-8 place-items-center rounded-full bg-clay text-xs font-semibold text-sheet">
-                {initials}
-              </span>
+              <Avatar name={name} src={user?.avatarUrl} />
               <div className="hidden text-right leading-tight sm:block">
-                <div className="text-xs font-semibold text-ink">{user?.name ?? 'תלמידה'}</div>
+                <div className="text-xs font-semibold text-ink">{name}</div>
                 <div className="text-[10px] text-ink-soft">תלמידה</div>
               </div>
               </button>
