@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Clock, Mail, Save } from 'lucide-react';
+import { Clock, LogOut, Mail, Save } from 'lucide-react';
 import { messagesApi } from '@/api/messages.api';
 import { gradesApi } from '@/api/grades.api';
+import { authApi } from '@/api/auth.api';
+import useAuthStore from '@/store/authStore';
+import { useConfirm } from '@/components/ui/use-confirm';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +24,7 @@ export default function SettingsPage() {
       <PageHeader title="הגדרות" meta="לוח בקרה · הגדרות" />
       <EmailSenderCard />
       <LatePenaltyCard />
+      <SessionsCard />
     </div>
   );
 }
@@ -148,6 +152,47 @@ function LatePenaltyCard() {
         <Button onClick={() => save.mutate()} loading={save.isPending} disabled={isLoading || !valid || unchanged}>
           <Save size={14} /> שמירה
         </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SessionsCard() {
+  const toast = useToast();
+  const setAccessToken = useAuthStore((st) => st.setAccessToken);
+  const [confirmDialog, ask] = useConfirm();
+
+  const logoutOthers = useMutation({
+    mutationFn: () => authApi.logoutOthers(),
+    onSuccess: (res) => {
+      setAccessToken(res.data.data.accessToken);
+      toast.success('נותקת מכל המכשירים האחרים');
+    },
+    onError: (e) => toast.error(getApiErrorMessage(e, 'הניתוק נכשל')),
+  });
+
+  const confirmAndLogout = async () => {
+    const ok = await ask({
+      title: 'להתנתק מכל המכשירים האחרים?',
+      description: 'כל מחשב או טלפון אחר שמחובר לחשבון שלך יידרש להתחבר מחדש. במכשיר הזה נשארים מחוברים.',
+      confirmLabel: 'ניתוק',
+    });
+    if (ok) logoutOthers.mutate();
+  };
+
+  return (
+    <Card accent="indigo">
+      <CardHeader>
+        <h2 className="flex items-center gap-1.5 font-display text-base font-bold"><LogOut size={15} /> מכשירים מחוברים</h2>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-ink-soft">
+          אם התחברת ממחשב משותף או ממכשיר שאבד, אפשר לנתק את כל החיבורים האחרים לחשבון. החיבור במכשיר הזה נשמר.
+        </p>
+        <Button variant="outline" onClick={confirmAndLogout} loading={logoutOthers.isPending}>
+          <LogOut size={14} /> התנתקות מכל המכשירים האחרים
+        </Button>
+        {confirmDialog}
       </CardContent>
     </Card>
   );

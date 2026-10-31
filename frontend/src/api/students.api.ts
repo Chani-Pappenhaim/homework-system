@@ -80,6 +80,13 @@ export interface StudentProfile {
   }>;
 }
 
+/** The students active in the last few minutes. */
+export interface OnlineStudents {
+  count: number;
+  windowMinutes: number;
+  students: { id: string; name: string; lastSeenAt: string }[];
+}
+
 export const studentsApi = {
   findByEmail: (email: string) =>
     api.get<{ success: true; data: { student: StudentSummary | null } }>('/students', { params: { email } }),
@@ -88,6 +95,8 @@ export const studentsApi = {
   /** A student with no group, for private lessons or a single course. */
   create: (data: { name: string; email: string; githubUsername?: string }) =>
     api.post<{ success: true; data: { student: StudentSummary } }>('/students', data),
+  online: () =>
+    api.get<{ success: true; data: OnlineStudents }>('/students/online'),
   overview: () =>
     api.get<{ success: true; data: { students: StudentOverview[] } }>('/students/overview'),
   profile: (id: string) =>

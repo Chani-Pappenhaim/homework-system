@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as authService from '../services/auth.service';
 import * as emailVerification from '../services/email-verification.service';
+import * as sessionService from '../services/session.service';
 import { REFRESH_COOKIE, signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt';
 import { sendError } from '../utils/http';
 
@@ -24,9 +25,9 @@ type SessionUser = { id: string; role: string; mustChangePassword: boolean; toke
 
 /**
  * Starts (or renews) a session: sets the refresh cookie and returns a fresh
- * access token. The refresh token remembers the user's tokenVersion so a later
- * password change can revoke it; the access token carries the temporary
- * password flag the auth middleware enforces.
+ * access token. Both tokens remember the user's tokenVersion so a later
+ * password change or "sign out other devices" revokes them; the access token
+ * also carries the temporary password flag the auth middleware enforces.
  */
 function issueSession(res: Response, user: SessionUser): string {
   const refreshToken = signRefreshToken({ userId: user.id, role: user.role, tokenVersion: user.tokenVersion });
@@ -34,6 +35,7 @@ function issueSession(res: Response, user: SessionUser): string {
   return signAccessToken({
     userId: user.id,
     role: user.role,
+    tokenVersion: user.tokenVersion,
     ...(user.mustChangePassword ? { mustChangePassword: true } : {}),
   });
 }
@@ -90,6 +92,18 @@ export async function changePassword(req: Request, res: Response): Promise<void>
     res.json({ success: true, data: { accessToken } });
   } catch (err: any) {
     sendError(res, err, 400);
+  }
+}
+
+export async function logoutOtherDevices(req: Request, res: Response): Promise<void> {
+  try {
+    await sessionService.revokeAllSessions(req.user!.userId);
+    // Every session was revoked; this device continues on a new one.
+    const user = await authService.getUserById(req.user!.userId);
+    if (!user) { res.status(404).json({ success: false, error: 'המשתמש לא נמצא' }); return; }
+    res.json({ success: true, data: { accessToken: issueSession(res, user) } });
+  } catch (err: any) {
+    sendError(res, err);
   }
 }
 

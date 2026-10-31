@@ -14,7 +14,7 @@ vi.mock('@/api/groups.api', () => ({ groupsApi: { list: vi.fn() } }));
 vi.mock('@/api/courses.api', () => ({ coursesApi: { list: vi.fn() } }));
 vi.mock('@/api/grades.api', () => ({ gradesApi: { pending: vi.fn(), report: vi.fn() } }));
 vi.mock('@/api/aiUsage.api', () => ({ aiUsageApi: { summary: vi.fn() } }));
-vi.mock('@/api/students.api', () => ({ studentsApi: { search: vi.fn() } }));
+vi.mock('@/api/students.api', () => ({ studentsApi: { search: vi.fn(), online: vi.fn() } }));
 
 import { groupsApi } from '@/api/groups.api';
 import { coursesApi } from '@/api/courses.api';
@@ -29,6 +29,7 @@ const pending = gradesApi.pending as unknown as ReturnType<typeof vi.fn>;
 const report = gradesApi.report as unknown as ReturnType<typeof vi.fn>;
 const summary = aiUsageApi.summary as unknown as ReturnType<typeof vi.fn>;
 const searchStudents = studentsApi.search as unknown as ReturnType<typeof vi.fn>;
+const onlineStudents = studentsApi.online as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -39,9 +40,31 @@ beforeEach(() => {
   report.mockResolvedValue({ data: { data: { report: [] } } });
   summary.mockResolvedValue({ data: { data: { totalCostUsd: 0 } } });
   searchStudents.mockResolvedValue({ data: { data: { students: [] } } });
+  onlineStudents.mockResolvedValue({ data: { data: { count: 0, windowMinutes: 5, students: [] } } });
 });
 
 describe('TeacherHomePage', () => {
+  it('shows how many students are online and who they are', async () => {
+    onlineStudents.mockResolvedValue({
+      data: { data: { count: 2, windowMinutes: 5, students: [
+        { id: 's1', name: 'רחל', lastSeenAt: '2026-10-31T10:00:00Z' },
+        { id: 's2', name: 'לאה', lastSeenAt: '2026-10-31T09:58:00Z' },
+      ] } },
+    });
+    renderWithProviders(<TeacherHomePage />);
+    const tile = screen.getByRole('button', { name: /מחוברות עכשיו/ });
+    await waitFor(() => expect(tile).toHaveTextContent('2'));
+    expect(tile).toHaveAttribute('title', expect.stringContaining('רחל, לאה'));
+    await userEvent.click(tile);
+    expect(navigate).toHaveBeenCalledWith('/teacher/students');
+  });
+
+  it('shows a dash while the online count is unknown', async () => {
+    onlineStudents.mockRejectedValue(new Error('offline'));
+    renderWithProviders(<TeacherHomePage />);
+    expect(screen.getByRole('button', { name: /מחוברות עכשיו/ })).toHaveTextContent('-');
+  });
+
   it('greets the user by name', async () => {
     renderWithProviders(<TeacherHomePage />);
     expect(await screen.findByText(/שלום, שרה/)).toBeInTheDocument();

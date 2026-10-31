@@ -14,6 +14,8 @@ router.get('/', (req, res) => {
 });
 
 router.get('/overview', studentsController.overview);
+// The students active in the last few minutes.
+router.get('/online', studentsController.online);
 router.get('/:id/profile', studentsController.profile);
 router.post('/', studentsController.createStudent);
 router.put('/:id', studentsController.updateStudent);

@@ -7,6 +7,10 @@ export const authApi = {
 
   logout: () => api.post('/auth/logout'),
 
+  /** Signs out every other device; this one continues on the returned token. */
+  logoutOthers: () =>
+    api.post<{ success: true; data: { accessToken: string } }>('/auth/logout-others'),
+
   refresh: () =>
     api.post<{ success: true; data: { accessToken: string } }>('/auth/refresh'),
 

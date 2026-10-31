@@ -9,6 +9,8 @@ const router = Router();
 router.post('/login', authRateLimit, authController.login);
 router.post('/refresh', authController.refresh);
 router.post('/logout', authController.logout);
+// Signs out every other device of the user, keeping this one signed in.
+router.post('/logout-others', verifyAccessTokenMiddleware, authController.logoutOtherDevices);
 router.post('/forgot-password', authRateLimit, authController.forgotPassword);
 router.post('/reset-password', authRateLimit, authController.resetPasswordWithToken);
 router.post('/change-password', verifyAccessTokenMiddleware, authController.changePassword);

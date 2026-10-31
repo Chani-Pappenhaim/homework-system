@@ -21,7 +21,8 @@ export interface TokenPayload {
   role: string;
   // Access token only: the user still has to replace a temporary password.
   mustChangePassword?: boolean;
-  // Refresh token only: the user's tokenVersion when it was signed.
+  // The user's tokenVersion when it was signed; a later bump (password change,
+  // signing out other devices) revokes the token. Missing counts as 0.
   tokenVersion?: number;
 }
 

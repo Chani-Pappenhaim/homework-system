@@ -20,6 +20,11 @@ const getLatePolicy = gradesApi.latePolicy as unknown as ReturnType<typeof vi.fn
 const updateLatePolicy = gradesApi.updateLatePolicy as unknown as ReturnType<typeof vi.fn>;
 const latePolicyReply = (perDay: number, max: number) => ({ data: { success: true, data: { perDay, max } } });
 
+vi.mock('@/api/auth.api', () => ({ authApi: { logoutOthers: vi.fn() } }));
+import { authApi } from '@/api/auth.api';
+import useAuthStore from '@/store/authStore';
+const logoutOthers = authApi.logoutOthers as unknown as ReturnType<typeof vi.fn>;
+
 const reply = (senderName: string | null) => ({ data: { success: true, data: { senderName, defaultSenderName: 'Teacher Feature' } } });
 
 beforeEach(() => {
@@ -100,5 +105,35 @@ describe('Teacher settings - the late penalty', () => {
     await user.type(max, '150');
     expect(screen.getByText('יש לכתוב מספרים שלמים בין 0 ל-100')).toBeInTheDocument();
     expect(saveButton(1)).toBeDisabled();
+  });
+});
+
+describe('Teacher settings - signing out other devices', () => {
+  const button = () => screen.getByRole('button', { name: /התנתקות מכל המכשירים האחרים/ });
+
+  it('asks first, then keeps this device signed in on the new token', async () => {
+    logoutOthers.mockResolvedValue({ data: { success: true, data: { accessToken: 'fresh-token' } } });
+    renderPage();
+    await userEvent.click(button());
+    expect(logoutOthers).not.toHaveBeenCalled();
+    await userEvent.click(await screen.findByRole('button', { name: 'ניתוק' }));
+    await waitFor(() => expect(logoutOthers).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(useAuthStore.getState().accessToken).toBe('fresh-token'));
+    expect(await screen.findByText('נותקת מכל המכשירים האחרים')).toBeInTheDocument();
+  });
+
+  it('does nothing when she cancels', async () => {
+    renderPage();
+    await userEvent.click(button());
+    await userEvent.click(await screen.findByRole('button', { name: /ביטול/ }));
+    expect(logoutOthers).not.toHaveBeenCalled();
+  });
+
+  it('reports a failure', async () => {
+    logoutOthers.mockRejectedValue(new Error('network'));
+    renderPage();
+    await userEvent.click(button());
+    await userEvent.click(await screen.findByRole('button', { name: 'ניתוק' }));
+    expect(await screen.findByText('הניתוק נכשל')).toBeInTheDocument();
   });
 });
