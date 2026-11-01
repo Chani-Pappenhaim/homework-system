@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import { preloadPage } from '@/lib/pages';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DevSignature } from '@/components/decor';
@@ -28,7 +29,7 @@ export function BottomBars({ nav }: { nav: NavItem[] }) {
     <>
       <nav className="fixed inset-x-0 bottom-0 z-30 flex min-h-14 items-center justify-around border-t border-rule bg-sheet/90 px-2 backdrop-blur-sm md:hidden">
         {nav.map(({ to, label, icon: Icon, end }) => (
-          <NavLink key={to} to={to} end={end}>
+          <NavLink key={to} to={to} end={end} onFocus={() => preloadPage(to)} onTouchStart={() => preloadPage(to)}>
             {({ isActive }) => (
               <span className={cn('flex flex-col items-center gap-0.5 px-2 py-1 text-[10px]', isActive ? 'text-ink' : 'text-ink-soft')}>
                 <Icon size={18} />

@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { CourseByName, LessonById, LessonByNumber } from '@/components/lesson/LessonRoute';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -9,37 +10,15 @@ import ChangePasswordGuard from '@/components/guards/ChangePasswordGuard';
 import StudentGuard from '@/components/guards/StudentGuard';
 
 import LoginPage from '@/pages/auth/LoginPage';
-import ChangePasswordPage from '@/pages/auth/ChangePasswordPage';
-import OAuthCallbackPage from '@/pages/auth/OAuthCallbackPage';
-import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage';
-import ResetPasswordPage from '@/pages/auth/ResetPasswordPage';
-import VerifyEmailPage from '@/pages/auth/VerifyEmailPage';
-
-import TeacherHomePage from '@/pages/teacher/HomePage';
-import GroupsPage from '@/pages/teacher/GroupsPage';
-import GroupDetailPage from '@/pages/teacher/GroupDetailPage';
-import GroupFormPage from '@/pages/teacher/GroupFormPage';
-import CoursesPage from '@/pages/teacher/CoursesPage';
-import CourseFormPage from '@/pages/teacher/CourseFormPage';
-import CourseDetailPage from '@/pages/teacher/CourseDetailPage';
-import LessonDetailPage from '@/pages/teacher/LessonDetailPage';
-import TeacherQuizPage from '@/pages/teacher/QuizPage';
-import ReportsPage from '@/pages/teacher/ReportsPage';
-import TeacherMessagesPage from '@/pages/teacher/MessagesPage';
-import AiUsagePage from '@/pages/teacher/AiUsagePage';
-import TeacherSettingsPage from '@/pages/teacher/SettingsPage';
-import StudentsPage from '@/pages/teacher/StudentsPage';
-import StudentDetailPage from '@/pages/teacher/StudentDetailPage';
-
-import StudentHomePage from '@/pages/student/HomePage';
-import StudentCoursesPage from '@/pages/student/CoursesPage';
-import StudentCourseDetailPage from '@/pages/student/CourseDetailPage';
-import StudentLessonDetailPage from '@/pages/student/LessonDetailPage';
-import AssignmentsPage from '@/pages/student/AssignmentsPage';
-import StudentAttendancePage from '@/pages/student/AttendancePage';
-import QuizPage from '@/pages/student/QuizPage';
-import StudentMessagesPage from '@/pages/student/MessagesPage';
-import ProfilePage from '@/pages/student/ProfilePage';
+import {
+  ChangePasswordPage, OAuthCallbackPage, ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage,
+  TeacherHomePage, GroupsPage, GroupDetailPage, GroupFormPage, CoursesPage, CourseFormPage,
+  CourseDetailPage, LessonDetailPage, TeacherQuizPage, ReportsPage, TeacherMessagesPage,
+  AiUsagePage, TeacherSettingsPage, StudentsPage, StudentDetailPage,
+  StudentHomePage, StudentCoursesPage, StudentCourseDetailPage, StudentLessonDetailPage,
+  AssignmentsPage, StudentAttendancePage, QuizPage, StudentMessagesPage, ProfilePage,
+} from '@/lib/pages';
+import { FullPageSpinner } from '@/components/ui/full-page-spinner';
 
 function AppRoutes() {
   const location = useLocation();
@@ -47,6 +26,7 @@ function AppRoutes() {
   useScrollToTopOnNavigate();
   return (
     <ErrorBoundary resetKey={location.pathname}>
+      <Suspense fallback={<FullPageSpinner />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -100,6 +80,7 @@ function AppRoutes() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
+      </Suspense>
     </ErrorBoundary>
   );
 }
