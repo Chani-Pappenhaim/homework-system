@@ -159,10 +159,10 @@ export default function ReportsPage() {
             {studentOptions.map((s, i) => <option key={s.id} value={s.id}>{studentLabels[i]}</option>)}
           </select>
 
-          {/* Both dates stay together on one line; they only wrap as a pair on a narrow screen. */}
-          <div className="flex items-center gap-3 whitespace-nowrap">
+          {/* Both dates stay together on one line; they each pair of label and field stays together and wraps as a unit on a narrow screen. */}
+          <div className="flex flex-wrap items-center gap-3">
           {(['from', 'to'] as const).map((key) => (
-            <label key={key} className="flex items-center gap-1.5 text-sm text-ink-soft">
+            <label key={key} className="flex items-center gap-1.5 whitespace-nowrap text-sm text-ink-soft">
               {key === 'from' ? 'מתאריך' : 'עד תאריך'}
               <input
                 type="date"

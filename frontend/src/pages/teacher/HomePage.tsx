@@ -157,9 +157,9 @@ export default function TeacherHomePage() {
         </section>
       )}
 
-      <div className={cn('grid gap-5', graded[0]?.feedback && 'lg:grid-cols-[2fr_1fr] lg:items-start')}>
+      <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-5', graded[0]?.feedback && 'lg:grid-cols-[2fr_1fr] lg:items-start')}>
         {/* Review queue */}
-        <section className="sheet">
+        <section className="sheet min-w-0">
           <div className="flex items-center gap-2 border-b border-rule px-4 py-3">
             <Pencil size={15} className="text-clay" />
             <h2 className="font-display text-base font-bold">יומן בדיקה</h2>
