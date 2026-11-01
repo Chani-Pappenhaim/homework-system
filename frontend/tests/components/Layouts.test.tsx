@@ -103,6 +103,9 @@ describe.each([
     expect(phoneNav).not.toHaveClass('sticky');
     expect(footer).toHaveClass('fixed', 'bottom-0');
     expect(footer).not.toHaveClass('sticky');
+    // The side rail stays under the footer and never grows past the room above it
+    const rail = container.querySelector('nav.sticky')!;
+    expect(rail).toHaveClass('z-20', 'max-h-[calc(100vh-7rem)]');
     expect(container.firstElementChild).toHaveClass(...BOTTOM_BARS_SPACE.split(' '));
   });
 });

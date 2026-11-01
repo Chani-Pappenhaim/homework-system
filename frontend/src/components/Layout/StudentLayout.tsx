@@ -76,7 +76,7 @@ export default function StudentLayout() {
       </header>
 
       <div className="flex w-full flex-1">
-        <nav className="sticky top-16 z-40 hidden h-fit w-16 shrink-0 flex-col items-center gap-2 py-5 md:flex">
+        <nav className="sticky top-16 z-20 hidden h-fit max-h-[calc(100vh-7rem)] w-16 shrink-0 flex-col items-center gap-2 py-5 md:flex [@media(max-height:600px)]:overflow-y-auto">
           {nav.map(({ to, label, icon: Icon, end }) => (
             <NavLink key={to} to={to} end={end} className="group relative" onMouseEnter={() => preloadPage(to)} onFocus={() => preloadPage(to)}>
               {({ isActive }) => (
