@@ -101,4 +101,17 @@ describe('CourseFormPage (edit)', () => {
     expect(screen.getByText('שיעורים (1)')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'שמור שינויים' })).toBeInTheDocument();
   });
+
+  it('keeps what she is typing when the course is refetched unchanged', async () => {
+    // A fresh response object each time, as the network gives, with the same course in it.
+    getCourse.mockImplementation(async () => ({ data: { data: { course: structuredClone(course) } }, request: new XMLHttpRequest() }));
+    const { queryClient } = renderEdit();
+    const name = await screen.findByDisplayValue('קורס קיים');
+
+    await userEvent.type(name, ' חדש');
+    await queryClient.refetchQueries();
+
+    expect(getCourse.mock.calls.length).toBeGreaterThan(1);
+    expect(screen.getByDisplayValue('קורס קיים חדש')).toBeInTheDocument();
+  });
 });
