@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import PageOutlet from '@/components/Layout/PageOutlet';
+import { preloadPage } from '@/lib/pages';
 import { BottomBars, BOTTOM_BARS_SPACE, type NavItem } from '@/components/Layout/BottomBars';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -140,7 +141,7 @@ export default function TeacherLayout() {
       <div className="flex w-full flex-1">
         <nav className="sticky top-16 z-40 hidden h-fit w-16 shrink-0 flex-col items-center gap-2 py-5 md:flex">
           {nav.map(({ to, label, icon: Icon, end }) => (
-            <NavLink key={to} to={to} end={end} className="group relative">
+            <NavLink key={to} to={to} end={end} className="group relative" onMouseEnter={() => preloadPage(to)} onFocus={() => preloadPage(to)}>
               {({ isActive }) => (
                 <span
                   className={cn(
