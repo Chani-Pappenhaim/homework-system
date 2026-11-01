@@ -11,6 +11,7 @@ import { messagesApi } from '@/api/messages.api';
 import { unwrap } from '@/lib/api-utils';
 import { Brand } from '@/components/decor';
 import { Avatar } from '@/components/ui/avatar';
+import { useNoIndex } from '@/hooks/useNoIndex';
 
 const nav: NavItem[] = [
   { to: '/student', label: 'בית', icon: Home, end: true },
@@ -22,6 +23,7 @@ const nav: NavItem[] = [
 ];
 
 export default function StudentLayout() {
+  useNoIndex();
   const { user, clearAuth } = useAuthStore();
   const queryClient = useQueryClient();
   const navigate = useNavigate();

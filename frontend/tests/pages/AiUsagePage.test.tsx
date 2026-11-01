@@ -67,6 +67,20 @@ describe('AiUsagePage', () => {
     expect(screen.getByText('11')).toBeInTheDocument();
   });
 
+  it('keeps the storage card on its own tab', async () => {
+    (aiUsageApi.storage as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { usedBytes: 5e8, limitBytes: 1e9, percent: 50 } },
+    });
+    renderSummary(sampleSummary);
+
+    await screen.findByText('42');
+    expect(screen.queryByText(/Cloudinary/)).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /אחסון/ }));
+    expect(await screen.findByText(/Cloudinary/)).toBeInTheDocument();
+    expect(screen.queryByText('פירוט חודשי')).not.toBeInTheDocument();
+  });
+
   it('shows an empty-state row when there is no monthly data', async () => {
     renderSummary({ ...sampleSummary, byMonth: [] });
     expect(await screen.findByText('אין נתוני שימוש עדיין')).toBeInTheDocument();

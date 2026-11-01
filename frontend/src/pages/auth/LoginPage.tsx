@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
-import { Brand, Tape } from '@/components/decor';
+import { Brand, DevSignature, Tape } from '@/components/decor';
 import { getApiErrorMessage } from '@/lib/errors';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { wakeBackend } from '@/lib/wakeBackend';
@@ -190,6 +190,9 @@ export default function LoginPage() {
               )}
             </button>
           </div>
+        </div>
+        <div className="mt-6 flex justify-center">
+          <DevSignature />
         </div>
       </div>
     </div>

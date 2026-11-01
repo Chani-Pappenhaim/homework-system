@@ -40,6 +40,11 @@ function requestSettled() {
   }
 }
 
+/** Ends the banner's count for a request that was counted when it started. */
+function settle(config: any) {
+  if (config?._tracked) requestSettled();
+}
+
 // ---------------------------------------------------------------------------
 // Access-token refresh
 // ---------------------------------------------------------------------------
@@ -102,7 +107,12 @@ api.interceptors.request.use(async (config) => {
   // config, and we must not double-count it or the banner never clears.
   if (!(config as any)._counted) {
     (config as any)._counted = true;
-    requestStarted();
+    // An upload is slow because of its size, not because the server is asleep,
+    // so it never raises the "server is waking up" banner.
+    if (!(config.data instanceof FormData)) {
+      (config as any)._tracked = true;
+      requestStarted();
+    }
   }
   let token = useAuthStore.getState().accessToken;
   if (token && expiresSoon(token) && !isNoTokenUrl(config.url)) {
@@ -153,7 +163,7 @@ function isColdStartError(error: any): boolean {
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 api.interceptors.response.use(
-  (res) => { requestSettled(); return res; },
+  (res) => { settle(res.config); return res; },
   async (error) => {
     const original = error.config;
 
@@ -168,7 +178,7 @@ api.interceptors.response.use(
         return api(original);
       } catch {
         useAuthStore.getState().clearAuth();
-        requestSettled();
+        settle(original);
         if (!isPublicPath(window.location.pathname)) {
           window.location.href = '/login';
         }
@@ -185,7 +195,7 @@ api.interceptors.response.use(
       return api(original);
     }
 
-    requestSettled();
+    settle(original);
     return Promise.reject(error);
   }
 );
