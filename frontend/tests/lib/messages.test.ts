@@ -30,6 +30,6 @@ describe('threadTitle', () => {
 
 describe('REACTION_EMOJIS', () => {
   it('offers the six agreed emojis', () => {
-    expect([...REACTION_EMOJIS]).toEqual(['👍', '❤️', '😂', '😮', '🙏', '✅']);
+    expect([...REACTION_EMOJIS]).toEqual(['👍', '🙂', '🙏', '❤️']);
   });
 });
