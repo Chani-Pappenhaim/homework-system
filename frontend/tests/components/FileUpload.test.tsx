@@ -103,3 +103,14 @@ describe('PreviewableTypes', () => {
     expect(screen.getByText(/להורדה בלבד/)).toBeInTheDocument();
   });
 });
+
+describe('FileUpload confirm label', () => {
+  it('uses the given text on the confirming button', async () => {
+    const onFile = vi.fn();
+    render(<FileUpload onFile={onFile} confirmLabel="הגש" />);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(input, new File(['x'], 'a.txt'));
+    await userEvent.click(screen.getByRole('button', { name: 'הגש' }));
+    expect(onFile).toHaveBeenCalled();
+  });
+});
