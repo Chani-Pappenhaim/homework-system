@@ -32,6 +32,13 @@ beforeEach(() => {
 });
 
 describe('LoginPage', () => {
+  it('pins the developer credits to the bottom of the screen', () => {
+    const { container } = renderWithProviders(<LoginPage />);
+    const footer = container.querySelector('footer')!;
+    expect(footer).toHaveClass('fixed', 'bottom-0');
+    expect(footer).toHaveTextContent('Chani Pappenheim');
+  });
+
   it('renders the login form fields and submit button', () => {
     renderWithProviders(<LoginPage />);
     expect(screen.getByPlaceholderText('you@example.com')).toBeInTheDocument();

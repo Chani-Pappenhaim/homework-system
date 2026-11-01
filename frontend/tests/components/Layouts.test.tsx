@@ -94,15 +94,15 @@ describe.each([
   ['TeacherLayout', TeacherLayout],
   ['StudentLayout', StudentLayout],
 ])('%s bottom bars', (_name, Layout) => {
-  it('pins the phone nav to the screen, puts the footer last in the page flow, and leaves room for the nav', () => {
+  it('pins the phone nav and the footer to the screen, and leaves room for them', () => {
     getUnreadCount.mockResolvedValue({ data: { data: { count: 0 } } });
     const { container } = renderWithProviders(<Layout />);
     const footer = container.querySelector('footer')!;
     const phoneNav = container.querySelector('nav.md\\:hidden')!;
     expect(phoneNav).toHaveClass('fixed', 'bottom-0');
     expect(phoneNav).not.toHaveClass('sticky');
-    expect(footer).not.toHaveClass('fixed', 'sticky');
-    expect(container.firstElementChild!.lastElementChild).toBe(footer);
+    expect(footer).toHaveClass('fixed', 'bottom-0');
+    expect(footer).not.toHaveClass('sticky');
     expect(container.firstElementChild).toHaveClass(...BOTTOM_BARS_SPACE.split(' '));
   });
 });

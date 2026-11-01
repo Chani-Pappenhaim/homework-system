@@ -87,7 +87,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-graph p-4" dir="rtl">
+    <div className="flex min-h-screen items-center justify-center bg-graph p-4 pb-16" dir="rtl">
       <div className="relative w-full max-w-sm">
         <div className="mb-6">
           <Brand variant="hero" teacher />
@@ -191,10 +191,10 @@ export default function LoginPage() {
             </button>
           </div>
         </div>
-        <div className="mt-6 flex justify-center">
-          <DevSignature />
-        </div>
       </div>
+      <footer className="fixed inset-x-0 bottom-0 z-30 flex h-12 items-center justify-center border-t border-rule bg-sheet/90 backdrop-blur-sm">
+        <DevSignature />
+      </footer>
     </div>
   );
 }

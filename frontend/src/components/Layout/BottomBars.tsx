@@ -12,17 +12,16 @@ export interface NavItem {
 }
 
 /**
- * The room a layout leaves under its content for the phone nav, so the end of
- * a page is never hidden behind it. Matches the nav's height (14).
+ * The room a layout leaves under its content for the bars below, so the end of
+ * a page is never hidden behind them. Matches the bars' heights (14 / 12).
  */
-export const BOTTOM_BARS_SPACE = 'pb-14 md:pb-0';
+export const BOTTOM_BARS_SPACE = 'pb-14 md:pb-12';
 
 /**
- * The page nav pinned to the bottom of a phone screen, and the credits footer
- * at the very end of the page on a wider screen. The nav is fixed to the screen
- * rather than sticky inside the layout, so a dropdown or popover that reaches
- * past the end of a short page never carries it up. The footer is a normal
- * block that sits last in the layout's column, so it is always at the bottom.
+ * The bars pinned to the bottom of the screen: the page nav on a phone, and the
+ * credits footer on a wider screen. They are fixed to the screen rather than
+ * sticky inside the layout, so a dropdown or popover that reaches past the end
+ * of a short page never carries them up with it.
  */
 export function BottomBars({ nav }: { nav: NavItem[] }) {
   return (
@@ -40,7 +39,7 @@ export function BottomBars({ nav }: { nav: NavItem[] }) {
         ))}
       </nav>
 
-      <footer className="hidden h-12 shrink-0 border-t border-rule bg-sheet/90 md:block">
+      <footer className="fixed inset-x-0 bottom-0 z-30 hidden h-12 border-t border-rule bg-sheet/90 backdrop-blur-sm md:block">
         <div className="flex h-full items-center justify-between gap-4 px-6 text-[11px] text-ink-soft">
           <span>Teacher Feature · המורה עדי שלום</span>
           <DevSignature />
