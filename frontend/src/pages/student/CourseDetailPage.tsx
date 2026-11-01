@@ -64,7 +64,7 @@ export default function StudentCourseDetailPage(props: Partial<CoursePageProps>)
       <Card accent="indigo">
         <CardHeader><h2 className="font-display text-base font-bold">שיעורים</h2></CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {course.lessons.map((l, i) => (
               <button
                 key={l.id}
@@ -72,17 +72,22 @@ export default function StudentCourseDetailPage(props: Partial<CoursePageProps>)
                 onMouseEnter={() => prefetchLesson(l.id)}
                 onFocus={() => prefetchLesson(l.id)}
                 title={l.completed ? `${l.topic} (הושלם)` : l.topic}
-                className={cn(
-                  'lift relative grid size-14 place-items-center rounded-lg border border-rule font-display text-lg font-bold shadow-soft',
-                  l.completed ? 'bg-sage text-sheet' : 'bg-sheet text-ink',
-                )}
+                className="lift flex items-center gap-3 rounded-lg border border-rule bg-sheet p-2 text-start shadow-soft"
               >
-                {l.completed && (
-                  <span className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-clay text-sheet">
-                    <Check size={11} strokeWidth={3} />
-                  </span>
-                )}
-                {i + 1}
+                <span
+                  className={cn(
+                    'relative grid size-10 shrink-0 place-items-center rounded-lg border border-rule font-display text-base font-bold',
+                    l.completed ? 'bg-sage text-sheet' : 'bg-ground text-ink',
+                  )}
+                >
+                  {l.completed && (
+                    <span className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-clay text-sheet">
+                      <Check size={11} strokeWidth={3} />
+                    </span>
+                  )}
+                  {i + 1}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{l.topic}</span>
               </button>
             ))}
           </div>

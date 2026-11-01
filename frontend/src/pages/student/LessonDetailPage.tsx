@@ -529,6 +529,14 @@ function AssignmentCard({ assignment: a, submission: sub, focused = false }: {
                   )}
                 </div>
               )}
+              {/* Above the upload: a file is submitted the moment it is chosen, so the note must come first. */}
+              <MarkdownField
+                id={`submission-notes-${a.id}`}
+                label="הערה למורה (אופציונלי)"
+                rows={2}
+                value={notes}
+                onChange={setNotes}
+              />
               {a.allowFile && (
                 <FileUpload
                   accept={a.allowedTypes.length ? a.allowedTypes.map((t) => `.${t}`).join(',') : undefined}
@@ -578,13 +586,6 @@ function AssignmentCard({ assignment: a, submission: sub, focused = false }: {
                   )}
                 </div>
               )}
-              <MarkdownField
-                id={`submission-notes-${a.id}`}
-                label="הערה למורה (אופציונלי)"
-                rows={2}
-                value={notes}
-                onChange={setNotes}
-              />
               {error && <p className="text-coral text-xs">{error}</p>}
             </>
           )}

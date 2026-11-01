@@ -45,7 +45,7 @@ describe('StudentCourseDetailPage', () => {
   it('navigates to a lesson when its numbered bubble is clicked', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'קורס פייתון' });
-    await userEvent.click(screen.getByRole('button', { name: '2' }));
+    await userEvent.click(screen.getByRole('button', { name: /^2\s*b$/ }));
     expect(navigate).toHaveBeenCalledWith('/student/courses/c1/lessons/2-b');
   });
 
