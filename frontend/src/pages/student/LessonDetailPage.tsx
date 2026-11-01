@@ -538,7 +538,7 @@ function AssignmentCard({ assignment: a, submission: sub, focused = false }: {
                   )}
                 </div>
               )}
-              {/* Above the upload: a file is submitted the moment it is chosen, so the note must come first. */}
+              {/* Above the upload and the repo field, so the note is written before submitting by either way. */}
               <MarkdownField
                 id={`submission-notes-${a.id}`}
                 label="הערה למורה (אופציונלי)"
@@ -548,6 +548,7 @@ function AssignmentCard({ assignment: a, submission: sub, focused = false }: {
               />
               {a.allowFile && (
                 <FileUpload
+                  confirmLabel="הגש"
                   accept={a.allowedTypes.length ? a.allowedTypes.map((t) => `.${t}`).join(',') : undefined}
                   onFile={(file) => fileMutation.mutate(file)}
                   label={

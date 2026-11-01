@@ -14,9 +14,11 @@ interface FileUploadProps {
   withName?: boolean;
   /** Small print under the drop zone (e.g. which types can be previewed). */
   hint?: React.ReactNode;
+  /** Text of the button that confirms the chosen file. */
+  confirmLabel?: string;
 }
 
-function FileUpload({ onFile, accept, label = 'גרור קובץ לכאן או לחצי לבחירה', className, withName, hint }: FileUploadProps) {
+function FileUpload({ onFile, accept, label = 'גרור קובץ לכאן או לחצי לבחירה', className, withName, hint, confirmLabel = 'העלה קובץ' }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [staged, setStaged] = useState<File | null>(null);
@@ -88,7 +90,7 @@ function FileUpload({ onFile, accept, label = 'גרור קובץ לכאן או �
           />
         )}
         <div className="flex gap-2">
-          <Button size="sm" onClick={confirmUpload} disabled={withName && !name.trim()}>העלה קובץ</Button>
+          <Button size="sm" onClick={confirmUpload} disabled={withName && !name.trim()}>{confirmLabel}</Button>
           <Button size="sm" variant="outline" onClick={cancel}>ביטול</Button>
         </div>
       </div>
