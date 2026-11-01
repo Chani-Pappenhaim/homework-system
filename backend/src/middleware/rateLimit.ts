@@ -8,6 +8,38 @@ export const authRateLimit = rateLimit({
   legacyHeaders: false,
 });
 
+const TOO_MANY_LOGINS = { success: false, error: 'יותר מדי ניסיונות התחברות. אנא נסו שוב בעוד כמה דקות.' };
+
+/**
+ * Failed sign-ins are counted per account and address together, so guessing one
+ * account's password is stopped quickly while a class sharing one address is not
+ * blocked by a single person's mistakes. Successful sign-ins do not count, and
+ * the block is temporary: a permanent lock would let anyone lock a teacher out.
+ */
+const loginAttemptsPerAccount = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  skipSuccessfulRequests: true,
+  message: TOO_MANY_LOGINS,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    return `${ipKeyGenerator(req.ip ?? 'anonymous')}|${email}`;
+  },
+});
+
+// A wide cap per address, against one source trying many different accounts.
+const loginAttemptsPerAddress = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  message: TOO_MANY_LOGINS,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+export const loginRateLimit = [loginAttemptsPerAddress, loginAttemptsPerAccount];
+
 export const generalRateLimit = rateLimit({
   windowMs: 60 * 1000,
   max: 1000,

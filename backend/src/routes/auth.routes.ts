@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import passport from 'passport';
-import { authRateLimit } from '../middleware/rateLimit';
+import { authRateLimit, loginRateLimit } from '../middleware/rateLimit';
 import { verifyAccessTokenMiddleware } from '../middleware/auth';
 import { uploadAvatar } from '../middleware/upload';
 import { requireFile } from '../middleware/requireFile';
@@ -8,7 +8,7 @@ import * as authController from '../controllers/auth.controller';
 
 const router = Router();
 
-router.post('/login', authRateLimit, authController.login);
+router.post('/login', loginRateLimit, authController.login);
 router.post('/refresh', authController.refresh);
 router.post('/logout', authController.logout);
 // Signs out every other device of the user, keeping this one signed in.
