@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useSyncedForm } from '@/hooks/useSyncedForm';
 import { useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,13 +39,13 @@ export function StudentEditDialog({ student, onClose, save, onSaved }: StudentEd
   const [github, setGithub] = useState('');
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (!student) return;
-    setName(student.name);
-    setEmail(student.email);
-    setGithub(student.githubUsername ?? '');
-    setError('');
-  }, [student]);
+  useSyncedForm(
+    student,
+    (s) => ({ name: s.name, email: s.email, github: s.githubUsername ?? '' }),
+    { name, email, github },
+    (v) => { setName(v.name); setEmail(v.email); setGithub(v.github); setError(''); },
+    student?.id,
+  );
 
   const mutation = useMutation({
     mutationFn: () => save(student!.id, { name, email, githubUsername: github.trim() }),

@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useSyncedForm } from '@/hooks/useSyncedForm';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Trash2, RotateCcw, UserPlus, Pencil, MailCheck, MailWarning, BellOff, Download } from 'lucide-react';
@@ -66,14 +67,12 @@ export default function GroupFormPage() {
     return sortDir === 'asc' ? sorted : sorted.reverse();
   })();
 
-  useEffect(() => {
-    if (group) {
-      setName(group.name);
-      setSeminar(group.seminar ?? '');
-      setYear(group.year);
-      setNotifyDefault(group.emailNotificationsDefault ?? true);
-    }
-  }, [group]);
+  useSyncedForm(
+    group,
+    (g) => ({ name: g.name, seminar: g.seminar ?? '', year: g.year, notifyDefault: g.emailNotificationsDefault ?? true }),
+    { name, seminar, year, notifyDefault },
+    (v) => { setName(v.name); setSeminar(v.seminar); setYear(v.year); setNotifyDefault(v.notifyDefault); },
+  );
 
   const saveMutation = useMutation({
     mutationFn: () => isEdit

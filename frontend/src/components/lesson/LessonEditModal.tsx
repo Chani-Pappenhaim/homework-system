@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useSyncedForm } from '@/hooks/useSyncedForm';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lessonsApi } from '@/api/lessons.api';
 import { Button } from '@/components/ui/button';
@@ -23,14 +24,18 @@ export function LessonEditModal({ lesson, open, onClose }: {
   const [githubUrls, setGithubUrls] = useState<string[]>(['']);
   const [hidden, setHidden] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
-    setTopic(lesson.topic);
-    setDate(lesson.lessonDate ? lesson.lessonDate.slice(0, 10) : '');
-    setContentMd(lesson.contentMd ?? '');
-    setGithubUrls(lesson.githubUrls.length > 0 ? lesson.githubUrls : ['']);
-    setHidden(lesson.hidden);
-  }, [open, lesson]);
+  useSyncedForm(
+    open ? lesson : null,
+    (l) => ({
+      topic: l.topic,
+      date: l.lessonDate ? l.lessonDate.slice(0, 10) : '',
+      contentMd: l.contentMd ?? '',
+      githubUrls: l.githubUrls.length > 0 ? l.githubUrls : [''],
+      hidden: l.hidden,
+    }),
+    { topic, date, contentMd, githubUrls, hidden },
+    (v) => { setTopic(v.topic); setDate(v.date); setContentMd(v.contentMd); setGithubUrls(v.githubUrls); setHidden(v.hidden); },
+  );
 
   const saveMutation = useMutation({
     mutationFn: () => lessonsApi.update(lesson.id, {

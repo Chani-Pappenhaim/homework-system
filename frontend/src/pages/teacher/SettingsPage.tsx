@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSyncedForm } from '@/hooks/useSyncedForm';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { Camera, Clock, LogOut, Mail, Moon, Pencil, Save } from 'lucide-react';
@@ -86,9 +87,7 @@ function EmailSenderCard() {
   const [name, setName] = useState('');
   const [editing, setEditing] = useState(false);
 
-  useEffect(() => {
-    if (settings) setName(settings.senderName ?? '');
-  }, [settings]);
+  useSyncedForm(settings, (s) => ({ name: s.senderName ?? '' }), { name }, (v) => setName(v.name));
 
   const save = useMutation({
     mutationFn: () => messagesApi.updateEmailSettings(name),

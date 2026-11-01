@@ -1,6 +1,7 @@
 import type { CoursePageProps } from '@/components/lesson/LessonRoute';
 import { toExternalUrl, cn, groupDisplayName } from '@/lib/utils';
 import { useState, useEffect } from 'react';
+import { useSyncedForm } from '@/hooks/useSyncedForm';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, GripVertical, EyeOff, Copy, Settings, Link2 } from 'lucide-react';
@@ -66,15 +67,12 @@ export default function CourseFormPage(props: Partial<CoursePageProps>) {
   usePageTitle(isEdit ? 'עריכת קורס' : 'קורס חדש', course?.name);
   const groups = groupsData?.data.data.groups ?? [];
 
-  useEffect(() => {
-    if (course) {
-      setName(course.name);
-      setYear(course.year ?? '');
-      setDescription(course.description ?? '');
-      setGroupId(course.groupId);
-      setHidden(course.hidden);
-    }
-  }, [course]);
+  useSyncedForm(
+    course,
+    (c) => ({ name: c.name, year: c.year ?? '', description: c.description ?? '', groupId: c.groupId, hidden: c.hidden }),
+    { name, year, description, groupId, hidden },
+    (v) => { setName(v.name); setYear(v.year); setDescription(v.description); setGroupId(v.groupId); setHidden(v.hidden); },
+  );
 
   // Prefill group when creating a course from a group's view page (?groupId=...)
   useEffect(() => {
