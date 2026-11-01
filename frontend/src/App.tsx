@@ -1,7 +1,9 @@
-import { Suspense } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { CourseByName, LessonById, LessonByNumber } from '@/components/lesson/LessonRoute';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { UpdateNotice } from '@/components/UpdateNotice';
+import { useNewVersionAvailable } from '@/lib/appVersion';
 import { useBackNavigationTracker } from '@/lib/backNavigation';
 import { useScrollToTopOnNavigate } from '@/lib/scrollOnNavigate';
 import AuthGuard from '@/components/guards/AuthGuard';
@@ -24,8 +26,20 @@ function AppRoutes() {
   const location = useLocation();
   useBackNavigationTracker();
   useScrollToTopOnNavigate();
+  const newVersion = useNewVersionAvailable();
+
+  // Moving to another page is a safe moment to switch to the new build: nothing
+  // typed on the page being left is lost. The note is shown meanwhile.
+  const lastPath = useRef(location.pathname);
+  useEffect(() => {
+    const moved = location.pathname !== lastPath.current;
+    lastPath.current = location.pathname;
+    if (newVersion && moved) window.location.reload();
+  }, [newVersion, location.pathname]);
+
   return (
     <ErrorBoundary resetKey={location.pathname}>
+      {newVersion && <UpdateNotice />}
       <Suspense fallback={<FullPageSpinner />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />

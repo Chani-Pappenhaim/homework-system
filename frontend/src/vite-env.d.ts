@@ -9,3 +9,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+// Set at build time (vite.config.ts): identifies the build this page came from.
+declare const __APP_VERSION__: string;
