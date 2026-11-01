@@ -42,6 +42,10 @@ export function createQueryClient(): QueryClient {
         },
         staleTime: 1000 * 30,
         refetchOnWindowFocus: true,
+        // A page left open picks up changes made elsewhere (a new course, a new
+        // student). Only the queries on screen, only while the tab is visible, and
+        // unchanged data keeps its identity so nothing re-renders or resets.
+        refetchInterval: 1000 * 60 * 2,
       },
     },
   });

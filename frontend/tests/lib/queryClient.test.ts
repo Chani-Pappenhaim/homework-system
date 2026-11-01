@@ -33,4 +33,11 @@ describe('createQueryClient', () => {
 
     expect(client.getQueryState(['course', 'c1'])?.isInvalidated).toBe(false);
   });
+
+  it('refreshes the queries on screen every couple of minutes, but not in a hidden tab', () => {
+    const defaults = createQueryClient().getDefaultOptions().queries;
+
+    expect(defaults?.refetchInterval).toBe(2 * 60 * 1000);
+    expect(defaults?.refetchIntervalInBackground).toBeUndefined();
+  });
 });
