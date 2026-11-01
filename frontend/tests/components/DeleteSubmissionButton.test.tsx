@@ -36,9 +36,9 @@ describe('DeleteSubmissionButton', () => {
     expect(screen.getByText(/בדיקות ה-AI שכבר נוצלו נספרות גם להגשה החדשה/)).toBeInTheDocument();
   });
 
-  it('shows why instead of a button once deleting is blocked', () => {
+  it('shows a disabled button with the reason once deleting is blocked', () => {
     renderWithProviders(<DeleteSubmissionButton submission={sub({ deleteBlockedReason: 'המורה כבר בדקה את ההגשה' })} />);
-    expect(screen.queryByRole('button', { name: /מחיקת ההגשה/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /מחיקת ההגשה/ })).toBeDisabled();
     expect(screen.getByText('המורה כבר בדקה את ההגשה')).toBeInTheDocument();
   });
 });

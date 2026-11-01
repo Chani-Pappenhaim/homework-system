@@ -367,6 +367,15 @@ function AssignmentCard({ assignment: a, submission: sub, focused = false }: {
           <>
             <div className="flex justify-end"><PrintButton target={descriptionRef} title={a.title} /></div>
             <div ref={descriptionRef}><MarkdownRenderer content={a.description} className="text-ink/80" /></div>
+            {a.description.length > 1500 && (
+              <button
+                type="button"
+                onClick={() => setBriefHidden(true)}
+                className="flex items-center gap-1 text-xs text-clay hover:underline"
+              >
+                <ChevronUp size={12} /> הסתרת התיאור
+              </button>
+            )}
           </>
         )}
         {a.deadline && (
@@ -529,6 +538,14 @@ function AssignmentCard({ assignment: a, submission: sub, focused = false }: {
                   )}
                 </div>
               )}
+              {/* Above the upload: a file is submitted the moment it is chosen, so the note must come first. */}
+              <MarkdownField
+                id={`submission-notes-${a.id}`}
+                label="הערה למורה (אופציונלי)"
+                rows={2}
+                value={notes}
+                onChange={setNotes}
+              />
               {a.allowFile && (
                 <FileUpload
                   accept={a.allowedTypes.length ? a.allowedTypes.map((t) => `.${t}`).join(',') : undefined}
@@ -578,13 +595,6 @@ function AssignmentCard({ assignment: a, submission: sub, focused = false }: {
                   )}
                 </div>
               )}
-              <MarkdownField
-                id={`submission-notes-${a.id}`}
-                label="הערה למורה (אופציונלי)"
-                rows={2}
-                value={notes}
-                onChange={setNotes}
-              />
               {error && <p className="text-coral text-xs">{error}</p>}
             </>
           )}

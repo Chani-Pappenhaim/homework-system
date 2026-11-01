@@ -39,14 +39,24 @@ export function DeleteSubmissionButton({ submission, onDeleted }: Props) {
   });
 
   if (submission.deleteBlockedReason) {
-    return <p className="text-xs text-ink/50">{submission.deleteBlockedReason}</p>;
+    return (
+      <div className="space-y-1">
+        <Button size="sm" variant="ghost" disabled className="text-ink/40">
+          <Trash2 size={13} className="ml-1" /> מחיקת ההגשה
+        </Button>
+        <p className="text-xs text-ink/60">{submission.deleteBlockedReason}</p>
+      </div>
+    );
   }
 
   return (
     <>
-      <Button size="sm" variant="ghost" className="text-coral hover:text-coral" onClick={() => setOpen(true)}>
-        <Trash2 size={13} className="ml-1" /> מחיקת ההגשה
-      </Button>
+      <div className="space-y-1">
+        <Button size="sm" variant="ghost" className="text-coral hover:text-coral" onClick={() => setOpen(true)}>
+          <Trash2 size={13} className="ml-1" /> מחיקת ההגשה
+        </Button>
+        <p className="text-xs text-ink/60">אפשר למחוק ולהגיש מחדש עד שהמורה בודקת את ההגשה</p>
+      </div>
       <ConfirmDialog
         open={open}
         onOpenChange={setOpen}
