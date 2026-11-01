@@ -367,6 +367,15 @@ function AssignmentCard({ assignment: a, submission: sub, focused = false }: {
           <>
             <div className="flex justify-end"><PrintButton target={descriptionRef} title={a.title} /></div>
             <div ref={descriptionRef}><MarkdownRenderer content={a.description} className="text-ink/80" /></div>
+            {a.description.length > 1500 && (
+              <button
+                type="button"
+                onClick={() => setBriefHidden(true)}
+                className="flex items-center gap-1 text-xs text-clay hover:underline"
+              >
+                <ChevronUp size={12} /> הסתרת התיאור
+              </button>
+            )}
           </>
         )}
         {a.deadline && (

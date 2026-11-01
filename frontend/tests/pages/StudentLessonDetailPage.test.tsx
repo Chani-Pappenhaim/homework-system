@@ -274,6 +274,21 @@ describe('one assignment, linked and collapsed', () => {
     expect(screen.getByText('תיאור ארוך של המטלה')).toBeInTheDocument();
   });
 
+  it('repeats the hide button under a very long brief, so it is reachable after scrolling', async () => {
+    getLesson.mockResolvedValue(lessonWith([
+      { id: 'a1', title: 'מטלה ראשונה', description: 'ארוך '.repeat(400), deadline: FUTURE, allowFile: false, allowGithub: true, allowedTypes: [] },
+    ]));
+    mine.mockResolvedValue({ data: { data: { submitted: [] } } });
+    renderWithProviders(<StudentLessonDetailPage />, {
+      path: '/student/lesson/:id',
+      initialEntries: ['/student/lesson/l1?tab=assignments&assignment=a1'],
+    });
+    const buttons = await screen.findAllByRole('button', { name: /הסתרת התיאור/ });
+    expect(buttons).toHaveLength(2);
+    await userEvent.click(buttons[1]);
+    expect(screen.queryByRole('button', { name: /הסתרת התיאור/ })).not.toBeInTheDocument();
+  });
+
   it('offers a jump to the submission that scrolls there, only while nothing is submitted', async () => {
     const scroll = vi.fn();
     Element.prototype.scrollIntoView = scroll;
