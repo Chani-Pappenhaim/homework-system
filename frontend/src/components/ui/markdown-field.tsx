@@ -7,6 +7,7 @@ import { MarkdownRenderer, MarkdownText } from '@/components/ui/markdown-rendere
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
 import { cn } from '@/lib/utils';
+import { MAX_CONTENT_FILE_BYTES } from '@/lib/limits';
 import { useConfirm } from '@/components/ui/use-confirm';
 
 /**
@@ -39,6 +40,10 @@ export function MarkdownField({ label, value, onChange, rows = 5, placeholder, r
   const [loading, setLoading] = useState(false);
 
   const loadFile = async (file: File) => {
+    if (file.size > MAX_CONTENT_FILE_BYTES) {
+      toast.error('הקובץ גדול מדי - אפשר לטעון קובץ של עד 5MB');
+      return;
+    }
     if (value.trim() && !(await ask({ title: 'להחליף את הטקסט הקיים?', description: 'הטקסט שכבר כתוב בשדה יוחלף בתוכן הקובץ.', confirmLabel: 'החלפה', destructive: false }))) return;
     setLoading(true);
     try {

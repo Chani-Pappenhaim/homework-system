@@ -54,6 +54,20 @@ async function storeImage(image: { contentType: string; read(encoding: 'base64')
   return { src: `${UNSHOWN_IMAGE}${type.replace(/^image\/(x-)?/, '').toUpperCase()}` };
 }
 
+/**
+ * An HTML file saved with its pictures embedded carries each as a base64 data
+ * URI, which has the same weight problem as one inside a Word file. Each is
+ * stored as its own file, the same way.
+ */
+async function storeInlineImages(html: string): Promise<string> {
+  const pattern = /(<img\b[^>]*?\bsrc=)(["'])data:(image\/[a-z0-9.+-]+);base64,([^"']+)\2/gi;
+  const found = [...html.matchAll(pattern)];
+  if (found.length === 0) return html;
+  const stored = await Promise.all(found.map((m) => storeImage({ contentType: m[3], read: async () => m[4] })));
+  let i = 0;
+  return html.replace(pattern, (_m, start: string, quote: string) => `${start}${quote}${stored[i++].src}${quote}`);
+}
+
 /** The final Markdown: formulas as LaTeX, unshowable pictures as a note. */
 function finishDocxMarkdown(markdown: string, formulas: DocxFormula[]): string {
   let out = markdown.replace(
@@ -97,5 +111,8 @@ export async function fileToMarkdown(fileName: string, buffer: Buffer): Promise<
     return finishDocxMarkdown(htmlToMarkdown(html), prepared.formulas);
   }
   const text = buffer.toString('utf-8').replace(/^﻿/, '');
-  return ext === '.html' || ext === '.htm' ? htmlToMarkdown(text) : text;
+  if (ext === '.html' || ext === '.htm') {
+    return finishDocxMarkdown(htmlToMarkdown(await storeInlineImages(text)), []);
+  }
+  return text;
 }

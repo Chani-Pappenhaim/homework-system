@@ -55,8 +55,15 @@ type Reach = { groupIds: Set<string>; courseIds: Set<string>; lessonIds: Set<str
 /** The student's own reach (see getMySubmissions) never includes a hidden lesson or course. */
 const visibleLesson = { hidden: false, course: { hidden: false } };
 
-function reaches(r: Reach, a: { lessonId: string; lesson: { courseId: string; course: { groupId: string } } }) {
-  return r.groupIds.has(a.lesson.course.groupId) || r.courseIds.has(a.lesson.courseId) || r.lessonIds.has(a.lessonId);
+/** Assignments indexed by the group, course or lesson they hang under, so a student's reach is a few lookups. */
+function groupAssignmentsBy<T extends { id: string }>(items: T[], key: (item: T) => string) {
+  const index = new Map<string, T[]>();
+  for (const item of items) {
+    const list = index.get(key(item));
+    if (list) list.push(item);
+    else index.set(key(item), [item]);
+  }
+  return index;
 }
 
 function average(values: number[]): number | null {
@@ -93,8 +100,17 @@ export async function getStudentsOverview() {
     }),
   ]);
 
+  const assignmentsBy = {
+    group: groupAssignmentsBy(assignments, (a) => a.lesson.course.groupId),
+    course: groupAssignmentsBy(assignments, (a) => a.lesson.courseId),
+    lesson: groupAssignmentsBy(assignments, (a) => a.lessonId),
+  };
   const subsByStudent = new Map<string, typeof submissions>();
-  for (const s of submissions) subsByStudent.set(s.studentId, [...(subsByStudent.get(s.studentId) ?? []), s]);
+  for (const s of submissions) {
+    const list = subsByStudent.get(s.studentId);
+    if (list) list.push(s);
+    else subsByStudent.set(s.studentId, [s]);
+  }
   const unreadByStudent = new Map<string, number>();
   for (const e of unread) unreadByStudent.set(e.authorId!, (unreadByStudent.get(e.authorId!) ?? 0) + 1);
   const attendanceByStudent = new Map<string, { present: number; absent: number; partial: number }>();
@@ -113,7 +129,10 @@ export async function getStudentsOverview() {
       courseIds: new Set(st.courseAccess.map((c) => c.courseId)),
       lessonIds: new Set(st.lessonAccess.map((l) => l.lessonId)),
     };
-    const reached = new Map(assignments.filter((a) => reaches(reach, a)).map((a) => [a.id, a]));
+    const reached = new Map<string, (typeof assignments)[number]>();
+    for (const [ids, index] of [[reach.groupIds, assignmentsBy.group], [reach.courseIds, assignmentsBy.course], [reach.lessonIds, assignmentsBy.lesson]] as const) {
+      for (const id of ids) for (const a of index.get(id) ?? []) reached.set(a.id, a);
+    }
     const subs = (subsByStudent.get(st.id) ?? []).filter((s) => reached.has(s.assignmentId));
     const submittedIds = new Set(subs.map((s) => s.assignmentId));
     // An optional assignment counts only once she chose to hand it in, and never as late.

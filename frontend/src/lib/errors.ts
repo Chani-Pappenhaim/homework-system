@@ -9,6 +9,10 @@ const NETWORK_MESSAGE =
 // typically while a free-tier host is still starting up.
 const TIMEOUT_MESSAGE =
   'השרת לא הגיב בזמן - ייתכן שהוא עדיין מתעורר אחרי זמן בלי שימוש. נסו שוב בעוד דקה.';
+// An upload that timed out was slow to send or to process, not waiting on a sleeping server.
+const UPLOAD_TIMEOUT_MESSAGE =
+  'ההעלאה לקחה יותר מדי זמן. נסו קובץ קטן יותר או בדקו את החיבור לאינטרנט.';
+const TOO_LARGE_MESSAGE = 'הקובץ גדול מדי';
 const GENERIC_MESSAGE = 'אירעה שגיאה. אנא נסו שוב מאוחר יותר.';
 
 export function getApiErrorMessage(error: any, fallback: string = GENERIC_MESSAGE): string {
@@ -21,13 +25,19 @@ export function getApiErrorMessage(error: any, fallback: string = GENERIC_MESSAG
   // Axios sets `response` only when the server actually answered. No response =
   // the request never completed (offline, DNS, connection refused, timeout).
   if (error && typeof error === 'object' && 'isAxiosError' in error && !error.response) {
-    return error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT' ? TIMEOUT_MESSAGE : NETWORK_MESSAGE;
+    if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+      return error.config?.data instanceof FormData ? UPLOAD_TIMEOUT_MESSAGE : TIMEOUT_MESSAGE;
+    }
+    return NETWORK_MESSAGE;
   }
 
   const serverMessage = error?.response?.data?.error;
   if (typeof serverMessage === 'string' && serverMessage.trim()) {
     return serverMessage;
   }
+
+  // The web server turns away an oversized body with its own HTML page, which has no message of ours.
+  if (error?.response?.status === 413) return TOO_LARGE_MESSAGE;
 
   return fallback;
 }
