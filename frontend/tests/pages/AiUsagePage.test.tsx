@@ -67,18 +67,15 @@ describe('AiUsagePage', () => {
     expect(screen.getByText('11')).toBeInTheDocument();
   });
 
-  it('keeps the storage card on its own tab', async () => {
+  it('shows the storage card on the same page as the usage', async () => {
     (aiUsageApi.storage as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { data: { usedBytes: 5e8, limitBytes: 1e9, percent: 50 } },
     });
     renderSummary(sampleSummary);
 
-    await screen.findByText('42');
-    expect(screen.queryByText(/Cloudinary/)).not.toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole('button', { name: /אחסון/ }));
     expect(await screen.findByText(/Cloudinary/)).toBeInTheDocument();
-    expect(screen.queryByText('פירוט חודשי')).not.toBeInTheDocument();
+    expect(screen.getByText('פירוט חודשי')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /אחסון/ })).not.toBeInTheDocument();
   });
 
   it('shows an empty-state row when there is no monthly data', async () => {
@@ -134,7 +131,7 @@ describe('AiUsagePage - Gemini quota card', () => {
     renderSummary(withQuota({ freeDailyLimit: null }));
 
     expect(await screen.findByText(/12 בקשות חינמיות היום/)).toBeInTheDocument();
-    expect(screen.queryByText(/^מתוך/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^מתוך [\d,]+ \(/)).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'AI Studio' })).toHaveAttribute('href', 'https://aistudio.google.com/rate-limit');
   });
 
@@ -165,29 +162,54 @@ describe('AiUsagePage - Gemini quota card', () => {
 });
 
 describe('AiUsagePage - paid fallback settings', () => {
-  it('shows the saved choice', async () => {
+  const startEditing = async () => userEvent.click(await screen.findByRole('button', { name: 'עריכה' }));
+
+  it('shows the saved choice as text, with no radios until editing starts', async () => {
     renderSummary(withQuota({ paidFallback: 'ANY_LIMIT' }));
-    expect(await screen.findByRole('radio', { name: /גם בעומס רגעי/ })).toBeChecked();
+
+    expect(await screen.findByText('גם בעומס רגעי או בתקלה')).toBeInTheDocument();
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+
+    await startEditing();
+    expect(screen.getByRole('radio', { name: /גם בעומס רגעי/ })).toBeChecked();
     expect(screen.getByRole('radio', { name: /רק כשהמכסה היומית נגמרת/ })).not.toBeChecked();
   });
 
-  it('saves a new choice as soon as the teacher picks it', async () => {
+  it('saves a new choice only when the teacher presses save', async () => {
     updateSettings.mockResolvedValue({ data: { success: true, data: { paidFallback: 'NEVER' } } });
     renderSummary(sampleSummary);
 
-    await userEvent.click(await screen.findByRole('radio', { name: /אף פעם/ }));
+    await startEditing();
+    await userEvent.click(screen.getByRole('radio', { name: /אף פעם/ }));
+    expect(updateSettings).not.toHaveBeenCalled();
 
-    expect(updateSettings).toHaveBeenCalledWith({ paidFallback: 'NEVER' });
-    expect(screen.getByRole('radio', { name: /אף פעם/ })).toBeChecked();
+    await userEvent.click(screen.getByRole('button', { name: 'שמירה' }));
+    await waitFor(() => expect(updateSettings).toHaveBeenCalledWith({ paidFallback: 'NEVER' }));
   });
 
-  it('goes back to the saved choice when saving fails', async () => {
+  it('drops the unsaved pick on cancel', async () => {
+    renderSummary(sampleSummary);
+
+    await startEditing();
+    await userEvent.click(screen.getByRole('radio', { name: /אף פעם/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'ביטול' }));
+
+    expect(updateSettings).not.toHaveBeenCalled();
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+    await startEditing();
+    expect(screen.getByRole('radio', { name: /רק כשהמכסה היומית נגמרת/ })).toBeChecked();
+  });
+
+  it('stays in edit mode with the pick when saving fails', async () => {
     updateSettings.mockRejectedValue(new Error('network'));
     renderSummary(sampleSummary);
 
-    await userEvent.click(await screen.findByRole('radio', { name: /אף פעם/ }));
+    await startEditing();
+    await userEvent.click(screen.getByRole('radio', { name: /אף פעם/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'שמירה' }));
 
-    await waitFor(() => expect(screen.getByRole('radio', { name: /רק כשהמכסה היומית נגמרת/ })).toBeChecked());
+    await waitFor(() => expect(updateSettings).toHaveBeenCalled());
+    expect(screen.getByRole('radio', { name: /אף פעם/ })).toBeChecked();
   });
 
   it('notes that without a paid key the AI stops whatever is chosen', async () => {

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bot, HelpCircle, Cpu, DollarSign, HardDrive } from 'lucide-react';
-import { aiUsageApi, type AiPaidFallback, type AiTierUsage, type GeminiQuotaStatus } from '@/api/aiUsage.api';
+import { Bot, HelpCircle, Cpu, DollarSign } from 'lucide-react';
+import { aiUsageApi, type AiPaidFallback, type AiTierUsage, type GeminiQuotaStatus, type StorageUsage } from '@/api/aiUsage.api';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { useToast } from '@/components/ui/toast';
@@ -10,10 +11,7 @@ import { formatUsd } from '@/lib/currency';
 import { unwrap } from '@/lib/api-utils';
 import { getApiErrorMessage } from '@/lib/errors';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { useTabParam } from '@/hooks/useTabParam';
 import { AI_AVAILABILITY_QUERY_KEY } from '@/hooks/useAiAvailability';
-
-const AI_USAGE_TABS = ['ai', 'storage'] as const;
 
 function formatMonth(month: string) {
   const [year, m] = month.split('-');
@@ -39,7 +37,6 @@ function formatBytes(bytes: number): string {
 
 export default function AiUsagePage() {
   usePageTitle('שימוש ב-AI');
-  const [tab, setTab] = useTabParam(AI_USAGE_TABS, 'ai');
   const { data, isLoading } = useQuery({
     queryKey: ['ai-usage-summary'],
     queryFn: () => aiUsageApi.summary(),
@@ -66,23 +63,6 @@ export default function AiUsagePage() {
     <div className="space-y-5" dir="rtl">
       <PageHeader title="שימוש AI" meta="דוחות · צריכת AI" />
 
-      <div className="flex items-center gap-2">
-        {([['ai', 'AI', Bot], ['storage', 'אחסון', HardDrive]] as const).map(([key, label, Icon]) => (
-          <button
-            key={key}
-            onClick={() => setTab(key)}
-            className={cn(
-              'flex items-center gap-1.5 rounded-lg border border-rule px-4 py-2 text-sm font-semibold transition-colors',
-              tab === key ? 'bg-ink text-sheet shadow-soft' : 'bg-sheet text-ink-soft hover:bg-ground',
-            )}
-          >
-            <Icon size={15} /> {label}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'ai' ? (
-      <>
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard icon={<Bot size={18} />} tile="cobalt" label='סה"כ בדיקות AI' value={summary?.totalReviews ?? 0} />
@@ -98,6 +78,8 @@ export default function AiUsagePage() {
       {summary?.quota && (
         <AiSettingsCard value={summary.quota.paidFallback ?? 'DAILY_QUOTA'} paidKeyConfigured={summary.quota.paidKeyConfigured} />
       )}
+
+      <StorageCard storage={storage} loading={storageLoading} failed={storageError} />
 
       {/* Monthly breakdown */}
       <Card>
@@ -132,57 +114,62 @@ export default function AiUsagePage() {
           </table>
         </div>
       </Card>
-      </>
-      ) : (
-      <Card accent="indigo">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-base font-bold">אחסון קבצים · Cloudinary</h2>
-            {storage && (
-              <span
-                className={cn(
-                  'font-sans text-sm font-bold tabular',
-                  storage.percent >= 80 ? 'text-coral' : storage.percent >= 60 ? 'text-clay' : 'text-sage',
-                )}
-              >
-                {Math.round(storage.percent)}%
-              </span>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {storageLoading ? (
-            <div className="h-3 w-full animate-pulse rounded-full bg-ground" />
-          ) : storageError || !storage ? (
-            <p className="rounded-input bg-ground px-3 py-2 text-sm text-ink-soft">
-              לא ניתן לטעון כרגע את נתוני האחסון מ-Cloudinary. ודאי שמפתחות ה-API מוגדרים בשרת.
-            </p>
-          ) : (
-            <>
-              <div className="h-3 w-full overflow-hidden rounded-full bg-ground">
-                <div
-                  className={cn(
-                    'h-full rounded-full transition-all duration-500',
-                    storage.percent >= 80 ? 'bg-coral' : storage.percent >= 60 ? 'bg-butter' : 'bg-sage',
-                  )}
-                  style={{ width: `${Math.max(2, Math.min(100, storage.percent))}%` }}
-                />
-              </div>
-              <div className="flex items-center justify-between font-sans text-[11px] text-ink-soft">
-                <span>{formatBytes(storage.usedBytes)} בשימוש</span>
-                <span>מתוך {formatBytes(storage.limitBytes)}</span>
-              </div>
-              {storage.percent >= 80 && (
-                <p className="rounded-input border border-coral/40 bg-coral/10 px-3 py-2 text-sm text-coral">
-                  האחסון עבר 80% - כדאי למחוק קבצים ישנים כדי שהגשות חדשות לא ייכשלו.
-                </p>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
-      )}
     </div>
+  );
+}
+
+/** How much of the Cloudinary file storage is used. */
+function StorageCard({ storage, loading, failed }: {
+  storage: StorageUsage | undefined; loading: boolean; failed: boolean;
+}) {
+  return (
+    <Card accent="indigo">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-base font-bold">אחסון קבצים · Cloudinary</h2>
+          {storage && (
+            <span
+              className={cn(
+                'font-sans text-sm font-bold tabular',
+                storage.percent >= 80 ? 'text-coral' : storage.percent >= 60 ? 'text-clay' : 'text-sage',
+              )}
+            >
+              {Math.round(storage.percent)}%
+            </span>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {loading ? (
+          <div className="h-3 w-full animate-pulse rounded-full bg-ground" />
+        ) : failed || !storage ? (
+          <p className="rounded-input bg-ground px-3 py-2 text-sm text-ink-soft">
+            לא ניתן לטעון כרגע את נתוני האחסון מ-Cloudinary. ודאי שמפתחות ה-API מוגדרים בשרת.
+          </p>
+        ) : (
+          <>
+            <div className="h-3 w-full overflow-hidden rounded-full bg-ground">
+              <div
+                className={cn(
+                  'h-full rounded-full transition-all duration-500',
+                  storage.percent >= 80 ? 'bg-coral' : storage.percent >= 60 ? 'bg-butter' : 'bg-sage',
+                )}
+                style={{ width: `${Math.max(2, Math.min(100, storage.percent))}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between font-sans text-[11px] text-ink-soft">
+              <span>{formatBytes(storage.usedBytes)} בשימוש</span>
+              <span>מתוך {formatBytes(storage.limitBytes)}</span>
+            </div>
+            {storage.percent >= 80 && (
+              <p className="rounded-input border border-coral/40 bg-coral/10 px-3 py-2 text-sm text-coral">
+                האחסון עבר 80% - כדאי למחוק קבצים ישנים כדי שהגשות חדשות לא ייכשלו.
+              </p>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -322,11 +309,11 @@ const PAID_FALLBACK_OPTIONS: { value: AiPaidFallback; label: string; description
   },
 ];
 
-/** The teacher's choice of when, if ever, AI calls move to the paid key. Saved as soon as she picks. */
+/** The teacher's choice of when, if ever, AI calls move to the paid key. Changed only after pressing edit, and saved on request. */
 function AiSettingsCard({ value, paidKeyConfigured }: { value: AiPaidFallback; paidKeyConfigured: boolean }) {
   const qc = useQueryClient();
   const toast = useToast();
-  // Shown at once, before the summary refetch brings the saved value back.
+  const [editing, setEditing] = useState(false);
   const [selected, setSelected] = useState(value);
   useEffect(() => setSelected(value), [value]);
 
@@ -336,49 +323,79 @@ function AiSettingsCard({ value, paidKeyConfigured }: { value: AiPaidFallback; p
       qc.invalidateQueries({ queryKey: ['ai-usage-summary'] });
       qc.invalidateQueries({ queryKey: AI_AVAILABILITY_QUERY_KEY });
       toast.success('ההגדרה נשמרה');
+      setEditing(false);
     },
-    onError: (err) => {
-      setSelected(value);
-      toast.error(getApiErrorMessage(err, 'שמירת ההגדרה נכשלה'));
-    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'שמירת ההגדרה נכשלה')),
   });
 
-  const choose = (next: AiPaidFallback) => {
-    setSelected(next);
-    saveMutation.mutate(next);
+  const cancel = () => {
+    setSelected(value);
+    setEditing(false);
   };
+
+  const current = PAID_FALLBACK_OPTIONS.find((o) => o.value === value) ?? PAID_FALLBACK_OPTIONS[0];
 
   return (
     <Card>
       <CardHeader>
-        <h2 className="font-display text-base font-bold">מתי עוברים למסלול בתשלום</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-display text-base font-bold">מתי עוברים למסלול בתשלום</h2>
+          {!editing && (
+            <Button type="button" variant="secondary" size="sm" onClick={() => setEditing(true)}>
+              עריכה
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <fieldset disabled={saveMutation.isPending} className="space-y-2">
-          <legend className="sr-only">מתי עוברים למסלול בתשלום</legend>
-          {PAID_FALLBACK_OPTIONS.map((option) => (
-            <label
-              key={option.value}
-              className={cn(
-                'flex cursor-pointer items-start gap-2 rounded-input border px-3 py-2 text-sm transition-colors',
-                selected === option.value ? 'border-ink/40 bg-ground/60' : 'border-rule/40 hover:border-ink/30',
-              )}
-            >
-              <input
-                type="radio"
-                name="ai-paid-fallback"
-                value={option.value}
-                checked={selected === option.value}
-                onChange={() => choose(option.value)}
-                className="mt-1 accent-ink"
-              />
-              <span>
-                <span className="font-semibold text-ink">{option.label}</span>
-                <span className="block text-xs text-ink-soft">{option.description}</span>
-              </span>
-            </label>
-          ))}
-        </fieldset>
+        {editing ? (
+          <>
+            <fieldset disabled={saveMutation.isPending} className="space-y-2">
+              <legend className="sr-only">מתי עוברים למסלול בתשלום</legend>
+              {PAID_FALLBACK_OPTIONS.map((option) => (
+                <label
+                  key={option.value}
+                  className={cn(
+                    'flex cursor-pointer items-start gap-2 rounded-input border px-3 py-2 text-sm transition-colors',
+                    selected === option.value ? 'border-ink/40 bg-ground/60' : 'border-rule/40 hover:border-ink/30',
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="ai-paid-fallback"
+                    value={option.value}
+                    checked={selected === option.value}
+                    onChange={() => setSelected(option.value)}
+                    className="mt-1 accent-ink"
+                  />
+                  <span>
+                    <span className="font-semibold text-ink">{option.label}</span>
+                    <span className="block text-xs text-ink-soft">{option.description}</span>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                loading={saveMutation.isPending}
+                disabled={selected === value}
+                onClick={() => saveMutation.mutate(selected)}
+              >
+                שמירה
+              </Button>
+              <Button type="button" variant="ghost" size="sm" disabled={saveMutation.isPending} onClick={cancel}>
+                ביטול
+              </Button>
+            </div>
+          </>
+        ) : (
+          <div className="rounded-input border border-rule/40 px-3 py-2 text-sm">
+            <span className="font-semibold text-ink">{current.label}</span>
+            <span className="block text-xs text-ink-soft">{current.description}</span>
+          </div>
+        )}
         {!paidKeyConfigured && (
           <p className="text-xs text-ink-soft">
             כרגע לא מוגדר מפתח בתשלום בשרת, ולכן בכל אחת מהאפשרויות ה-AI נעצר כשהמכסה היומית נגמרת. ההגדרה תחול
