@@ -437,14 +437,23 @@ describe('deleting', () => {
 
   it('unsends the teacher latest entry only while nothing visible followed it', async () => {
     p.messageThread.findUnique.mockResolvedValue(threadOf('DIRECT', ['s1']));
-    const mine = { id: 'e1', authorId: null, privateToStudentId: null, createdAt: at(1) };
-    p.messageEntry.findMany.mockResolvedValue([mine]);
+    const first = { id: 'e0', authorId: null, privateToStudentId: null, createdAt: at(1) };
+    const mine = { id: 'e1', authorId: null, privateToStudentId: null, createdAt: at(2) };
+    p.messageEntry.findMany.mockResolvedValue([first, mine]);
     await deleteLastTeacherEntry('t1', 'th1');
     expect(p.messageEntry.delete).toHaveBeenCalledWith({ where: { id: 'e1' } });
+    expect(p.messageThread.delete).not.toHaveBeenCalled();
 
     p.messageEntry.delete.mockClear();
-    p.messageEntry.findMany.mockResolvedValue([mine, { id: 'e2', authorId: 's1', privateToStudentId: null, createdAt: at(2) }]);
+    p.messageEntry.findMany.mockResolvedValue([mine, { id: 'e2', authorId: 's1', privateToStudentId: null, createdAt: at(3) }]);
     await deleteLastTeacherEntry('t1', 'th1');
+    expect(p.messageEntry.delete).not.toHaveBeenCalled();
+  });
+
+  it('deletes the whole thread when the unsent entry was its only one', async () => {
+    p.messageEntry.findMany.mockResolvedValue([{ id: 'e1', authorId: null, privateToStudentId: null, createdAt: at(1) }]);
+    expect(await deleteLastTeacherEntry('t1', 'th1')).toBeNull();
+    expect(p.messageThread.delete).toHaveBeenCalledWith({ where: { id: 'th1' } });
     expect(p.messageEntry.delete).not.toHaveBeenCalled();
   });
 });

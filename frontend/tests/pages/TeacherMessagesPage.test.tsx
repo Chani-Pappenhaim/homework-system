@@ -110,6 +110,21 @@ describe('TeacherMessagesPage', () => {
     expect(screen.getByRole('button', { name: /דנה/ })).toBeInTheDocument();
   });
 
+  it('closes the conversation when unsending the only entry deletes the thread', async () => {
+    const deleteReply = mocked(messagesApi.deleteReply);
+    const mine = entry({ id: 'e1', content: 'הודעה ראשונה', fromTeacher: true, mine: true });
+    serve([listRow({ id: 'm1', lastEntry: mine })], detail({ id: 'm1' }, [mine]));
+    deleteReply.mockResolvedValue(wrap({ message: null }));
+    renderWithProviders(<TeacherMessagesPage />);
+
+    await userEvent.click(await screen.findByRole('button', { name: /דנה/ }));
+    await userEvent.click(await screen.findByRole('button', { name: 'מחקי תגובה' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'מחיקה' }));
+
+    await waitFor(() => expect(deleteReply).toHaveBeenCalledWith('m1'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
   it('sends a reply on Ctrl+Enter', async () => {
     serve();
     reply.mockResolvedValue({ data: {} });

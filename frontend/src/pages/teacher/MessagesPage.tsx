@@ -133,8 +133,13 @@ export default function TeacherMessagesPage() {
 
   const deleteReplyMutation = useMutation({
     mutationFn: (id: string) => messagesApi.deleteReply(id),
-    onSuccess: (_r, id) => {
+    onSuccess: (res, id) => {
       qc.invalidateQueries({ queryKey: ['teacher-messages'] });
+      // Taking back the thread's only entry deletes the thread, so there is nothing left to show.
+      if (res.data.data.message === null) {
+        closeConversation();
+        return;
+      }
       qc.invalidateQueries({ queryKey: threadQueryKey(id) });
       setReplyText('');
     },

@@ -416,6 +416,7 @@ export async function deleteMessage(threadId: string) {
 }
 
 // Unsends the teacher's most recent entry in a thread, leaving everything before it intact.
+// Taking back the only entry removes the thread itself (returns null), rather than leaving an empty one in the inbox.
 export async function deleteLastTeacherEntry(teacherId: string, threadId: string) {
   const entries = await prisma.messageEntry.findMany({
     where: { threadId },
@@ -423,7 +424,13 @@ export async function deleteLastTeacherEntry(teacherId: string, threadId: string
     select: { id: true, authorId: true, privateToStudentId: true, createdAt: true },
   });
   const last = entries.filter((e) => e.authorId === null).at(-1);
-  if (last && canUnsendEntry(last, entries)) await prisma.messageEntry.delete({ where: { id: last.id } });
+  if (last && canUnsendEntry(last, entries)) {
+    if (entries.length === 1) {
+      await prisma.messageThread.delete({ where: { id: threadId } });
+      return null;
+    }
+    await prisma.messageEntry.delete({ where: { id: last.id } });
+  }
   return getThread(teacherViewer(teacherId), threadId);
 }
 
