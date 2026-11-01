@@ -488,8 +488,8 @@ describe('toggleReaction', () => {
     p.messageThread.findUnique.mockResolvedValue(thread('s2', 'GROUP_BCC'));
     p.entryReaction.findUnique.mockResolvedValue(null);
     p.entryReaction.findMany.mockResolvedValue([]);
-    await toggleReaction(T, 'th1', 'e1', '❤️');
-    expect(p.entryReaction.create).toHaveBeenCalledWith({ data: { entryId: 'e1', reactorId: 't1', emoji: '❤️', seenByAuthor: false } });
+    await toggleReaction(T, 'th1', 'e1', '👏');
+    expect(p.entryReaction.create).toHaveBeenCalledWith({ data: { entryId: 'e1', reactorId: 't1', emoji: '👏', seenByAuthor: false } });
   });
 
   it('counts a reaction on your own entry as already seen', async () => {
