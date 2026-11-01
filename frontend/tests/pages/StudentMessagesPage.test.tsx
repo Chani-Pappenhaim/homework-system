@@ -233,12 +233,12 @@ describe('StudentMessagesPage', () => {
   describe('reactions', () => {
     it('toggles an emoji on the teacher\'s reply', async () => {
       serve();
-      toggleReaction.mockResolvedValue(wrap({ reactions: [{ emoji: '❤️', count: 1, mine: true, names: ['אני'] }] }));
+      toggleReaction.mockResolvedValue(wrap({ reactions: [{ emoji: '👏', count: 1, mine: true, names: ['אני'] }] }));
       renderWithProviders(<StudentMessagesPage />, { initialEntries: ['/?highlight=m1'] });
       await userEvent.click(await screen.findByRole('button', { name: 'הוספת תגובת אימוג׳י' }));
-      await userEvent.click(screen.getByRole('button', { name: 'הגיבי ב-❤️' }));
-      await waitFor(() => expect(toggleReaction).toHaveBeenCalledWith('m1', 'e1', '❤️'));
-      expect(await screen.findByRole('button', { name: '❤️ 1, הוספת' })).toHaveAttribute('aria-pressed', 'true');
+      await userEvent.click(screen.getByRole('button', { name: 'הגיבי ב-👏' }));
+      await waitFor(() => expect(toggleReaction).toHaveBeenCalledWith('m1', 'e1', '👏'));
+      expect(await screen.findByRole('button', { name: '👏 1, הוספת' })).toHaveAttribute('aria-pressed', 'true');
     });
   });
 
