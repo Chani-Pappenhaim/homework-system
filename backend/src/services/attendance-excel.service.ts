@@ -254,6 +254,9 @@ export async function importAttendance(
       return { error: 'יש כמה מפגשים בתאריך הזה - יש למלא את עמודת נושא המפגש כדי לבחור ביניהם' };
     }
     const lessonsOnDay = lessons.filter((l) => dayKey(l.lessonDate!) === key);
+    if (!topic && lessonsOnDay.length > 1) {
+      return { error: 'יש כמה שיעורים בתאריך הזה - יש למלא את עמודת נושא המפגש (כמו נושא השיעור) כדי לקשר לשיעור הנכון' };
+    }
     const lesson = topic ? lessonsOnDay.find((l) => sameText(l.topic, topic)) : lessonsOnDay.length === 1 ? lessonsOnDay[0] : undefined;
     const id = dryRun
       ? `new:${known.length}`

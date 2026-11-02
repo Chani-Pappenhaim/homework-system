@@ -198,6 +198,23 @@ describe('buildAttendanceTemplate', () => {
 describe('importAttendance', () => {
   const HEAD = ['מייל תלמידה (חובה)', 'תאריך (חובה)', 'סטטוס (חובה)', 'הערה (רשות)', 'נושא המפגש (רשות)'];
 
+  it('asks for a topic instead of opening an unlinked meeting when several lessons share the day', async () => {
+    p.lesson.findMany.mockResolvedValue([
+      { id: 'l1', topic: 'מערכים', lessonDate: new Date('2026-10-08T00:00:00Z') },
+      { id: 'l2', topic: 'לולאות', lessonDate: new Date('2026-10-08T00:00:00Z') },
+    ]);
+    p.attendanceSession.create.mockResolvedValue({ id: 's9' });
+    const result = await importAttendance('c1', await sheetFrom([
+      HEAD,
+      ['rachel@x.com', '08/10/2026', 'נוכחת', '', ''],
+      ['leah@x.com', '08/10/2026', 'נוכחת', '', 'לולאות'],
+    ]));
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toContain('כמה שיעורים בתאריך הזה');
+    expect(p.attendanceSession.create).toHaveBeenCalledTimes(1);
+    expect(p.attendanceSession.create.mock.calls[0][0].data).toMatchObject({ lessonId: 'l2' });
+  });
+
   it('joins an existing meeting on that day and links a new one to the lesson of that day', async () => {
     p.attendanceSession.findMany.mockResolvedValue([{ id: 's1', date: new Date('2026-10-01T00:00:00Z'), title: null, lesson: null }]);
     p.lesson.findMany.mockResolvedValue([{ id: 'l2', topic: 'מערכים', lessonDate: new Date('2026-10-08T00:00:00Z') }]);
