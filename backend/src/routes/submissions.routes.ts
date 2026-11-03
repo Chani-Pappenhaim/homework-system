@@ -25,6 +25,7 @@ router.post('/:id/allow-extra-ai', requireRole('ADMIN'), submissionsController.a
 router.post('/:id/allow-changes', requireRole('ADMIN'), submissionsController.setChangesAllowed);
 router.post('/:id/restore-ai-score', requireRole('ADMIN'), submissionsController.restoreAiScore);
 router.post('/:id/approve-content', requireRole('ADMIN'), submissionsController.approveContentScore);
+router.post('/:id/unapprove-content', requireRole('ADMIN'), submissionsController.unapproveContentScore);
 router.post('/bulk-approve-content', requireRole('ADMIN'), submissionsController.bulkApproveContentScore);
 router.get('/mine', submissionsController.mySubmissions);
 router.get('/:id', submissionsController.getSubmission);

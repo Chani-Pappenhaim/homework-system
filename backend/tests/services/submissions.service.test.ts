@@ -241,7 +241,7 @@ describe('submissions.service.submitAssignment', () => {
     p.submission.update.mockImplementation(({ data }: any) => Promise.resolve({ id: 'sub1', ...data }));
     const r: any = await submitAssignment('a1', 's1', { repoName: 'my-repo' });
     expect(r).toMatchObject({ aiStatus: 'none', aiScore: null, aiApproved: false, fileUrl: null, fileName: null });
-    expect(p.grade.upsert.mock.calls[0][0].update).toMatchObject({ contentApproved: false });
+    expect(p.grade.upsert.mock.calls[0][0].update).toMatchObject({ contentApproved: false, gradedById: null });
   });
 
   it('confirms a direct upload once the submission is saved', async () => {

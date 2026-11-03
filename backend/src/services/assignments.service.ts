@@ -8,6 +8,7 @@ import { computeSubmissionScore, daysLate } from '../utils/grading';
 import { getLatePolicy } from './settings.service';
 import { AI_REFERENCE_FILES_INCLUDE, assignmentForViewer, assignmentsVisibleTo } from '../utils/assignment-view';
 import ExcelJS from 'exceljs';
+import { awaitingReview, teacherChecked } from '../utils/grade-status';
 
 export async function getAssignments(lessonId: string, userId: string, role: string) {
   await assertLessonAccess(userId, role, lessonId);
@@ -286,6 +287,9 @@ export async function getAssignmentSubmissions(assignmentId: string, userId: str
         feedback: s.grade.feedback,
         checklist: s.grade.checklist, gradedAt: s.grade.gradedAt,
       } : null,
+      // One definition for the dashboard queue, the list and the grade panel.
+      awaitingReview: awaitingReview(s.grade),
+      teacherChecked: teacherChecked(s.grade),
     })),
   };
 }

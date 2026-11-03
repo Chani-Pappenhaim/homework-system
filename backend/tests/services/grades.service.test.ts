@@ -27,6 +27,18 @@ describe('grades.service.gradeSubmission', () => {
     expect(arg.update.gradedAt).toBeInstanceOf(Date);
   });
 
+  it('takes the grade back to hidden when the content score is cleared', async () => {
+    p.grade.upsert.mockResolvedValue({ id: 'gr1' });
+    await gradeSubmission('sub1', 't1', { contentScore: null });
+    expect(p.grade.upsert.mock.calls[0][0].update).toMatchObject({ contentScore: null, contentApproved: false });
+  });
+
+  it('leaves the approval alone when the content score is not touched', async () => {
+    p.grade.upsert.mockResolvedValue({ id: 'gr1' });
+    await gradeSubmission('sub1', 't1', { feedback: 'x' });
+    expect(p.grade.upsert.mock.calls[0][0].update).not.toHaveProperty('contentApproved');
+  });
+
   it('writes through the transaction client it is given, not the shared one', async () => {
     const tx = { submission: { findUnique: vi.fn().mockResolvedValue({ id: 'sub1' }) }, grade: { upsert: vi.fn().mockResolvedValue({ id: 'gr1' }) } };
     await gradeSubmission('sub1', 'teacher1', { contentScore: 70 }, tx as any);
@@ -145,7 +157,7 @@ describe('grades.service.getPendingGrades', () => {
     ]);
     const r = await getPendingGrades();
     expect(p.submission.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { OR: [{ grade: null }, { grade: { contentScore: null, feedback: null } }] },
+      where: { OR: [{ grade: null }, { grade: { is: { gradedById: null, contentApproved: false } } }] },
     }));
     expect(r.count).toBe(1);
     expect(r.submissions[0]).toMatchObject({ id: 's1', studentName: 'A', assignmentTitle: 'T' });

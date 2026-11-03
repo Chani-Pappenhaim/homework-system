@@ -1,3 +1,4 @@
+import { teacherChecked } from '../utils/grade-status';
 import { prisma } from '../config/prisma';
 import { AppError } from '../utils/errors';
 import { uploadBuffer, createUploadSignature, destroyByUrl, isOwnUpload, submissionFileLink } from '../utils/storage';
@@ -176,7 +177,8 @@ async function writeSubmission(
   await prisma.grade.upsert({
     where: { submissionId: submission.id },
     create: { submissionId: submission.id, submissionScore },
-    update: { submissionScore, contentApproved: false },
+    // A new version is back in the teacher's queue: the automatic score has no grader, and the old approval no longer applies.
+    update: { submissionScore, contentApproved: false, gradedById: null },
   });
 
   return submission;
@@ -379,7 +381,7 @@ export async function setSubmissionChangesAllowed(submissionId: string, allowed:
   if (updated.count === 0) throw new AppError('Submission not found', 'ההגשה לא נמצאה', 404);
 }
 
-type TeacherGradeFields = { gradedById: string | null; contentScore: number | null; feedback: string | null; contentApproved: boolean };
+type TeacherGradeFields = Parameters<typeof teacherChecked>[0] & object;
 
 type DeletableSubmission = {
   aiStatus: string;
@@ -388,11 +390,6 @@ type DeletableSubmission = {
 };
 
 const CHECKED_BY_TEACHER = 'המורה כבר בדקה את ההגשה, ולכן אי אפשר למחוק או לעדכן אותה. אפשר לבקש ממנה בהודעה לאפשר זאת';
-
-/** Whether the teacher graded, commented or approved — an AI review alone does not count. */
-function teacherChecked(g: TeacherGradeFields | null | undefined): boolean {
-  return Boolean(g && (g.gradedById || g.contentScore != null || g.feedback || g.contentApproved));
-}
 
 /** Why the student may not delete or replace the submission, or null when allowed. A teacher check locks it unless changes were permitted; an AI review does not. */
 export function submissionDeleteBlock(sub: DeletableSubmission): string | null {

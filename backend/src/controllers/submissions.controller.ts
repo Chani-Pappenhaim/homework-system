@@ -249,8 +249,17 @@ export async function setChangesAllowed(req: Request, res: Response) {
 
 export async function approveContentScore(req: Request, res: Response) {
   try {
-    const grade = await submissionsService.approveContentScore(req.params.id as string);
+    const grade = await submissionsService.approveContentScore(req.params.id as string, req.user!.userId);
     res.json({ success: true, data: { grade } });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
+export async function unapproveContentScore(req: Request, res: Response) {
+  try {
+    await submissionsService.unapproveContentScore(req.params.id as string);
+    res.json({ success: true, data: null });
   } catch (err: any) {
     sendError(res, err);
   }
@@ -259,7 +268,7 @@ export async function approveContentScore(req: Request, res: Response) {
 export async function bulkApproveContentScore(req: Request, res: Response) {
   try {
     const { submissionIds } = req.body as { submissionIds: string[] };
-    const result = await submissionsService.bulkApproveContentScore(submissionIds ?? []);
+    const result = await submissionsService.bulkApproveContentScore(submissionIds ?? [], req.user!.userId);
     res.json({ success: true, data: result });
   } catch (err: any) {
     sendError(res, err);

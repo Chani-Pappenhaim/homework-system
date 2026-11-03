@@ -258,6 +258,8 @@ export interface QuizStateDTO {
     questions: QuizQuestionDTO[];
     /** Teacher only. */
     sourceFiles?: QuizSourceFilesDTO | null;
+    /** Teacher only: attempts that saving edits or deleting the quiz would erase. */
+    attemptCount?: number;
   };
 }
 
@@ -289,6 +291,10 @@ export interface SubmissionDTO {
   aiExtraAllowed?: boolean;
   /** The teacher let the student delete or replace it after she checked it. */
   changesAllowed?: boolean;
+  /** Not graded or approved since it was last submitted. */
+  awaitingReview?: boolean;
+  /** Graded, commented or approved: the student cannot change it unless allowed. */
+  teacherChecked?: boolean;
   aiError?: string | null;
   grade: GradeDTO | null;
 }
@@ -347,6 +353,10 @@ export interface ReportRow {
   aiReviewed?: boolean;
   submissionScore?: number | null;
   contentScore?: number | null;
+  /** The content score is visible to the student. */
+  contentApproved?: boolean;
+  /** Not graded or approved since it was last submitted. */
+  awaitingReview?: boolean;
   feedback?: string;
   checklist?: ChecklistResult[];
 }

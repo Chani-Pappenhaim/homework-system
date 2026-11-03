@@ -15,6 +15,7 @@ import { unwrap } from '@/lib/api-utils';
 import type { AssignmentDTO, SubmissionDTO } from '@/types';
 
 const feedbackOnly = (s: SubmissionDTO) => Boolean(s.grade?.feedback) && s.grade?.contentScore == null && s.grade?.submissionScore == null;
+const awaiting = (s: SubmissionDTO) => s.awaitingReview ?? !s.grade;
 const canApprove = (s: SubmissionDTO) => s.grade?.contentScore != null && !s.grade?.contentApproved;
 
 /**
@@ -54,12 +55,12 @@ export function SubmissionsWorkstation({ assignment, selectedId, onSelect, onDir
 
   // Without an explicit choice, start from the first one still waiting for a grade.
   const current = submissions.find((s) => s.id === selectedId)
-    ?? submissions.find((s) => !s.grade)
+    ?? submissions.find(awaiting)
     ?? submissions[0];
   const index = current ? submissions.indexOf(current) : -1;
   const previous = index > 0 ? submissions[index - 1] : undefined;
   const next = index >= 0 && index < submissions.length - 1 ? submissions[index + 1] : undefined;
-  const gradedCount = submissions.filter((s) => s.grade).length;
+  const gradedCount = submissions.filter((s) => !awaiting(s)).length;
 
   // Pin the default choice in the URL: otherwise saving her grade would make
   // "first one waiting" point at someone else and the page would jump.
@@ -86,10 +87,11 @@ export function SubmissionsWorkstation({ assignment, selectedId, onSelect, onDir
   const bulkApproveMutation = useMutation({
     mutationFn: () => submissionsApi.bulkApproveContent(Array.from(selected)),
     onSuccess: (res) => {
-      const { approved } = unwrap(res) ?? { approved: 0 };
+      const { approved, skipped } = unwrap(res) ?? { approved: 0, skipped: 0 };
       setSelected(new Set());
       qc.invalidateQueries({ queryKey: ['submissions', assignment.id] });
       toast.success(`${approved} ציונים אושרו ונשלחו לתלמידות`);
+      if (skipped > 0) toast.error(`${skipped} הגשות דולגו - ייתכן שאין להן ציון תוכן`);
     },
   });
   const [confirmDialog, ask] = useConfirm();
@@ -172,14 +174,14 @@ export function SubmissionsWorkstation({ assignment, selectedId, onSelect, onDir
                   <span className="min-w-0">
                     <span className={cn('block truncate text-sm', active ? 'font-bold text-ink' : 'text-ink/85')}>{s.studentName}</span>
                     <span className="block text-xs text-ink/50">
-                      {s.grade?.submissionScore != null ? `ציון ${s.grade.submissionScore}` : s.grade ? 'נבדקה' : 'ממתינה לבדיקה'}
+                      {awaiting(s) ? 'ממתינה לבדיקה' : s.grade?.submissionScore != null ? `ציון ${s.grade.submissionScore}` : 'נבדקה'}
                       {s.grade?.contentScore != null && ` · תוכן ${s.grade.contentScore}${s.grade.contentApproved ? ' ✓' : ''}`}
                     </span>
                   </span>
                   <span className="flex shrink-0 items-center gap-1">
                     {s.isLate && <Badge variant="warning">איחור</Badge>}
                     {feedbackOnly(s) && <Badge variant="secondary">משוב בלבד</Badge>}
-                    {!s.grade && <span className="size-2 rounded-full bg-clay" aria-hidden />}
+                    {awaiting(s) && <span className="size-2 rounded-full bg-clay" aria-hidden />}
                   </span>
                 </button>
               </li>

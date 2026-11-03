@@ -173,14 +173,14 @@ describe('applyGradesImport', () => {
   it('publishes the newly visible content scores after the save', async () => {
     const file = await upload([['אורית', 'a@x.com', '', '', 70, ''], ['אורית ב', 'b@x.com', '', '', '', 'רק משוב']]);
     const result = await applyGradesImport('asg', file, 'teacher1', true);
-    expect(bulkApproveContentScore).toHaveBeenCalledWith(['sub-a', 'sub-b']);
+    expect(bulkApproveContentScore).toHaveBeenCalledWith(['sub-a', 'sub-b'], 'teacher1');
     expect(result.published).toBe(1);
   });
 
   it('skips publishing a row that has no content score', async () => {
     const file = await upload([['אורית', 'a@x.com', '', 80, '', '']]);
     await applyGradesImport('asg', file, 'teacher1', true);
-    expect(bulkApproveContentScore).toHaveBeenCalledWith([]);
+    expect(bulkApproveContentScore).toHaveBeenCalledWith([], 'teacher1');
   });
 
   it('reports rows that already match as unchanged', async () => {

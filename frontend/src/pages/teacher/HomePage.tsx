@@ -81,7 +81,7 @@ export default function TeacherHomePage() {
     !q || [r.studentName, r.courseName, r.assignmentTitle, r.groupName].some((f) => f?.toLowerCase().includes(q));
 
   // Feedback alone also counts as checked, matching the pending count from the server.
-  const queue = report.filter((r) => r.contentScore == null && !r.feedback && matches(r));
+  const queue = report.filter((r) => (r.awaitingReview ?? (r.contentScore == null && !r.feedback)) && matches(r));
   const graded = report.filter((r) => r.contentScore != null);
   const latestFeedback = report.find((r) => r.feedback);
   const visible = showAll ? queue : queue.slice(0, 8);

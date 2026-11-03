@@ -228,6 +228,13 @@ export default function ReportsPage() {
                       {r.contentScore != null
                         ? <span className="font-semibold text-ink">{r.contentScore}</span>
                         : <span className="text-ink/50">-</span>}
+                      {r.contentScore != null && r.contentApproved === false && (
+                        <span className="block text-[11px] text-clay">ממתין לאישור</span>
+                      )}
+                      {r.awaitingReview && <span className="block text-[11px] text-clay">ממתינה לבדיקה</span>}
+                      {!r.awaitingReview && r.contentScore == null && r.feedback && (
+                        <span className="block text-[11px] text-ink/60">משוב בלבד</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <Button

@@ -140,7 +140,7 @@ export async function applyGradesImport(assignmentId: string, buffer: Buffer, gr
   }, { timeout: TRANSACTION_TIMEOUT_MS });
 
   const published = publish
-    ? (await bulkApproveContentScore(plan.updates.filter((u) => u.publishable).map((u) => u.submissionId))).approved
+    ? (await bulkApproveContentScore(plan.updates.filter((u) => u.publishable).map((u) => u.submissionId), gradedById)).approved
     : 0;
   return { updated: plan.updates.length, unchanged: plan.unchanged, empty: plan.empty, published };
 }

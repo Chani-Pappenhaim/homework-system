@@ -115,7 +115,7 @@ export async function approveAiReview(submissionId: string, gradedById: string) 
  * Approves and publishes the content score to the student for ANY submission,
  * not just ones that went through AI review — sends a notification email.
  */
-export async function approveContentScore(submissionId: string) {
+export async function approveContentScore(submissionId: string, gradedById?: string) {
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
     include: { grade: true, student: { select: { name: true, email: true } }, assignment: { select: { title: true } } },
@@ -127,26 +127,35 @@ export async function approveContentScore(submissionId: string) {
 
   const grade = await prisma.grade.update({
     where: { submissionId },
-    data: { contentApproved: true },
+    data: { contentApproved: true, ...(gradedById && { gradedById, gradedAt: new Date() }) },
   });
 
-  await enqueueStudentEmail('grade-approved', {
-    submissionId,
-    studentEmail: submission.student.email,
-    studentName: submission.student.name,
-    assignmentTitle: submission.assignment.title,
-    contentScore: grade.contentScore!,
-  });
+  // Approving again (to save an edit) must not mail the student a second time.
+  if (!submission.grade.contentApproved) {
+    await enqueueStudentEmail('grade-approved', {
+      submissionId,
+      studentEmail: submission.student.email,
+      studentName: submission.student.name,
+      assignmentTitle: submission.assignment.title,
+      contentScore: grade.contentScore!,
+    });
+  }
 
   return grade;
 }
 
+/** Takes a published content score back to hidden from the student; the score itself stays. */
+export async function unapproveContentScore(submissionId: string) {
+  const updated = await prisma.grade.updateMany({ where: { submissionId }, data: { contentApproved: false } });
+  if (updated.count === 0) throw new AppError('Grade not found', 'אין ציון להסתרה', 404);
+}
+
 /** Best-effort bulk approve — submissions without a content score are skipped, not failed. */
-export async function bulkApproveContentScore(submissionIds: string[]) {
+export async function bulkApproveContentScore(submissionIds: string[], gradedById?: string) {
   let approved = 0;
   for (const id of submissionIds) {
     try {
-      await approveContentScore(id);
+      await approveContentScore(id, gradedById);
       approved++;
     } catch {
       // no content score yet, or submission not found — skip it

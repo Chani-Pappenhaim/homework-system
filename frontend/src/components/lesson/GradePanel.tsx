@@ -107,7 +107,7 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
   const saveMutation = useMutation({
     mutationFn: async (mode: SaveMode) => {
       await gradesApi.grade(local.id, {
-        submissionScore: form.submissionScore ? Number(form.submissionScore) : undefined,
+        submissionScore: form.submissionScore ? Number(form.submissionScore) : null,
         // An emptied field is sent as null so the server clears it; undefined would leave the old value.
         contentScore: form.contentScore ? Number(form.contentScore) : null,
         feedback: form.feedback.trim() ? form.feedback : null,
@@ -203,7 +203,15 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
   });
 
   // Once she checked it, the student can no longer delete or replace it unless she allows that here.
-  const checked = Boolean(local.grade && (local.grade.contentScore != null || local.grade.feedback || local.grade.contentApproved));
+  const checked = local.teacherChecked ?? Boolean(local.grade && (local.grade.contentScore != null || local.grade.feedback || local.grade.contentApproved));
+  const unapproveMutation = useMutation({
+    mutationFn: () => submissionsApi.unapproveContent(local.id),
+    onSuccess: () => {
+      invalidateSubmissions();
+      toast.success('הציון הוסתר מהתלמידה');
+    },
+    onError: (e) => toast.error(getApiErrorMessage(e, 'ההסתרה נכשלה')),
+  });
   const allowChangesMutation = useMutation({
     mutationFn: (allowed: boolean) => submissionsApi.allowChanges(local.id, allowed),
     onSuccess: (_data, allowed) => {
@@ -411,14 +419,25 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
         >
           שמור ציון
         </Button>
-        <Button
-          variant={onNext ? 'outline' : 'default'}
-          loading={saving('approve')}
-          disabled={saveMutation.isPending || !form.contentScore}
-          onClick={() => saveMutation.mutate('approve')}
-        >
-          <CheckCircle size={14} /> שמרי ואשרי לתלמידה
-        </Button>
+        {local.grade?.contentApproved ? (
+          <Button
+            variant="outline"
+            loading={unapproveMutation.isPending}
+            disabled={saveMutation.isPending}
+            onClick={() => unapproveMutation.mutate()}
+          >
+            הסתירי את הציון מהתלמידה
+          </Button>
+        ) : (
+          <Button
+            variant={onNext ? 'outline' : 'default'}
+            loading={saving('approve')}
+            disabled={saveMutation.isPending || !form.contentScore}
+            onClick={() => saveMutation.mutate('approve')}
+          >
+            <CheckCircle size={14} /> שמרי ואשרי לתלמידה
+          </Button>
+        )}
         {!local.changesAllowed && (
           <Button
             variant="outline"

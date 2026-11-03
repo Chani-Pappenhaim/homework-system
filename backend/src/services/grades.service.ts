@@ -1,10 +1,11 @@
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import ExcelJS from 'exceljs';
 import { groupDisplayName } from '../utils/group-name';
 import { AppError } from '../utils/errors';
 import { dayRangeWhere, type DayRange } from '../utils/date-range';
 import { addReportSheet, israelClock } from '../utils/excel';
+import { AWAITING_REVIEW_WHERE, awaitingReview } from '../utils/grade-status';
 
 export type GradeInput = {
   submissionScore?: number | null; contentScore?: number | null;
@@ -39,7 +40,7 @@ function gradeData(data: GradeInput) {
   }
   if (data?.checklist !== undefined) {
     if (data.checklist !== null && !Array.isArray(data.checklist)) throw new AppError('Invalid checklist', 'רשימת הבדיקה אינה תקינה', 400);
-    out.checklist = data.checklist ?? undefined;
+    out.checklist = data.checklist ?? Prisma.JsonNull;
   }
   return out;
 }
@@ -57,7 +58,8 @@ export async function gradeSubmission(
   return db.grade.upsert({
     where: { submissionId },
     create: { submissionId, gradedById, ...fields },
-    update: { ...fields, gradedAt: new Date(), gradedById },
+    // Clearing the score takes the grade back to unpublished, so a new score is not shown at once.
+    update: { ...fields, ...(fields.contentScore === null && { contentApproved: false }), gradedAt: new Date(), gradedById },
   });
 }
 
@@ -110,6 +112,8 @@ export async function getReport(filters: ReportFilters) {
     aiReviewed: s.aiStatus === 'done',
     submissionScore: s.grade?.submissionScore ?? null,
     contentScore: s.grade?.contentScore ?? null,
+    contentApproved: s.grade?.contentApproved ?? false,
+    awaitingReview: awaitingReview(s.grade),
     feedback: s.grade?.feedback ?? null,
     checklist: s.grade?.checklist ?? null,
   }));
@@ -145,9 +149,9 @@ export async function exportReport(filters: ReportFilters): Promise<Buffer> {
 }
 
 export async function getPendingGrades() {
-  // "Pending" means the teacher has neither scored nor commented yet (or there is no grade at all).
+  // "Pending" means the teacher has not graded or approved it since it was last submitted.
   const submissions = await prisma.submission.findMany({
-    where: { OR: [{ grade: null }, { grade: { contentScore: null, feedback: null } }] },
+    where: AWAITING_REVIEW_WHERE,
     include: {
       student: { select: { name: true } },
       assignment: { select: { title: true } },

@@ -122,6 +122,10 @@ export const submissionsApi = {
   approveContent: (submissionId: string) =>
     api.post(`/submissions/${submissionId}/approve-content`),
 
+  /** Hides a published content score from the student again. */
+  unapproveContent: (submissionId: string) =>
+    api.post(`/submissions/${submissionId}/unapprove-content`),
+
   bulkApproveContent: (submissionIds: string[]) =>
     api.post<{ success: true; data: { approved: number; skipped: number } }>(`/submissions/bulk-approve-content`, { submissionIds }),
 };
