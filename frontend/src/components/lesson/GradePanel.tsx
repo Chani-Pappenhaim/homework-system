@@ -22,7 +22,7 @@ interface GradeForm {
   checklist: ChecklistResult[];
 }
 
-type SaveMode = 'save' | 'approve' | 'next';
+type SaveMode = 'save' | 'approve' | 'next' | 'allow';
 
 /** The finished AI review's score, as the content score it suggests ('' when there is none). */
 const aiSuggestion = (s: Pick<SubmissionDTO, 'aiStatus' | 'aiScore'>) =>
@@ -114,11 +114,13 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
         checklist: form.checklist,
       });
       if (mode === 'approve') await submissionsApi.approveContent(local.id);
+      if (mode === 'allow') await submissionsApi.allowChanges(local.id, true);
     },
     onSuccess: (_, mode) => {
       setBaseline(form);
+      if (mode === 'allow') setOverrides((prev) => ({ ...prev, changesAllowed: true }));
       invalidateSubmissions();
-      toast.success(mode === 'approve' ? 'הציון נשמר ואושר לתלמידה' : 'הציון נשמר בהצלחה');
+      toast.success(mode === 'approve' ? 'הציון נשמר ואושר לתלמידה' : mode === 'allow' ? 'המשוב נשמר והתלמידה יכולה לתקן ולהגיש שוב' : 'הציון נשמר בהצלחה');
       if (mode === 'next') onNext?.();
     },
     onError: (err) => toast.error(getApiErrorMessage(err, 'שמירת הציון נכשלה')),
@@ -417,6 +419,16 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
         >
           <CheckCircle size={14} /> שמרי ואשרי לתלמידה
         </Button>
+        {!local.changesAllowed && (
+          <Button
+            variant="outline"
+            loading={saving('allow')}
+            disabled={saveMutation.isPending || (!form.contentScore && !form.feedback.trim())}
+            onClick={() => saveMutation.mutate('allow')}
+          >
+            <Unlock size={14} /> שמרי ואפשרי תיקון
+          </Button>
+        )}
         {dirty && <span className="text-xs text-clay" role="status">יש שינויים שלא נשמרו</span>}
         {onNext && (
           <Button

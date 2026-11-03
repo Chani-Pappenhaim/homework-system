@@ -222,6 +222,18 @@ describe('TeacherLessonDetailPage', () => {
     await waitFor(() => expect(grade).toHaveBeenCalledWith('s7', expect.objectContaining({ contentScore: null, feedback: 'כל הכבוד' })));
   });
 
+  it('saves feedback and lets the student fix and resubmit in one click', async () => {
+    getSubmissions.mockResolvedValue({ data: { data: { submissions: [{ ...aiReviewed, id: 's8', aiStatus: null, aiScore: null }] } } });
+    grade.mockResolvedValue({ data: {} });
+    allowChanges.mockResolvedValue({ data: {} });
+    renderPage();
+    await openAssignment();
+    await userEvent.type(await screen.findByPlaceholderText('כתבי משוב מפורט...'), 'צריך לתקן');
+    await userEvent.click(screen.getByRole('button', { name: /שמרי ואפשרי תיקון/ }));
+    await waitFor(() => expect(grade).toHaveBeenCalledWith('s8', expect.objectContaining({ feedback: 'צריך לתקן' })));
+    await waitFor(() => expect(allowChanges).toHaveBeenCalledWith('s8', true));
+  });
+
   // Row 30 of the client's sheet: a checked submission is locked for the
   // student until the teacher explicitly allows changes.
   it('lets the teacher unlock a checked submission for the student, and lock it again', async () => {
