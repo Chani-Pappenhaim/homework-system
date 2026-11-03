@@ -80,7 +80,8 @@ export default function TeacherHomePage() {
   const matches = (r: ReportRow) =>
     !q || [r.studentName, r.courseName, r.assignmentTitle, r.groupName].some((f) => f?.toLowerCase().includes(q));
 
-  const queue = report.filter((r) => r.contentScore == null && matches(r));
+  // Feedback alone also counts as checked, matching the pending count from the server.
+  const queue = report.filter((r) => r.contentScore == null && !r.feedback && matches(r));
   const graded = report.filter((r) => r.contentScore != null);
   const visible = showAll ? queue : queue.slice(0, 8);
   const avg = graded.length

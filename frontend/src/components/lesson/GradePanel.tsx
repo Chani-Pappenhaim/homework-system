@@ -108,8 +108,9 @@ export function GradePanel({ submission, assignment, onDirtyChange, onNext }: {
     mutationFn: async (mode: SaveMode) => {
       await gradesApi.grade(local.id, {
         submissionScore: form.submissionScore ? Number(form.submissionScore) : undefined,
-        contentScore: form.contentScore ? Number(form.contentScore) : undefined,
-        feedback: form.feedback || undefined,
+        // An emptied field is sent as null so the server clears it; undefined would leave the old value.
+        contentScore: form.contentScore ? Number(form.contentScore) : null,
+        feedback: form.feedback.trim() ? form.feedback : null,
         checklist: form.checklist,
       });
       if (mode === 'approve') await submissionsApi.approveContent(local.id);

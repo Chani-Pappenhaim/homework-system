@@ -145,9 +145,9 @@ export async function exportReport(filters: ReportFilters): Promise<Buffer> {
 }
 
 export async function getPendingGrades() {
-  // "Pending" means the teacher hasn't set a content score yet (or there is no grade at all).
+  // "Pending" means the teacher has neither scored nor commented yet (or there is no grade at all).
   const submissions = await prisma.submission.findMany({
-    where: { OR: [{ grade: null }, { grade: { contentScore: null } }] },
+    where: { OR: [{ grade: null }, { grade: { contentScore: null, feedback: null } }] },
     include: {
       student: { select: { name: true } },
       assignment: { select: { title: true } },

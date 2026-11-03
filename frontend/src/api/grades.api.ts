@@ -18,8 +18,8 @@ export interface PlannedGrade {
   studentName: string;
   email: string;
   submissionScore?: number;
-  contentScore?: number;
-  feedback?: string;
+  contentScore?: number | null;
+  feedback?: string | null;
   /** The content score would reach the student once published. */
   publishable: boolean;
 }
@@ -57,7 +57,7 @@ export const gradesApi = {
   updateLatePolicy: (policy: LatePolicy) =>
     api.put<{ success: true; data: LatePolicy }>('/grades/late-penalty', policy),
 
-  grade: (submissionId: string, data: { submissionScore?: number; contentScore?: number; feedback?: string; checklist?: ChecklistResult[] }) =>
+  grade: (submissionId: string, data: { submissionScore?: number; contentScore?: number | null; feedback?: string | null; checklist?: ChecklistResult[] }) =>
     api.post(`/submissions/${submissionId}/grade`, data),
 
   report: (filters?: ReportFilters) =>

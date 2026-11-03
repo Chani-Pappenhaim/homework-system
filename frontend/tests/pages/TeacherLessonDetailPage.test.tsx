@@ -199,6 +199,29 @@ describe('TeacherLessonDetailPage', () => {
     await waitFor(() => expect(grade).toHaveBeenCalledWith('s5', expect.objectContaining({ contentScore: 88 })));
   });
 
+  it('sends null for an emptied content score and for empty feedback so the server clears them', async () => {
+    const graded = { ...aiReviewed, id: 's6', aiStatus: null, aiScore: null, grade: { contentScore: 70, feedback: 'טוב', submissionScore: 95, contentApproved: false } };
+    getSubmissions.mockResolvedValue({ data: { data: { submissions: [graded] } } });
+    grade.mockResolvedValue({ data: {} });
+    renderPage();
+    await openAssignment();
+    const contentInput = await screen.findByPlaceholderText('90') as HTMLInputElement;
+    await userEvent.clear(contentInput);
+    await userEvent.clear(screen.getByPlaceholderText('כתבי משוב מפורט...'));
+    await userEvent.click(screen.getByRole('button', { name: 'שמור ציון' }));
+    await waitFor(() => expect(grade).toHaveBeenCalledWith('s6', expect.objectContaining({ contentScore: null, feedback: null })));
+  });
+
+  it('saves feedback alone, without a score', async () => {
+    getSubmissions.mockResolvedValue({ data: { data: { submissions: [{ ...aiReviewed, id: 's7', aiStatus: null, aiScore: null }] } } });
+    grade.mockResolvedValue({ data: {} });
+    renderPage();
+    await openAssignment();
+    await userEvent.type(await screen.findByPlaceholderText('כתבי משוב מפורט...'), 'כל הכבוד');
+    await userEvent.click(screen.getByRole('button', { name: 'שמור ציון' }));
+    await waitFor(() => expect(grade).toHaveBeenCalledWith('s7', expect.objectContaining({ contentScore: null, feedback: 'כל הכבוד' })));
+  });
+
   // Row 30 of the client's sheet: a checked submission is locked for the
   // student until the teacher explicitly allows changes.
   it('lets the teacher unlock a checked submission for the student, and lock it again', async () => {
