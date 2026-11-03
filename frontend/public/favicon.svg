@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 48" width="40" height="48">
-  <!-- קליק כיתה: ruled index card with folded corner + sage check -->
+  <!-- Teacher Feature: ruled index card with folded corner + sage check -->
   <rect x="1" y="1" width="38" height="46" rx="3" fill="#FCFAF6" stroke="#2E2C29" stroke-width="1.5"/>
   <path d="M1 14 L14 1 L14 14 Z" fill="#E4DED2"/>
   <path d="M14 1 L14 14 L1 14" stroke="#2E2C29" stroke-width="1.2" stroke-linejoin="round" fill="none" opacity="0.55"/>

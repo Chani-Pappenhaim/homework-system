@@ -1,4 +1,4 @@
-# Homework Submission System
+# Teacher Feature — Homework Submission System
 
 A system for managing courses, lessons, assignments, and submissions, with automatic AI grading, quizzes, and grade reports. Built for a single teacher (ADMIN) and multiple students (STUDENT).
 

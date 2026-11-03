@@ -1,7 +1,7 @@
 import type { Config } from 'tailwindcss';
 
 /*
-  "קליק כיתה" design system.
+  Teacher Feature design system.
 
   Palette stored as space-separated RGB channels in globals.css, surfaced here as
   `rgb(var(--x) / <alpha-value>)` so opacity modifiers (`bg-clay/20`) resolve.

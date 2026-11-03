@@ -19,16 +19,11 @@ type SubmitPayload = {
   notes?: string;
   checklist?: unknown;
   file?: { buffer: Buffer; originalName: string; mimeType: string };
-    // Already uploaded straight from the browser to Cloudinary (videos) —
-    // the server only ever sees the resulting URL, never the file bytes.
+    // Videos are uploaded straight from the browser to Cloudinary; the server only sees the URL.
     uploadedFile?: { url: string; originalName: string };
 };
 
-/**
- * Whatever the outcome, no stored file is left that nothing points at: a
- * rejected or failed submission removes the file it brought, and a successful
- * one removes the file it replaced.
- */
+/** Ensures no orphaned stored file remains: a failed submission removes its new file, a successful one the replaced file. */
 export async function submitAssignment(assignmentId: string, studentId: string, payload: SubmitPayload) {
   const uploaded: { url: string | null } = { url: null };
   try {
@@ -71,8 +66,7 @@ async function saveSubmission(
     throw new AppError('Submission already checked by the teacher', CHECKED_BY_TEACHER, 409);
   }
 
-  // Every submission is exactly one kind: whichever field doesn't apply is
-  // cleared, so a resubmission in another form leaves nothing of the old one.
+  // A submission is exactly one kind; fields that don't apply are cleared on resubmit.
   let fileUrl: string | null = null;
   let fileName: string | null = null;
   let githubUrl: string | null = null;
@@ -91,8 +85,7 @@ async function saveSubmission(
         400
       );
     }
-    // An unverified link is not accepted: it may well be a typo, and the
-    // teacher would only find out when grading.
+    // An unverified link is rejected, since a typo would only surface at grading.
     if (repoStatus === 'unknown') {
       throw new AppError(
         'GitHub could not be reached to verify the repo',
@@ -104,10 +97,8 @@ async function saveSubmission(
   } else if (payload.file || payload.uploadedFile) {
     if (!assignment.allowFile) throw new AppError('File upload not allowed for this assignment', 'העלאת קובץ אינה מותרת במטלה זו', 400);
     const originalName = payload.file ? payload.file.originalName : payload.uploadedFile!.originalName;
-    // The browser reports a direct upload's URL and name itself, so neither is
-    // trusted: the URL must be our own Cloudinary submissions folder (anything
-    // else would be fetched by the AI worker and shown to the teacher), and the
-    // type check covers the stored file's extension as well as the name.
+    // The browser supplies a direct upload's URL and name, so neither is trusted: the URL must be in
+    // our Cloudinary submissions folder (the AI worker fetches it), and the type check covers the stored extension too.
     if (payload.uploadedFile && !isOwnUpload(payload.uploadedFile.url, 'submissions')) {
       throw new AppError('Uploaded file URL is not ours', 'כתובת הקובץ שהועלה אינה תקינה', 400);
     }
@@ -144,10 +135,7 @@ async function saveSubmission(
   return { submission, replacedFileUrl: existing?.fileUrl ?? null };
 }
 
-/**
- * Saves new content as the student's submission of the assignment, over her
- * existing one if there is one, with its automatic submission score.
- */
+/** Saves the student's submission, replacing any existing one, with its automatic score. */
 async function writeSubmission(
   assignmentId: string,
   studentId: string,
@@ -158,12 +146,9 @@ async function writeSubmission(
   },
 ) {
   const { fileUrl, fileName, githubUrl, notes, checklist, isLate, deadline } = content;
-  // New content makes the old AI review and the teacher's approval stale: the
-  // review is cleared and the content score goes back to unpublished, so an
-  // approved grade never ends up on work nobody looked at. The review count
-  // stays, or resubmitting would refill the AI quota - and so does the count a
-  // deleted submission left behind. The teacher's permission to change a
-  // checked submission is used up by this resubmit.
+  // New content makes the AI review and teacher approval stale: the review is cleared and the
+  // content score is unpublished. The review count is kept so resubmitting cannot refill the AI quota.
+  // The teacher's permission to change a checked submission is consumed here.
   let submission;
   if (existing) {
     submission = await prisma.submission.update({
@@ -185,8 +170,7 @@ async function writeSubmission(
     if (carried) await prisma.aiReviewCarryover.deleteMany({ where: { assignmentId, studentId } });
   }
 
-  // Automatic submission score, visible to the student right away. Any
-  // contentScore/feedback already given by the teacher is left untouched.
+  // Automatic submission score, visible to the student at once; teacher-given contentScore/feedback is untouched.
   const lateDays = daysLate(isLate, submission.submittedAt, deadline);
   const submissionScore = computeSubmissionScore(lateDays, submission.checklist, await getLatePolicy());
   await prisma.grade.upsert({
@@ -206,10 +190,8 @@ type TeacherSubmitPayload = {
 };
 
 /**
- * The teacher submits an assignment for a student - work she handed in another
- * way. Unlike the student, the teacher is not held to the assignment's ways of
- * submitting or file types, nor to a check already given: she decides. It is
- * on time unless she marks it late.
+ * The teacher submits on a student's behalf. Unlike the student, she is not bound by the
+ * assignment's submission methods, file types or an existing check. On time unless marked late.
  */
 export async function submitForStudent(assignmentId: string, studentId: string, payload: TeacherSubmitPayload) {
   const uploaded: { url: string | null } = { url: null };
@@ -286,12 +268,8 @@ interface SubmissionAiFields {
 }
 
 /**
- * What a student is allowed to see of an AI review.
- *
- * The comments (code review and verbal summary) are hers as soon as the review
- * is done; the score is the teacher's call and stays server-side until she
- * approves. Hiding it in the client is not hiding it — the value would still
- * be sent over the wire and be visible in devtools.
+ * What a student may see of an AI review: the comments once done, the score only after
+ * teacher approval. Stripped server-side, since hiding it in the client would still expose it.
  */
 export function toStudentAiView(sub: SubmissionAiFields) {
   const done = sub.aiStatus === 'done';
@@ -318,8 +296,7 @@ export async function getMySubmissions(studentId: string) {
   const accessCourseIds = student?.courseAccess.map((ca) => ca.courseId) ?? [];
   const accessLessonIds = student?.lessonAccess.map((la) => la.lessonId) ?? [];
 
-  // The same reach as assertLessonAccess: her group's courses, courses and
-  // lessons opened to her personally — never a hidden assignment, lesson or course.
+  // Same reach as assertLessonAccess; never a hidden assignment, lesson or course.
   const allAssignments = await prisma.assignment.findMany({
     where: {
       ...VISIBLE_ASSIGNMENT,
@@ -386,8 +363,7 @@ export async function getSubmissionById(id: string, userId: string, role: string
   }
   const fileUrl = submissionFileLink(submission, userId);
   if (role === 'ADMIN') return { ...submission, fileUrl };
-  // The content score is the teacher's call and stays hidden until she approves
-  // it; the submission score is always the student's to see.
+  // The content score stays hidden until approved; the submission score is always visible.
   const grade = submission.grade
     ? { ...submission.grade, contentScore: submission.grade.contentApproved ? submission.grade.contentScore : null }
     : submission.grade;
@@ -418,22 +394,14 @@ function teacherChecked(g: TeacherGradeFields | null | undefined): boolean {
   return Boolean(g && (g.gradedById || g.contentScore != null || g.feedback || g.contentApproved));
 }
 
-/**
- * Why the student may not delete (or replace) her submission, or null when she
- * may. An AI review does not lock it; the teacher's check does, unless she
- * explicitly allowed changes.
- */
+/** Why the student may not delete or replace the submission, or null when allowed. A teacher check locks it unless changes were permitted; an AI review does not. */
 export function submissionDeleteBlock(sub: DeletableSubmission): string | null {
   if (sub.aiStatus === 'pending') return 'בדיקת AI של ההגשה עדיין רצה - אפשר למחוק כשהיא תסתיים';
   if (teacherChecked(sub.grade) && !sub.changesAllowed) return CHECKED_BY_TEACHER;
   return null;
 }
 
-/**
- * The student deletes her own submission, so the assignment is open to submit
- * again. Its grade goes with it (cascade) and its stored file is released. The
- * AI reviews she used are kept aside for her next submission of it.
- */
+/** Deletes the student's own submission, with its grade and stored file; the AI reviews used are kept for her next submission. */
 export async function deleteMySubmission(submissionId: string, studentId: string) {
   const submission = await prisma.submission.findUnique({ where: { id: submissionId }, include: { grade: true } });
   if (!submission || submission.studentId !== studentId) throw new AppError('Submission not found', 'ההגשה לא נמצאה', 404);
@@ -443,8 +411,7 @@ export async function deleteMySubmission(submissionId: string, studentId: string
   // No review is running (checked above), so the count cannot move before the delete.
   await keepAiReviewsAside(submission);
 
-  // The same conditions in the delete itself: an AI review claimed or a grade
-  // saved between the read and here keeps the submission.
+  // Conditions repeated in the delete: a review claimed or grade saved since the read keeps the submission.
   const deleted = await prisma.submission.deleteMany({
     where: {
       id: submissionId, studentId, aiStatus: { not: 'pending' },
@@ -473,11 +440,7 @@ async function keepAiReviewsAside(submission: { assignmentId: string; studentId:
   });
 }
 
-/**
- * The teacher deletes a student's submission - checked or not - so the
- * assignment is open to her again. As when the student deletes it herself, the
- * grade goes with it and the AI reviews she used are kept aside.
- */
+/** Deletes a student's submission, checked or not, with the same effects as a student-initiated delete. */
 export async function deleteSubmissionAsTeacher(submissionId: string) {
   const submission = await prisma.submission.findUnique({ where: { id: submissionId } });
   if (!submission) throw new AppError('Submission not found', 'ההגשה לא נמצאה', 404);

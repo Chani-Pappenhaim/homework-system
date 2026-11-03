@@ -1,11 +1,7 @@
 import { cloudinary } from '../config/cloudinary';
 import { signFileToken } from './jwt';
 
-/**
- * Multer/busboy decode multipart `filename` headers as latin1, not utf8, so a
- * non-ASCII original filename (e.g. Hebrew) arrives mojibake'd on
- * `req.file.originalname`. Re-decoding the bytes as utf8 recovers it.
- */
+/** Recovers a non-ASCII filename (e.g. Hebrew) that multer decodes as latin1 instead of utf8. */
 export function fixMulterFilename(name: string): string {
   return Buffer.from(name, 'latin1').toString('utf8');
 }
@@ -24,13 +20,8 @@ export async function uploadBuffer(
   folder: string,
   originalName?: string
 ): Promise<UploadedFile> {
-  // A base64 data URI carries no filename, so Cloudinary has nothing to derive
-  // one from and falls back to a random public_id with no extension — fine for
-  // images/video (format is detected from content), but for 'raw' resources
-  // (docx/zip/etc.) the extension IS part of the public_id, so without it the
-  // stored asset has no extension and downloads lose both their name and type.
-  // filename_override tells Cloudinary the real name even though the data URI
-  // itself is anonymous.
+  // A data URI has no filename, and a 'raw' asset (docx/zip/etc.) needs its extension in the public_id
+  // or downloads lose their name and type; filename_override supplies the real name.
   const result = await cloudinary.uploader.upload(dataUri(buffer, mimeType), {
     resource_type: 'auto',
     folder,
@@ -39,11 +30,7 @@ export async function uploadBuffer(
   return toUploadedFile(result);
 }
 
-/**
- * Stores an image as a `size`×`size` square, cropped from its center. The
- * resize happens in storage on the way in, so only the thumbnail is kept —
- * without the original's size or its embedded metadata (camera, location).
- */
+/** Stores an image as a centered `size`×`size` square; the original and its metadata (camera, location) are not kept. */
 export async function uploadSquareImage(
   buffer: Buffer,
   mimeType: string,
@@ -72,10 +59,8 @@ function toUploadedFile(result: { secure_url: string; bytes: number; resource_ty
 }
 
 /**
- * Uploads use resource_type 'auto', so a PDF or image is stored as 'image'/'video'.
- * Destroying it as 'raw' returns {result:'not found'} without throwing, which would
- * silently leave the asset undeleted. Try the type the URL implies, then fall back.
- * A 'raw' asset's public id keeps its extension, unlike an image's or a video's.
+ * Deletes a stored asset. Destroying with the wrong resource type returns 'not found' without
+ * throwing, so the type the URL implies is tried first, then the others.
  */
 export async function destroyByUrl(url: string): Promise<void> {
   const key = assetKey(url);
@@ -97,19 +82,11 @@ export const PENDING_TAG = 'pending_upload';
 export const uploaderTag = (userId: string) => `uploader_${userId}`;
 
 /**
- * Signed params for a direct browser upload into `folder`. The file bytes never
- * touch our Node process, which avoids buffering large uploads server-side.
- *
- * Everything returned besides the signature itself is part of what was signed,
- * so the browser must send it unchanged: `allowedFormats` makes Cloudinary
- * refuse any other file type even if the signature is reused outside the app,
- * and `tags` marks the upload as pending and owned by `uploaderId` until it is
- * registered, so an upload that never gets registered can be found and removed.
- */
-/**
- * Without an uploader the upload is not tagged: a page loaded before tagging
- * existed doesn't send the tags, and Cloudinary refuses any signed param it
- * is missing. Such uploads are only cleaned up when registration fails.
+ * Signed params for a direct browser upload into `folder`, so large files never pass through Node.
+ * The browser must send every returned param unchanged: `allowedFormats` restricts the file type,
+ * and `tags` marks the upload as pending and owned by `uploaderId` until registered, so abandoned
+ * uploads can be cleaned up. Without an uploader no tags are signed (for pages loaded before tagging
+ * existed); such uploads are only cleaned up when registration fails.
  */
 export function createUploadSignature(folder: string, opts: { uploaderId?: string; allowedFormats?: string[] }) {
   const timestamp = Math.round(Date.now() / 1000);
@@ -130,10 +107,7 @@ export function createUploadSignature(folder: string, opts: { uploaderId?: strin
   };
 }
 
-/**
- * A file in our own Cloudinary account, inside `folder`. A direct upload's URL
- * is reported by the browser, so it is never trusted until it passes this.
- */
+/** Whether the URL is a file in our own Cloudinary account inside `folder`; browser-reported URLs must pass this. */
 export function isOwnUpload(url: string, folder: string): boolean {
   const cloud = process.env.CLOUDINARY_CLOUD_NAME?.trim();
   if (!cloud) return false;
@@ -151,11 +125,7 @@ export function fileDownloadPath(fileId: string, extension: string, token: strin
   return `/files/download/${fileId}${suffix}?token=${token}`;
 }
 
-/**
- * The link a submission's file is opened by: the same short-lived,
- * session-bound download route as study material, instead of a signed
- * Cloudinary URL that anyone the link reaches could open forever.
- */
+/** The short-lived, session-bound download link for a submission's file, instead of a permanent signed Cloudinary URL. */
 export function submissionFileLink(
   submission: { id: string; fileUrl: string | null; fileName?: string | null },
   userId: string
@@ -165,18 +135,14 @@ export function submissionFileLink(
   return fileDownloadPath(submission.id, extension, signFileToken({ fileId: submission.id, kind: 'submission', userId }));
 }
 
-/**
- * The link `viewerId` opens `user`'s profile picture by, through the same
- * session-bound download route as every other stored file; null without one.
- */
+/** The session-bound download link `viewerId` opens `user`'s profile picture by; null without one. */
 export function avatarLink(user: { id: string; avatarUrl: string | null }, viewerId: string): string | null {
   if (!user.avatarUrl) return null;
   const token = signFileToken({ fileId: user.id, kind: 'avatar', userId: viewerId });
   return fileDownloadPath(user.id, fileExtension({ url: user.avatarUrl }), token);
 }
 
-// Files uploaded before names were passed to Cloudinary have none in their
-// URL; the stored name may still carry one.
+// Older uploads have no extension in the URL, so fall back to the stored name.
 export function fileExtension(file: { url: string; name?: string }): string {
   return urlExtension(file.url) || urlExtension(file.name ?? '');
 }
@@ -187,12 +153,8 @@ function urlExtension(url: string): string {
 }
 
 /**
- * Prisma returns sizeBytes as BigInt, which JSON.stringify throws on.
- *
- * `url` is replaced with a link to our own short-lived download redirect
- * (see files.controller) instead of a permanently-valid signed Cloudinary URL —
- * `extension` ships alongside it so the client can still tell a PDF from a
- * video without an extension to parse out of that URL.
+ * Serializable file shape: sizeBytes (BigInt) becomes a string, and `url` becomes a short-lived
+ * download link (see files.controller) with `extension` alongside so the client can tell file types apart.
  */
 export function toFileDTO<T extends { id: string; sizeBytes?: bigint | null; url?: string; name?: string }>(
   file: T,
@@ -204,8 +166,6 @@ export function toFileDTO<T extends { id: string; sizeBytes?: bigint | null; url
     sizeBytes: file.sizeBytes?.toString() ?? null,
     ...(file.url
       ? (() => {
-          // Files uploaded before names were passed to Cloudinary have none in
-          // their URL; the stored name may still carry one.
           const extension = fileExtension(file as { url: string; name?: string });
           return { url: fileDownloadPath(file.id, extension, signFileToken({ fileId: file.id, kind, userId })), extension };
         })()
@@ -238,11 +198,8 @@ export function resourceTypeFromUrl(url: string): string {
 }
 
 /**
- * Cloudinary blocks unsigned delivery of 'raw' assets (docx/xlsx/zip/etc.) and
- * of PDFs by default; a signed URL bypasses that restriction without needing
- * an account-level toggle. Rebuilds it from the stored (unsigned) URL on every
- * read rather than persisting a signed one, since a signature should always be
- * freshly generated, not stored as if it were the file's permanent address.
+ * A signed delivery URL, since Cloudinary blocks unsigned delivery of 'raw' assets and PDFs.
+ * Built from the stored unsigned URL on every read; signed URLs are never persisted.
  */
 export function toDeliveryUrl(url: string): string {
   const publicId = extractPublicId(url);

@@ -4,18 +4,13 @@ import type { InlineAttachment } from '../utils/code-extraction';
 import { markFreeTierAvailable, markFreeTierExhausted, routeFreeTier } from './gemini-quota';
 import { getAiSettings } from './settings.service';
 
-// Billing belongs to a Google Cloud project, and a key inherits it, so each tier
-// needs its own key: GEMINI_API_KEY from a project without billing (free),
-// GEMINI_API_KEY_PAID from a billed one. With both set, the paid key serves
-// calls as the teacher's paidFallback setting allows (see callGemini).
-// Read lazily (not at module load) so a missing key produces a clear error at
-// call time instead of an `undefined` sneaking into the request URL.
+// Each billing tier needs its own key, since billing belongs to the key's Google Cloud project.
+// The paid key is used as the paidFallback setting allows (see callGemini). Read lazily so a missing key fails clearly at call time.
 const freeApiKey = () => process.env.GEMINI_API_KEY || undefined;
 const paidApiKey = () => process.env.GEMINI_API_KEY_PAID || undefined;
 
-// Google periodically retires model ids, which makes calls 404. Keep this
-// pinned to a model that currently exists; check the available models at
-// https://generativelanguage.googleapis.com/v1beta/models?key=... if it 404s.
+// Google retires model ids now and then, which makes calls 404; list the live ones at
+// https://generativelanguage.googleapis.com/v1beta/models?key=...
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
 
 // Paid-tier list prices of the default model per 1M tokens, newest first.
@@ -48,8 +43,7 @@ interface AiReviewResult {
   score: number;
 }
 
-// How long a single Gemini call may take before we give up. Without this a
-// hung connection leaves the job waiting indefinitely.
+// How long a single Gemini call may take before we give up.
 const REQUEST_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS ?? 60_000);
 
 /**
@@ -115,11 +109,8 @@ function readDailyQuotaError(body: string): { dailyLimit?: number } | null {
 const BLOCKED_FINISH_REASONS = new Set(['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'SPII', 'RECITATION']);
 
 /**
- * Flattens an error and its `cause` chain into one line.
- *
- * Node's fetch reports every network fault as a bare `TypeError: fetch failed`
- * and puts the real reason (bad certificate, DNS failure, refused connection)
- * in `cause`. Reporting only the top-level message tells the reader nothing.
+ * Flattens an error and its `cause` chain into one line, since Node's fetch hides
+ * the real network fault (certificate, DNS, refused connection) in `cause`.
  */
 function describeError(err: any): string {
   const parts: string[] = [];
@@ -207,18 +198,14 @@ async function requestGemini(
 }
 
 /**
- * Shared entry point for calling Gemini. Normalizes every failure mode
- * (timeout, network error, HTTP error, empty/blocked response, malformed
- * JSON) into an error message that names the actual cause.
+ * Shared entry point for calling Gemini. Every failure becomes an error naming
+ * the actual cause.
  *
- * Calls go to the free key. Once it spends its daily quota they go to the paid
- * key until the quota resets, with one call every half hour trying the free
- * key again. The teacher's paidFallback setting decides the rest:
- * - DAILY_QUOTA — short-term limits and outages never move a call to the paid key;
- * - ANY_LIMIT   — a per-minute limit or an outage of the free key moves that one
- *                 call to the paid key, without marking the free tier spent;
- * - NEVER       — the paid key is never used, so a spent free quota stops the
- *                 calls until it resets, without asking Google again.
+ * Calls use the free key, moving to the paid key once the daily quota is spent
+ * (one call every half hour retries the free key). The paidFallback setting decides when:
+ * - DAILY_QUOTA — only a spent daily quota moves calls to the paid key;
+ * - ANY_LIMIT   — a per-minute limit or free-key outage also moves that one call;
+ * - NEVER       — the paid key is never used.
  */
 async function callGemini(
   systemPrompt: string,
@@ -420,9 +407,7 @@ ${NO_LONG_DASHES}
     throw new GeminiError('Quiz generation returned no questions', 'bad-output', true);
   }
 
-  // Scoring assumes every question has options and a valid correctIndex. A
-  // malformed question would otherwise be stored and only fail later, while a
-  // student is taking the quiz.
+  // Drop malformed questions now; scoring assumes options and a valid correctIndex.
   const valid = questions.filter(
     (q: any) =>
       typeof q?.question === 'string' &&

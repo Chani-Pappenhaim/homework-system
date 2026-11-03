@@ -4,7 +4,7 @@
 
 @layer base {
   /*
-    "קליק כיתה" — refined classroom stationery.
+    Teacher Feature — refined classroom stationery.
 
     Palette colors are stored as space-separated RGB channels so Tailwind can
     inject opacity via `rgb(var(--x) / <alpha-value>)` — that is what makes
@@ -206,39 +206,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .dev-signature-text { animation: none; width: auto; }
-}
-
-/* ------------------------------------------------------------------ */
-/*  Compatibility shims — soft stand-ins for retired brutalist devices */
-/*  so pages authored on the previous design still render coherently.  */
-/* ------------------------------------------------------------------ */
-@layer components {
-  .pen-circle { display: inline-flex; align-items: center; justify-content: center; color: rgb(var(--clay)); }
-  .scribble-underline {
-    background-image: linear-gradient(rgb(var(--clay) / 0.5), rgb(var(--clay) / 0.5));
-    background-repeat: no-repeat;
-    background-position: 0 100%;
-    background-size: 100% 2px;
-    padding-bottom: 1px;
-  }
-  .ink-underline {
-    background-image: linear-gradient(rgb(var(--butter) / 0.45), rgb(var(--butter) / 0.45));
-    background-repeat: no-repeat;
-    background-position: 0 90%;
-    background-size: 100% 0.4em;
-  }
-  .stamp {
-    display: inline-block;
-    border: 1px solid rgb(var(--clay) / 0.55);
-    color: rgb(var(--clay));
-    border-radius: 4px;
-    padding: 1px 7px;
-    font-size: 11px;
-    letter-spacing: 0.04em;
-  }
-  .blink { animation: none; }
-  .marquee-track { display: inline-flex; white-space: nowrap; }
-  .tape-hatch, .torn-top, .torn-edge { background-image: none; -webkit-mask-image: none; mask-image: none; }
 }
 
 /* Code in Markdown (lessons, assignments, AI reviews). The page is right-to-left,

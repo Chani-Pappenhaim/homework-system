@@ -75,12 +75,7 @@ function useCourseLessons(courseId: string | undefined) {
   });
 }
 
-/**
- * Resolves the course segment of any `/courses/:courseId/...` address — the
- * course's name, or its id in links that only know the id — and moves the
- * address to the name. A renamed course gets its new name in the address, so
- * links made before the rename keep working through the id they redirect from.
- */
+/** Resolves the course segment of any `/courses/:courseId/...` address (name or id) and redirects to the name, so links survive a rename. */
 export function CourseRoute({ area, children }: { area: Area; children: (course: CoursePageProps) => ReactNode }) {
   const { courseId: param = '' } = useParams<{ courseId: string }>();
   const location = useLocation();
@@ -118,12 +113,9 @@ export function CourseByName({ area, page: Page }: { area: Area; page: Component
 }
 
 /**
- * Renders a lesson addressed by its number and topic. The topic identifies the
- * lesson, so when the order changed since the link was made (or the viewer
- * sees a different list, e.g. without hidden lessons) the address is corrected
- * to the lesson's current number; a bare number is looked up by position. The
- * number tells apart lessons that share a topic. Older addresses ending in the
- * start of the lesson's id still resolve.
+ * Renders a lesson addressed by number and topic. The topic identifies the lesson, so a stale
+ * number is corrected in the address; a bare number is looked up by position, and the number
+ * separates lessons sharing a topic. Older addresses ending in the start of the id still resolve.
  */
 export function LessonByNumber({ area, page }: { area: Area; page: ComponentType<LessonPageProps> }) {
   return (
@@ -173,11 +165,9 @@ function LessonInCourse({ area, page: Page, courseId, courseSlug }: {
 }
 
 /**
- * The older `/lessons/:id` address, still used by links that only know the
- * lesson (the assignments list, the home page, notification emails). It moves
- * to the numbered address once the lesson's place in its course is known, and
- * shows the lesson by id when it has none the viewer can see — a lesson opened
- * to one student privately, for instance.
+ * The older `/lessons/:id` address, still used by links that only know the lesson. It redirects
+ * to the numbered address once the lesson's place is known, else shows the lesson by id
+ * (e.g. a lesson opened privately to one student).
  */
 export function LessonById({ area, page: Page }: { area: Area; page: ComponentType<LessonPageProps> }) {
   const { id } = useParams<{ id: string }>();

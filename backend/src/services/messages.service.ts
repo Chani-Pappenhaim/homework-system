@@ -21,8 +21,7 @@ import {
 export const MAX_MESSAGE_LENGTH = 5000;
 export const MAX_SUBJECT_LENGTH = 120;
 
-// One check for every entry point that writes a message entry, so a huge paste
-// can't bloat the inbox (and the email built from it).
+// Shared by every entry point that writes a message, so a huge paste can't bloat the inbox or its email.
 function messageText(content: unknown): string {
   const trimmed = typeof content === 'string' ? content.trim() : '';
   if (!trimmed) throw new AppError('Message content is required', 'תוכן ההודעה נדרש', 400);
@@ -66,10 +65,7 @@ export interface NewThread {
   assignmentId?: unknown;
 }
 
-/**
- * Opens a thread with its first entry. The one door every new conversation
- * goes through, so the policy decides who may open which kind.
- */
+/** Opens a thread with its first entry; every new conversation goes through here so the policy decides who may open which kind. */
 export async function startThread(viewer: Viewer, input: NewThread) {
   assertCanStartThread(viewer, input.audience);
   const content = messageText(input.content);
@@ -120,11 +116,7 @@ export function sendTeacherMessage(
   });
 }
 
-/**
- * One message to every student of a group, as a single thread: visible to all
- * of them, or as hidden copies where each sees only her own exchange with the
- * teacher.
- */
+/** One message to every student of a group: a single shared thread, or private copies where each student sees only her own exchange. */
 export async function sendGroupMessage(
   teacherId: string,
   groupId: string,
@@ -156,10 +148,7 @@ function lastActivity(m: { createdAt: Date; lastEntry: { createdAt: Date } | nul
   return (m.lastEntry?.createdAt ?? m.createdAt).getTime();
 }
 
-/**
- * Newest activity first: a conversation that just got a reply moves to the top,
- * where its new message is seen, rather than staying where it was started.
- */
+/** Orders threads by newest activity first. */
 function latestFirst<T extends { createdAt: Date; lastEntry: { createdAt: Date } | null }>(threads: T[]): T[] {
   return [...threads].sort((a, b) => lastActivity(b) - lastActivity(a));
 }
@@ -175,10 +164,7 @@ async function entryStatsByThread(threadIds: string[], ...where: Prisma.MessageE
   return new Map(rows.map((r) => [r.threadId, { count: r._count._all, latest: r._max.createdAt }]));
 }
 
-/**
- * Reactions other people put on the entries `authorId` wrote (null = the
- * teacher) that the author has not seen yet, counted per thread.
- */
+/** Per-thread count of unseen reactions others put on entries written by `authorId` (null = the teacher). */
 async function unseenReactionCounts(threadIds: string[], authorId: string | null) {
   const rows = await prisma.entryReaction.findMany({
     where: { seenByAuthor: false, entry: { threadId: { in: threadIds }, authorId } },
@@ -307,14 +293,12 @@ async function addEntry(viewer: Viewer, threadId: string, content: unknown, scop
   return getThread(viewer, threadId);
 }
 
-// The teacher adds another entry to a thread — works whether it's brand new or
-// already has back-and-forth history, so the exchange never "locks".
+// The teacher adds an entry to a thread; a thread never locks.
 export function replyMessage(teacherId: string, threadId: string, content: string, scope: ReplyScope = { to: 'ALL' }) {
   return addEntry(teacherViewer(teacherId), threadId, content, scope);
 }
 
-// The student adds another entry to a thread she takes part in — whether she
-// started it or the teacher did, and however many entries already exist.
+// The student adds an entry to a thread she takes part in, whoever started it.
 export function studentReplyMessage(
   threadId: string,
   studentId: string,

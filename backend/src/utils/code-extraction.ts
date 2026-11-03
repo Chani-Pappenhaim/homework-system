@@ -12,17 +12,11 @@ export interface ReviewLimits {
   maxFileChars: number;
 }
 
-// Same caps across every extraction path.
 export const DEFAULT_REVIEW_LIMITS: ReviewLimits = { maxFiles: 20, maxFileChars: 5000 };
-// For an assignment the teacher marked as a large exercise (one that grows over
-// several lessons). About three times the reading, so about three times the
-// tokens of a review.
+// For assignments the teacher marked as large exercises; roughly triples the tokens of a review.
 export const LARGE_REVIEW_LIMITS: ReviewLimits = { maxFiles: 50, maxFileChars: 12_000 };
 
-/**
- * Told to the AI after the submission: the code files it was not given. Without
- * it a controller left out for its size reads as a controller never written.
- */
+/** Tells the AI which code files were left out, so an omitted file is not read as never written. */
 function leftOutNote(tooLarge: string[], overLimit: number, limits: ReviewLimits): string {
   const parts: string[] = [];
   if (tooLarge.length) parts.push(`ארוכים מ-${limits.maxFileChars} תווים: ${tooLarge.join(', ')}`);
@@ -57,8 +51,7 @@ export async function fetchGithubCode(
     f.type === 'blob' && CODE_EXTENSIONS.some((ext) => f.path.endsWith(ext)) &&
     !f.path.includes('node_modules') && !f.path.includes('.min.')
   );
-  // Sorted out by the size the tree reports, before the file limit: a file too
-  // large to read must not take the place of one that fits.
+  // Filter by size before applying the file limit so an oversized file does not displace one that fits.
   const tooLarge: string[] = codeFiles.filter((f: any) => f.size > limits.maxFileChars).map((f: any) => f.path);
   const fitting = codeFiles.filter((f: any) => !(f.size > limits.maxFileChars));
   const files = fitting.slice(0, limits.maxFiles);
@@ -77,8 +70,7 @@ export async function fetchGithubCode(
   return contents.join('\n\n') + leftOutNote(tooLarge, fitting.length - files.length, limits);
 }
 
-// The changes of one part of an exercise rarely run this long; a part that
-// does is cut, not dropped - the code itself is read in full anyway.
+// Longer diffs are truncated, not dropped; the code itself is reviewed in full anyway.
 const DIFF_MAX_CHARS = 40_000;
 
 /**
@@ -117,9 +109,7 @@ export async function fetchGithubDiff(githubUrl: string, base: string, head?: st
   return text.length > DIFF_MAX_CHARS ? `${text.slice(0, DIFF_MAX_CHARS)}\n[...השינויים קוצרו]` : text;
 }
 
-// Word and PowerPoint files inside a zip are read as text too: plenty of
-// homework is a written answer, not code. They are zips themselves, so their
-// size cap is a file's, not a code file's 5KB; their text gets a cap of its own.
+// Word and PowerPoint files inside a zip are read as text too, with caps of their own.
 const ZIP_DOCUMENT_EXTENSIONS = ['.docx', '.pptx'];
 const ZIP_DOCUMENT_MAX_BYTES = 5 * 1024 * 1024;
 const ZIP_DOCUMENT_MAX_CHARS = 20_000;
@@ -136,11 +126,7 @@ export async function extractZipCode(buffer: Buffer, limits: ReviewLimits = DEFA
       if (entry.isDirectory || name.includes('node_modules/') || name.includes('dist/') || name.includes('.min.')) return false;
       // macOS resource forks and Word's "~$" lock files look like documents but hold none.
       if (name.startsWith('__MACOSX/') || baseName.startsWith('~$')) return false;
-      // Declared (uncompressed) size, read straight from the central
-      // directory — rejecting oversized entries here, before getData()
-      // inflates them, is what actually stops a zip bomb. Checking the
-      // decompressed text's length afterwards is too late: the inflate
-      // itself is the memory blowup.
+      // Check the declared size before getData() inflates the entry; that is what stops a zip bomb.
       if (isDocument(name)) return entry.header.size <= ZIP_DOCUMENT_MAX_BYTES;
       if (!CODE_EXTENSIONS.some((ext) => name.endsWith(ext))) return false;
       if (entry.header.size > limits.maxFileChars) { tooLarge.push(name); return false; }
@@ -177,22 +163,16 @@ export async function extractDocxText(buffer: Buffer): Promise<string> {
 }
 
 // ---- lesson attachments (quiz generation) ---------------------------------
-// Same per-file caps as code extraction above — this feeds the same Gemini
-// call budget, just from lesson attachments instead of a submission.
 export const ATTACHMENT_MAX_FILES = 10;
 const ATTACHMENT_MAX_FILE_CHARS = 5000;
-// A file this large is a video or a scanned book, not lesson notes; downloading
-// it would only slow the job down to throw most of it away.
+// Larger files are videos or scanned books, not worth downloading.
 const ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024;
-// A hung download must not hold the whole generation hostage: each file gets
-// its own limit, and all of them together get a second, overall one.
+// Per-file and overall download limits, so a hung download cannot stall generation.
 const ATTACHMENT_FETCH_TIMEOUT_MS = 15_000;
 const ATTACHMENT_TOTAL_BUDGET_MS = 60_000;
-// Slide XML is small; a huge entry is a zip bomb, not a slide.
+// A larger slide entry is treated as a zip bomb.
 const PPTX_MAX_SLIDE_BYTES = 1024 * 1024;
-// PDFs and images travel inside the Gemini request itself, base64-encoded (a
-// third larger). Google refuses a request over 20MB, so all of them together
-// must stay well below that once encoded.
+// PDFs and images go inline base64-encoded (a third larger); Google refuses requests over 20MB.
 export const ATTACHMENT_INLINE_MAX_TOTAL_BYTES = 14 * 1024 * 1024;
 
 /** Read as plain UTF-8 text. */
@@ -201,11 +181,7 @@ const TEXT_EXTENSIONS = new Set([
   ...CODE_EXTENSIONS.map((ext) => ext.slice(1)),
 ]);
 
-/**
- * Sent to Gemini as the file itself rather than as extracted text: Gemini reads
- * PDFs (layout, tables and all) and looks at images natively, so neither needs
- * a parser here. Only the formats Gemini documents as supported are listed.
- */
+/** Formats sent to Gemini as the file itself, since it reads PDFs and images natively. */
 const INLINE_MIME_TYPES: Record<string, string> = {
   pdf: 'application/pdf',
   png: 'image/png',
@@ -218,22 +194,15 @@ const INLINE_MIME_TYPES: Record<string, string> = {
 
 const extensionOf = (name: string) => name.split('.').pop()?.toLowerCase() ?? '';
 
-/**
- * Whether quiz generation can use this file at all — as text, or handed to
- * Gemini as a file. The teacher's page lists the rest as "not included".
- */
+/** Whether quiz generation can use this file, as text or as an inline file. */
 export function isQuizReadableFile(name: string): boolean {
   const ext = extensionOf(name);
   return ext === 'docx' || ext === 'pptx' || TEXT_EXTENSIONS.has(ext) || ext in INLINE_MIME_TYPES;
 }
 
-/**
- * The files generation will leave out before reading anything: formats it
- * cannot use, and whatever is past the file limit. What the teacher is told
- * next to the "include files" checkbox.
- */
+/** Files quiz generation will skip: unusable formats and anything past the file limit. */
 export function quizExcludedFiles(names: string[]): string[] {
-  // Same counting as extractLessonFiles: only usable files count toward the limit.
+  // Counted like extractLessonFiles: only usable files count toward the limit.
   let readable = 0;
   return names.filter((name) => !isQuizReadableFile(name) || ++readable > ATTACHMENT_MAX_FILES);
 }
@@ -247,11 +216,7 @@ function decodeXmlEntities(text: string): string {
   });
 }
 
-/**
- * Text of a PowerPoint deck, slide by slide. A .pptx is a zip whose slides are
- * ppt/slides/slideN.xml; the visible text sits in <a:t> runs, grouped into
- * paragraphs by <a:p>.
- */
+/** Text of a PowerPoint deck, slide by slide. */
 export function extractPptxText(buffer: Buffer): string {
   const slideNumber = (entryName: string) => Number(entryName.match(/slide(\d+)\.xml$/)?.[1] ?? 0);
   const slides = new AdmZip(buffer)
@@ -291,10 +256,8 @@ export interface LessonFilesExtraction {
 }
 
 /**
- * Content of lesson files for Gemini (a quiz, or an assignment's AI review), in
- * the order given: text for documents and slides, the file itself for PDFs and
- * images. A file that cannot be used is skipped and reported rather than
- * failing the whole request - the rest is still worth reading.
+ * Content of lesson files for Gemini: text for documents and slides, the file
+ * itself for PDFs and images. Unusable files are skipped and reported, not fatal.
  */
 export async function extractLessonFiles(
   files: { name: string; url: string; sizeBytes?: bigint | number | null }[]
@@ -310,7 +273,7 @@ export async function extractLessonFiles(
     const skip = (reason: SkippedFileReason) => result.skipped.push({ name: file.name, reason });
 
     if (!isQuizReadableFile(file.name)) { skip('unsupported'); continue; }
-    // Reported, not silently dropped: she should know the eleventh file was not read.
+    // Reported rather than silently dropped, so the teacher knows it was not read.
     if (++attempted > ATTACHMENT_MAX_FILES) { skip('too-many'); continue; }
     if (file.sizeBytes != null && Number(file.sizeBytes) > ATTACHMENT_MAX_BYTES) { skip('too-large'); continue; }
     const mimeType = INLINE_MIME_TYPES[ext];

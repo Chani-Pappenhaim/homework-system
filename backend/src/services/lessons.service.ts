@@ -7,9 +7,7 @@ import { assertLessonAccess, assertCourseAccess } from './access.service';
 import { countPastDeadlines, upcomingDeadline } from '../utils/deadlines';
 import { AI_REFERENCE_FILES_INCLUDE, ASSIGNMENT_ORDER, assignmentForViewer, assignmentsVisibleTo } from '../utils/assignment-view';
 
-// Older lessons only have the legacy single `githubUrl` column populated;
-// `githubUrls` is the source of truth, so fall back to wrapping the legacy
-// value when it's empty.
+// `githubUrls` is the source of truth; older lessons only have the legacy `githubUrl`.
 function effectiveGithubUrls(l: { githubUrl: string | null; githubUrls: string[] }): string[] {
   if (l.githubUrls.length > 0) return l.githubUrls;
   return l.githubUrl ? [l.githubUrl] : [];
@@ -58,12 +56,7 @@ export async function createLesson(courseId: string, data: {
   return lesson;
 }
 
-/**
- * Where a new lesson goes: before the first lesson dated after it, or at the end
- * when it has no date or none is later. Every lesson used to start at order 0,
- * so a new one landed among the others at random; the course's lessons are
- * renumbered 0..n around the new one, which also settles such ties.
- */
+/** Where a new lesson goes: before the first later-dated lesson, else at the end. The course's lessons are renumbered 0..n around it. */
 async function placeNewLesson(courseId: string, day: Date | null) {
   const lessons = await prisma.lesson.findMany({
     where: { courseId },
@@ -84,8 +77,7 @@ export async function getLessonById(id: string, userId: string, role: string) {
     where: { id },
     include: {
       files: { where: role === 'ADMIN' ? {} : { hidden: false } },
-      // The order they were added in; without it the database returns them in
-      // whatever order it likes, which changes after an edit.
+      // Explicit order; the database's default order changes after an edit.
       assignments: { where: assignmentsVisibleTo(role), include: AI_REFERENCE_FILES_INCLUDE, orderBy: ASSIGNMENT_ORDER },
       quiz: { select: { published: true } },
     },
@@ -99,15 +91,13 @@ export async function getLessonById(id: string, userId: string, role: string) {
   });
   const assignments = lesson.assignments.map((a) => assignmentForViewer(a, role));
 
-  // A student must not learn that an unpublished quiz draft exists, so for
-  // them `quiz` collapses to "is there a quiz I can take?".
+  // Students must not learn an unpublished quiz draft exists, so for them `quiz` means "is there a quiz I can take?".
   const { quiz, ...lessonFields } = lesson;
   const quizState = role === 'ADMIN'
     ? { exists: Boolean(quiz), published: quiz?.published ?? false }
     : { exists: Boolean(quiz?.published), published: Boolean(quiz?.published) };
 
-  // Students need to know which required files they've already marked as seen,
-  // so the "finish lesson" gate can be shown accurately before they even try it.
+  // Lets the "finish lesson" gate show which required files are already viewed.
   const viewedFileIds = role === 'ADMIN'
     ? new Set<string>()
     : new Set(
@@ -166,8 +156,7 @@ export async function unmarkLessonFileViewed(studentId: string, role: string, le
   const file = await prisma.lessonFile.findUnique({ where: { id: fileId, lessonId } });
   if (!file) throw new AppError('File not found', 'הקובץ לא נמצא', 404);
   await prisma.lessonFileView.deleteMany({ where: { studentId, fileId } });
-  // A required file being un-viewed breaks the "all required files viewed"
-  // gate the lesson was marked complete under, so completion must be undone too.
+  // Un-viewing a required file breaks the gate the lesson was completed under, so completion is undone too.
   if (file.required) {
     await prisma.lessonProgress.deleteMany({ where: { studentId, lessonId } });
   }
@@ -188,11 +177,9 @@ export async function setLessonFileHidden(lessonId: string, fileId: string, hidd
 }
 
 /**
- * Copies a lesson — its content, files, assignments and quiz — to the end of a
- * course: the same course (a duplicate) or another one. Files point at the same
- * stored assets rather than new uploads (deletes count references, see
- * utils/file-refs). The copy starts hidden so students don't see a lesson the
- * teacher hasn't finished adapting, and its quiz starts as an unpublished draft.
+ * Copies a lesson (content, files, assignments, quiz) to the end of the same or another course.
+ * Files share the stored assets (deletes count references, see utils/file-refs). The copy starts
+ * hidden, with its quiz as an unpublished draft.
  */
 /** Matches a copied file to its source: the copy keeps the same name and stored asset. */
 function fileCopyKey(file: { name: string; url: string }) {
@@ -214,8 +201,7 @@ export async function copyLesson(lessonId: string, targetCourseId?: string) {
   const sameCourse = courseId === source.courseId;
   const clearedDeadlines = countPastDeadlines(source.assignments);
 
-  // The assignments are created once the copied files exist, so the files each
-  // one's AI review relies on point at the copy's files, not the source's.
+  // Created after the copied files so each assignment's AI-review files point at the copy's.
   const lesson = await prisma.$transaction(async (tx) => {
     const created = await tx.lesson.create({
       data: {
@@ -265,8 +251,7 @@ export async function copyLesson(lessonId: string, targetCourseId?: string) {
 }
 
 export async function setLessonProgress(studentId: string, lessonId: string, completed: boolean, role = 'STUDENT') {
-  // Without this a student could mark progress on a hidden lesson or one
-  // from another group just by knowing its id.
+  // Blocks marking progress on a hidden lesson or another group's lesson by id.
   await assertLessonAccess(studentId, role, lessonId);
   if (completed) {
     await assertRequiredFilesViewed(studentId, lessonId);
@@ -295,8 +280,7 @@ function parseLessonDate(value: unknown): Date | null {
   return date;
 }
 
-// Only these fields come from the request; the course and the order are
-// changed through their own flows (copy, reorder), never through a PATCH body.
+// Only these fields may come from the request; course and order change through copy and reorder.
 export async function updateLesson(id: string, data: LessonUpdate) {
   const body = (data ?? {}) as Record<string, unknown>;
   const update: Record<string, unknown> = {};
@@ -331,8 +315,7 @@ export async function reorderLessons(lessons: { id: string; order: number }[]) {
   );
 }
 
-// Signed params for a direct browser-to-Cloudinary upload — the file's bytes
-// never pass through this server, avoiding extra outbound bandwidth.
+// Signed params for a direct browser-to-Cloudinary upload, keeping file bytes off this server.
 /** Tagged for the pending-upload cleanup only when the page asks (`tagged`). */
 export function getLessonUploadSignature(userId: string, tagged = false) {
   return createUploadSignature('lessons', { uploaderId: tagged ? userId : undefined });
@@ -381,9 +364,7 @@ export async function renameLessonFile(lessonId: string, fileId: string, name: s
   return toFileDTO(updated, 'lesson', userId);
 }
 
-// Deletes a lesson and its children (assignments, submissions, files, quiz,
-// access, progress) via cascade. Afterwards, stored assets no other
-// course/lesson still uses are cleaned up, best-effort.
+// Deletes a lesson with its children via cascade; assets no other lesson uses are released best-effort.
 export async function deleteLesson(id: string) {
   const lesson = await prisma.lesson.findUnique({
     where: { id },

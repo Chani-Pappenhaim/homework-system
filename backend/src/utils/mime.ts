@@ -1,11 +1,6 @@
 /**
- * Extension → media type, for files we hand back to the browser ourselves.
- *
- * Cloudinary stores anything it doesn't recognise as a `raw` asset and serves
- * it as `application/octet-stream`. The browser reads that as "unknown binary",
- * so it refuses to preview the file and saves it under a name guessed from the
- * URL. We know the real filename from the database, so its extension is the
- * better source of truth — this map turns it into a type the browser trusts.
+ * Extension → media type for files we serve ourselves. Cloudinary serves unrecognised files as
+ * `application/octet-stream`, which browsers will not preview, so the stored filename's extension is used instead.
  */
 const TYPES: Record<string, string> = {
   png: 'image/png',
@@ -69,15 +64,7 @@ export function contentTypeFor(name: string): string {
   return TYPES[extensionOf(name)] ?? 'application/octet-stream';
 }
 
-/**
- * What Cloudinary says, unless it says nothing useful.
- *
- * A signed delivery URL carries an explicit format and usually comes back
- * typed correctly, but a `raw` asset still arrives as `application/octet-stream`
- * — "unknown binary", which is what makes a browser refuse to preview a file
- * and a download look like a broken one. The filename we hold is better
- * evidence than that, so it wins over the generic answer only.
- */
+/** Cloudinary's content type, unless it is the generic `application/octet-stream` (e.g. a `raw` asset), in which case the filename decides. */
 export function resolveContentType(upstreamType: string | null, name: string): string {
   const generic = !upstreamType
     || upstreamType.startsWith('application/octet-stream')
@@ -86,31 +73,16 @@ export function resolveContentType(upstreamType: string | null, name: string): s
   return contentTypeFor(name);
 }
 
-/**
- * `Content-Disposition` that survives Hebrew filenames.
- *
- * The plain `filename=` parameter is limited to ASCII, so a Hebrew name has to
- * travel in the RFC 5987 `filename*` form. Old clients that ignore `filename*`
- * still get a usable — and crucially, still correctly suffixed — ASCII name.
- */
+/** `Content-Disposition` that survives Hebrew filenames: RFC 5987 `filename*`, with an ASCII fallback that keeps the extension. */
 export function contentDisposition(name: string, mode: 'inline' | 'attachment'): string {
   const ext = extensionOf(name);
-  // Anything outside printable ascii, plus the two characters that would end
-  // the quoted parameter early.
+  // Non-printable-ASCII characters, plus those that would end the quoted parameter early.
   const ascii = name.replace(/[^\x20-\x7E]|["\\]/g, '_');
   const fallback = ascii.replace(/^_+$/, '') || (ext ? `file.${ext}` : 'file');
   return `${mode}; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(name)}`;
 }
 
-/**
- * Restores a missing extension from the stored URL.
- *
- * The upload form defaults the display name to the filename *without* its
- * extension, so a file the teacher named herself is stored as "contract" while
- * the asset behind it is a PDF. Serving that name verbatim is what produced
- * downloads called "contract" that no program would open. The Cloudinary URL
- * still ends in the real extension, so it can be put back.
- */
+/** Restores a missing extension from the stored URL, since display names are saved without one. */
 export function ensureExtension(name: string, source: string): string {
   if (extensionOf(name)) return name;
   const ext = extensionOf(source.split('?')[0] ?? '');

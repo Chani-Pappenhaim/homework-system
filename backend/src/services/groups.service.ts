@@ -33,11 +33,7 @@ const GROUP_FIELD_LABELS: Record<keyof GroupFields, string> = {
   year: 'שנת הלימודים',
 };
 
-/**
- * Trims every field that was sent and rejects one left blank. The seminar is
- * part of how a group is named ("סמינר מאיר יד תשפ״ז"), so it is as required as
- * the name and year; on update a field that was not sent stays as it is.
- */
+/** Trims every field sent and rejects a blank one; the seminar is part of a group's name, so it is as required as name and year. */
 function cleanGroupFields<T extends Partial<GroupFields>>(data: T): T {
   const cleaned = { ...data };
   for (const key of Object.keys(GROUP_FIELD_LABELS) as (keyof GroupFields)[]) {
@@ -86,14 +82,11 @@ export async function updateGroup(id: string, data: Partial<GroupFields> & Group
 }
 
 /**
- * Adding a student whose email already exists in a different group is a
- * valid cross-group enrollment, not a collision — the only real collision is
- * the same email already being in *this* group. An existing account's
- * name/GitHub username are never overwritten; a `warning` is returned instead
- * when the submitted name differs from the stored one.
+ * Adds a student to a group. An email already in a different group is a valid cross-group
+ * enrollment; only the same group is a collision. An existing account's name/GitHub username
+ * is never overwritten, and a `warning` is returned when the submitted name differs.
  */
-// Teachers have accounts too; adding one to a group by her email would make
-// her a "student" of it, so only student accounts may join.
+// Only student accounts may join; a teacher's email must not turn her into a student.
 function notAStudent() {
   return new AppError('Email belongs to a non-student account', 'כתובת המייל שייכת לחשבון שאינו תלמידה', 409);
 }
@@ -126,10 +119,7 @@ export async function addStudent(groupId: string, name: string, email: string, g
   return { id: student.id, name: student.name, email: student.email, githubUsername: student.githubUsername };
 }
 
-/**
- * A new student account with the default password, and a verification email
- * on its way so notifications can reach her once she confirms the address.
- */
+/** Creates a student account with the default password and sends a verification email. */
 export async function createStudentAccount(data: {
   name: string; email: string; githubUsername?: string | null; emailNotifications?: boolean;
 }) {
@@ -171,11 +161,7 @@ export async function updateStudent(
   return updateStudentAccount(studentId, data);
 }
 
-/**
- * The teacher editing a student's details — from a group or from the students
- * page, so students outside any group can be edited too. An empty GitHub
- * username clears it; submissions already made keep their repo links.
- */
+/** Edits a student's details, including students outside any group. An empty GitHub username clears it; existing submissions keep their repo links. */
 export async function updateStudentAccount(
   studentId: string,
   data: { name?: unknown; email?: unknown; githubUsername?: unknown }
@@ -199,11 +185,7 @@ export async function updateStudentAccount(
   return { id: student.id, name: student.name, email: student.email, githubUsername: student.githubUsername };
 }
 
-/**
- * Removes a student's account entirely — her group memberships, submissions,
- * grades, attendance and messages cascade in the DB. Her stored submission
- * files and profile picture are released afterwards, best-effort, like a group delete.
- */
+/** Removes a student's account; memberships, submissions, grades, attendance and messages cascade, and stored files are released best-effort. */
 export async function deleteStudentAccount(studentId: string) {
   const existing = await prisma.user.findFirst({ where: { id: studentId, role: 'STUDENT' }, select: { id: true, avatarUrl: true } });
   if (!existing) throw new AppError('Student not found', 'התלמידה לא נמצאה', 404);
@@ -214,11 +196,8 @@ export async function deleteStudentAccount(studentId: string) {
   await releaseFileUrls(urls);
 }
 
-// Deletes a group with its courses in one transaction — a failure halfway
-// can't leave a group stripped of some courses. Student memberships and
-// everything under the courses cascade in the DB; student accounts stay, since
-// they may belong to other groups. Stored files nothing else uses are released
-// afterwards, best-effort.
+// Deletes a group with its courses in one transaction. Memberships and course contents cascade;
+// student accounts stay, since they may belong to other groups. Unused stored files are released best-effort.
 export async function deleteGroup(id: string) {
   const group = await prisma.group.findUnique({
     where: { id },
@@ -258,12 +237,7 @@ export type StudentImportResult = {
   errors: string[];
 };
 
-/**
- * Reads the sheet and checks every row. With dryRun nothing is written, so the
- * teacher sees each problem and decides whether to add only the valid rows or
- * fix the file first; without it, the valid rows are added and the rest are
- * reported again.
- */
+/** Validates every sheet row. With dryRun nothing is written; otherwise the valid rows are added and the rest reported. */
 export async function importStudents(groupId: string, buffer: Buffer, { dryRun = false } = {}): Promise<StudentImportResult> {
   const group = await prisma.group.findUnique({ where: { id: groupId }, select: { emailNotificationsDefault: true } });
   if (!group) throw new AppError('Group not found', 'הקבוצה לא נמצאה', 404);
@@ -364,10 +338,7 @@ export function buildStudentImportTemplate() {
   );
 }
 
-/**
- * The group's students as a sheet in the import's own columns (name, email,
- * GitHub), so it can be uploaded as is to fill another group - or kept as a list.
- */
+/** The group's students as a sheet in the import's own columns, so it can be re-imported into another group. */
 export async function exportGroupStudents(groupId: string): Promise<{ buffer: Buffer; groupName: string }> {
   const group = await prisma.group.findUnique({
     where: { id: groupId },
@@ -390,8 +361,7 @@ export async function exportGroupStudents(groupId: string): Promise<{ buffer: Bu
   return { buffer: (await workbook.xlsx.writeBuffer()) as unknown as Buffer, groupName: groupDisplayName(group) };
 }
 
-// Scoped to the group in the URL: a teacher resets a student of that group,
-// never another teacher's password by passing her id.
+// Scoped to the group in the URL, so another teacher's password cannot be reset by passing her id.
 export async function resetStudentPassword(groupId: string, studentId: string) {
   const membership = await prisma.studentGroup.findUnique({
     where: { studentId_groupId: { studentId, groupId } },

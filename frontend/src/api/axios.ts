@@ -9,18 +9,15 @@ import { followSessionChange } from '@/lib/sessionSync';
 const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,
-  // Free-tier hosts (Render) spin the backend down after inactivity; the first
-  // request then waits for a cold start. Give it up to a minute before treating
-  // the request as failed — the cold-start retry below handles the rest.
+  // Allows a minute for a free-tier cold start (Render) before the request counts as failed.
   timeout: 60000,
 });
 
 // ---------------------------------------------------------------------------
 // "Server is waking up" indicator
 // ---------------------------------------------------------------------------
-// Count in-flight requests once each (across their retries). If anything is
-// still pending after WAKE_DELAY, the backend is almost certainly cold-starting,
-// so flip the global banner on; clear it once everything settles.
+// In-flight requests are counted once each across retries; if any is still pending after
+// WAKE_DELAY the banner shows, and clears once all settle.
 const WAKE_DELAY = 4000;
 let inFlight = 0;
 let wakeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -57,9 +54,8 @@ function refreshAccessToken(): Promise<string> {
       .post<{ success: true; data: { accessToken: string } }>(`${API_URL}/auth/refresh`, {}, { withCredentials: true })
       .then((r) => {
         const token = r.data.data.accessToken;
-        // The refresh cookie is shared by every tab; if someone else signed in
-        // since, the new token is hers. Reload as her rather than send this
-        // tab's requests under another user's name - they wait for the reload.
+        // The refresh cookie is shared across tabs; if another user signed in since, reload as
+        // them instead of sending this tab's requests under their name.
         const user = useAuthStore.getState().user;
         const tokenUser = readJwtUserId(token);
         if (user && tokenUser && tokenUser !== user.id) {
@@ -75,13 +71,11 @@ function refreshAccessToken(): Promise<string> {
   return refreshing;
 }
 
-// Refresh shortly before the token runs out rather than after a request bounces
-// with 401 — otherwise a large upload is sent in full, refused, and sent again.
+// Refresh shortly before expiry, so a large upload is not sent in full, refused with 401 and resent.
 const REFRESH_AHEAD_MS = 60_000;
 
-// The browser's clock may be off. A token's `iat` is the server's clock at the
-// moment it was issued, which is when it arrives here, so the gap between the
-// two is recorded on arrival and expiry is measured by the server's clock.
+// The browser's clock may be off, so the offset from the token's server-side `iat` is recorded
+// on arrival and expiry is measured by the server's clock.
 let clockOffset = { token: null as string | null, ms: 0 };
 function recordClockOffset(token: string | null) {
   if (!token || token === clockOffset.token) return;
@@ -103,12 +97,10 @@ const NO_TOKEN_URLS = ['/auth/login', '/auth/refresh'];
 const isNoTokenUrl = (url?: string) => NO_TOKEN_URLS.some((u) => url?.startsWith(u));
 
 api.interceptors.request.use(async (config) => {
-  // Count each logical request only once — a retry re-enters here with the same
-  // config, and we must not double-count it or the banner never clears.
+  // A retry re-enters here with the same config; counting it twice would keep the banner up.
   if (!(config as any)._counted) {
     (config as any)._counted = true;
-    // An upload is slow because of its size, not because the server is asleep,
-    // so it never raises the "server is waking up" banner.
+    // Uploads are slow by size, not a sleeping server, so they never raise the banner.
     if (!(config.data instanceof FormData)) {
       (config as any)._tracked = true;
       requestStarted();
@@ -119,8 +111,7 @@ api.interceptors.request.use(async (config) => {
     try {
       token = await refreshAccessToken();
     } catch {
-      // Send it as is: if the token really expired, the 401 handler below
-      // retries the refresh and signs out when that fails too.
+      // Sent as is; the 401 handler below retries the refresh and signs out if that fails.
     }
   }
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -133,13 +124,9 @@ api.interceptors.request.use(async (config) => {
 const MAX_COLD_RETRIES = 4;
 
 /**
- * Distinguishes an error returned by the application from one produced by
- * infrastructure in front of it (a gateway, a proxy).
- *
- * Every error the backend returns carries the {success:false, error} envelope.
- * A gateway that hasn't finished waking the app up cannot produce that shape —
- * it serves its own HTML page. So an envelope means the request reached the
- * app and the app decided, and retrying would only reach the same decision.
+ * Tells an application error from one produced by a gateway or proxy. Backend errors carry the
+ * {success:false, error} envelope, which a gateway cannot produce, so an envelope means the app
+ * decided and a retry would not change it.
  */
 function isApplicationResponse(error: any): boolean {
   const data = error?.response?.data;
@@ -149,10 +136,8 @@ function isApplicationResponse(error: any): boolean {
 const SAFE_METHODS = ['get', 'head', 'options'];
 
 function isColdStartError(error: any): boolean {
-  // A timeout or a dropped connection may come after the server already acted
-  // on the request; repeating a submission or a grade could do it twice. Only
-  // read requests are retried blind — a write is retried only when a gateway
-  // answered, which proves the app never saw it.
+  // A timeout may follow a request the server already acted on, so only reads are retried blind;
+  // a write is retried only when a gateway answered, which proves the app never saw it.
   const safe = SAFE_METHODS.includes(String(error?.config?.method ?? 'get').toLowerCase());
   if (error?.code === 'ECONNABORTED') return safe;  // client-side timeout
   if (!error?.response) return safe;                // no response at all (network / DNS / refused)
@@ -167,8 +152,7 @@ api.interceptors.response.use(
   async (error) => {
     const original = error.config;
 
-    // A 401 from signing in or refreshing is the answer itself (wrong details,
-    // no session) - the caller handles it; refreshing again would not help.
+    // A 401 from signing in or refreshing is the answer itself; the caller handles it.
     if (error.response?.status === 401 && original && !original._retry && !isNoTokenUrl(original.url)) {
       original._retry = true;
       try {
@@ -186,9 +170,7 @@ api.interceptors.response.use(
       }
     }
 
-    // Backend likely cold-starting or the gateway is still bringing it up: retry
-    // a few times with a growing backoff. The banner stays up meanwhile because
-    // we don't settle the counter between attempts.
+    // Backend likely cold-starting: retry with growing backoff, keeping the banner up meanwhile.
     if (original && isColdStartError(error) && (original._coldRetries ?? 0) < MAX_COLD_RETRIES) {
       original._coldRetries = (original._coldRetries ?? 0) + 1;
       await delay(2000 * original._coldRetries); // 2s, 4s, 6s, 8s

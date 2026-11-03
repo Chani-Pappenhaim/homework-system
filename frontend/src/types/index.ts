@@ -126,11 +126,7 @@ export interface AssignmentDTO {
   aiReviewEnabled?: boolean;
   /** A large exercise: the AI review reads more and larger code files. */
   aiReviewLarge?: boolean;
-  /**
-   * An exercise given in parts: the AI review reads a GitHub repo at aiGitToTag
-   * (the latest commit when absent), with the changes since aiGitFromTag.
-   * Students see them, since they create the tags.
-   */
+  /** For exercises given in parts: the AI review reads the repo at aiGitToTag (latest commit when absent), with changes since aiGitFromTag. */
   aiGitFromTag?: string | null;
   aiGitToTag?: string | null;
   /** Kept from students: only the teacher ever receives a hidden assignment. */
@@ -153,8 +149,7 @@ export interface LessonDetailDTO {
   completed?: boolean;
   files: LessonFile[];
   assignments: AssignmentDTO[];
-  // For a student, `exists` reflects whether a quiz is available to take; an
-  // unpublished draft is reported as false so its existence isn't revealed early.
+  // For a student, an unpublished draft reports `exists: false` so it is not revealed early.
   quiz?: { exists: boolean; published: boolean };
 }
 
@@ -166,10 +161,7 @@ export interface QuizQuestionDTO {
   correctIndex?: number;
 }
 
-/**
- * Returned only by POST /quiz/attempt — the one response that includes correct
- * answers, since the student has already submitted and can now review results.
- */
+/** Returned only by POST /quiz/attempt, the one response that includes correct answers. */
 export interface QuizReviewItemDTO {
   id: string;
   question: string;

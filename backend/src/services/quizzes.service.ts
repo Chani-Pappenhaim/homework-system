@@ -10,14 +10,7 @@ import type {
   QuizJobProgress, QuizFailureKind, QuizGenerationStage, QuizSourceFiles,
 } from '../infrastructure/queues/job-types';
 
-/**
- * A quiz belongs to the teacher, not to whoever opened the page first.
- *
- * She generates it, reviews the AI's questions, edits what she wants and
- * publishes. Until she publishes, students are told the quiz is not ready —
- * they can neither see it nor sit it. Generation is never triggered by a
- * student request, so no student waits on (or bills) an AI call.
- */
+/** Quizzes are generated, reviewed and published by the teacher; students see a quiz only once it is published. */
 
 /** BullMQ rejects a custom job id containing ':' unless it has exactly 3 parts. */
 const jobIdFor = (lessonId: string) => `quiz-${lessonId}`;
@@ -28,9 +21,7 @@ function noContentMessage(role: string): string {
     : 'חסרים נתונים ליצירת הבוחן לשיעור זה. פני למורה כדי שתוסיף את תוכן השיעור.';
 }
 
-// The real reason (provider errors, stack traces) is a developer-facing detail —
-// it goes to the server console (see worker-events.ts / the catch block below),
-// never to the client. Both roles get the same generic, actionable message.
+// Generic failure message; the real reason stays in the server log, never the client.
 function failedMessage(role: string): string {
   return role === 'ADMIN'
     ? 'יצירת הבוחן נכשלה. נסי שוב מאוחר יותר; אם זה נמשך, פני לתמיכה הטכנית.'
@@ -92,12 +83,7 @@ async function readGenerationState(lessonId: string, role: string): Promise<Gene
   if (!job) return null;
   const progress: Partial<QuizJobProgress> = typeof job.progress === 'object' ? job.progress as Partial<QuizJobProgress> : {};
 
-  // While the AI is working, this runs every 5 seconds from her open page —
-  // it is the most repeated Redis read in the app. getState() has to probe
-  // one key per possible state to answer, whereas `finishedOn` already came
-  // back with the job in the single read above and is set only once the job
-  // reaches a terminal state. So the polling case costs one command, and
-  // the expensive question is asked once, at the end.
+  // Polled every 5s while generating, so use `finishedOn` here and call the costlier getState() only once the job has finished.
   if (!job.finishedOn) {
     const now = Date.now();
     const lastSign = Math.max(progress.at ?? 0, job.processedOn ?? 0, job.timestamp);
@@ -131,9 +117,7 @@ async function readGenerationState(lessonId: string, role: string): Promise<Gene
   const state = await job.getState();
   // Clear the id either way so the next generate request starts a fresh job.
   await job.remove().catch(() => {});
-  // job.failedReason (the provider's raw error) already reached the server
-  // console via attachLifecycleLogging's 'failed' listener; the worker recorded
-  // its kind in the progress, which is all the message needs.
+  // The provider's raw error is logged by attachLifecycleLogging; only the failure kind is needed here.
   if (state === 'failed') return { status: 'failed', message: failureMessage(progress.lastFailure, role) };
   return { status: 'done' };
 }
