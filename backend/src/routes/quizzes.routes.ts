@@ -15,6 +15,7 @@ router.get('/:id/quiz', quizzesController.getQuiz);
 router.post('/:id/quiz/generate', requireRole('ADMIN'), aiRateLimit, quizzesController.generate);
 router.post('/:id/quiz', requireRole('ADMIN'), quizzesController.createManual);
 router.put('/:id/quiz', requireRole('ADMIN'), quizzesController.updateQuestions);
+router.delete('/:id/quiz', requireRole('ADMIN'), quizzesController.deleteQuiz);
 router.patch('/:id/quiz/publish', requireRole('ADMIN'), quizzesController.setPublished);
 router.get('/:id/quiz/results', requireRole('ADMIN'), quizzesController.getResults);
 

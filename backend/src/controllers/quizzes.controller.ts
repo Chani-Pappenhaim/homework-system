@@ -47,6 +47,16 @@ export async function updateQuestions(req: Request, res: Response) {
   }
 }
 
+/** Deletes the lesson's quiz and its attempts. Teacher-only. */
+export async function deleteQuiz(req: Request, res: Response) {
+  try {
+    await quizzesService.deleteQuiz(req.params.id as string);
+    res.json({ success: true });
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
 /** Publishes the quiz draft to students, or pulls it back. Teacher-only. */
 export async function setPublished(req: Request, res: Response) {
   try {

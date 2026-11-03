@@ -169,6 +169,7 @@ async function readQuiz(lessonId: string, role: string, settled = false): Promis
 
   if (quiz && (isTeacher || quiz.published)) {
     const questions = quiz.questions as any[];
+    const attemptCount = isTeacher ? await prisma.quizAttempt.count({ where: { quizId: quiz.id } }) : 0;
     const ready = {
       status: 'ready' as const,
       quiz: {
@@ -181,7 +182,7 @@ async function readQuiz(lessonId: string, role: string, settled = false): Promis
           options: q.options,
           ...(isTeacher && { correctIndex: q.correctIndex }),
         })),
-        ...(isTeacher && { sourceFiles: (quiz.sourceFiles as QuizSourceFiles | null) ?? null }),
+        ...(isTeacher && { sourceFiles: (quiz.sourceFiles as QuizSourceFiles | null) ?? null, attemptCount }),
       },
     };
     if (!isTeacher || quiz.published) return ready;
@@ -333,6 +334,16 @@ export async function updateQuizQuestions(lessonId: string, questions: unknown) 
       questions: validated,
     },
   };
+}
+
+/** Teacher-only: remove the lesson's quiz together with every recorded attempt. */
+export async function deleteQuiz(lessonId: string) {
+  const quiz = await prisma.quiz.findUnique({ where: { lessonId } });
+  if (!quiz) throw new AppError('Quiz not found', 'החידון לא נמצא', 404);
+  await prisma.$transaction([
+    prisma.quizAttempt.deleteMany({ where: { quizId: quiz.id } }),
+    prisma.quiz.delete({ where: { id: quiz.id } }),
+  ]);
 }
 
 /** Teacher-only: show the quiz to students, or pull it back to a draft. */

@@ -11,6 +11,7 @@ vi.mock('@/api/quizzes.api', () => ({
     updateQuestions: vi.fn(),
     createManual: vi.fn(),
     setPublished: vi.fn(),
+    remove: vi.fn(),
     results: vi.fn(),
     attempt: vi.fn(),
   },
@@ -23,6 +24,7 @@ const getQuiz = quizzesApi.get as unknown as ReturnType<typeof vi.fn>;
 const generate = quizzesApi.generate as unknown as ReturnType<typeof vi.fn>;
 const updateQuestions = quizzesApi.updateQuestions as unknown as ReturnType<typeof vi.fn>;
 const setPublished = quizzesApi.setPublished as unknown as ReturnType<typeof vi.fn>;
+const remove = quizzesApi.remove as unknown as ReturnType<typeof vi.fn>;
 const createManual = quizzesApi.createManual as unknown as ReturnType<typeof vi.fn>;
 
 const questions = [
@@ -324,5 +326,39 @@ describe('QuizPanel - writing a quiz by hand', () => {
     await user.click(await screen.findByRole('button', { name: /הוספת שאלה/ }));
     expect(screen.getByLabelText('שאלה 2')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /שמרי שינויים/ })).toBeEnabled();
+  });
+});
+
+describe('QuizPanel - attempts and deletion', () => {
+  const withAttempts = () =>
+    state({ status: 'ready', quiz: { id: 'qz1', published: true, questionCount: 1, questions, attemptCount: 4 } });
+
+  it('asks before saving edits that would erase recorded attempts', async () => {
+    getQuiz.mockResolvedValue(withAttempts());
+    updateQuestions.mockResolvedValue(withAttempts());
+    const user = userEvent.setup();
+    renderPanel();
+
+    const field = await screen.findByLabelText('שאלה 1');
+    await user.clear(field);
+    await user.type(field, 'חדש');
+    await user.click(screen.getByRole('button', { name: /שמרי שינויים/ }));
+
+    expect(updateQuestions).not.toHaveBeenCalled();
+    expect(await screen.findByText(/4 ניסיונות/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'שמרי ומחקי ניסיונות' }));
+    await waitFor(() => expect(updateQuestions).toHaveBeenCalled());
+  });
+
+  it('deletes the quiz only after confirmation', async () => {
+    getQuiz.mockResolvedValue(withAttempts());
+    remove.mockResolvedValue({});
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.click(await screen.findByRole('button', { name: /מחיקת הבוחן/ }));
+    expect(remove).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'מחקי' }));
+    await waitFor(() => expect(remove).toHaveBeenCalledWith('l1'));
   });
 });

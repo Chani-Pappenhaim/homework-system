@@ -21,6 +21,8 @@ export const quizzesApi = {
   updateQuestions: (lessonId: string, questions: QuizQuestionDTO[]) =>
     api.put(`/lessons/${lessonId}/quiz`, { questions }),
 
+  remove: (lessonId: string) => api.delete(`/lessons/${lessonId}/quiz`),
+
   setPublished: (lessonId: string, published: boolean) =>
     api.patch(`/lessons/${lessonId}/quiz/publish`, { published }),
 

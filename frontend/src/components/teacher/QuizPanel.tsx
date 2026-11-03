@@ -5,6 +5,7 @@ import { quizzesApi } from '@/api/quizzes.api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '@/components/ui/dialog';
 import { AutoTextarea } from '@/components/ui/auto-textarea';
 import { MarkdownField } from '@/components/ui/markdown-field';
@@ -38,6 +39,8 @@ export default function QuizPanel({
   const [error, setError] = useState('');
   const [includeFiles, setIncludeFiles] = useState(false);
   const [regenerateOpen, setRegenerateOpen] = useState(false);
+  const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   // Writing a new quiz by hand: the editor shows before any quiz exists.
   const [creating, setCreating] = useState(false);
 
@@ -96,12 +99,39 @@ export default function QuizPanel({
     mutationFn: () => quizzesApi.updateQuestions(lessonId, draft ?? []),
     onSuccess: () => {
       setError('');
+      setSaveConfirmOpen(false);
       toast.success('השאלות נשמרו');
       qc.invalidateQueries({ queryKey: ['quiz', lessonId] });
       qc.invalidateQueries({ queryKey: ['quiz-results', lessonId] });
     },
-    onError: (e: any) => setError(getApiErrorMessage(e, 'שמירת השאלות נכשלה')),
+    onError: (e: any) => {
+      setSaveConfirmOpen(false);
+      setError(getApiErrorMessage(e, 'שמירת השאלות נכשלה'));
+    },
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => quizzesApi.remove(lessonId),
+    onSuccess: () => {
+      setError('');
+      setDeleteOpen(false);
+      setDraft(null);
+      toast.success('הבוחן נמחק');
+      qc.invalidateQueries({ queryKey: ['quiz', lessonId] });
+      qc.invalidateQueries({ queryKey: ['quiz-results', lessonId] });
+    },
+    onError: (e: any) => {
+      setDeleteOpen(false);
+      setError(getApiErrorMessage(e, 'מחיקת הבוחן נכשלה'));
+    },
+  });
+
+  const attemptCount = quiz?.attemptCount ?? 0;
+  // Saving edits erases the recorded attempts, so she confirms first when there are any.
+  function requestSave() {
+    if (attemptCount > 0) setSaveConfirmOpen(true);
+    else saveMutation.mutate();
+  }
 
   const createMutation = useMutation({
     mutationFn: () => quizzesApi.createManual(lessonId, draft ?? []),
@@ -403,7 +433,7 @@ export default function QuizPanel({
             variant="default"
             loading={saveMutation.isPending}
             disabled={!dirty}
-            onClick={() => saveMutation.mutate()}
+            onClick={requestSave}
           >
             <Save size={14} /> שמרי שינויים
           </Button>
@@ -430,6 +460,12 @@ export default function QuizPanel({
           )}
 
           {quiz && (
+            <Button variant="ghost" onClick={() => setDeleteOpen(true)}>
+              <Trash2 size={14} /> מחיקת הבוחן
+            </Button>
+          )}
+
+          {quiz && (
           <Button
             variant={quiz.published ? 'outline' : 'clay'}
             loading={publishMutation.isPending}
@@ -450,6 +486,26 @@ export default function QuizPanel({
         {quiz && !quiz.published && hasContent && aiNote}
       </CardContent>
 
+      <ConfirmDialog
+        open={saveConfirmOpen}
+        onOpenChange={setSaveConfirmOpen}
+        title="לשמור את השינויים?"
+        description={`לבוחן יש ${attemptCount} ניסיונות של תלמידות. שמירת שינוי בשאלות מוחקת אותם, והתלמידות יוכלו לענות מחדש.`}
+        confirmLabel="שמרי ומחקי ניסיונות"
+        loading={saveMutation.isPending}
+        onConfirm={() => saveMutation.mutate()}
+      />
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="למחוק את הבוחן?"
+        description={attemptCount > 0
+          ? `הבוחן וכל ${attemptCount} הניסיונות של התלמידות יימחקו לצמיתות.`
+          : 'הבוחן יימחק לצמיתות.'}
+        confirmLabel="מחקי"
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
+      />
       <Dialog open={regenerateOpen} onOpenChange={setRegenerateOpen}>
         <DialogContent size="sm">
           <DialogHeader>

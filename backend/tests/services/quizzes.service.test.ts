@@ -2,10 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../src/config/prisma', () => ({
   prisma: {
-    quiz: { findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
+    quiz: { findUnique: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
     lesson: { findUnique: vi.fn() },
     lessonFile: { findMany: vi.fn() },
-    quizAttempt: { findFirst: vi.fn(), create: vi.fn(), findMany: vi.fn(), deleteMany: vi.fn() },
+    quizAttempt: { findFirst: vi.fn(), create: vi.fn(), findMany: vi.fn(), deleteMany: vi.fn(), count: vi.fn() },
     $transaction: vi.fn(),
     $executeRaw: vi.fn(),
   },
@@ -27,6 +27,7 @@ import {
   getQuiz,
   requestQuizGeneration,
   updateQuizQuestions,
+  deleteQuiz,
   createManualQuiz,
   setQuizPublished,
   validateQuestions,
@@ -436,6 +437,21 @@ describe('quizzes.service.createManualQuiz', () => {
   it('refuses a lesson that does not exist', async () => {
     p.lesson.findUnique.mockResolvedValue(null);
     await expect(createManualQuiz('nope', questions)).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe('quizzes.service.deleteQuiz', () => {
+  it('removes the quiz together with its attempts in one transaction', async () => {
+    p.quiz.findUnique.mockResolvedValue({ id: 'qz1' });
+    await deleteQuiz('l1');
+    expect(p.quizAttempt.deleteMany).toHaveBeenCalledWith({ where: { quizId: 'qz1' } });
+    expect(p.quiz.delete).toHaveBeenCalledWith({ where: { id: 'qz1' } });
+    expect(p.$transaction).toHaveBeenCalled();
+  });
+
+  it('reports 404 when the lesson has no quiz', async () => {
+    p.quiz.findUnique.mockResolvedValue(null);
+    await expect(deleteQuiz('l1')).rejects.toMatchObject({ status: 404 });
   });
 });
 
