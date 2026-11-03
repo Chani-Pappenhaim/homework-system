@@ -122,8 +122,12 @@ export async function getCourseById(id: string, userId: string, role: string) {
 }
 
 export async function updateCourse(id: string, data: Partial<{ name: string; year: string; description: string; imageUrl: string; hidden: boolean; groupId: string }>) {
+  // Only the fields the form edits are written, and the name can never be blank.
+  const { name, year, description, imageUrl, hidden, groupId } = data;
+  const trimmedName = name === undefined ? undefined : String(name).trim();
+  if (trimmedName === '') throw new AppError('Course name is required', 'שם הקורס הוא שדה חובה', 400);
   const course = await prisma.course.update({
-    where: { id }, data,
+    where: { id }, data: { name: trimmedName, year, description, imageUrl, hidden, groupId },
     include: { group: { select: groupNameSelect }, _count: { select: { lessons: true } } },
   });
   return toCourseDTO(course);

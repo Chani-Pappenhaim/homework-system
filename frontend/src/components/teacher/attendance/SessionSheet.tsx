@@ -79,6 +79,8 @@ export function SessionSheet({ courseId, data, session, roster, onEdit, onDelete
   const [newHomework, setNewHomework] = useState('');
   const [addingHomework, setAddingHomework] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Taking a mark away also drops the note written under it, so that asks first.
+  const [unmarkWithNote, setUnmarkWithNote] = useState<string | null>(null);
   const [homeworkToDelete, setHomeworkToDelete] = useState<{ id: string; title: string } | null>(null);
   const [renaming, setRenaming] = useState<{ id: string; title: string } | null>(null);
 
@@ -123,8 +125,9 @@ export function SessionSheet({ courseId, data, session, roster, onEdit, onDelete
 
   function setStatus(studentId: string, status: AttendanceStatus) {
     // Pressing the current status again takes the mark away.
-    const current = recordOf(studentId)?.status;
-    marks.mutate([{ studentId, status: current === status ? null : status }]);
+    const record = recordOf(studentId);
+    if (record?.status === status && record.note) { setUnmarkWithNote(studentId); return; }
+    marks.mutate([{ studentId, status: record?.status === status ? null : status }]);
   }
 
   function markRestPresent() {
@@ -331,6 +334,14 @@ export function SessionSheet({ courseId, data, session, roster, onEdit, onDelete
         confirmLabel="מחיקה"
         loading={deleteSession.isPending}
         onConfirm={() => deleteSession.mutate()}
+      />
+      <ConfirmDialog
+        open={!!unmarkWithNote}
+        onOpenChange={(o) => !o && setUnmarkWithNote(null)}
+        title="להסיר את הסימון?"
+        description="ההערה שנכתבה לתלמידה במפגש הזה תימחק יחד עם הסימון."
+        confirmLabel="הסרה"
+        onConfirm={() => { if (unmarkWithNote) marks.mutate([{ studentId: unmarkWithNote, status: null }]); setUnmarkWithNote(null); }}
       />
       <ConfirmDialog
         open={!!homeworkToDelete}
