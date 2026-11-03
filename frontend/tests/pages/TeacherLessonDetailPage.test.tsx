@@ -234,6 +234,13 @@ describe('TeacherLessonDetailPage', () => {
     await waitFor(() => expect(allowChanges).toHaveBeenCalledWith('s8', true));
   });
 
+  it('tags a submission that got feedback but no score', async () => {
+    getSubmissions.mockResolvedValue({ data: { data: { submissions: [{ ...aiReviewed, id: 's9', grade: { feedback: 'תקני', contentScore: null, submissionScore: null } }] } } });
+    renderPage();
+    await openAssignment();
+    expect(await screen.findByText('משוב בלבד')).toBeInTheDocument();
+  });
+
   // Row 30 of the client's sheet: a checked submission is locked for the
   // student until the teacher explicitly allows changes.
   it('lets the teacher unlock a checked submission for the student, and lock it again', async () => {

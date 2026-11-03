@@ -83,6 +83,7 @@ export default function TeacherHomePage() {
   // Feedback alone also counts as checked, matching the pending count from the server.
   const queue = report.filter((r) => r.contentScore == null && !r.feedback && matches(r));
   const graded = report.filter((r) => r.contentScore != null);
+  const latestFeedback = report.find((r) => r.feedback);
   const visible = showAll ? queue : queue.slice(0, 8);
   const avg = graded.length
     ? (graded.reduce((s, r) => s + (r.contentScore ?? 0), 0) / graded.length).toFixed(1)
@@ -158,7 +159,7 @@ export default function TeacherHomePage() {
         </section>
       )}
 
-      <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-5', graded[0]?.feedback && 'lg:grid-cols-[2fr_1fr] lg:items-start')}>
+      <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-5', latestFeedback && 'lg:grid-cols-[2fr_1fr] lg:items-start')}>
         {/* Review queue */}
         <section className="sheet min-w-0">
           <div className="flex items-center gap-2 border-b border-rule px-4 py-3">
@@ -218,10 +219,10 @@ export default function TeacherHomePage() {
         </section>
 
         {/* Last feedback */}
-        {graded[0]?.feedback && (
+        {latestFeedback && (
           <section className="sheet relative max-h-96 overflow-y-auto p-5">
-            <div className="label mb-1 flex items-center gap-1.5"><Sparkles size={13} className="text-clay" /> משוב אחרון · {graded[0].assignmentTitle}</div>
-            <p className="text-sm leading-relaxed text-ink">"{graded[0].feedback}"</p>
+            <div className="label mb-1 flex items-center gap-1.5"><Sparkles size={13} className="text-clay" /> משוב אחרון · {latestFeedback.assignmentTitle}</div>
+            <p className="text-sm leading-relaxed text-ink">"{latestFeedback.feedback}"</p>
             <div className="mt-2 text-xs text-ink-soft">ממוצע השבוע: <span className="font-semibold text-clay tabular">{avg}</span></div>
           </section>
         )}

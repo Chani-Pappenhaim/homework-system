@@ -14,6 +14,7 @@ import { cn, formatDateTime } from '@/lib/utils';
 import { unwrap } from '@/lib/api-utils';
 import type { AssignmentDTO, SubmissionDTO } from '@/types';
 
+const feedbackOnly = (s: SubmissionDTO) => Boolean(s.grade?.feedback) && s.grade?.contentScore == null && s.grade?.submissionScore == null;
 const canApprove = (s: SubmissionDTO) => s.grade?.contentScore != null && !s.grade?.contentApproved;
 
 /**
@@ -177,6 +178,7 @@ export function SubmissionsWorkstation({ assignment, selectedId, onSelect, onDir
                   </span>
                   <span className="flex shrink-0 items-center gap-1">
                     {s.isLate && <Badge variant="warning">איחור</Badge>}
+                    {feedbackOnly(s) && <Badge variant="secondary">משוב בלבד</Badge>}
                     {!s.grade && <span className="size-2 rounded-full bg-clay" aria-hidden />}
                   </span>
                 </button>
