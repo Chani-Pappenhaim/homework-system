@@ -333,6 +333,9 @@ model AppSettings {
   aiPaidFallback    AiPaidFallback @default(DAILY_QUOTA)
   // The name the students' emails come from; null = BREVO_SENDER_NAME.
   emailSenderName   String?
+  // The site's name (the brand and the teacher's line) as the teacher set it; null = the defaults in settings.service.
+  siteBrandName     String?
+  siteTeacherName   String?
   // A late submission loses latePenaltyPerDay points for each day (a started
   // day counts), never more than latePenaltyMax in all.
   latePenaltyPerDay Int            @default(2)

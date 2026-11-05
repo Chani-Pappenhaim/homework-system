@@ -32,6 +32,52 @@ export async function getAiSettings(): Promise<AiSettings> {
 }
 
 export const MAX_SENDER_NAME = 70;
+export const MAX_SITE_NAME = 60;
+
+export interface SiteNames {
+  brandName: string;
+  teacherName: string;
+}
+
+export const DEFAULT_SITE_NAMES: SiteNames = { brandName: 'Teacher Feature', teacherName: 'המורה עדי שלום' };
+
+/** The site's names: the teacher's choice, else the defaults. A failed read uses the defaults. */
+export async function getSiteNames(): Promise<SiteNames> {
+  try {
+    const row = await prisma.appSettings.findUnique({ where: { id: SETTINGS_ID } });
+    return {
+      brandName: row?.siteBrandName || DEFAULT_SITE_NAMES.brandName,
+      teacherName: row?.siteTeacherName || DEFAULT_SITE_NAMES.teacherName,
+    };
+  } catch (err) {
+    console.warn('[settings] could not read the site names - using the defaults:', (err as Error)?.message ?? err);
+    return DEFAULT_SITE_NAMES;
+  }
+}
+
+function siteName(value: unknown, hebrew: string): string | null {
+  if (value !== null && value !== undefined && typeof value !== 'string') {
+    throw new AppError('Invalid site name', `${hebrew} אינו תקין`, 400);
+  }
+  // One line: a line break has no place in a name.
+  const name = (value ?? '').replace(/\s+/g, ' ').trim();
+  if (name.length > MAX_SITE_NAME) {
+    throw new AppError('Site name too long', `${hebrew} ארוך מדי (עד ${MAX_SITE_NAME} תווים)`, 400);
+  }
+  return name || null;
+}
+
+/** An empty name goes back to its default. */
+export async function updateSiteNames(input: { brandName?: unknown; teacherName?: unknown }): Promise<SiteNames> {
+  const siteBrandName = siteName(input?.brandName, 'שם האתר');
+  const siteTeacherName = siteName(input?.teacherName, 'שם המורה');
+  const data = { siteBrandName, siteTeacherName };
+  await prisma.appSettings.upsert({ where: { id: SETTINGS_ID }, create: { id: SETTINGS_ID, ...data }, update: data });
+  return {
+    brandName: siteBrandName ?? DEFAULT_SITE_NAMES.brandName,
+    teacherName: siteTeacherName ?? DEFAULT_SITE_NAMES.teacherName,
+  };
+}
 
 export interface EmailSettings {
   /** The name the teacher chose, or null for the site's default. */
@@ -40,13 +86,17 @@ export interface EmailSettings {
   defaultSenderName: string;
 }
 
-function defaultSenderName(): string {
+/** The site's default sender: built from the site names once the teacher customized them, else the env value. */
+function defaultSenderName(row?: { siteBrandName: string | null; siteTeacherName: string | null } | null): string {
+  if (row && (row.siteBrandName || row.siteTeacherName)) {
+    return `${row.siteBrandName ?? DEFAULT_SITE_NAMES.brandName} - ${row.siteTeacherName ?? DEFAULT_SITE_NAMES.teacherName}`;
+  }
   return process.env.BREVO_SENDER_NAME || process.env.BREVO_SENDER_EMAIL || '';
 }
 
 export async function getEmailSettings(): Promise<EmailSettings> {
   const row = await prisma.appSettings.findUnique({ where: { id: SETTINGS_ID } });
-  return { senderName: row?.emailSenderName ?? null, defaultSenderName: defaultSenderName() };
+  return { senderName: row?.emailSenderName ?? null, defaultSenderName: defaultSenderName(row) };
 }
 
 /** An empty name goes back to the site's default. */
@@ -65,13 +115,15 @@ export async function updateEmailSettings(input: { senderName?: unknown }): Prom
     create: { id: SETTINGS_ID, emailSenderName },
     update: { emailSenderName },
   });
-  return { senderName: emailSenderName, defaultSenderName: defaultSenderName() };
+  const row = await prisma.appSettings.findUnique({ where: { id: SETTINGS_ID } });
+  return { senderName: emailSenderName, defaultSenderName: defaultSenderName(row) };
 }
 
 /** The name emails are sent from. A failed read uses the default, so mail still goes out. */
 export async function emailSenderName(): Promise<string> {
   try {
-    return (await getEmailSettings()).senderName ?? defaultSenderName();
+    const settings = await getEmailSettings();
+    return settings.senderName ?? settings.defaultSenderName;
   } catch (err) {
     console.warn('[settings] could not read the email sender name - using the default:', (err as Error)?.message ?? err);
     return defaultSenderName();

@@ -3,6 +3,7 @@ import { preloadPage } from '@/lib/pages';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DevSignature } from '@/components/decor';
+import { useSiteNames } from '@/lib/siteNames';
 
 export interface NavItem {
   to: string;
@@ -24,6 +25,7 @@ export const BOTTOM_BARS_SPACE = 'pb-14 md:pb-12';
  * of a short page never carries them up with it.
  */
 export function BottomBars({ nav }: { nav: NavItem[] }) {
+  const { brandName, teacherName } = useSiteNames();
   return (
     <>
       <nav className="fixed inset-x-0 bottom-0 z-30 flex min-h-14 items-center justify-around border-t border-rule bg-sheet/90 px-2 backdrop-blur-sm md:hidden">
@@ -41,7 +43,7 @@ export function BottomBars({ nav }: { nav: NavItem[] }) {
 
       <footer className="fixed inset-x-0 bottom-0 z-30 hidden h-12 border-t border-rule bg-sheet/90 backdrop-blur-sm md:block">
         <div className="flex h-full items-center justify-between gap-4 px-6 text-[11px] text-ink-soft">
-          <span>Teacher Feature · המורה עדי שלום</span>
+          <span>{brandName} · {teacherName}</span>
           <DevSignature />
         </div>
       </footer>

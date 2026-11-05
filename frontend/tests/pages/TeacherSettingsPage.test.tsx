@@ -12,6 +12,11 @@ import { messagesApi } from '@/api/messages.api';
 const getSettings = messagesApi.getEmailSettings as unknown as ReturnType<typeof vi.fn>;
 const updateSettings = messagesApi.updateEmailSettings as unknown as ReturnType<typeof vi.fn>;
 
+vi.mock('@/api/site.api', () => ({ siteApi: { get: vi.fn(), update: vi.fn() } }));
+import { siteApi } from '@/api/site.api';
+import { getSiteNames, setSiteNames, DEFAULT_SITE_NAMES } from '@/lib/siteNames';
+const updateSite = siteApi.update as unknown as ReturnType<typeof vi.fn>;
+
 vi.mock('@/api/grades.api', () => ({
   gradesApi: { latePolicy: vi.fn(), updateLatePolicy: vi.fn() },
 }));
@@ -37,10 +42,11 @@ beforeEach(() => {
   getSettings.mockResolvedValue(reply(null));
   getLatePolicy.mockResolvedValue(latePolicyReply(2, 20));
   getQuietHours.mockResolvedValue(quietReply(0, 600));
+  setSiteNames(DEFAULT_SITE_NAMES);
 });
 
-// Settings show a summary until "עריכה" is pressed; the cards, top to bottom: sender name, late penalty, quiet hours.
-const CARD = { sender: 0, late: 1, quiet: 2 } as const;
+// Settings show a summary until "עריכה" is pressed; the cards, top to bottom: site name, sender name, late penalty, quiet hours.
+const CARD = { site: 0, sender: 1, late: 2, quiet: 3 } as const;
 async function startEditing(card: number) {
   const buttons = await screen.findAllByRole('button', { name: /עריכה/ });
   await userEvent.click(buttons[card]);
@@ -56,7 +62,8 @@ describe('Teacher settings - the email sender name', () => {
   it("shows the site's default while she has chosen none", async () => {
     getSettings.mockResolvedValue(reply(null));
     renderPage();
-    expect(await screen.findByText('Teacher Feature')).toBeInTheDocument();
+    // Both the site-name card and the sender card show it.
+    await waitFor(() => expect(screen.getAllByText('Teacher Feature')).toHaveLength(2));
     expect(screen.queryByLabelText('שם השולח')).not.toBeInTheDocument();
     await startEditing(CARD.sender);
     expect(saveButton()).toBeDisabled();
@@ -238,5 +245,29 @@ describe('Teacher settings - changing her password', () => {
     await fill('old-pass', '123', '123');
     expect(await screen.findByText(/לפחות 6 תווים/)).toBeInTheDocument();
     expect(changePassword).not.toHaveBeenCalled();
+  });
+});
+
+describe('Teacher settings - the site names', () => {
+  it('saves both names and shows them everywhere at once', async () => {
+    updateSite.mockResolvedValue({ data: { success: true, data: { brandName: 'My Site', teacherName: 'המורה עדי כהן' } } });
+    renderPage();
+    await startEditing(CARD.site);
+    const brand = screen.getByLabelText('שם האתר');
+    await userEvent.clear(brand);
+    await userEvent.type(brand, 'My Site');
+    const teacher = screen.getByLabelText('שורת המורה');
+    await userEvent.clear(teacher);
+    await userEvent.type(teacher, 'המורה עדי כהן');
+    await userEvent.click(saveButton());
+    await waitFor(() => expect(updateSite).toHaveBeenCalledWith({ brandName: 'My Site', teacherName: 'המורה עדי כהן' }));
+    await waitFor(() => expect(getSiteNames()).toEqual({ brandName: 'My Site', teacherName: 'המורה עדי כהן' }));
+    expect(await screen.findByText('My Site', { selector: 'span' })).toBeInTheDocument();
+  });
+
+  it('keeps save disabled until a name changes', async () => {
+    renderPage();
+    await startEditing(CARD.site);
+    expect(saveButton()).toBeDisabled();
   });
 });

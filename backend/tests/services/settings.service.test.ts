@@ -8,6 +8,7 @@ import { prisma } from '../../src/config/prisma';
 import {
   getAiSettings, updateAiSettings, getEmailSettings, updateEmailSettings, emailSenderName, MAX_SENDER_NAME,
   getLatePolicy, updateLatePolicy, getQuietHours, updateQuietHours,
+  getSiteNames, updateSiteNames, MAX_SITE_NAME, DEFAULT_SITE_NAMES,
 } from '../../src/services/settings.service';
 
 const p = prisma as any;
@@ -145,5 +146,43 @@ describe('the quiet hours', () => {
       await expect(updateQuietHours(bad)).rejects.toMatchObject({ status: 400 });
     }
     expect(p.appSettings.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe('the site names', () => {
+  beforeEach(() => { process.env.BREVO_SENDER_NAME = 'Teacher Feature'; });
+
+  it('are the defaults until the teacher chooses, per name', async () => {
+    p.appSettings.findUnique.mockResolvedValue(null);
+    expect(await getSiteNames()).toEqual(DEFAULT_SITE_NAMES);
+    p.appSettings.findUnique.mockResolvedValue({ siteBrandName: null, siteTeacherName: 'המורה עדי כהן' });
+    expect(await getSiteNames()).toEqual({ brandName: 'Teacher Feature', teacherName: 'המורה עדי כהן' });
+  });
+
+  it('fall back to the defaults when the database cannot be read', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    p.appSettings.findUnique.mockRejectedValue(new Error('db down'));
+    expect(await getSiteNames()).toEqual(DEFAULT_SITE_NAMES);
+    warn.mockRestore();
+  });
+
+  it('are saved on one line, and an empty one goes back to its default', async () => {
+    p.appSettings.upsert.mockResolvedValue({});
+    const saved = await updateSiteNames({ brandName: '  My\n Site ', teacherName: '   ' });
+    expect(saved).toEqual({ brandName: 'My Site', teacherName: DEFAULT_SITE_NAMES.teacherName });
+    expect(p.appSettings.upsert.mock.calls[0][0].update).toEqual({ siteBrandName: 'My Site', siteTeacherName: null });
+  });
+
+  it('refuse a name that is too long or not text', async () => {
+    await expect(updateSiteNames({ brandName: 'א'.repeat(MAX_SITE_NAME + 1) })).rejects.toMatchObject({ status: 400 });
+    await expect(updateSiteNames({ teacherName: 5 })).rejects.toMatchObject({ status: 400 });
+    expect(p.appSettings.upsert).not.toHaveBeenCalled();
+  });
+
+  it('make the default email sender once customized, but never override her own sender name', async () => {
+    p.appSettings.findUnique.mockResolvedValue({ emailSenderName: null, siteBrandName: 'My Site', siteTeacherName: null });
+    expect(await emailSenderName()).toBe('My Site - המורה עדי שלום');
+    p.appSettings.findUnique.mockResolvedValue({ emailSenderName: 'שם משלה', siteBrandName: 'My Site', siteTeacherName: null });
+    expect(await emailSenderName()).toBe('שם משלה');
   });
 });

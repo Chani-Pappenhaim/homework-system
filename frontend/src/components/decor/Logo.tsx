@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { useSiteNames } from '@/lib/siteNames';
 
 interface LogoProps {
   /** Height in px (width scales to match the 40×48 mark). Default 28. */
@@ -14,6 +15,7 @@ interface LogoProps {
  */
 export function Logo({ size = 28, withCheck = false, className }: LogoProps) {
   const w = (size * 40) / 48;
+  const { brandName } = useSiteNames();
   return (
     <svg
       width={w}
@@ -23,7 +25,7 @@ export function Logo({ size = 28, withCheck = false, className }: LogoProps) {
       xmlns="http://www.w3.org/2000/svg"
       className={cn('shrink-0', className)}
       role="img"
-      aria-label="Teacher Feature"
+      aria-label={brandName}
     >
       <rect x="1" y="1" width="38" height="46" rx="3" fill="rgb(var(--sheet))" stroke="rgb(var(--ink))" strokeWidth="1.5" />
       {/* folded top-left corner */}

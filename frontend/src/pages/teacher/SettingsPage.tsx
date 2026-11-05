@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { useSyncedForm } from '@/hooks/useSyncedForm';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { Camera, Clock, KeyRound, LogOut, Mail, Moon, Pencil, Save } from 'lucide-react';
+import { Camera, Clock, KeyRound, LogOut, Mail, Moon, Pencil, Save, Type } from 'lucide-react';
 import { AvatarEditor } from '@/components/profile/AvatarEditor';
 import { messagesApi } from '@/api/messages.api';
+import { siteApi } from '@/api/site.api';
+import { MAX_SITE_NAME, setSiteNames, useSiteNames } from '@/lib/siteNames';
 import { gradesApi } from '@/api/grades.api';
 import { authApi } from '@/api/auth.api';
 import useAuthStore from '@/store/authStore';
@@ -27,6 +29,7 @@ export default function SettingsPage() {
     <div className="space-y-5" dir="rtl">
       <PageHeader title="הגדרות" meta="לוח בקרה · הגדרות" />
       <ProfilePictureCard />
+      <SiteNameCard />
       <EmailSenderCard />
       <LatePenaltyCard />
       <QuietHoursCard />
@@ -78,6 +81,57 @@ function ProfilePictureCard() {
         <AvatarEditor />
       </CardContent>
     </Card>
+  );
+}
+
+/** The names shown across the site: the brand and the teacher's line (e.g. after a surname change). */
+function SiteNameCard() {
+  const toast = useToast();
+  const saved = useSiteNames();
+  const [brandName, setBrandName] = useState(saved.brandName);
+  const [teacherName, setTeacherName] = useState(saved.teacherName);
+  const [editing, setEditing] = useState(false);
+
+  const save = useMutation({
+    mutationFn: () => siteApi.update({ brandName, teacherName }),
+    onSuccess: (res) => {
+      setSiteNames(res.data.data);
+      toast.success('שם האתר נשמר');
+      setEditing(false);
+    },
+    onError: (e) => toast.error(getApiErrorMessage(e, 'השמירה נכשלה')),
+  });
+
+  function startEditing() {
+    setBrandName(saved.brandName);
+    setTeacherName(saved.teacherName);
+    setEditing(true);
+  }
+
+  return (
+    <SettingCard
+      icon={<Type size={15} />}
+      title="שם האתר"
+      summary={<><span className="font-semibold">{saved.brandName}</span> · {saved.teacherName}</>}
+      editing={editing}
+      onEdit={startEditing}
+    >
+      <p className="text-sm text-ink-soft">
+        השמות מופיעים בכותרת, בדף הכניסה, בכותרת הלשונית ובתחתית האתר. שדה ריק חוזר לברירת המחדל. שם השולח במיילים מתעדכן אוטומטית, אלא אם הגדרת לו שם משלו.
+      </p>
+      <Input label="שם האתר" value={brandName} maxLength={MAX_SITE_NAME} onChange={(e) => setBrandName(e.target.value)} />
+      <Input label="שורת המורה" value={teacherName} maxLength={MAX_SITE_NAME} onChange={(e) => setTeacherName(e.target.value)} />
+      <div className="flex gap-2">
+        <Button
+          onClick={() => save.mutate()}
+          loading={save.isPending}
+          disabled={brandName.trim() === saved.brandName && teacherName.trim() === saved.teacherName}
+        >
+          <Save size={14} /> שמירה
+        </Button>
+        <Button variant="outline" onClick={() => setEditing(false)}>ביטול</Button>
+      </div>
+    </SettingCard>
   );
 }
 

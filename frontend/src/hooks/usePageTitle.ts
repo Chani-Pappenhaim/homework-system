@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
-
-const APP_NAME = 'המורה עדי שלום';
+import { useSiteNames } from '@/lib/siteNames';
 
 /**
  * Sets the browser tab's title for the current page ("שיעור 3 · React · המורה
@@ -8,10 +7,11 @@ const APP_NAME = 'המורה עדי שלום';
  * has loaded and the title fills in when it arrives.
  */
 export function usePageTitle(...parts: (string | null | undefined | false)[]) {
+  const APP_NAME = useSiteNames().teacherName;
   const title = [...parts.filter(Boolean), APP_NAME].join(' · ');
   useEffect(() => {
     document.title = title;
     // Pages without a title of their own (the home pages) show just the app's name.
     return () => { document.title = APP_NAME; };
-  }, [title]);
+  }, [title, APP_NAME]);
 }

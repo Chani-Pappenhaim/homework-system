@@ -7,9 +7,11 @@ import { useBootstrapAuth } from './hooks/useAuth';
 import { ToastProvider, useToast } from './components/ui/toast';
 import { createQueryClient } from './lib/queryClient';
 import { ServerWakingBanner } from './components/ui/server-waking-banner';
+import { loadSiteNames } from './lib/siteNames';
 import { startSessionSync, takeSessionNotice } from './lib/sessionSync';
 
 startSessionSync();
+void loadSiteNames();
 
 function Root() {
   useBootstrapAuth();
