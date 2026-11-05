@@ -1,3 +1,4 @@
+import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -222,7 +223,7 @@ export default function TeacherHomePage() {
         {latestFeedback && (
           <section className="sheet relative max-h-96 overflow-y-auto p-5">
             <div className="label mb-1 flex items-center gap-1.5"><Sparkles size={13} className="text-clay" /> משוב אחרון · {latestFeedback.assignmentTitle}</div>
-            <p className="text-sm leading-relaxed text-ink">"{latestFeedback.feedback}"</p>
+            <MarkdownRenderer content={latestFeedback.feedback ?? ""} keepLineBreaks className="text-sm leading-relaxed text-ink" />
             <div className="mt-2 text-xs text-ink-soft">ממוצע השבוע: <span className="font-semibold text-clay tabular">{avg}</span></div>
           </section>
         )}
