@@ -26,6 +26,8 @@ export function EntryCard({ entry, label, privateNote, onReact, action }: EntryC
         <div className="label mb-0.5 flex flex-wrap items-center gap-1.5">
           {entry.authorName && <Avatar name={entry.authorName} src={entry.authorAvatarUrl} size="sm" />}
           <span>{label} · {formatDateTime(entry.createdAt)}</span>
+          {/* A message held for quiet hours carries its release time; the teacher sees it before the student does. */}
+          {new Date(entry.createdAt).getTime() > Date.now() && <Badge variant="muted">מתוזמנת</Badge>}
           {entry.isPrivate && privateNote && (
             <Badge variant="muted"><Lock size={9} className="ml-1" /> {privateNote}</Badge>
           )}

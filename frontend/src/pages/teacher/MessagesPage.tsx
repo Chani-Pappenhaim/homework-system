@@ -246,7 +246,10 @@ export default function TeacherMessagesPage() {
                   <ThreadTitleLine msg={msg} />
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1 ml-4">
-                  <span className="text-[11px] text-ink-soft">{formatDateTime(msg.lastEntry?.createdAt ?? msg.createdAt)}</span>
+                  <span className="text-[11px] text-ink-soft">
+                    {new Date(msg.lastEntry?.createdAt ?? msg.createdAt).getTime() > Date.now() && 'מתוזמנת · '}
+                    {formatDateTime(msg.lastEntry?.createdAt ?? msg.createdAt)}
+                  </span>
                   <ChevronLeft size={16} className="text-ink-soft" />
                 </div>
               </button>
