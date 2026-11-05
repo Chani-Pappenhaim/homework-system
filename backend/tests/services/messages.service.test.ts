@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('../../src/config/prisma', () => ({
   prisma: {
@@ -19,7 +19,10 @@ vi.mock('../../src/services/student-notifications.service', async () => {
   return { enqueueStudentEmail: (name: string, data: unknown) => (enqueueEmail as any)(name, data) };
 });
 
+vi.mock('../../src/services/settings.service', () => ({ getQuietHours: vi.fn() }));
+
 import { prisma } from '../../src/config/prisma';
+import { getQuietHours } from '../../src/services/settings.service';
 import { enqueueEmail } from '../../src/infrastructure/queues/enqueue-email';
 import {
   sendMessage, sendTeacherMessage, sendGroupMessage, replyMessage, studentReplyMessage, startThread,
@@ -29,6 +32,7 @@ import {
 } from '../../src/services/messages.service';
 
 const p = prisma as any;
+const quietHours = getQuietHours as any;
 const email = enqueueEmail as any;
 const tooLong = 'א'.repeat(MAX_MESSAGE_LENGTH + 1);
 const at = (d: number, h = 10) => new Date(Date.UTC(2026, 9, d, h));
@@ -46,6 +50,7 @@ const threadOf = (audience: string, ids: string[], extra: object = {}) => ({
 
 beforeEach(() => {
   vi.resetAllMocks();
+  quietHours.mockResolvedValue({ startMinute: 0, releaseMinute: 0 }); // quiet hours off
   p.messageThread.create.mockImplementation(async ({ data }: any) =>
     threadOf(data.audience, data.participants.create.map((x: any) => x.studentId)));
   p.entryReaction.findMany.mockResolvedValue([]);
@@ -224,7 +229,8 @@ describe('inbox lists', () => {
     ]);
     p.messageEntry.groupBy.mockResolvedValue([]);
     expect((await getAllMessages('t1')).map((m: any) => m.id)).toEqual(['old-replied', 'new-quiet', 'empty']);
-    expect((await getMyMessages('s1')).map((m: any) => m.id)).toEqual(['old-replied', 'new-quiet', 'empty']);
+    // A thread whose entries are all still held for quiet hours is not in her inbox yet.
+    expect((await getMyMessages('s1')).map((m: any) => m.id)).toEqual(['old-replied', 'new-quiet']);
   });
 
   it('counts replies per thread from the grouped query, not from loaded entries', async () => {
@@ -242,7 +248,7 @@ describe('inbox lists', () => {
     p.messageThread.findMany.mockResolvedValue([summaryThread('a', at(1), at(2))]);
     p.messageEntry.groupBy.mockResolvedValue([]);
     await getMyMessages('s1');
-    const visibleFilter = { OR: [{ privateToStudentId: null }, { privateToStudentId: 's1' }] };
+    const visibleFilter = { AND: [{ OR: [{ privateToStudentId: null }, { privateToStudentId: 's1' }] }, { createdAt: { lte: expect.any(Date) } }] };
     for (const [args] of p.messageEntry.groupBy.mock.calls) expect(args.where.AND).toContainEqual(visibleFilter);
     // The teacher's count has no visibility filter.
     p.messageEntry.groupBy.mockClear();
@@ -292,10 +298,11 @@ describe('getThread', () => {
   it('returns only the entries the database filter lets through, and hides a thread from outsiders', async () => {
     p.messageThread.findUnique.mockResolvedValue(threadOf('GROUP_BCC', ['s2']));
     await expect(getThread(S1, 'th1')).rejects.toMatchObject({ status: 404 });
-    p.messageThread.findUnique.mockResolvedValue(threadOf('GROUP_BCC', ['s1', 's2']));
+    const entry = { id: 'e1', authorId: null, author: null, privateToStudentId: null, content: 'c', readByTeacher: true, createdAt: at(1), reactions: [] };
+    p.messageThread.findUnique.mockResolvedValue(threadOf('GROUP_BCC', ['s1', 's2'], { entries: [entry] }));
     await getThread(S1, 'th1');
     expect(p.messageThread.findUnique.mock.calls[1][0].include.entries.where)
-      .toEqual({ OR: [{ privateToStudentId: null }, { privateToStudentId: 's1' }] });
+      .toEqual({ AND: [{ OR: [{ privateToStudentId: null }, { privateToStudentId: 's1' }] }, { createdAt: { lte: expect.any(Date) } }] });
     await getThread(T, 'th1');
     expect(p.messageThread.findUnique.mock.calls[2][0].include.entries.where).toEqual({});
   });
@@ -336,7 +343,9 @@ describe('unread reactions', () => {
 
   it('shows a thread as unread for a student whose entry got a reaction', async () => {
     p.messageThread.findMany.mockResolvedValue([{
-      id: 'th1', audience: 'DIRECT', createdAt: at(1), entries: [], participants: [{ studentId: 's1', lastReadAt: at(9), hiddenAt: null }],
+      id: 'th1', audience: 'DIRECT', createdAt: at(1),
+      entries: [{ id: 'e1', authorId: null, author: null, privateToStudentId: null, content: 'c', readByTeacher: true, createdAt: at(2) }],
+      participants: [{ studentId: 's1', lastReadAt: at(9), hiddenAt: null }],
       _count: { participants: 1 }, group: null,
     }]);
     p.messageEntry.groupBy.mockResolvedValue([]);
@@ -372,7 +381,7 @@ describe('read state', () => {
     p.messageEntry.findFirst.mockResolvedValue({ createdAt: at(5) });
     await markMineUnread('th1', 's1');
     const where = p.messageEntry.findFirst.mock.calls[0][0].where.AND;
-    expect(where).toContainEqual({ OR: [{ privateToStudentId: null }, { privateToStudentId: 's1' }] });
+    expect(where).toContainEqual({ AND: [{ OR: [{ privateToStudentId: null }, { privateToStudentId: 's1' }] }, { createdAt: { lte: expect.any(Date) } }] });
     expect(where).toContainEqual({ OR: [{ authorId: null }, { authorId: { not: 's1' } }] });
     expect(p.threadParticipant.updateMany).toHaveBeenCalledWith({
       where: { threadId: 'th1', studentId: 's1' }, data: { lastReadAt: new Date(at(5).getTime() - 1) },
@@ -519,5 +528,27 @@ describe('toggleReaction', () => {
       { emoji: '👍', reactor: { id: 's1', name: 'דינה', role: 'STUDENT' } },
     ]);
     expect(await toggleReaction(S1, 'th1', 'e1', '👍')).toEqual([{ emoji: '👍', count: 1, mine: true, names: ['אני'] }]);
+  });
+});
+
+describe('messages written during quiet hours', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('are stamped with the release time, so the inbox and the email agree', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-04T01:00:00Z')); // 03:00 in Israel
+    quietHours.mockResolvedValue({ startMinute: 0, releaseMinute: 10 * 60 });
+    await sendTeacherMessage('t1', 's1', 'hi');
+    const { data } = p.messageThread.create.mock.calls[0][0];
+    expect(data.createdAt).toEqual(new Date('2026-11-04T08:00:00Z')); // 10:00 Israel (UTC+2)
+    expect(data.entries.create.createdAt).toEqual(data.createdAt);
+  });
+
+  it('keep the real time for a student, whom quiet hours do not hold back', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-04T01:00:00Z'));
+    quietHours.mockResolvedValue({ startMinute: 0, releaseMinute: 10 * 60 });
+    await sendMessage('s1', 'hi');
+    expect(p.messageThread.create.mock.calls[0][0].data.createdAt).toEqual(new Date('2026-11-04T01:00:00Z'));
   });
 });

@@ -40,7 +40,9 @@ describe('thread and entry visibility', () => {
 
   it('expresses the same rule as database filters', () => {
     expect(visibleEntriesWhere(teacher)).toEqual({});
-    expect(visibleEntriesWhere(dina)).toEqual({ OR: [{ privateToStudentId: null }, { privateToStudentId: 's1' }] });
+    expect(visibleEntriesWhere(dina)).toEqual({
+      AND: [{ OR: [{ privateToStudentId: null }, { privateToStudentId: 's1' }] }, { createdAt: { lte: expect.any(Date) } }],
+    });
     expect(othersEntriesWhere(teacher)).toEqual({ authorId: { not: null } });
     expect(othersEntriesWhere(dina)).toEqual({ OR: [{ authorId: null }, { authorId: { not: 's1' } }] });
   });

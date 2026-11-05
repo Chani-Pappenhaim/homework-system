@@ -50,7 +50,13 @@ export function canSeeEntry(viewer: Viewer, entry: { privateToStudentId: string 
 /** The same rule as `canSeeEntry`, as a database filter. */
 export function visibleEntriesWhere(viewer: Viewer): Prisma.MessageEntryWhereInput {
   if (isTeacher(viewer)) return {};
-  return { OR: [{ privateToStudentId: null }, { privateToStudentId: viewer.userId }] };
+  // A teacher's message held for quiet hours carries its future release time and stays hidden until then.
+  return {
+    AND: [
+      { OR: [{ privateToStudentId: null }, { privateToStudentId: viewer.userId }] },
+      { createdAt: { lte: new Date() } },
+    ],
+  };
 }
 
 /** Entries someone else wrote, as a database filter: what can be unread for the viewer. */

@@ -4,6 +4,8 @@ import { AppError } from '../utils/errors';
 import { groupNameSelect } from '../utils/group-name';
 import { isAllowedReaction } from '../utils/message-reactions';
 import { notifyNewEntry } from './message-notifications';
+import { getQuietHours } from './settings.service';
+import { releaseTime } from '../utils/quiet-hours';
 import { aggregateReactions, toThreadDetail, toThreadSummary, type EntryRow } from './message-view';
 import {
   assertCanStartThread,
@@ -48,6 +50,16 @@ const reactionsInclude = { include: { reactor: { select: { id: true, name: true,
 const teacherViewer = (userId: string): Viewer => ({ role: 'TEACHER', userId });
 const studentViewer = (userId: string): Viewer => ({ role: 'STUDENT', userId });
 
+/**
+ * When an entry counts as sent: now, except that the teacher's messages written
+ * during quiet hours are stamped with the moment the email goes out, so the
+ * inbox, the thread and the email all show one time.
+ */
+async function sentAt(authorId: string | null): Promise<Date> {
+  const now = new Date();
+  return authorId === null ? releaseTime(now, await getQuietHours()) : now;
+}
+
 function notFound(): AppError {
   return new AppError('Message not found', 'ההודעה לא נמצאה', 404);
 }
@@ -76,14 +88,16 @@ export async function startThread(viewer: Viewer, input: NewThread) {
   }
 
   const authorId = viewer.role === 'STUDENT' ? viewer.userId : null;
+  const createdAt = await sentAt(authorId);
   const thread = await prisma.messageThread.create({
     data: {
+      createdAt,
       audience: input.audience,
       subject,
       groupId: input.groupId ?? null,
       assignmentId: typeof input.assignmentId === 'string' && input.assignmentId ? input.assignmentId : null,
       participants: { create: input.participantIds.map((studentId) => ({ studentId })) },
-      entries: { create: { authorId, content, readByTeacher: authorId === null } },
+      entries: { create: { authorId, content, createdAt, readByTeacher: authorId === null } },
     },
     include: { participants: { include: { student: { select: personSelect } } } },
   });
@@ -212,6 +226,7 @@ export async function getMyMessages(studentId: string) {
     include: { ...summaryInclude(viewer), participants: { where: { studentId } } },
   });
   const shown = threads.filter((t) => {
+    if (t.entries.length === 0) return false; // everything in it is still held for quiet hours
     const hiddenAt = t.participants[0]?.hiddenAt;
     const newest = t.entries[0]?.createdAt;
     return !hiddenAt || (newest !== undefined && newest > hiddenAt);
@@ -251,6 +266,7 @@ export async function getThread(viewer: Viewer, threadId: string) {
   if (!thread || !canAccessThread(viewer, { participantIds: thread.participants.map((p) => p.studentId) })) {
     throw notFound();
   }
+  if (viewer.role === 'STUDENT' && thread.entries.length === 0) throw notFound();
   return toThreadDetail(viewer, thread, thread.participants, thread.entries as EntryRow[]);
 }
 
@@ -281,7 +297,7 @@ async function addEntry(viewer: Viewer, threadId: string, content: unknown, scop
   const privateToStudentId = resolveEntryPrivacy(viewer, { audience: thread.audience, participantIds }, scope);
   const authorId = viewer.role === 'STUDENT' ? viewer.userId : null;
   await prisma.messageEntry.create({
-    data: { threadId, authorId, privateToStudentId, content: text, readByTeacher: authorId === null },
+    data: { threadId, authorId, privateToStudentId, content: text, createdAt: await sentAt(authorId), readByTeacher: authorId === null },
   });
 
   await notifyNewEntry({
