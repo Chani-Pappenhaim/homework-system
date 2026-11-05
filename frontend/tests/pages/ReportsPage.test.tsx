@@ -205,3 +205,27 @@ describe('ReportsPage dates', () => {
     expect(await screen.findByText('תאריך הסיום אינו תקין')).toBeInTheDocument();
   });
 });
+
+describe('ReportsPage - grading status markers', () => {
+  const base = rows[0];
+  const withRow = (extra: object) => report.mockResolvedValue({ data: { data: { report: [{ ...base, studentName: 'מרים', ...extra }] } } });
+
+  it('flags a content score the student cannot see yet', async () => {
+    withRow({ contentApproved: false });
+    renderWithProviders(<ReportsPage />);
+    expect(await screen.findByText('ממתין לאישור')).toBeInTheDocument();
+  });
+
+  it('flags a submission still awaiting the teacher', async () => {
+    withRow({ contentScore: null, awaitingReview: true });
+    renderWithProviders(<ReportsPage />);
+    expect(await screen.findByText('ממתינה לבדיקה')).toBeInTheDocument();
+    expect(screen.queryByText('משוב בלבד')).not.toBeInTheDocument();
+  });
+
+  it('marks feedback given without a score', async () => {
+    withRow({ contentScore: null, awaitingReview: false, feedback: 'כל הכבוד' });
+    renderWithProviders(<ReportsPage />);
+    expect(await screen.findByText('משוב בלבד')).toBeInTheDocument();
+  });
+});

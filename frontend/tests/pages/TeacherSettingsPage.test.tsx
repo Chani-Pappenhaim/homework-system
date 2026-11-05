@@ -20,10 +20,11 @@ const getLatePolicy = gradesApi.latePolicy as unknown as ReturnType<typeof vi.fn
 const updateLatePolicy = gradesApi.updateLatePolicy as unknown as ReturnType<typeof vi.fn>;
 const latePolicyReply = (perDay: number, max: number) => ({ data: { success: true, data: { perDay, max } } });
 
-vi.mock('@/api/auth.api', () => ({ authApi: { logoutOthers: vi.fn() } }));
+vi.mock('@/api/auth.api', () => ({ authApi: { logoutOthers: vi.fn(), changePassword: vi.fn() } }));
 import { authApi } from '@/api/auth.api';
 import useAuthStore from '@/store/authStore';
 const logoutOthers = authApi.logoutOthers as unknown as ReturnType<typeof vi.fn>;
+const changePassword = authApi.changePassword as unknown as ReturnType<typeof vi.fn>;
 
 const getQuietHours = messagesApi.getQuietHours as unknown as ReturnType<typeof vi.fn>;
 const updateQuietHours = messagesApi.updateQuietHours as unknown as ReturnType<typeof vi.fn>;
@@ -206,5 +207,36 @@ describe('Teacher settings - quiet hours', () => {
     await waitFor(() => expect(releaseField().value).toBe('10:00'));
     fireEvent.change(startField(), { target: { value: '10:00' } });
     expect(await screen.findByText(/אין שעות שקט/)).toBeInTheDocument();
+  });
+});
+
+describe('Teacher settings - changing her password', () => {
+  const fill = async (cur: string, next: string, confirm: string) => {
+    await userEvent.type(await screen.findByLabelText('סיסמה נוכחית'), cur);
+    await userEvent.type(screen.getByLabelText('סיסמה חדשה'), next);
+    await userEvent.type(screen.getByLabelText('אימות סיסמה חדשה'), confirm);
+    await userEvent.click(screen.getByRole('button', { name: /עדכון סיסמה/ }));
+  };
+
+  it('sends the current and new password and confirms', async () => {
+    changePassword.mockResolvedValue({ data: { data: { accessToken: 'new-token' } } });
+    renderPage();
+    await fill('old-pass', 'new-pass1', 'new-pass1');
+    await waitFor(() => expect(changePassword).toHaveBeenCalledWith('old-pass', 'new-pass1'));
+    expect(await screen.findByText('הסיסמה עודכנה')).toBeInTheDocument();
+  });
+
+  it('rejects a mismatched confirmation without calling the server', async () => {
+    renderPage();
+    await fill('old-pass', 'new-pass1', 'other-pass');
+    expect(await screen.findByText('הסיסמאות אינן תואמות')).toBeInTheDocument();
+    expect(changePassword).not.toHaveBeenCalled();
+  });
+
+  it('rejects a password shorter than six characters', async () => {
+    renderPage();
+    await fill('old-pass', '123', '123');
+    expect(await screen.findByText(/לפחות 6 תווים/)).toBeInTheDocument();
+    expect(changePassword).not.toHaveBeenCalled();
   });
 });

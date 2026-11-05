@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSyncedForm } from '@/hooks/useSyncedForm';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { Camera, Clock, LogOut, Mail, Moon, Pencil, Save } from 'lucide-react';
+import { Camera, Clock, KeyRound, LogOut, Mail, Moon, Pencil, Save } from 'lucide-react';
 import { AvatarEditor } from '@/components/profile/AvatarEditor';
 import { messagesApi } from '@/api/messages.api';
 import { gradesApi } from '@/api/grades.api';
@@ -12,6 +12,7 @@ import { useConfirm } from '@/components/ui/use-confirm';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { PageHeader } from '@/components/ui/page-header';
 import { useToast } from '@/components/ui/toast';
 import { getApiErrorMessage } from '@/lib/errors';
@@ -29,6 +30,7 @@ export default function SettingsPage() {
       <EmailSenderCard />
       <LatePenaltyCard />
       <QuietHoursCard />
+      <PasswordCard />
       <SessionsCard />
     </div>
   );
@@ -314,6 +316,56 @@ function QuietHoursCard() {
           </Button>
         </div>
     </SettingCard>
+  );
+}
+
+const MIN_PASSWORD_LENGTH = 6;
+
+/** The teacher changes her own password; the server revokes other sessions and returns a fresh token for this one. */
+function PasswordCard() {
+  const toast = useToast();
+  const setAccessToken = useAuthStore((st) => st.setAccessToken);
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [error, setError] = useState('');
+
+  const change = useMutation({
+    mutationFn: () => authApi.changePassword(current, next),
+    onSuccess: (res) => {
+      const token: string | undefined = res.data?.data?.accessToken;
+      if (token) setAccessToken(token);
+      setCurrent(''); setNext(''); setConfirm(''); setError('');
+      toast.success('הסיסמה עודכנה');
+    },
+    onError: (e) => setError(getApiErrorMessage(e, 'שינוי הסיסמה נכשל')),
+  });
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (next.length < MIN_PASSWORD_LENGTH) { setError(`הסיסמה החדשה חייבת להכיל לפחות ${MIN_PASSWORD_LENGTH} תווים`); return; }
+    if (next !== confirm) { setError('הסיסמאות אינן תואמות'); return; }
+    setError('');
+    change.mutate();
+  }
+
+  return (
+    <Card accent="indigo">
+      <CardHeader>
+        <h2 className="flex items-center gap-1.5 font-display text-base font-bold"><KeyRound size={15} /> שינוי סיסמה</h2>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={submit} className="max-w-sm space-y-3">
+          <PasswordInput label="סיסמה נוכחית" value={current} onChange={(e) => setCurrent(e.target.value)} required />
+          <PasswordInput label="סיסמה חדשה" value={next} onChange={(e) => setNext(e.target.value)} required />
+          <PasswordInput label="אימות סיסמה חדשה" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
+          {error && <p role="alert" className="text-sm text-coral">{error}</p>}
+          <Button type="submit" variant="clay" loading={change.isPending}>
+            <KeyRound size={14} /> עדכון סיסמה
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 

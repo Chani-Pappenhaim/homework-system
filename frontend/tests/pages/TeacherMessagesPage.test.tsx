@@ -79,6 +79,23 @@ describe('TeacherMessagesPage', () => {
     expect(screen.getByText('שאלה מתלמידה')).toBeInTheDocument();
   });
 
+  it('labels a message held for quiet hours as scheduled, in the list and in the open thread', async () => {
+    const future = new Date(Date.now() + 3 * 3600_000).toISOString();
+    const held = entry({ id: 'e9', content: 'הודעה מתוזמנת', fromTeacher: true, mine: true, createdAt: future });
+    serve([listRow({ id: 'm1', createdAt: future, lastEntry: held })], detail({ id: 'm1', createdAt: future }, [held]));
+    renderWithProviders(<TeacherMessagesPage />);
+    await userEvent.click(await screen.findByText('הודעה מתוזמנת'));
+    expect(await screen.findAllByText(/מתוזמנת/)).not.toHaveLength(0);
+    expect(await screen.findByText('מתוזמנת', { selector: 'span, div' })).toBeInTheDocument();
+  });
+
+  it('does not label a message that was already sent', async () => {
+    serve();
+    renderWithProviders(<TeacherMessagesPage />);
+    await screen.findByText('שאלה מתלמידה');
+    expect(screen.queryByText(/מתוזמנת/)).not.toBeInTheDocument();
+  });
+
   it('shows the empty state when there are no messages', async () => {
     getAll.mockResolvedValue(wrap({ messages: [] }));
     renderWithProviders(<TeacherMessagesPage />);

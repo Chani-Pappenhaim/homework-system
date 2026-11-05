@@ -35,3 +35,16 @@ describe('SubmissionsWorkstation - deleting a submission', () => {
     await waitFor(() => expect(deleteAsTeacher).toHaveBeenCalledWith('sub1'));
   });
 });
+
+describe('SubmissionsWorkstation - awaiting review marker', () => {
+  it('labels only the submissions still awaiting review', async () => {
+    getSubmissions.mockResolvedValue({ data: { success: true, data: { submissions: [
+      { id: 'a', studentName: 'דינה', studentEmail: 'd@x.com', submittedAt: '2026-10-01T10:00:00Z', isLate: false, awaitingReview: true, grade: { contentScore: 70 } },
+      { id: 'b', studentName: 'רות', studentEmail: 'r@x.com', submittedAt: '2026-10-01T11:00:00Z', isLate: false, awaitingReview: false, grade: { submissionScore: 95 } },
+    ] } } });
+    renderWithProviders(<SubmissionsWorkstation assignment={assignment} selectedId="b" onSelect={() => {}} />);
+    expect(await screen.findByText(/ממתינה לבדיקה/)).toBeInTheDocument();
+    expect(screen.getAllByText(/ממתינה לבדיקה/)).toHaveLength(1);
+    expect(screen.getByText(/ציון 95/)).toBeInTheDocument();
+  });
+});

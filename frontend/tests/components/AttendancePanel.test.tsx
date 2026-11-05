@@ -81,6 +81,28 @@ describe('AttendancePanel', () => {
     expect(api.saveRecords).toHaveBeenCalledWith('a1', [{ studentId: 's1', status: null }]);
   });
 
+  it('asks before clearing a mark that has a note, and keeps it if she cancels', async () => {
+    const data = course();
+    data.sessions[0].records = [{ studentId: 's1', status: 'PRESENT', note: 'איחרה' }];
+    renderPanel(data);
+    const group = await screen.findByRole('radiogroup', { name: 'נוכחות - אסתר' });
+    await userEvent.click(within(group).getByRole('radio', { name: /נוכחת/ }));
+    expect(await screen.findByText('להסיר את הסימון?')).toBeInTheDocument();
+    expect(api.saveRecords).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'ביטול' }));
+    expect(api.saveRecords).not.toHaveBeenCalled();
+  });
+
+  it('clears a mark that has a note once she confirms', async () => {
+    const data = course();
+    data.sessions[0].records = [{ studentId: 's1', status: 'PRESENT', note: 'איחרה' }];
+    renderPanel(data);
+    const group = await screen.findByRole('radiogroup', { name: 'נוכחות - אסתר' });
+    await userEvent.click(within(group).getByRole('radio', { name: /נוכחת/ }));
+    await userEvent.click(await screen.findByRole('button', { name: 'הסרה' }));
+    await waitFor(() => expect(api.saveRecords).toHaveBeenCalledWith('a1', [{ studentId: 's1', status: null }]));
+  });
+
   it('marks everyone not yet marked as present in one go', async () => {
     renderPanel();
     await userEvent.click(await screen.findByRole('button', { name: /כל השאר נוכחות/ }));
