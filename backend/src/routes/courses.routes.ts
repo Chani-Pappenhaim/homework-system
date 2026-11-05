@@ -3,6 +3,7 @@ import { verifyAccessTokenMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/role';
 import * as coursesController from '../controllers/courses.controller';
 import * as attendanceController from '../controllers/attendance.controller';
+import * as assignmentsController from '../controllers/assignments.controller';
 import { uploadAttachment as upload, uploadImport } from '../middleware/upload';
 import { requireFile } from '../middleware/requireFile';
 
@@ -31,6 +32,9 @@ router.get('/:id/access', requireRole('ADMIN'), coursesController.getAccess);
 router.post('/:id/access', requireRole('ADMIN'), coursesController.grantAccess);
 router.delete('/:id/access/:studentId', requireRole('ADMIN'), coursesController.revokeAccess);
 
+// Assignments for many lessons at once: a sheet with a row per lesson, filled in and uploaded back.
+router.get('/:id/assignments/import-template', requireRole('ADMIN'), assignmentsController.downloadImportTemplate);
+router.post('/:id/assignments/import', requireRole('ADMIN'), uploadImport.single('file'), requireFile, assignmentsController.importAssignments);
 router.get('/:id/attendance', requireRole('ADMIN'), attendanceController.getCourseAttendance);
 router.get('/:id/attendance/template', requireRole('ADMIN'), attendanceController.downloadTemplate);
 router.get('/:id/attendance/export', requireRole('ADMIN'), attendanceController.exportAttendance);

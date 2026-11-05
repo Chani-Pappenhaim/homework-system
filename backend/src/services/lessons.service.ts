@@ -377,10 +377,6 @@ export async function deleteLesson(id: string) {
   await releaseFileUrls([...lesson.files.map((f) => f.url), ...submitted]);
 }
 
-export async function importMarkdown(lessonId: string, content: string) {
-  return prisma.lesson.update({ where: { id: lessonId }, data: { contentMd: content } });
-}
-
 export async function getLessonAccess(lessonId: string) {
   const records = await prisma.lessonAccess.findMany({
     where: { lessonId },

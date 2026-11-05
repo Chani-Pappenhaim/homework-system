@@ -80,7 +80,6 @@ vi.mock('../../src/services/lessons.service', () => ({
   getLessonAccess: vi.fn(),
   grantLessonAccess: vi.fn(),
   revokeLessonAccess: vi.fn(),
-  importMarkdown: vi.fn(),
   setLessonFileHidden: vi.fn(),
   copyLesson: vi.fn(),
 }));

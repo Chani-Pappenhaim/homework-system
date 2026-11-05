@@ -55,6 +55,13 @@ describe('TeacherCourseDetailPage', () => {
     expect(screen.queryByRole('heading', { name: 'שיעורים (2)' })).not.toBeInTheDocument();
   });
 
+  it('opens the assignments import dialog from the header', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'קורס React' });
+    await userEvent.click(screen.getByRole('button', { name: /ייבוא מטלות/ }));
+    expect(await screen.findByRole('heading', { name: 'ייבוא מטלות מקובץ' })).toBeInTheDocument();
+  });
+
   it('navigates to a lesson when its bubble is clicked', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'קורס React' });

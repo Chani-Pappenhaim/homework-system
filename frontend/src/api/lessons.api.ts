@@ -61,12 +61,6 @@ export const lessonsApi = {
   unmarkFileViewed: (id: string, fileId: string) =>
     api.delete(`/lessons/${id}/files/${fileId}/view`),
 
-  importMd: (id: string, file: File) => {
-    const form = new FormData();
-    form.append('file', file);
-    return api.post(`/lessons/${id}/import-md`, form);
-  },
-
   getAccess: (id: string) =>
     api.get<{ success: true; data: { students: StudentSummary[] } }>(`/lessons/${id}/access`),
 

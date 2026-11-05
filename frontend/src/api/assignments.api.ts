@@ -30,9 +30,15 @@ export const assignmentsApi = {
     return api.post<{ success: true; data: { submission: { id: string } } }>(`/assignments/${id}/submissions/for-student`, form);
   },
 
-  importFromExcel: (file: File) => {
+  /** A sheet with a row per lesson of the course, to fill the assignments into. */
+  downloadImportTemplate: (courseId: string) =>
+    api.get<Blob>(`/courses/${courseId}/assignments/import-template`, { responseType: 'blob' }),
+
+  importForCourse: (courseId: string, file: File) => {
     const form = new FormData();
     form.append('file', file);
-    return api.post('/assignments/import', form);
+    return api.post<{ success: true; data: { imported: number; skipped: number; errors: string[] } }>(
+      `/courses/${courseId}/assignments/import`, form,
+    );
   },
 };

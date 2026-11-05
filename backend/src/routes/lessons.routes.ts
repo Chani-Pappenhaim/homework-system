@@ -29,7 +29,6 @@ router.patch('/:id/files/:fileId/hidden', requireRole('ADMIN'), lessonsControlle
 router.post('/:id/copy', requireRole('ADMIN'), lessonsController.copyLesson);
 router.post('/:id/files/:fileId/view', lessonsController.markFileViewed);
 router.delete('/:id/files/:fileId/view', lessonsController.unmarkFileViewed);
-router.post('/:id/import-md', requireRole('ADMIN'), uploadImport.single('file'), requireFile, lessonsController.importMarkdown);
 router.get('/:id/access', requireRole('ADMIN'), lessonsController.getLessonAccess);
 router.post('/:id/access', requireRole('ADMIN'), lessonsController.grantLessonAccess);
 router.post('/:id/access/bulk', requireRole('ADMIN'), lessonsController.grantLessonAccessBulk);

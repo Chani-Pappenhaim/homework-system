@@ -45,7 +45,6 @@ import {
   grantLessonAccess,
   revokeLessonAccess,
   getLessonAccess,
-  importMarkdown,
   uploadLessonFile,
   deleteLessonFile,
   deleteLesson,
@@ -266,11 +265,6 @@ describe('lessons.service create / update / markdown', () => {
     await updateLesson('l1', { hidden: true, courseId: 'other', order: 4 } as any);
     expect(p.lesson.update.mock.calls[0][0].data).toEqual({ hidden: true });
     await expect(updateLesson('l1', { topic: '  ' })).rejects.toMatchObject({ status: 400 });
-  });
-  it('importMarkdown stores content into contentMd', async () => {
-    p.lesson.update.mockResolvedValue({});
-    await importMarkdown('l1', '# hi');
-    expect(p.lesson.update).toHaveBeenCalledWith({ where: { id: 'l1' }, data: { contentMd: '# hi' } });
   });
 });
 

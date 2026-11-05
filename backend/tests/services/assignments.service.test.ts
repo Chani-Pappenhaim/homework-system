@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../../src/config/prisma', () => ({
   prisma: {
     assignment: { findMany: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(), findUnique: vi.fn() },
+    course: { findUnique: vi.fn() },
+    lesson: { findMany: vi.fn() },
     submission: { findMany: vi.fn(), update: vi.fn() },
     grade: { update: vi.fn() },
     lessonFile: { count: vi.fn() },
@@ -23,6 +25,7 @@ import {
   getAssignments,
   getAssignmentSubmissions,
   importAssignments,
+  buildAssignmentsTemplate,
   deleteAssignment,
 } from '../../src/services/assignments.service';
 
@@ -376,5 +379,59 @@ describe('assignments.service - hidden and optional assignments', () => {
       .rejects.toMatchObject({ status: 400, clientMessage: 'ההגדרה "רשות" אינה תקינה' });
     expect(p.assignment.update).not.toHaveBeenCalled();
     expect(p.assignment.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('assignments.service.importAssignments - for one course', () => {
+  beforeEach(() => {
+    p.lesson.findMany.mockResolvedValue([
+      { id: 'l1', assignments: [{ title: 'Existing' }] },
+      { id: 'l2', assignments: [] },
+    ]);
+    p.assignment.create.mockResolvedValue({});
+  });
+
+  it('skips blank prefilled rows silently and imports the filled ones', async () => {
+    const buf = await xlsxBuffer([['l1', '', '', '', ''], ['l2', 'Task', 'desc', '', '']]);
+    const r = await importAssignments(buf, 'c1');
+    expect(r).toEqual({ imported: 1, skipped: 1, errors: [] });
+    expect(p.lesson.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { courseId: 'c1' } }));
+  });
+
+  it('refuses a lesson of another course', async () => {
+    const r = await importAssignments(await xlsxBuffer([['other', 'Task', 'desc', '', '']]), 'c1');
+    expect(r.imported).toBe(0);
+    expect(r.errors).toEqual(['שורה 2: השיעור אינו שייך לקורס הזה']);
+  });
+
+  it('does not create a title the lesson already has, nor one repeated in the same sheet', async () => {
+    const r = await importAssignments(await xlsxBuffer([
+      ['l1', 'Existing', 'desc', '', ''],
+      ['l2', 'New', 'desc', '', ''],
+      ['l2', 'New', 'desc', '', ''],
+    ]), 'c1');
+    expect(r.imported).toBe(1);
+    expect(r.errors).toEqual(['שורה 2: מטלה בשם הזה כבר קיימת בשיעור', 'שורה 4: מטלה בשם הזה כבר קיימת בשיעור']);
+  });
+});
+
+describe('assignments.service.buildAssignmentsTemplate', () => {
+  it('has a row per lesson with its id filled in, and round-trips through the import', async () => {
+    p.course.findUnique.mockResolvedValue({ name: 'React' });
+    p.lesson.findMany.mockResolvedValue([{ id: 'l1', topic: 'Hooks' }, { id: 'l2', topic: 'Context' }]);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load((await buildAssignmentsTemplate('c1')) as any);
+    const sheet = wb.worksheets[0];
+    expect(sheet.getRow(2).getCell(1).value).toBe('l1');
+    expect(sheet.getRow(3).getCell(6).value).toBe('Context');
+
+    p.lesson.findMany.mockResolvedValue([{ id: 'l1', assignments: [] }, { id: 'l2', assignments: [] }]);
+    const r = await importAssignments((await wb.xlsx.writeBuffer()) as Buffer, 'c1');
+    expect(r).toEqual({ imported: 0, skipped: 2, errors: [] });
+  });
+
+  it('is a 404 for an unknown course', async () => {
+    p.course.findUnique.mockResolvedValue(null);
+    await expect(buildAssignmentsTemplate('x')).rejects.toMatchObject({ status: 404 });
   });
 });

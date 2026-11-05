@@ -171,7 +171,7 @@ describe('lessonsApi', () => {
     lessonsApi.reorder([{ id: 'l1', order: 0 }]);
     expect(patch).toHaveBeenCalledWith('/lessons/reorder', { lessons: [{ id: 'l1', order: 0 }] });
   });
-  it('uploadFile / deleteFile / importMd', async () => {
+  it('uploadFile / deleteFile', async () => {
     mockUploadSignatureAndCloudinary();
     await lessonsApi.uploadFile('l1', new File(['x'], 'a'));
     expect(post).toHaveBeenCalledWith('/lessons/l1/upload-signature', { tagged: true });
@@ -181,8 +181,6 @@ describe('lessonsApi', () => {
     });
     lessonsApi.deleteFile('l1', 'f1');
     expect(del).toHaveBeenCalledWith('/lessons/l1/files/f1');
-    lessonsApi.importMd('l1', new File(['x'], 'a.md'));
-    expect(post).toHaveBeenCalledWith('/lessons/l1/import-md', expect.any(FormData));
   });
   it('access endpoints', () => {
     lessonsApi.getAccess('l1'); expect(get).toHaveBeenCalledWith('/lessons/l1/access');
@@ -201,9 +199,13 @@ describe('assignmentsApi', () => {
     assignmentsApi.delete('a1'); expect(del).toHaveBeenCalledWith('/assignments/a1');
     assignmentsApi.getSubmissions('a1'); expect(get).toHaveBeenCalledWith('/assignments/a1/submissions');
   });
-  it('importFromExcel posts FormData', () => {
-    assignmentsApi.importFromExcel(new File(['x'], 'a.xlsx'));
-    expect(post).toHaveBeenCalledWith('/assignments/import', expect.any(FormData));
+  it('importForCourse posts FormData to the course', () => {
+    assignmentsApi.importForCourse('c1', new File(['x'], 'a.xlsx'));
+    expect(post).toHaveBeenCalledWith('/courses/c1/assignments/import', expect.any(FormData));
+  });
+  it('downloadImportTemplate gets a blob', () => {
+    assignmentsApi.downloadImportTemplate('c1');
+    expect(get).toHaveBeenCalledWith('/courses/c1/assignments/import-template', { responseType: 'blob' });
   });
 });
 

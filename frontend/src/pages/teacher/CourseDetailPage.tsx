@@ -2,7 +2,8 @@ import { toExternalUrl, todayISO, cn } from '@/lib/utils';
 import { lessonPath, type CoursePageProps } from '@/components/lesson/LessonRoute';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Edit, ExternalLink, Plus, Trash2, ClipboardCheck, ArrowUpDown, BookOpen, Users, Paperclip, CalendarCheck } from 'lucide-react';
+import { Edit, ExternalLink, Plus, Trash2, ClipboardCheck, ArrowUpDown, BookOpen, Users, Paperclip, CalendarCheck, FileSpreadsheet } from 'lucide-react';
+import { AssignmentsImportDialog } from '@/components/lesson/AssignmentsImportDialog';
 import { LessonReorderList } from '@/components/lesson/LessonReorderList';
 import { LessonCard } from '@/components/lesson/LessonCard';
 import { CourseAccessPanel } from '@/components/lesson/CourseAccessPanel';
@@ -59,6 +60,7 @@ export default function CourseDetailPage(props: Partial<CoursePageProps>) {
   const [newContent, setNewContent] = useState('');
   const [newGithubUrls, setNewGithubUrls] = useState<string[]>(['']);
   const [newHidden, setNewHidden] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const createLessonMutation = useMutation({
     mutationFn: () => lessonsApi.create(id!, {
@@ -117,6 +119,9 @@ export default function CourseDetailPage(props: Partial<CoursePageProps>) {
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/reports?courseId=${id}`)}>
                 <ClipboardCheck size={13} /> בדיקת הגשות
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+                <FileSpreadsheet size={13} /> ייבוא מטלות
               </Button>
               <Button variant="outline" size="sm" onClick={() => navigate(`/teacher/courses/${courseSlug}/edit`)}>
                 <Edit size={13} /> ערוך קורס
@@ -284,6 +289,8 @@ export default function CourseDetailPage(props: Partial<CoursePageProps>) {
         </DialogContent>
       </Dialog>
       {confirmDialog}
+      <AssignmentsImportDialog courseId={id!} open={importOpen} onOpenChange={setImportOpen} />
+
     </div>
   );
 }

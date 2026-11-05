@@ -40,9 +40,20 @@ export async function deleteAssignment(req: Request, res: Response) {
   }
 }
 
+export async function downloadImportTemplate(req: Request, res: Response) {
+  try {
+    const buffer = await assignmentsService.buildAssignmentsTemplate(req.params.id as string);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=assignments-template.xlsx');
+    res.send(buffer);
+  } catch (err: any) {
+    sendError(res, err);
+  }
+}
+
 export async function importAssignments(req: Request, res: Response) {
   try {
-    const result = await assignmentsService.importAssignments(req.file!.buffer);
+    const result = await assignmentsService.importAssignments(req.file!.buffer, req.params.id as string);
     res.json({ success: true, data: result });
   } catch (err: any) {
     sendError(res, err);

@@ -222,13 +222,60 @@ export async function deleteAssignment(id: string) {
   await releaseFileUrls(submitted);
 }
 
-export async function importAssignments(buffer: Buffer) {
+export const ASSIGNMENTS_IMPORT_HEADERS = ['מזהה שיעור', 'כותרת *', 'תיאור *', 'מועד הגשה', 'סוגי קבצים', 'שיעור (לעיון)'];
+
+/** A sheet with a row per lesson of the course, its id already filled in, for the teacher to fill the assignments into. */
+export async function buildAssignmentsTemplate(courseId: string): Promise<Buffer> {
+  const course = await prisma.course.findUnique({ where: { id: courseId }, select: { name: true } });
+  if (!course) throw new AppError('Course not found', 'הקורס לא נמצא', 404);
+  const lessons = await prisma.lesson.findMany({
+    where: { courseId }, orderBy: [{ order: 'asc' }, { createdAt: 'asc' }], select: { id: true, topic: true },
+  });
+
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('מטלות', { views: [{ rightToLeft: true, state: 'frozen', ySplit: 1 }] });
+  sheet.addRow(ASSIGNMENTS_IMPORT_HEADERS);
+  sheet.getRow(1).font = { bold: true };
+  for (const l of lessons) sheet.addRow([l.id, '', '', '', '', l.topic]);
+  [38, 28, 50, 20, 20, 30].forEach((w, i) => { sheet.getColumn(i + 1).width = w; });
+
+  const help = workbook.addWorksheet('הוראות', { views: [{ rightToLeft: true }] });
+  for (const line of [
+    `מטלות לקורס "${course.name}"`,
+    'כל שורה מוכנה למטלה אחת בשיעור שמופיע בעמודה האחרונה. אין לשנות את עמודת "מזהה שיעור".',
+    'כותרת ותיאור הם חובה. שורה שכל השדות בה ריקים - מדלגים עליה.',
+    'לשיעור עם כמה מטלות: מעתיקים את השורה (כולל מזהה השיעור) וממלאים כותרת אחרת.',
+    'מועד הגשה (אופציונלי): תאריך ושעה, למשל 2026-12-31 20:00. אי אפשר מועד שכבר עבר.',
+    'סוגי קבצים (אופציונלי): סיומות מופרדות בפסיק, למשל pdf,zip. ריק = כל סוג.',
+    'מטלה שכבר קיימת באותו שיעור עם אותה כותרת לא נוצרת שוב.',
+  ]) help.addRow([line]);
+  help.getRow(1).font = { bold: true };
+  help.getColumn(1).width = 100;
+  return workbook.xlsx.writeBuffer() as unknown as Promise<Buffer>;
+}
+
+/**
+ * Creates assignments from a sheet (columns: lesson id, title, description, deadline, file types).
+ * With a course, only that course's lessons are accepted, blank rows are skipped and a title the lesson already has is not created twice.
+ */
+export async function importAssignments(buffer: Buffer, courseId?: string) {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer as any);
   const sheet = workbook.worksheets[0];
 
   let imported = 0;
+  let skipped = 0;
   const errors: string[] = [];
+
+  let lessonIds: Set<string> | null = null;
+  const existing = new Set<string>();
+  if (courseId) {
+    const lessons = await prisma.lesson.findMany({
+      where: { courseId }, select: { id: true, assignments: { select: { title: true } } },
+    });
+    lessonIds = new Set(lessons.map((l) => l.id));
+    for (const l of lessons) for (const a of l.assignments) existing.add(`${l.id}|${a.title.trim()}`);
+  }
 
   for (let i = 2; i <= (sheet.lastRow?.number ?? 1); i++) {
     const row = sheet.getRow(i);
@@ -237,10 +284,14 @@ export async function importAssignments(buffer: Buffer) {
     const description = cellText(row.getCell(3)).trim() || undefined;
     const deadline = cellText(row.getCell(4)).trim() || undefined;
     const allowedTypesRaw = cellText(row.getCell(5)).trim();
-    const allowedTypes = allowedTypesRaw ? allowedTypesRaw.split(',').map((s) => s.trim()) : [];
+    const allowedTypes = allowedTypesRaw ? allowedTypesRaw.split(',').map((s) => s.trim()).filter(Boolean) : [];
 
+    if (courseId && lessonId && !title && !description && !deadline && !allowedTypesRaw) { skipped++; continue; }
     if (!lessonId || !title) { errors.push(`שורה ${i}: חסר מזהה שיעור או כותרת`); continue; }
+    if (lessonIds && !lessonIds.has(lessonId)) { errors.push(`שורה ${i}: השיעור אינו שייך לקורס הזה`); continue; }
     if (!description) { errors.push(`שורה ${i}: חסר תיאור`); continue; }
+    const key = `${lessonId}|${title}`;
+    if (courseId && existing.has(key)) { errors.push(`שורה ${i}: מטלה בשם הזה כבר קיימת בשיעור`); continue; }
     const deadlineDate = deadline ? new Date(deadline) : undefined;
     if (deadlineDate && Number.isNaN(deadlineDate.getTime())) { errors.push(`שורה ${i}: מועד ההגשה אינו תקין`); continue; }
     if (deadlineDate && deadlineDate.getTime() < Date.now() - PAST_DEADLINE_GRACE_MS) {
@@ -249,13 +300,14 @@ export async function importAssignments(buffer: Buffer) {
 
     try {
       await prisma.assignment.create({ data: { lessonId, title, description, deadline: deadlineDate, allowedTypes } });
+      existing.add(key);
       imported++;
     } catch (err) {
       console.error('[assignments import] row failed', i, err);
       errors.push(`שורה ${i}: יצירת המטלה נכשלה (בדקו שמזהה השיעור נכון)`);
     }
   }
-  return { imported, errors };
+  return { imported, skipped, errors };
 }
 
 export async function getAssignmentSubmissions(assignmentId: string, userId: string) {
